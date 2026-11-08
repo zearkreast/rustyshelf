@@ -1,5 +1,6 @@
 // Boxshelf — TV-style launcher for emulators, Steam and media apps.
 const { app, BrowserWindow, ipcMain, dialog, protocol, shell, net, nativeImage, session, safeStorage, screen } = require('electron');
+require('./shared/i18n-main').install(require('electron')); // Boxshelf em português (janelas do sistema)
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const url = require('url');

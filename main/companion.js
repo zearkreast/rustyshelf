@@ -139,7 +139,7 @@ function titleOfRunning() { let r = null; try { r = D.running && D.running(); } 
   return { title: r.title || '', kind: r.kind || '' }; }
 
 /* ---------- the web server ---------- */
-const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/app.css': ['app.css', 'text/css; charset=utf-8'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/manifest.json': ['manifest.json', 'application/manifest+json'] };
+const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/i18n-pt-data.js': ['i18n-pt-data.js', 'text/javascript; charset=utf-8'], '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/app.css': ['app.css', 'text/css; charset=utf-8'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/manifest.json': ['manifest.json', 'application/manifest+json'] };
 const FONTS = { '/font/lexend-400.woff2': 'lexend-latin-400-normal.woff2', '/font/lexend-600.woff2': 'lexend-latin-600-normal.woff2', '/font/lexend-800.woff2': 'lexend-latin-800-normal.woff2' };
 const staticCache = new Map();
 const HEAD = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY', 'Cross-Origin-Resource-Policy': 'same-origin' };

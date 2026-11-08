@@ -1,0 +1,42 @@
+name: Boxshelf em português (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [portugues]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar dependências
+        run: npm ci
+      - name: Montar o Boxshelf.exe portátil
+        run: npx electron-builder --win portable --publish never
+      - name: Empacotar
+        shell: pwsh
+        run: |
+          $ver = (Get-Content package.json | ConvertFrom-Json).version
+          New-Item -ItemType Directory pacote | Out-Null
+          Get-ChildItem dist -Filter *.exe | Select-Object -First 1 | Copy-Item -Destination pacote\Boxshelf.exe
+          Copy-Item LICENSE, THIRD-PARTY-NOTICES.md pacote\
+          Compress-Archive pacote\* "Boxshelf-$ver-pt-BR-windows.zip"
+          "VER=$ver" | Out-File -Append $env:GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boxshelf-pt-BR-windows
+          path: Boxshelf-*-pt-BR-windows.zip
+      - name: Publicar versão
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "v$env:VER-pt-BR.$env:GITHUB_RUN_NUMBER"
+          gh release create $tag (Get-ChildItem Boxshelf-*-pt-BR-windows.zip).FullName --title "Boxshelf $env:VER em português ($env:GITHUB_RUN_NUMBER)" --notes "Boxshelf $env:VER com a interface em português do Brasil. Extraia numa pasta e abra o Boxshelf.exe."
