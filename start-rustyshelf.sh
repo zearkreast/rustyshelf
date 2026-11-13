@@ -1,8 +1,8 @@
 #!/bin/sh
 # RustyShelf from the source on Linux (Arch, CachyOS, Omarchy, Fedora, Ubuntu, SteamOS Desktop Mode …).
-#   ./starrustyshelf.sh              fullscreen
-#   ./starrustyshelf.sh --windowed   in a window
-#   ./starrustyshelf.sh --check      only get everything ready (node_modules and Electron), then stop
+#   ./start-rustyshelf.sh              fullscreen
+#   ./start-rustyshelf.sh --windowed   in a window
+#   ./start-rustyshelf.sh --check      only get everything ready (node_modules and Electron), then stop
 # The first run installs what it needs (about a minute). If npm stops before Electron's download is unpacked (it can when
 # the install is interrupted), this finishes the unpacking from the downloaded archive with `unzip` instead of starting over.
 # The ready-made AppImage from the releases page needs none of this.

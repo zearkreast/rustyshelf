@@ -1,14 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="RustyShelf">
-<rect width="512" height="512" rx="112" fill="#27323e"/>
-<defs><linearGradient id="st" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#aeb8c1"/><stop offset="1" stop-color="#7f8a95"/></linearGradient></defs>
-<rect x="100" y="88" width="50" height="340" rx="22" fill="#b04a21"/>
-<rect x="362" y="88" width="50" height="340" rx="22" fill="#b04a21"/>
-<rect x="100" y="88" width="50" height="110" rx="22" fill="#9aa5b0"/>
-<rect x="362" y="88" width="50" height="70" rx="22" fill="#9aa5b0"/>
-<rect x="150" y="156" width="212" height="40" fill="#9aa5b0"/>
-<rect x="150" y="246" width="212" height="40" fill="#b04a21"/>
-<rect x="150" y="336" width="212" height="40" fill="#b04a21"/>
-<rect x="230" y="156" width="132" height="40" fill="#b04a21"/>
-<rect x="166" y="96" width="34" height="60" fill="#e8e1d3"/>
-<rect x="208" y="104" width="30" height="52" fill="#5d8fb2"/>
+<rect width="512" height="512" rx="112" fill="#173a3c"/>
+<defs><linearGradient id="cu" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#e4874a"/><stop offset="1" stop-color="#8f3c18"/></linearGradient></defs>
+<circle cx="250" cy="182" r="96" fill="url(#cu)"/>
+<circle cx="250" cy="182" r="24" fill="#173a3c"/>
+<g transform="rotate(-27 352 404)"><rect x="306" y="190" width="78" height="214" rx="10" fill="#e9b04a"/></g>
+<rect x="120" y="86" width="96" height="318" rx="12" fill="#f2e8d3"/>
+<rect x="196" y="86" width="20" height="318" fill="#d9cbb0"/>
+<rect x="76" y="404" width="360" height="30" rx="9" fill="#c8622c"/>
+<rect x="76" y="424" width="360" height="10" rx="5" fill="#8f3c18"/>
 </svg>

@@ -106,7 +106,7 @@ function changedPlan(files) {
     if (f === 'scripts/release-version.js') { named.add('release-version-test'); say(f, 'release-version-test'); continue; }
     if (/^scripts\/(fork-survey|credits|release-notes)\.js$/.test(f)) { named.add('fork-survey-test'); say(f, 'fork-survey-test'); continue; }
     if (/^package(-lock)?\.json$/.test(f)) { ['node', 'desktop', 'demo', 'device'].forEach(k => kinds.add(k)); say(f, 'everything (the app\'s packages and version)'); continue; }
-    if (/^(\.github\/|android-app\/ci\/[^/]*\.(yml|sh|bat)$|android-app\/ci\/fixtures\/README|scripts\/(community-report|push-build)\.js$|starrustyshelf\.sh$|\.gitignore$|LICENSE|[^/]*\.(md|txt|bat)$)/.test(f)) { say(f, 'nothing (not the app\'s code)'); continue; }
+    if (/^(\.github\/|android-app\/ci\/[^/]*\.(yml|sh|bat)$|android-app\/ci\/fixtures\/README|scripts\/(community-report|push-build)\.js$|start-rustyshelf\.sh$|\.gitignore$|LICENSE|[^/]*\.(md|txt|bat)$)/.test(f)) { say(f, 'nothing (not the app\'s code)'); continue; }
     ['node', 'desktop', 'demo', 'device'].forEach(k => kinds.add(k)); say(f, 'everything (not known to this script: to be safe)');
   }
   return { kinds, named, why };

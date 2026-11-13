@@ -382,7 +382,7 @@ window.BS_WHATSNEW = [
     ],
     platforms: [
       "Windows: the window mode, HoYoPlay and the administrator start (they use Windows itself).",
-      "Linux: the Epic download manager, the installation status and the start script (starrustyshelf.sh).",
+      "Linux: the Epic download manager, the installation status and the start script (start-rustyshelf.sh).",
       "Windows and Linux: your own music, Storage, Export / Import everything and the Discord status.",
       "Windows, Linux and Android: saved looks, the Installed filter and the language choice."
     ],
@@ -412,7 +412,7 @@ window.BS_WHATSNEW = [
       ] },
       { h: "Your data and the app", items: [
         ["Export everything, Import everything", "Settings → System: copy your whole collection (settings, favourites, history, art databases, themes, songs, and the art and manuals next to your games) to a folder, and bring it back on another PC. Nothing is deleted on import."],
-        ["A start for Linux", "starrustyshelf.sh runs RustyShelf from the source on any Linux with Node.js: it installs what it needs on the first run and repairs Electron if its download failed. --windowed starts in a window; the idea is from wouldja's launcher."],
+        ["A start for Linux", "start-rustyshelf.sh runs RustyShelf from the source on any Linux with Node.js: it installs what it needs on the first run and repairs Electron if its download failed. --windowed starts in a window; the idea is from wouldja's launcher."],
         ["Versions and updates", "The version reads like the releases (1.1.0.0), the wording says Updates instead of beta, and the update check reads this repository's releases."]
       ] }
     ]
