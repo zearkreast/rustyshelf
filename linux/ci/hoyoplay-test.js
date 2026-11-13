@@ -1,4 +1,4 @@
-// (T)rustyShelf's HoYoPlay shelf and the administrator-rights start. Run: node linux/ci/hoyoplay-test.js
+// RustyShelf's HoYoPlay shelf and the administrator-rights start. Run: node linux/ci/hoyoplay-test.js
 //   - HoYoPlay's registry list (reg.exe's text, REG_SZ and REG_BINARY values) gives its installed games with their program
 //     found in the install folder or one folder inside it; games with no program, an unknown code or no folder are left out
 //   - a program whose manifest asks for administrator rights is recognised, and the PowerShell command that starts it with

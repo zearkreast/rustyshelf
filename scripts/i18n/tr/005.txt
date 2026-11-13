@@ -1,4 +1,4 @@
-1800|Controle remoto do (T)rustyShelf no celular
+1800|Controle remoto do RustyShelf no celular
 1804|Abra uma caixa de pesquisa na TV para digitar nela (pesquisa das Configurações, buscador do museu)
 1805|Console
 1806|Cartão de memória
@@ -14,7 +14,7 @@
 1823|Sair para a estante
 1824|Estante Início
 1825|Reiniciar
-1826|Sair do (T)rustyShelf
+1826|Sair do RustyShelf
 1827|${m} min
 1828|Jogando há ${fmtFor(Date.now() - info.startedAt)}
 1829|fecha o jogo · segure ${glyph('ok')}
@@ -51,7 +51,7 @@
 1866|Você também pode arrastar um arquivo para a estante: uma imagem vira o logo da estante, um vídeo vira a animação de abertura.
 1867|Aperte Enter, Esc, Xis ou Círculo para pular
 1868|Qualquer botão pula
-1869|Continue segurando para sair do (T)rustyShelf
+1869|Continue segurando para sair do RustyShelf
 1870|Ativar ou desativar o som
 1871|Ordenar e filtrar
 1872|Controles
@@ -136,7 +136,7 @@
 2013|Pasta encontrada
 2014|Não encontrado
 2015|Aberto no seu navegador
-2016|Abrir links precisa de um (T)rustyShelf mais novo
+2016|Abrir links precisa de um RustyShelf mais novo
 2017|Aperte de novo para confirmar
 2018|Alto
 2019|Equilibrado
@@ -156,11 +156,11 @@
 2034|Abrir o site
 2035|Abre a página de download do ${a.name} no seu navegador.
 2037|Consoles
-2038|Todos os consoles que o (T)rustyShelf consegue rodar. Escolha um para definir o emulador, as pastas de jogos e como ele inicia.
+2038|Todos os consoles que o RustyShelf consegue rodar. Escolha um para definir o emulador, as pastas de jogos e como ele inicia.
 2039|Para todos os consoles
 2040|Procurar emuladores de novo
 2041|Procurando…
-2042|Procura nos lugares de instalação de sempre e na pasta do (T)rustyShelf por emuladores e pastas de jogos que você ainda não configurou, e preenche qualquer console que não tenha nada definido.
+2042|Procura nos lugares de instalação de sempre e na pasta do RustyShelf por emuladores e pastas de jogos que você ainda não configurou, e preenche qualquer console que não tenha nada definido.
 2043|Jogos de PC
 2044|Os seus jogos da Steam instalados, numa estante só deles.
 2045|Mostrar jogos instalados da Steam
@@ -174,7 +174,7 @@
 2054|Mostrar jogos instalados da Epic Games
 2055|Adiciona à estante de PC os jogos que o Epic Games Launcher tem instalados. Eles abrem pelo launcher da Epic, então o login e os saves na nuvem funcionam normalmente.
 2056|Mostrar jogos instalados do GOG
-2057|Adiciona à estante de PC os jogos que o GOG Galaxy tem instalados. Jogos do GOG não têm proteção contra cópia, então o (T)rustyShelf abre eles sozinho, com o menu Home e o atalho de sair como qualquer jogo.
+2057|Adiciona à estante de PC os jogos que o GOG Galaxy tem instalados. Jogos do GOG não têm proteção contra cópia, então o RustyShelf abre eles sozinho, com o menu Home e o atalho de sair como qualquer jogo.
 2058|Mostrar jogos instalados da Ubisoft
 2059|Adiciona à estante de PC os jogos que o Ubisoft Connect tem instalados. Eles abrem pelo Ubisoft Connect, então o login e os saves na nuvem funcionam normalmente.
 2060|Mostrar jogos instalados da EA
@@ -216,26 +216,26 @@
 2096|Animação de abertura
 2097|Logo + ondulação
 2098|Logo + esmaecer
-2099|O logo do (T)rustyShelf aparece enquanto a estante carrega, depois os jogos entram: o que você estava selecionando primeiro, ondulando para os lados, ou a estante inteira surgindo junta. Desligado abre direto na estante.
+2099|O logo do RustyShelf aparece enquanto a estante carrega, depois os jogos entram: o que você estava selecionando primeiro, ondulando para os lados, ou a estante inteira surgindo junta. Desligado abre direto na estante.
 2100|Abrir em
 2101|Última estante
-2102|Para onde o (T)rustyShelf vai quando inicia: a estante de console em que você estava da última vez, Início (continuar jogando e favoritos), ou direto para o museu.
-2103|Museu: depois do logo do (T)rustyShelf, as luzes acendem na visão geral do museu (um pouco mais lento para abrir que a estante). O B continua levando você para a estante a qualquer hora.
+2102|Para onde o RustyShelf vai quando inicia: a estante de console em que você estava da última vez, Início (continuar jogando e favoritos), ou direto para o museu.
+2103|Museu: depois do logo do RustyShelf, as luzes acendem na visão geral do museu (um pouco mais lento para abrir que a estante). O B continua levando você para a estante a qualquer hora.
 2104|Tela e movimento
 2105|Qual tela, tela cheia, ajuste da imagem à sua TV e redução de movimento.
 2106|Configure uma vez para a sua TV.
 2107|Iniciar em tela cheia
-2108|Abre o (T)rustyShelf em tela cheia. Aperte F11 a qualquer hora para alternar.
+2108|Abre o RustyShelf em tela cheia. Aperte F11 a qualquer hora para alternar.
 2109|Ocultar a barra de tarefas durante os jogos
-2110|Só o (T)rustyShelf e o seu jogo na tela: a barra de tarefas do Windows some enquanto um jogo abre, roda e fecha, e volta na estante.
+2110|Só o RustyShelf e o seu jogo na tela: a barra de tarefas do Windows some enquanto um jogo abre, roda e fecha, e volta na estante.
 2111|Tela
-2112|Em qual tela o (T)rustyShelf abre, para um PC com monitor e TV. Os jogos abrem na mesma tela.
+2112|Em qual tela o RustyShelf abre, para um PC com monitor e TV. Os jogos abrem na mesma tela.
 2113|Ajustar à TV
 2114|Diminui tudo um pouco se a sua TV corta as bordas da imagem (overscan). Olhe os cantos da tela enquanto muda.
 2115|Reduzir movimento
 2116|Suaviza a ondulação da abertura, a entrada no museu e os fundos animados dos temas.
 2117|Desempenho
-2118|Uma configuração para o quanto o (T)rustyShelf exige da sua placa de vídeo.
+2118|Uma configuração para o quanto o RustyShelf exige da sua placa de vídeo.
 2119|Automático
 2120|, e deixa o museu renderizar um pouco mais suave sempre que os quadros ficam lentos.
 2121|${perfWhy}, e deixa o museu renderizar um pouco mais suave sempre que os quadros ficam lentos.
@@ -244,17 +244,17 @@
 2124|Sons da interface, música do menu, músicas e o som ambiente do museu.
 2125|Sons da interface
 2126|Cliques, sopros e sininhos enquanto você navega.
-2127|O volume dos sons do próprio (T)rustyShelf. Jogos e apps não são afetados.
+2127|O volume dos sons do próprio RustyShelf. Jogos e apps não são afetados.
 2128|Timbre
 2129|Música ambiente baixinha embaixo da estante, como a tela inicial de um console. Deriva: arejada e calorosa. Noite: mais escura e lenta. Brilho: uma canção de ninar lenta de caixinha de música. Ela some quando um jogo começa.
-2130|O volume da música do menu, por baixo dos outros sons do (T)rustyShelf.
+2130|O volume da música do menu, por baixo dos outros sons do RustyShelf.
 2131|O som que toca com a animação de abertura de um console.
 2132|Duração da tela de abertura
 2133|Curta
 2134|Normal
 2135|Longa
 2136|Dispositivo de saída
-2137|Onde os sons do (T)rustyShelf tocam. Os jogos usam a configuração de áudio do próprio emulador.
+2137|Onde os sons do RustyShelf tocam. Os jogos usam a configuração de áudio do próprio emulador.
 2138|Próxima música
 2139|Passa para a próxima música.
 2140|Tocando agora:
@@ -265,5 +265,5 @@
 2145|Som ambiente no museu
 2146|Um som baixinho de sala enquanto você passeia pelo museu.
 2147|Incluir as músicas embutidas
-2148|Com Melodia, as músicas do próprio (T)rustyShelf tocam junto com os arquivos MIDI da sua pasta Músicas.
+2148|Com Melodia, as músicas do próprio RustyShelf tocam junto com os arquivos MIDI da sua pasta Músicas.
 2149|Pasta de músicas

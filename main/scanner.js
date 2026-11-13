@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/scanner.js apart from the app's name ((T)rustyShelf).
+// main/scanner.js apart from the app's name (RustyShelf).
 // Scans ROM folders and turns file names into clean game titles.
 const fs = require('fs');
 const path = require('path');
@@ -19,7 +19,7 @@ const Titles = require('../shared/titles');
 const Arcade = require('./arcadenames');
 // BIOS sets that sit beside the games, hidden even before the arcade list has arrived (main/arcadenames.js knows them all)
 const ARCADE_BIOS = new Set(['neogeo', 'pgm', 'skns', 'stvbios', 'decocass', 'cpzn1', 'cpzn2', 'taitofx1', 'konamigx', 'nss', 'naomi', 'awbios', 'hod2bios', 'f355bios', 'airlbios', 'megaplay', 'megatech', 'playch10', 'qsound', 'neocdz', 'isgsm', 'nmk004', 'ym2608', 'bubsys', 'cchip', 'sp-cpu']);
-const gamelist = require('./gamelist'); // ((T)rustyShelf) Batocera / RetroBat gamelist.xml names and art
+const gamelist = require('./gamelist'); // (RustyShelf) Batocera / RetroBat gamelist.xml names and art
 function cleanTitle(file) { return Titles.cleanTitle(path.basename(file)); }
 
 // (beta.10) the walk and the scan ask for each folder listing and file check (yield [op, path]) and their caller answers:
@@ -259,8 +259,8 @@ function withArt(list, sysCfg, pre, glReady) { // pre: listings read ahead (scan
   const artDirs = artDirsFor(sysCfg);
   return list.map(g => { const { _art, ...o } = g, a = findArt(g.file, _art.title, artDirs), fg = _art.fg;
     if (fg) { if (!a.front && fg.icon) a.front = fg.icon; if (fg.hero) a.hero = fg.hero; if (!a.disc && fg.icon) a.disc = fg.icon; }
-    // ((T)rustyShelf, beta discussion 35) a Batocera / RetroBat / EmulationStation gamelist.xml beside the games: its name for
-    // the game, and its pictures and manual where (T)rustyShelf has none of its own (art you added or downloaded comes first)
+    // (RustyShelf, beta discussion 35) a Batocera / RetroBat / EmulationStation gamelist.xml beside the games: its name for
+    // the game, and its pictures and manual where RustyShelf has none of its own (art you added or downloaded comes first)
     const gl = o.file ? gamelist.lookup(o.file, sysCfg && sysCfg.romDirs, glReady) : null;
     if (gl) { if (gl.name) o.title = gl.name.replace(/[™®]/g, '').replace(/\s+/g, ' ').trim() || o.title;
       for (const k of ['front', 'back', 'disc', 'manualPdf']) if (!a[k] && gl[k]) a[k] = gl[k]; if (!a.hero && gl.hero) a.hero = gl.hero; }
@@ -337,7 +337,7 @@ function* scanFilesG(sysDef, sysCfg) {
     if (info.extra) continue; // Switch updates / DLC packages are not games on the shelf
     // added: when the game arrived in your folder (file creation time), for the museum's "in your collection since"
     let size = info.nusBytes || 0, added = 0; const st = yield ['stat', f]; if (st) { added = Math.round(st.birthtimeMs || st.mtimeMs) || 0; if (!fg && !size) size = st.size; }
-    // ((T)rustyShelf, the Switch 2 size issue) an unpacked Switch 2 game is a folder of files, so its size is the folder's
+    // (RustyShelf, the Switch 2 size issue) an unpacked Switch 2 game is a folder of files, so its size is the folder's
     // (measured in the background like the PC games' folders: dirsize.get answers at once, from the last measure)
     if (fg && fg.folder && !size && sysDef.id === 'sw2') size = dirsize.get(path.resolve(fg.folder));
     const key = x && x.titleId ? 'x360:' + x.titleId : info.title.toLowerCase() + '|' + (info.region || '');

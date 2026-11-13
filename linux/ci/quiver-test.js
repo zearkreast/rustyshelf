@@ -1,4 +1,4 @@
-// (T)rustyShelf: Quiver Launcher's apps (issue 16: apps installed after the first import never showed). Pretend Quiver 3
+// RustyShelf: Quiver Launcher's apps (issue 16: apps installed after the first import never showed). Pretend Quiver 3
 // (portable: apps.json + settings.json beside it, games in Apps\) and Quiver 4 (%APPDATA%\com.quiverlauncher.app:
 // installs.json, apps-folder.json) folders, each with one app its list names and one it doesn't show yet.
 // Run: node linux/ci/quiver-test.js

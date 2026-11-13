@@ -1,6 +1,6 @@
 {
-  "name": "trustyshelf",
-  "productName": "TrustyShelf",
+  "name": "rustyshelf",
+  "productName": "RustyShelf",
   "version": "1.9.0+0",
   "description": "TV-style launcher for emulators, Steam and media apps",
   "license": "GPL-3.0-only",
@@ -21,8 +21,8 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "io.github.trustyshelf",
-    "productName": "TrustyShelf",
+    "appId": "io.github.rustyshelf",
+    "productName": "RustyShelf",
     "files": [
       "main.js",
       "preload.js",
@@ -41,9 +41,9 @@
       "target": "AppImage",
       "icon": "renderer/app-icon.png",
       "category": "Game",
-      "desktop": { "entry": { "Name": "(T)rustyShelf" } },
+      "desktop": { "entry": { "Name": "RustyShelf" } },
       "synopsis": "TV-style launcher for emulators and Steam",
-      "artifactName": "TrustyShelf-${version}-linux.${ext}"
+      "artifactName": "RustyShelf-${version}-linux.${ext}"
     },
     "artifactBuildStarted": "scripts/linux-wrapper.js",
     "asar": true,

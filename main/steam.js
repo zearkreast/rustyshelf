@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/steam.js apart from the app's name ((T)rustyShelf).
+// main/steam.js apart from the app's name (RustyShelf).
 // Reads installed Steam games, playtime and cover art straight from the Steam folder.
 const fs = require('fs');
 const path = require('path');
@@ -148,7 +148,7 @@ function scanSteam(givenPath, opts = {}) {
 }
 let lastLogKey = '';
 
-// ((T)rustyShelf, Boxshelf beta issue 34) the same read for the library build, without holding the app up: every file is
+// (RustyShelf, Boxshelf beta issue 34) the same read for the library build, without holding the app up: every file is
 // read with fs.promises, and each library is first asked for its steamapps folder with a time limit. A library on a drive
 // that doesn't answer (asleep, unplugged, a network share gone) is left out until the next start, instead of freezing
 // the window for good (the read went on forever, Windows offered to close the app). io is swapped by the tests.

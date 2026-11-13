@@ -50,7 +50,7 @@
     if (t.mode() === 'inspect') { t.closeInspect(); await until(() => t.mode() === 'browse', 1500); await wait(200); }
     if (t.mode() === 'details') { t.closeDetails(); await until(() => t.mode() === 'browse', 1500); await wait(250); }
   }
-  const hasArt = () => { const t = T(), g = t && t.game(); return !!(g && g.kind === 'rom' && g.file && (window.api || window.trustyshelf || window.boxshelf) && (window.api || window.trustyshelf || window.boxshelf).artStudio); };
+  const hasArt = () => { const t = T(), g = t && t.game(); return !!(g && g.kind === 'rom' && g.file && (window.api || window.rustyshelf || window.boxshelf) && (window.api || window.rustyshelf || window.boxshelf).artStudio); };
 
   // keys: [{ pad: [glyph keys as the hint bar names them], kbd: [key caps] }, what it does]
   const STEPS = [
@@ -80,7 +80,7 @@
       skip: () => !hasArt(), cardAt: 'bottomLeft',
       enter: async () => { await toShelf(); T().artStudio(); await until(() => settingsOn() && !!document.querySelector('#bss .bsa-parts'), 4000); await until(() => document.querySelectorAll('#bss .bsa-card').length > 0, 2500); }, target: artTop,
       keys: [[{ pad: ['←', '→'], kbd: ['←', '→'] }, 'Front, back, spine, disc'], [{ pad: ['x'], kbd: ['Enter'] }, 'Use this version'], [{ pad: ['o'], kbd: ['Esc'] }, 'Back to the shelf']] },
-    { k: 'Adding games', t: 'Add more games', p: 'Consoles: point (T)rustyShelf at a games folder. PC games and Custom games: add anything else, one at a time or a whole folder.',
+    { k: 'Adding games', t: 'Add more games', p: 'Consoles: point RustyShelf at a games folder. PC games and Custom games: add anything else, one at a time or a whole folder.',
       enter: async () => { await toShelf(); if (window.Setup && Setup.open) Setup.open({ page: 'games' }); await until(() => settingsOn() && !!addRows(), 3000); }, target: addRows,
       keys: [[{ pad: ['⧉'], kbd: ['S'] }, 'Settings']] },
     { k: 'Done', t: 'That’s the basics', p: 'The museum has a short tour of its own the first time you go in. Watch this one again from Settings · Shelf · Show the tour.', enter: toShelf, last: true,
@@ -208,9 +208,9 @@
   }
 
   // ---------- the first time, on its own ----------
-  // A new install (setup not done when (T)rustyShelf started) gets the tour once the shelf is up after setup and still for a
+  // A new install (setup not done when RustyShelf started) gets the tour once the shelf is up after setup and still for a
   // moment; an install that was set up before this version never gets it on its own (Settings → Shelf → Show the tour).
-  // It's owed from the first start, so closing (T)rustyShelf right after setup brings it on the next start. That's kept in
+  // It's owed from the first start, so closing RustyShelf right after setup brings it on the next start. That's kept in
   // the page's own storage (bs-tour-pending), not the settings: setup saves its own copy of the settings as it finishes.
   // Checked every 2 s until then, never once it has shown or isn't wanted.
   let fresh = null, tries = 0;

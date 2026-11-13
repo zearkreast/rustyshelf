@@ -1,4 +1,4 @@
-// (T)rustyShelf: a PC game's achievements, read from what Steam keeps on this PC (asked for in the (T)rustyShelf discussions, #22).
+// RustyShelf: a PC game's achievements, read from what Steam keeps on this PC (asked for in the RustyShelf discussions, #22).
 // Steam caches every game's achievement list and your progress in its appcache\stats folder, in its binary KeyValues format:
 //   UserGameStatsSchema_<appid>.bin   the achievements: stats → <stat> → bits → <bit> { name, bit, display { name, desc, hidden,
 //                                     icon, icon_gray } } (names in every language Steam has; English is used, else the first)

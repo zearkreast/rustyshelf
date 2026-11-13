@@ -1,4 +1,4 @@
-# (T)rustyShelf: the check that runs on every push to t-rustyshelf. It reads the pushed commit's message
+# RustyShelf: the check that runs on every push to rustyshelf. It reads the pushed commit's message
 # (scripts/release-version.js) and decides one of three things:
 #   none     a normal commit: this run finishes here, nothing else runs
 #   build    "For build…" → calls build.yml: the Windows, Linux and Android builds, kept as the run's downloads
@@ -9,7 +9,7 @@ name: Build/release check
 
 on:
   push:
-    branches: [t-rustyshelf, t-Rustyshelf]
+    branches: [rustyshelf]
 
 # the called workflows inherit these: the release job needs to write (create the release)
 permissions:
@@ -52,8 +52,8 @@ jobs:
           REASON: ${{ steps.v.outputs.reason }}
         run: |
           case "$KIND" in
-            release) echo "### Release (T)rustyShelf $VERSION: builds, then the release" >> "$GITHUB_STEP_SUMMARY" ;;
-            build) echo "### Build (T)rustyShelf $VERSION: builds, kept as this run's downloads" >> "$GITHUB_STEP_SUMMARY" ;;
+            release) echo "### Release RustyShelf $VERSION: builds, then the release" >> "$GITHUB_STEP_SUMMARY" ;;
+            build) echo "### Build RustyShelf $VERSION: builds, kept as this run's downloads" >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo "### Nothing to build: $REASON" >> "$GITHUB_STEP_SUMMARY" ;;
           esac
 

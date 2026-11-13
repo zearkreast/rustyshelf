@@ -64,7 +64,7 @@
 99|Terminando primeiro o download dos manuais em segundo plano…
 100|Ignorar
 101|Por enquanto só no Windows
-102|nenhum que o (T)rustyShelf já saiba configurar
+102|nenhum que o RustyShelf já saiba configurar
 103|Transformando manuais em PDF em páginas…
 104|não foi possível transformar o PDF em páginas
 105|trocado pela digitalização limpa de
@@ -76,19 +76,19 @@
 112|Escolher capa
 113|Manuais em PDF
 114|Tela ${i + 1} — ${w}×${h}
-115|Fazer backup das configurações do (T)rustyShelf
-116|Configurações do (T)rustyShelf
-117|Isso não é um backup de configurações do (T)rustyShelf.
-118|Esse backup não tem versão do (T)rustyShelf.
+115|Fazer backup das configurações do RustyShelf
+116|Configurações do RustyShelf
+117|Isso não é um backup de configurações do RustyShelf.
+118|Esse backup não tem versão do RustyShelf.
 119|Esse backup não tem configurações.
 120|O histórico de jogo nesse backup está danificado.
-121|Restaurar configurações do (T)rustyShelf
+121|Restaurar configurações do RustyShelf
 122|Esse arquivo é grande demais para ser um backup de configurações.
 123|Não foi possível ler esse arquivo como backup de configurações.
 133|(um jogo está rodando)
-142|Relatório de problema do (T)rustyShelf ${stamp()}
-143|O (T)rustyShelf não conseguiu iniciar
-144|${e && e.message || e} Os detalhes estão em data\boxshelf.log. O (T)rustyShelf precisa conseguir gravar na própria pasta.
+142|Relatório de problema do RustyShelf ${stamp()}
+143|O RustyShelf não conseguiu iniciar
+144|${e && e.message || e} Os detalhes estão em data\boxshelf.log. O RustyShelf precisa conseguir gravar na própria pasta.
 145|emulador encontrado
 146|sem emulador
 147|pasta(s) de jogos
@@ -125,8 +125,8 @@
 192|Nada precisava mudar
 196|Atual
 198|Cartucho feito a partir da capa
-200|Contracapa feita pelo (T)rustyShelf
-201|Lombada feita pelo (T)rustyShelf
+200|Contracapa feita pelo RustyShelf
+201|Lombada feita pelo RustyShelf
 202|Anterior${dateWord(r.stamp) ? ' · ' + dateWord(r.stamp) : ''}
 203|· completo
 204|${label} · completo
@@ -152,7 +152,7 @@
 255|Celular
 256|Celular Android
 257|Vá um pouco mais devagar.
-258|Use o endereço mostrado no (T)rustyShelf.
+258|Use o endereço mostrado no RustyShelf.
 259|Origem errada.
 260|Não encontrado.
 261|Esse jogo não existe mais. Puxe para atualizar.
@@ -161,7 +161,7 @@
 264|Tecla desconhecida.
 265|Nada para digitar.
 266|Algo deu errado.
-267|O (T)rustyShelf está ocupado. Tente de novo daqui a pouco.
+267|O RustyShelf está ocupado. Tente de novo daqui a pouco.
 268|Grande demais.
 269|PINs errados demais. Tente de novo em alguns minutos.
 270|PINs errados demais. O pareamento está bloqueado por ${min} minutos.

@@ -64,7 +64,7 @@ function windowsPrograms(dir, folder) {
   walk(dir, 0);
   return found.sort((a, b) => a.bat - b.bat || a.depth - b.depth || a.word - b.word || b.size - a.size).slice(0, 40).map(f => ({ rel: f.rel, native: false }));
 }
-// every program a game could start with, the one (T)rustyShelf would pick first
+// every program a game could start with, the one RustyShelf would pick first
 const programsIn = (dir, folder) => [...(isLinux ? linuxPrograms(dir, folder) : []), ...windowsPrograms(dir, folder)];
 
 // the games in the PC games folder: [{ id, source: 'folder', title, dir, exe, native, own, programs: [{ rel, native }] }]
@@ -84,7 +84,7 @@ function scan({ gamesDir, ownDir, programs = {}, skip = [] } = {}) {
   return out.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
 }
 
-// ((T)rustyShelf, Boxshelf beta issue 34) the same scan without holding the main process up: every folder listing and file
+// (RustyShelf, Boxshelf beta issue 34) the same scan without holding the main process up: every folder listing and file
 // check is awaited (a games folder on a sleeping HDD or a NAS used to freeze the window at startup, "not responding")
 const entriesA = async d => { try { return await fs.promises.readdir(d, { withFileTypes: true }); } catch { return []; } };
 const statA = async p => { try { return await fs.promises.stat(p); } catch { return null; } };

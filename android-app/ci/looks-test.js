@@ -1,4 +1,4 @@
-// (T)rustyShelf's saved looks (Settings → Display → Looks) and the Installed filter, the page side, on the demo page as Windows.
+// RustyShelf's saved looks (Settings → Display → Looks) and the Installed filter, the page side, on the demo page as Windows.
 // Run (after node copy-web.js): node ci/looks-test.js www ../out/looks
 //   - Looks: Save the current look keeps the theme, size, clock, order and filter under "Look 1" (saved in the settings, with a
 //     one-line summary); Update replaces it (asks twice); Apply puts the saved settings back (and reloads the screen); Delete asks twice
@@ -28,7 +28,7 @@ server.listen(0, async () => {
       key('g'); await w(900); const out = { opts: opts(), before: num() };
       const b = [...document.querySelectorAll('#spFilter .sp-opt')].find(x => x.textContent === 'Installed'); if (b) b.click(); await w(1500);
       out.after = num(); out.on = (document.querySelector('#spFilter .sp-opt.on') || {}).textContent; await w(900);
-      out.saved = ((await trustyshelf.getConfig()).config.ui || {}).filter; return out; });
+      out.saved = ((await rustyshelf.getConfig()).config.ui || {}).filter; return out; });
     check('the filter row has "Installed" when a game is greyed', f.opts.includes('Installed'), JSON.stringify(f.opts));
     check('choosing it hides the greyed game (one game fewer) and is saved with the filter', f.on === 'Installed' && f.after === f.before - 1 && f.saved === 'installed', JSON.stringify(f));
     await page.screenshot({ path: path.join(OUT, 'installed-filter.png') });
@@ -44,19 +44,19 @@ server.listen(0, async () => {
     p2.on('pageerror', e => errs2.push(e.message)); await p2.goto(base);
     await p2.waitForFunction(() => window.Shelf && Shelf._qs && Shelf._qs().g, null, { timeout: 60000, polling: 250 }); await p2.waitForTimeout(2000);
     // record every config the Settings screen saves (the reload at the end of Apply wipes the demo's memory)
-    await p2.evaluate(() => { const o = trustyshelf.saveConfig; trustyshelf.saveConfig = async c => { try { sessionStorage.setItem('lastSaved', JSON.stringify(c)); } catch (e) {} return o(c); }; });
+    await p2.evaluate(() => { const o = rustyshelf.saveConfig; rustyshelf.saveConfig = async c => { try { sessionStorage.setItem('lastSaved', JSON.stringify(c)); } catch (e) {} return o(c); }; });
     const L1 = await p2.evaluate(async () => { const w = ms => new Promise(res => setTimeout(res, ms));
       const rowsOf = () => [...document.querySelectorAll('#bss .bss-row, #bss .bss-head')].map(r => r.textContent.replace(/\s+/g, ' ').trim());
       const row = n => [...document.querySelectorAll('#bss .bss-row')].find(r => ((r.querySelector('.nm') || {}).textContent || '') === n);
       const open = async () => { Setup.open({ page: 'looks' }); for (let i = 0; i < 40 && !document.querySelector('#bss .bss-row'); i++) await w(150); await w(1000); Setup.key(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })); for (let i = 0; i < 40 && !row('Save the current look'); i++) await w(150); await w(1000); };
       const close = async () => { if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(800); } };
       const out = {};
-      const c = (await trustyshelf.getConfig()).config; Object.assign(c.ui, { theme: 'oled', uiScale: 1.15, clock: 'time', sort: 'year', filter: 'fav', music: 'night' }); await trustyshelf.saveConfig(c);
+      const c = (await rustyshelf.getConfig()).config; Object.assign(c.ui, { theme: 'oled', uiScale: 1.15, clock: 'time', sort: 'year', filter: 'fav', music: 'night' }); await rustyshelf.saveConfig(c);
       await open(); out.empty = rowsOf();
       row('Save the current look').click(); await w(1400); out.afterSave = rowsOf();
-      const saved = ((await trustyshelf.getConfig()).config.ui || {}).looks || []; out.saved = saved;
+      const saved = ((await rustyshelf.getConfig()).config.ui || {}).looks || []; out.saved = saved;
       // update needs two presses
-      row('Update Look 1').click(); await w(500); const still = ((await trustyshelf.getConfig()).config.ui.looks || [])[0]; out.firstPress = still && still.set.theme;
+      row('Update Look 1').click(); await w(500); const still = ((await rustyshelf.getConfig()).config.ui.looks || [])[0]; out.firstPress = still && still.set.theme;
       await close(); return out; });
     check('the Looks page starts empty, with Save the current look', L1.empty.some(r => /Save the current look/.test(r)) && L1.empty.some(r => /No looks saved yet/.test(r)), JSON.stringify(L1.empty));
     check('Save the current look adds "Look 1" with a summary (theme, size, clock, order)', L1.afterSave.some(r => /^Look 1Theme OLED.*Large.*Time only.*by year/.test(r)) && L1.afterSave.some(r => /Rename Look 1/.test(r)) && L1.afterSave.some(r => /Update Look 1/.test(r)) && L1.afterSave.some(r => /Delete Look 1/.test(r)), JSON.stringify(L1.afterSave));
@@ -64,7 +64,7 @@ server.listen(0, async () => {
     // change the settings, then apply the look: the saved config gets the look's values back, and the screen reloads
     const L2 = await p2.evaluate(async () => { const w = ms => new Promise(res => setTimeout(res, ms));
       const row = n => [...document.querySelectorAll('#bss .bss-row')].find(r => ((r.querySelector('.nm') || {}).textContent || '') === n);
-      const c = (await trustyshelf.getConfig()).config; Object.assign(c.ui, { theme: 'forest', uiScale: 1.3, clock: 'off', sort: 'az', filter: 'all', music: 'off' }); await trustyshelf.saveConfig(c);
+      const c = (await rustyshelf.getConfig()).config; Object.assign(c.ui, { theme: 'forest', uiScale: 1.3, clock: 'off', sort: 'az', filter: 'all', music: 'off' }); await rustyshelf.saveConfig(c);
       Setup.open({ page: 'looks' }); for (let i = 0; i < 40 && !document.querySelector('#bss .bss-row'); i++) await w(150); await w(1000); Setup.key(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })); await w(1200);
       sessionStorage.removeItem('lastSaved'); window.__reloadMark = 1; row('Look 1').click(); return true; });
     await p2.waitForTimeout(5000);
@@ -75,12 +75,12 @@ server.listen(0, async () => {
     // after the reload: delete (twice)
     await p2.waitForTimeout(3000);
     const L3 = await p2.evaluate(async () => { const w = ms => new Promise(res => setTimeout(res, ms));
-      const c = (await trustyshelf.getConfig()).config; c.ui.looks = [{ name: 'Look 1', set: { theme: 'oled' } }, { name: 'Evening', set: { theme: 'forest', sort: 'recent' } }]; await trustyshelf.saveConfig(c);
+      const c = (await rustyshelf.getConfig()).config; c.ui.looks = [{ name: 'Look 1', set: { theme: 'oled' } }, { name: 'Evening', set: { theme: 'forest', sort: 'recent' } }]; await rustyshelf.saveConfig(c);
       const row = n => [...document.querySelectorAll('#bss .bss-row')].find(r => ((r.querySelector('.nm') || {}).textContent || '') === n);
       const rowsOf = () => [...document.querySelectorAll('#bss .bss-row, #bss .bss-head')].map(r => r.textContent.replace(/\s+/g, ' ').trim());
       Setup.open({ page: 'looks' }); for (let i = 0; i < 40 && !document.querySelector('#bss .bss-row'); i++) await w(150); await w(1000); Setup.key(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })); await w(1200);
-      const out = { two: rowsOf() }; row('Delete Evening').click(); await w(400); out.one = ((await trustyshelf.getConfig()).config.ui.looks || []).map(l => l.name);
-      row('Delete Evening').click(); await w(1200); out.two2 = ((await trustyshelf.getConfig()).config.ui.looks || []).map(l => l.name); out.after = rowsOf(); return out; });
+      const out = { two: rowsOf() }; row('Delete Evening').click(); await w(400); out.one = ((await rustyshelf.getConfig()).config.ui.looks || []).map(l => l.name);
+      row('Delete Evening').click(); await w(1200); out.two2 = ((await rustyshelf.getConfig()).config.ui.looks || []).map(l => l.name); out.after = rowsOf(); return out; });
     check('two looks are listed; Delete asks twice, then removes just that one', L3.two.some(r => /^EveningTheme/.test(r)) && JSON.stringify(L3.one) === JSON.stringify(['Look 1', 'Evening']) && JSON.stringify(L3.two2) === JSON.stringify(['Look 1']) && !L3.after.some(r => /Evening/.test(r)), JSON.stringify(L3));
     await p2.screenshot({ path: path.join(OUT, 'looks.png') });
     check('No script errors', !errors.length && !errs2.length, errors.concat(errs2).slice(0, 3).join(' | '));

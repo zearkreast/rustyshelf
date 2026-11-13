@@ -1,4 +1,4 @@
-// (T)rustyShelf's own menu music, the page side (renderer/usermusic.js), on the demo page as Windows.
+// RustyShelf's own menu music, the page side (renderer/usermusic.js), on the demo page as Windows.
 // Run (after node copy-web.js): node ci/usermusic-test.js www ../out/usermusic
 //   - Settings → Sound: "Your music" is a Menu music choice, with the Music folder and Reload music rows
 //   - picking it plays one of the tracks (a real audio element, the volume fading up), another when it ends, never the same
@@ -24,7 +24,7 @@ server.listen(0, async () => {
     page.on('pageerror', e => errors.push(e.message)); await page.goto(base); await page.waitForTimeout(5000);
     const st = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms));
       const out = {}, row = n => [...document.querySelectorAll('#bss .bss-row')].find(r => ((r.querySelector('.nm') || {}).textContent || '') === n);
-      const c = (await trustyshelf.getConfig()).config; c.ui.sound = true; c.ui.music = 'own'; c.ui.musicLevel = .5; await trustyshelf.saveConfig(c);
+      const c = (await rustyshelf.getConfig()).config; c.ui.sound = true; c.ui.music = 'own'; c.ui.musicLevel = .5; await rustyshelf.saveConfig(c);
       Setup.open({ page: 'sound' }); for (let i = 0; i < 40 && !row('Menu music'); i++) await w(150); await w(500);
       out.rows = { music: !!row('Menu music'), folder: !!row('Music folder'), reload: !!row('Reload music') };
       out.menuRow = ((row('Menu music') || {}).textContent || '');
@@ -49,8 +49,8 @@ server.listen(0, async () => {
     const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 720 } }), p2 = await ctx2.newPage(), errs2 = []; p2.on('pageerror', e => errs2.push(e.message));
     await p2.goto(base + '&music=0'); await p2.waitForTimeout(5000);
     const em = await p2.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms));
-      const c = (await trustyshelf.getConfig()).config; c.ui.sound = true; c.ui.music = 'own'; await trustyshelf.saveConfig(c); Shelf.sound({ enabled: true, music: 'own', musicLevel: .5 }); await w(2500);
-      return { state: UserMusic.state(), listed: (await trustyshelf.musicList()).length }; });
+      const c = (await rustyshelf.getConfig()).config; c.ui.sound = true; c.ui.music = 'own'; await rustyshelf.saveConfig(c); Shelf.sound({ enabled: true, music: 'own', musicLevel: .5 }); await w(2500);
+      return { state: UserMusic.state(), listed: (await rustyshelf.musicList()).length }; });
     check('An empty Music folder plays nothing', em.listed === 0 && !em.state.playing && em.state.count === 0, JSON.stringify(em));
     check('No script errors (empty folder)', !errs2.length, errs2.slice(0, 3).join(' | '));
     await ctx2.close();

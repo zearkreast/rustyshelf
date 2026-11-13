@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// renderer/inspect3d.js apart from the app's name ((T)rustyShelf).
+// renderer/inspect3d.js apart from the app's name (RustyShelf).
 /* Inspect in real 3D: a lit, reflective game case you can turn in your hands, open, and take the disc
    (or cartridge / UMD) out of. Built with three.js; falls back to the CSS version if WebGL isn't there.
    Optional models: themes\<system>\cart.glb (Switch) or disc.glb / umd.glb replace the built-in media. */
@@ -23,7 +23,7 @@ window.Inspect3D = (() => {
   const CASE_SCALE = 1 / CASE_GLB.height;
   const SHEET = Object.freeze({ W: 2048, H: 1024, back: .47, spine: .06 }); // the cover canvas and where its parts sit (fractions of W)
   const PC_SHELVES = new Set(['pc', 'custom']); // a plain black box, as the PC case on the shelf
-  // ((T)rustyShelf, Boxshelf beta issue 32) the case each console's games really came in. case.glb is a keep case (the
+  // (RustyShelf, Boxshelf beta issue 32) the case each console's games really came in. case.glb is a keep case (the
   // Switch's), right for the DVD / Blu-ray style consoles only: since 1.6.0 every console used it, so a PS1 game opened into a
   // DVD case and a DS game held a Switch card. Jewel: a CD jewel case (clear, a black tray with its hub); box: a printed
   // cardboard box whose top flap opens, the cartridge inside; hinged: the moulded plastic case built here (the DS and 3DS
@@ -596,7 +596,7 @@ window.Inspect3D = (() => {
     st.lid = st.lidT = 0; st.out = st.outT = 0; st.spin = 0;
     applyState(true);
   }
-  // ((T)rustyShelf, Boxshelf beta issue 32) a console's own modelled case (CASE_MODELS): loaded once, then its Lid, Spine
+  // (RustyShelf, Boxshelf beta issue 32) a console's own modelled case (CASE_MODELS): loaded once, then its Lid, Spine
   // and Back take the built case's place on the same hinge pivots, its printed parts take the game's art, and the disc
   // and booklet move to where the model seats them
   const caseModels = new Map();
@@ -640,7 +640,7 @@ window.Inspect3D = (() => {
       if (book && manualPlane) manualPlane.position.set(book.position.x + L.position.x, book.position.y + L.position.y, book.position.z + L.position.z);
     } catch (e) { console.warn('case model', e); }
   }
-  // ((T)rustyShelf, Boxshelf beta issue 32) a cartridge game's printed cardboard box: front, back, the spine on its left
+  // (RustyShelf, Boxshelf beta issue 32) a cartridge game's printed cardboard box: front, back, the spine on its left
   // and right sides, a tuck flap on top hinged at the back, bare cardboard inside, and the cartridge standing in it.
   // Front +z and spine -x, as the shelf box (and the PC box above); opening lifts the flap (frame()).
   let boxFlap = null;
@@ -1004,7 +1004,7 @@ window.Inspect3D = (() => {
   function bump() { st.bump = .12; }
   function setPaused(p) { paused = !!p; if (!paused && active && !raf && renderer) { lastT = 0; raf = requestAnimationFrame(frame); } }
   addEventListener('resize', () => { if (renderer && active) resize(); });
-  // the lid's manual, when it arrives late ((T)rustyShelf's own booklet is drawn after the case opens)
+  // the lid's manual, when it arrives late (RustyShelf's own booklet is drawn after the case opens)
   function setManual(url) { if (!manualPlane || !url || (cur && cur.manual)) return; const m = manualPlane.material, t = loadTex(url); m.map = t; m.color.set(0xffffff); m.needsUpdate = true; if (cur) cur.manual = url; }
   // the booklet inside the open case under the pointer (client px): a click there opens the manual
   let picker = null;

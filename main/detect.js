@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/detect.js apart from the app's name ((T)rustyShelf).
+// main/detect.js apart from the app's name (RustyShelf).
 // Auto-detect emulators, ROM folders, Steam and media apps.
 const path = require('path');
 const { execFile } = require('child_process');
@@ -10,7 +10,7 @@ const vita3k = require('./vita3k');
 // (1.82) Each folder searched is listed once, two folders deep, and every console and app looks its program names up in
 // that list: the same answer as findFile (the first match, breadth first), without walking the Desktop, Downloads and
 // Documents again for each of a dozen consoles while the setup window waits.
-// ((T)rustyShelf) maxDepth / maxDirs: a folder the player picks (Find emulators in a folder) is looked through deeper, but
+// (RustyShelf) maxDepth / maxDirs: a folder the player picks (Find emulators in a folder) is looked through deeper, but
 // never more than maxDirs folders (a whole drive picked by mistake stays quick)
 function makeIndex(maxDepth = 2, maxDirs = Infinity) {
   const cache = new Map();
@@ -29,7 +29,7 @@ function makeIndex(maxDepth = 2, maxDirs = Infinity) {
   };
 }
 const SKIP_DIRS = /^(\$recycle\.bin|system volume information|windows|node_modules)$/i;
-// ((T)rustyShelf) BizHawk covers many consoles: in a folder with another emulator for the console too, that one wins
+// (RustyShelf) BizHawk covers many consoles: in a folder with another emulator for the console too, that one wins
 const LATE = new Set(['emuhawk.exe']);
 function findIn(index, dir, exeNames) {
   const late = exeNames.filter(n => LATE.has(n.toLowerCase()));
@@ -71,7 +71,7 @@ function findExe(folders, exeNames, index = makeIndex()) {
   return null;
 }
 
-// ((T)rustyShelf, its discussions #10) every copy of a console's emulators found, not only the first: Settings lists them so
+// (RustyShelf, its discussions #10) every copy of a console's emulators found, not only the first: Settings lists them so
 // another one (Flycast for the Dreamcast, Gopher64 for the N64) is one press away. At most 8, in the order they're found.
 function findAllExe(folders, exeNames, index = makeIndex()) {
   const out = [], add = h => { if (h && !out.some(x => x.toLowerCase() === h.toLowerCase())) out.push(h); };
@@ -134,12 +134,12 @@ async function detectAll() {
   return { systems, apps, steam: { path: await findSteam() }, appRoot: appRoot(), retroarch: foundRetroarch };
 }
 
-// ((T)rustyShelf) games an emulator keeps in its own folders: Vita3K's installed games (ux0\app)
+// (RustyShelf) games an emulator keeps in its own folders: Vita3K's installed games (ux0\app)
 function withOwnDirs(s, emu, dirs) { if (s.id === 'psvita') for (const d of vita3k.appDirs(emu)) if (!dirs.includes(d)) dirs.push(d); return dirs; }
 // one console's emulator and games folders (a console added in an update, found once as setup would have)
 function detectSystem(id) { const s = CONSOLES.find(c => c.id === id); if (!s) return null; const index = makeIndex(), emu = findExe(s.emulatorFolders, s.exeNames, index); return { emulator: emu, emulators: emu ? findAllExe(s.emulatorFolders, s.exeNames, index) : [], romDirs: withOwnDirs(s, emu, findRomDirs(s)) }; }
 
-// ((T)rustyShelf, asked for in Boxshelf's discussions) portable emulators kept anywhere: the emulator programs in a folder
+// (RustyShelf, asked for in Boxshelf's discussions) portable emulators kept anywhere: the emulator programs in a folder
 // the player picks (four folders deep), per console: { systems: { <console id>: program } }
 function emulatorsIn(dir) {
   const systems = {}; if (!dir || !isDir(dir)) return { systems, retroarch: '' };

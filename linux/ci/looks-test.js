@@ -1,4 +1,4 @@
-// (T)rustyShelf's saved looks (Settings → Display → Looks) as the settings file keeps them (main/config.js). Run: node linux/ci/looks-test.js
+// RustyShelf's saved looks (Settings → Display → Looks) as the settings file keeps them (main/config.js). Run: node linux/ci/looks-test.js
 //   - a look keeps its name (tidied, at most 40 characters) and plain values only; anything else is dropped
 //   - at most 20 looks; a missing or wrong `looks` is an empty list; the order is kept
 //   - a settings file that passes through twice (saved and read again) comes out the same

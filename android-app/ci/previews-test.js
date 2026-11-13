@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/ci/previews-test.js apart from the app's name ((T)rustyShelf).
+// android-app/ci/previews-test.js apart from the app's name (RustyShelf).
 // Device test pass "previews" (beta.7), run by web-device-test.js: the demo page as Windows on a 1920x1080 TV.
 //   Node side (main/previews.js): a game's video is found in ES-DE / EmuDeck / RetroBat / LaunchBox / your own folders,
 //   by file name then title; Steam's DASH manifest becomes the first ~20 s of its 480p video; YouTube links are read.
@@ -18,7 +18,7 @@ module.exports = async function previewsPass({ browser, base, check, OUT }) {
   { const P = require(path.join(ROOT, 'main', 'previews'));
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-pv-')), put = p => { const f = path.join(home, ...p.split('/')); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, 'v'); return f; };
     const oldUP = process.env.USERPROFILE, oldH = process.env.HOME; process.env.USERPROFILE = home; process.env.HOME = home;
-    P.init({ dataDir: path.join(home, 'data'), appRoot: path.join(home, 'TrustyShelf') });
+    P.init({ dataDir: path.join(home, 'data'), appRoot: path.join(home, 'RustyShelf') });
     const snes = { id: 'snes', romFolderNames: ['snes', 'sfc'] }, md = { id: 'megadrive', romFolderNames: ['megadrive', 'genesis'] }, gc = { id: 'gc', romFolderNames: ['gamecube', 'gc'] };
     const rb = path.join(home, 'RetroBat', 'roms', 'snes'); put('RetroBat/roms/snes/Super Metroid (USA).sfc'); const f1 = put('RetroBat/roms/snes/videos/Super Metroid (USA)-video.mp4');
     const es = put('ES-DE/downloaded_media/genesis/videos/Sonic the Hedgehog (USA, Europe).mp4'); // (ES-DE calls Mega Drive "genesis")
@@ -268,12 +268,12 @@ module.exports = async function previewsPass({ browser, base, check, OUT }) {
       out.keysOk = order.indexOf(k1) === 1 && order.indexOf(k2) === 2 && order.indexOf(out.keys[2]) === 1;
       out.hint = [...document.querySelectorAll('#hints .lab')].map(x => x.textContent).includes('Sections');
       // Status: Playing saved for this game, pressed again it's cleared
-      const opt = v => document.querySelector(`#dvStatus .dv-opt[data-v="${v}"]`), saved = async () => ((((await window.trustyshelf.getConfig()).config.games || {})[g.id]) || {}).status || '';
+      const opt = v => document.querySelector(`#dvStatus .dv-opt[data-v="${v}"]`), saved = async () => ((((await window.rustyshelf.getConfig()).config.games || {})[g.id]) || {}).status || '';
       const n0 = window.__statusSaved || 0; opt('playing').click(); await w(400);
       out.status = { on: opt('playing').classList.contains('on') && opt('playing').getAttribute('aria-checked') === 'true', saved: await saved(), calls: (window.__statusSaved || 0) - n0 };
       opt('finished').click(); await w(400); out.status.changed = await saved(); opt('finished').click(); await w(400); out.status.cleared = await saved();
       // Favourite: on, then off again (the shelf's own favourite list)
-      const favs = async () => (((await window.trustyshelf.getConfig()).config.ui || {}).favorites || []).includes(g.id);
+      const favs = async () => (((await window.rustyshelf.getConfig()).config.ui || {}).favorites || []).includes(g.id);
       const f0 = await favs(); $('dFav').click(); await w(700); const f1b = await favs(), p1 = $('dFav').getAttribute('aria-pressed'); $('dFav').click(); await w(700);
       out.fav = { before: f0, on: f1b, pressed: p1, after: await favs(), pressedAfter: $('dFav').getAttribute('aria-pressed') };
       // every older action is still reachable: in the page, in More, or as Your copy's rows (which press the same buttons)
@@ -281,7 +281,7 @@ module.exports = async function previewsPass({ browser, base, check, OUT }) {
       out.missing = ids.filter(id => !$(id) || !$('details').contains($(id)));
       $('dMoreBtn').click(); await w(400); out.menu = [...document.querySelectorAll('#dMenu button')].filter(b => !b.hidden && b.offsetParent).map(b => b.id); key('Escape'); await w(400);
       out.rows = ['dvArt', 'dvMan', 'dvEmu'].filter(id => $(id) && !$(id).hidden);
-      const emu0 = ((((await window.trustyshelf.getConfig()).config.games || {})[g.id]) || {}).emulator || ''; $('dvEmu').click(); await w(700); const emu1 = ((((await window.trustyshelf.getConfig()).config.games || {})[g.id]) || {}).emulator || '';
+      const emu0 = ((((await window.rustyshelf.getConfig()).config.games || {})[g.id]) || {}).emulator || ''; $('dvEmu').click(); await w(700); const emu1 = ((((await window.rustyshelf.getConfig()).config.games || {})[g.id]) || {}).emulator || '';
       out.emuRow = emu0 !== emu1; if (emu0 !== emu1) { $('dvEmu').click(); await w(700); }
       out.mode = Shelf.getMode(); key('Escape'); await w(700); return out; });
     check('Details redesign (Windows): Play has the focus when Details opens; the other cases fade away; the trailer\'s box is on the first screen beside Your play, right of the case',
@@ -346,7 +346,7 @@ module.exports = async function previewsPass({ browser, base, check, OUT }) {
     await ready('?platform=windows&shelf=1&previews=shelf&clips=1');
     let card = ''; for (let w = 0; w < 50 && !card; w++) { await pause(400); card = await page.evaluate(() => { const c = document.querySelector('.note-card.on'); return c ? c.innerText : ''; }); }
     if (card) { await page.screenshot({ path: path.join(OUT, 'previews-helper-card.png') }); await page.keyboard.press('Enter'); }
-    let hs = null; for (let w = 0; w < 20 && !(hs && hs.helper); w++) { await pause(300); hs = await page.evaluate(() => window.trustyshelf.clipStatus()); }
+    let hs = null; for (let w = 0; w < 20 && !(hs && hs.helper); w++) { await pause(300); hs = await page.evaluate(() => window.rustyshelf.clipStatus()); }
     check('Console trailers: with no helper yet, a card on the shelf says so once and its button gets it',
       /Console games can play their trailers too/.test(card) && /Get the helper/.test(card) && !!hs && hs.helper, JSON.stringify({ card: card.split('\n').slice(0, 3), helper: hs && hs.helper }));
 
@@ -386,7 +386,7 @@ module.exports = async function previewsPass({ browser, base, check, OUT }) {
     const tp = await tctx.newPage(), terr = []; tp.on('pageerror', e => terr.push(e.message));
     try {
       await tp.goto(base + '?fakeNative=1'); await tp.waitForTimeout(4000);
-      const first = await tp.evaluate(async () => { const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config, was = (c.ui || {}).previews || 'off';
+      const first = await tp.evaluate(async () => { const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config, was = (c.ui || {}).previews || 'off';
         c.systems.gc.romDirs = [await api.pick({ kind: 'folder' })]; c.systems.gc.emulator = det.systems.gc.emulator; c.setupDone = true; c.ui.previews = 'details'; c.ui.previewDelay = 1; await api.saveConfig(c); await api.scan(); return was; });
       await tp.goto(base + '?fakeNative=1'); await tp.waitForFunction(() => window.Shelf && Shelf._lib && Shelf._lib.cur(), null, { timeout: 90000, polling: 250 }); await tp.waitForTimeout(3000);
       for (let i = 0; i < 6 && !/Pikmin/.test(await tp.evaluate(() => (Shelf._lib.cur() || {}).title || '')); i++) { await tp.keyboard.press('ArrowRight'); await tp.waitForTimeout(900); }
@@ -415,7 +415,7 @@ module.exports = async function previewsPass({ browser, base, check, OUT }) {
       await tp.waitForTimeout(1500); await tp.evaluate(() => window.Settings && Settings.close && Settings.close());
       let sh = null; for (let w = 0; w < 30; w++) { await tp.waitForTimeout(500); sh = await tp.evaluate(() => Shelf._lib.shelves().map(s => ({ id: s.id, ids: s.ids }))); if (sh.some(s => s.id === 'custom')) break; }
       const cust = (sh || []).find(s => s.id === 'custom'), appsSh = (sh || []).find(s => s.id === 'media');
-      const lib = await tp.evaluate(async () => (await window.trustyshelf.cachedLibrary()).filter(s => s.id === 'custom' || s.id === 'media').map(s => ({ id: s.id, titles: s.games.map(g => g.title) })));
+      const lib = await tp.evaluate(async () => (await window.rustyshelf.cachedLibrary()).filter(s => s.id === 'custom' || s.id === 'media').map(s => ({ id: s.id, titles: s.games.map(g => g.title) })));
       const portTitles = ((lib.find(s => s.id === 'custom') || {}).titles) || [], appTitles = ((lib.find(s => s.id === 'media') || {}).titles) || [];
       check('Thor: Ports & custom APKs: an app switched on gets a Custom shelf of its own and leaves the Apps shelf',
         !!prow && portTitles.includes(prow) && !appTitles.includes(prow) && !!cust, JSON.stringify({ prow, portTitles, appTitles: appTitles.slice(0, 5), shelves: (sh || []).map(s => s.id) }));

@@ -1,10 +1,10 @@
-// (T)rustyShelf: a PC game's own window mode (Details → Window), for games the shelf starts itself (Quiver, GOG, HoYoPlay, the
+// RustyShelf: a PC game's own window mode (Details → Window), for games the shelf starts itself (Quiver, GOG, HoYoPlay, the
 // PC games folder, programs added by hand). Stored as cfg.games[<game id>].window:
 //   ''          the game does it its own way (nothing is changed)
 //   'borderless'  for a game with no fullscreen of its own: once its window is up, its frame and title bar are taken off and
 //                 it is stretched over the screen it is on, and kept that way while it runs
 //   'windowed'  the game stays a window and the taskbar stays visible (the shelf doesn't hide it for this game)
-// The same idea is in the TyroShelf fork (a Window button per PC game); this is written for (T)rustyShelf's own launch code.
+// The same idea is in the TyroShelf fork (a Window button per PC game); this is written for RustyShelf's own launch code.
 //
 // Borderless is Windows only. A small C# program does the work (compiled by PowerShell's Add-Type; its source is CSHARP below,
 // which has no single quote and no line break trouble, so PowerShell can take it as one string): it follows the game's process and

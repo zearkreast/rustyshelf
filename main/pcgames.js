@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/pcgames.js; modified for (T)rustyShelf (see the git history).
+// main/pcgames.js; modified for RustyShelf (see the git history).
 // PC games beyond Steam (beta.4): the Epic Games Launcher's installs (on the PC shelf), and on the Custom shelf the apps
 // Quiver Launcher installed (recomps, ports; Quiver 3, portable or installed, and Quiver 4) plus any program added by hand
 // in Settings → Custom games. Each game is { id, source, title, exe | uri, icon?, appid? }: the screen only ever names a
@@ -10,7 +10,7 @@
 //     keeps library.json / installs.json / apps-folder.json in %APPDATA%\com.quiverlauncher.app. Read only, never written.
 //   - Covers: an Epic game's title is matched once to a Steam app (the store's search) and Steam's own art is used
 //     (steamart.js); only while box art downloads are on. Quiver's and hand-added games aren't matched (a recomp often
-//     shares its name with an unrelated Steam game) and keep (T)rustyShelf's made-up case, as does a title with no match.
+//     shares its name with an unrelated Steam game) and keep RustyShelf's made-up case, as does a title with no match.
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
@@ -47,7 +47,7 @@ function epicGames(dir = EPIC_DIR()) {
 // ---------- (beta.7) more stores on the PC shelf: GOG Galaxy, Ubisoft Connect, EA app, Xbox / Game Pass ----------
 // Windows only; read only. Each store's install list, the way the store itself leaves it:
 //   - GOG: HKLM\SOFTWARE\WOW6432Node\GOG.com\Games\<id> (gameName, path, exe / launchCommand, dependsOn = a DLC). GOG games
-//     have no copy protection: (T)rustyShelf starts the game's own program (Home menu and quit work as for any app).
+//     have no copy protection: RustyShelf starts the game's own program (Home menu and quit work as for any app).
 //   - Ubisoft Connect: HKLM\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs\<id>\InstallDir; started through Connect's
 //     link uplay://launch/<id>/0 (its sign-in and cloud saves).
 //   - EA app: every EA game folder has __Installer\installerdata.xml (its content ids and title); found from the
@@ -87,11 +87,11 @@ async function gogGames() {
   }
   return out;
 }
-// ---------- HoYoPlay (Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Honkai Impact 3rd) ((T)rustyShelf) ----------
+// ---------- HoYoPlay (Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Honkai Impact 3rd) (RustyShelf) ----------
 // HoYoPlay writes each installed game into HKCU\Software\Cognosphere\HYP\<version>\<game>: GameBiz (the game's code, such as
 // hk4e_global) and GameInstallPath (its folder). The game's own program starts it: HoYoPlay's launcher doesn't have to run.
 // (Where HoYoPlay keeps its install list is also what the Playnite add-on "HoYoPlay Library" by darklinkpower reads; this is
-// written for (T)rustyShelf's own code.)
+// written for RustyShelf's own code.)
 const HOYO = [
   { re: /^hk4e/i, title: 'Genshin Impact', exes: ['GenshinImpact.exe', 'YuanShen.exe'] },
   { re: /^hkrpg/i, title: 'Honkai: Star Rail', exes: ['StarRail.exe'] },
@@ -161,7 +161,7 @@ function xboxRoots() {
   }
   return roots;
 }
-// ((T)rustyShelf, Boxshelf beta discussion 39) a package's family is its name and its publisher's id: the first 8 bytes of
+// (RustyShelf, Boxshelf beta discussion 39) a package's family is its name and its publisher's id: the first 8 bytes of
 // the SHA-256 of the publisher (UTF-16), in Windows' own base 32. Worked out here when PowerShell doesn't answer
 function publisherId(pub) {
   const h = require('crypto').createHash('sha256').update(Buffer.from(String(pub), 'utf16le')).digest().subarray(0, 8);
@@ -306,7 +306,7 @@ function quiver3(root) {
   }
   return out;
 }
-// ((T)rustyShelf, issue 16) Quiver 4's catalog.json: the last catalog it saw, by app id ({ name, slug, artwork,
+// (RustyShelf, issue 16) Quiver 4's catalog.json: the last catalog it saw, by app id ({ name, slug, artwork,
 // libraryArt, tags… }). Its library only points at these, so the names (and the box art found by them) come from here
 function quiverCatalog(root) {
   const c = readJson(path.join(root, 'catalog.json')), out = {};
@@ -324,7 +324,7 @@ function quiver4(root) {
   const out = [];
   for (const [id, i] of entries.slice(0, 2000)) {
     if (!i || typeof i !== 'object') continue;
-    // ((T)rustyShelf, issue 16) an app Quiver 4 groups by console sits in <apps folder>/<group>/<folder> (group: "Ports/N64",
+    // (RustyShelf, issue 16) an app Quiver 4 groups by console sits in <apps folder>/<group>/<folder> (group: "Ports/N64",
     // "Emulators"): read without the group it was never found, and came back from the apps folder under its folder's name
     const grp = typeof i.group === 'string' && i.group ? i.group.split(/[\\/]+/).filter(x => x && x !== '..' && x !== '.') : [];
     const dir = typeof i.dir === 'string' && i.dir ? i.dir : typeof i.folder === 'string' && i.folder ? path.join(appsDir, ...grp, i.folder) : '';
@@ -338,17 +338,17 @@ function quiver4(root) {
   }
   return out;
 }
-// ((T)rustyShelf, issue 16) Quiver's apps folder: Quiver 3's AppsPath (else <root>\Apps), Quiver 4's apps-folder.json
+// (RustyShelf, issue 16) Quiver's apps folder: Quiver 3's AppsPath (else <root>\Apps), Quiver 4's apps-folder.json
 // (else <root>\apps)
 function quiverAppsDir(root) {
   if (isFile(path.join(root, 'installs.json'))) { const af = readJson(path.join(root, 'apps-folder.json')); return af && typeof af.path === 'string' && af.path ? af.path : path.join(root, 'apps'); }
   const s = readJson(path.join(root, 'settings.json')) || {}; return typeof s.AppsPath === 'string' && s.AppsPath.trim() ? s.AppsPath.trim() : path.join(root, 'Apps');
 }
-// ((T)rustyShelf, issue 16) an app Quiver has installed but its list doesn't show (not written there yet, or in a layout
+// (RustyShelf, issue 16) an app Quiver has installed but its list doesn't show (not written there yet, or in a layout
 // read above only in part) still gets its case: every folder in the apps folder with a program in it, the ones the list
 // already gave (their program is inside) left out, so a rescan never doubles a game
 const NOT_APP = /^(\.|_)|^(temp|tmp|cache|downloads?|logs?|backups?|updates?)$/i;
-// ((T)rustyShelf, issue 16 again) what Quiver's own lists call an app whose folder they don't point at (no folderName, or a
+// (RustyShelf, issue 16 again) what Quiver's own lists call an app whose folder they don't point at (no folderName, or a
 // folder named another way): matched by the folder's name against each entry's folder, project, repository and name, in
 // letters and digits only and with a version on the end left off. It gets the name the first import gave it, and with that
 // the box art, instead of its folder's name
@@ -375,7 +375,7 @@ function quiverNames(root) {
   }
   return m;
 }
-// ((T)rustyShelf, issue 16) Quiver 4 groups new apps by kind and console: Emulators, Tools, Games, Ports\<console>. Those
+// (RustyShelf, issue 16) Quiver 4 groups new apps by kind and console: Emulators, Tools, Games, Ports\<console>. Those
 // folders hold apps, they aren't apps (one was taken for an app named "Ports", with whatever program was inside)
 const Q_GROUP = /^(emulators|tools|games)$/i, Q_PORTS = /^ports$/i;
 function quiverAppDirs(appsDir, grouped) {
@@ -413,7 +413,7 @@ function quiverGames(chosen) {
 }
 
 // ---------- games added by hand (cfg.pc.custom: [{ id, title, exe, args }]) ----------
-// ((T)rustyShelf, issue 24) as many as Settings keeps (2,000; the shelf stopped at 500), and each program looked for with
+// (RustyShelf, issue 24) as many as Settings keeps (2,000; the shelf stopped at 500), and each program looked for with
 // fs.promises (a thousand checks on a network drive that had dropped held the app up for 25 s)
 const CUSTOM_MAX = 2000;
 async function customGames(list) {
@@ -446,7 +446,7 @@ function steamIdOf(title) { if (!map) map = readJson(mapFile()) || {}; const e =
 const norm = s => String(s || '').toLowerCase().replace(/[™®©]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
 function getJson(url, ms = 12000) {
   return new Promise(res => {
-    const rq = https.get(url, { headers: { 'User-Agent': 'TrustyShelf' }, timeout: ms }, r => { if (r.statusCode !== 200) { r.resume(); return res({ err: 'HTTP ' + r.statusCode }); } let b = ''; r.setEncoding('utf8'); r.on('data', c => { b += c; if (b.length > 2e6) rq.destroy(); }); r.on('end', () => { try { res({ data: JSON.parse(b) }); } catch { res({ err: 'bad reply' }); } }); });
+    const rq = https.get(url, { headers: { 'User-Agent': 'RustyShelf' }, timeout: ms }, r => { if (r.statusCode !== 200) { r.resume(); return res({ err: 'HTTP ' + r.statusCode }); } let b = ''; r.setEncoding('utf8'); r.on('data', c => { b += c; if (b.length > 2e6) rq.destroy(); }); r.on('end', () => { try { res({ data: JSON.parse(b) }); } catch { res({ err: 'bad reply' }); } }); });
     rq.on('timeout', () => rq.destroy(new Error('timeout'))); rq.on('error', e => res({ err: e.message }));
   });
 }

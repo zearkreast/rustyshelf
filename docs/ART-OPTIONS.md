@@ -1,5 +1,5 @@
 <!-- Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-     docs/ART-OPTIONS.md apart from the app's name ((T)rustyShelf). -->
+     docs/ART-OPTIONS.md apart from the app's name (RustyShelf). -->
 # Full case art: where to get it, and how to store it
 
 ## The sources, side by side
@@ -14,7 +14,7 @@
 
 **Title IDs for Wii U / 3DS / Switch:** GameTDB names these by product code. Reading that code needs decrypting or unpacking the game file (NSP/XCI/CIA/WUA), which isn't simple or safe on the Thor, so I skipped it. ScreenScraper covers these consoles by file name instead.
 
-**ScreenScraper developer ID:** apps normally ship their own developer ID, and users only type in their own username and password. (T)rustyShelf has no developer ID yet. The calls are tried without one, but ScreenScraper may refuse them. Asking ScreenScraper for a (T)rustyShelf developer ID (on their forum) is the single biggest step to make it "just work".
+**ScreenScraper developer ID:** apps normally ship their own developer ID, and users only type in their own username and password. RustyShelf has no developer ID yet. The calls are tried without one, but ScreenScraper may refuse them. Asking ScreenScraper for a RustyShelf developer ID (on their forum) is the single biggest step to make it "just work".
 
 ## What the Thor does now (0.2.8)
 - **GameCube / Wii:** GameTDB front, disc and full cover, with no account. The full cover is cut on the device into back, spine and front.
@@ -24,12 +24,12 @@
 ## Recommendation
 1. **Best results, least effort: scrape on the PC, copy to the Thor.** The Windows build has LaunchBox + GameTDB + ScreenScraper, and its Art Studio is the full one. Then copy the games folder (with its art) to the Thor.
 2. **Thor on its own:** leave "Fetch box art automatically" and "Full box art" on. GameCube and Wii get full cases with no account. For the rest, add a free ScreenScraper account.
-3. Get a ScreenScraper developer ID for (T)rustyShelf. It makes the account path reliable for everyone.
+3. Get a ScreenScraper developer ID for RustyShelf. It makes the account path reliable for everyone.
 
 ## Should the art storage be restructured?
-**A small change, not a rebuild.** Both builds already use the same file names: `<game file name>.png`, `-back`, `-spine`, `-disc`, plus `-full` for the whole wrap on Android. Only the folder name differs. Windows uses `covers\` beside the games, or its own art library folder. Android uses `TrustyShelf Art/` beside the games.
+**A small change, not a rebuild.** Both builds already use the same file names: `<game file name>.png`, `-back`, `-spine`, `-disc`, plus `-full` for the whole wrap on Android. Only the folder name differs. Windows uses `covers\` beside the games, or its own art library folder. Android uses `RustyShelf Art/` beside the games.
 
-- **Done in this build:** Android also reads the Windows `covers` folder beside the games. Art scraped on the PC and copied over with the games is used straight away, with no download. `TrustyShelf Art` wins where both folders have a picture.
-- **Suggested next (Windows side):** also read `TrustyShelf Art/`, and save the whole wrap as `-full` (today the wrap is used to cut the spine and then dropped). Art fetched on the Thor would then show on the PC too.
-- **Later, optional:** a small `trustyshelf-art.json` in each art folder recording picks and locks per game, so Art Studio choices travel between the PC and the Thor along with the pictures.
-- If the user's art library folder is not beside the games, a one-click Windows "Export art for Android" would copy it into `covers/` (or `TrustyShelf Art/`) next to the games.
+- **Done in this build:** Android also reads the Windows `covers` folder beside the games. Art scraped on the PC and copied over with the games is used straight away, with no download. `RustyShelf Art` wins where both folders have a picture.
+- **Suggested next (Windows side):** also read `RustyShelf Art/`, and save the whole wrap as `-full` (today the wrap is used to cut the spine and then dropped). Art fetched on the Thor would then show on the PC too.
+- **Later, optional:** a small `rustyshelf-art.json` in each art folder recording picks and locks per game, so Art Studio choices travel between the PC and the Thor along with the pictures.
+- If the user's art library folder is not beside the games, a one-click Windows "Export art for Android" would copy it into `covers/` (or `RustyShelf Art/`) next to the games.

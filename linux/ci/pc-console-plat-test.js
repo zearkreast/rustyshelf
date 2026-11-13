@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 1: a PC game's case follows the cover in use. A Steam or SteamGridDB cover picked over the automatic
+// RustyShelf issue 1: a PC game's case follows the cover in use. A Steam or SteamGridDB cover picked over the automatic
 // console box used to keep that console's case (proportions, colour), mixed up with the art. Run: node linux/ci/pc-console-plat-test.js
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');

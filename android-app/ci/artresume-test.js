@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 14: one press for box art. A download that stopped part way is offered as "Resume box art download"
+// RustyShelf issue 14: one press for box art. A download that stopped part way is offered as "Resume box art download"
 // (same consoles and parts); with nothing to resume, "Get all missing art" gets every console still missing something.
 // On the demo page. Run (after node copy-web.js): node ci/artresume-test.js www ../out/artresume
 'use strict';
@@ -23,7 +23,7 @@ server.listen(0, async () => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } }), page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.goto(`http://localhost:${server.address().port}/index.html?platform=windows&shelf=1`); await page.waitForTimeout(5000);
     // a download that stopped part way: GameCube covers and backs
-    const sys = await page.evaluate(async () => { const api = window.trustyshelf; const cov = await api.artCoverage(); const id = cov[0].id;
+    const sys = await page.evaluate(async () => { const api = window.rustyshelf; const cov = await api.artCoverage(); const id = cov[0].id;
       const c = (await api.getConfig()).config; c.ui.artResume = { plan: { [id]: ['front', 'back'] }, at: Date.now() - 3600e3 }; await api.saveConfig(c);
       window.__dl = []; const real = api.downloadCovers; api.downloadCovers = async (ids, plan, hd) => { window.__dl.push({ ids, plan }); return real(ids, plan, hd); }; return { id, n: cov.length }; });
     await page.evaluate(() => Setup.open({ page: 'art' })); await page.waitForTimeout(1500);
@@ -34,7 +34,7 @@ server.listen(0, async () => {
     const d1 = await page.evaluate(() => window.__dl[0] || null);
     check('One press resumes it: the same console and the same parts, nothing else', !!d1 && d1.ids.length === 1 && d1.ids[0] === sys.id && JSON.stringify(d1.plan[sys.id]) === '["front","back"]', JSON.stringify(d1));
     await page.waitForTimeout(1500);
-    const left = await page.evaluate(async () => (await window.trustyshelf.getConfig()).config.ui.artResume || null);
+    const left = await page.evaluate(async () => (await window.rustyshelf.getConfig()).config.ui.artResume || null);
     check('Once it finishes there is nothing left to resume', left == null, JSON.stringify(left));
     // nothing to resume: Get all missing art, every console still missing something, all four parts
     await page.evaluate(() => Settings.close()); await page.waitForTimeout(800);

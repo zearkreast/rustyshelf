@@ -1,5 +1,5 @@
 // From sassiestrhihno's 1.82.0-beta.12 source (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0), brought into
-// (T)rustyShelf.
+// RustyShelf.
 // (beta.12, every platform) Find a game: search every shelf by title. Opens from the shelf with / or Ctrl+F, the Search
 // button beside Menu, the left stick's click held for a moment, or the quick menu's first row. A full screen in Settings'
 // look: the title field, and under (or beside) it the matches as you type, best first: titles that start with what you
@@ -18,7 +18,7 @@
 (() => {
   const B = () => (window.Shelf && Shelf._find) || null;
   const ANDROID = () => !!(window.bsPlatform && bsPlatform.os === 'android');
-  const LINUX = () => !!((window.bsPlatform && bsPlatform.os === 'linux') || (window.trustyshelf && trustyshelf.platform && trustyshelf.platform.os === 'linux'));
+  const LINUX = () => !!((window.bsPlatform && bsPlatform.os === 'linux') || (window.rustyshelf && rustyshelf.platform && rustyshelf.platform.os === 'linux'));
   const S = { open: false, pad: false, zone: 'keys', kr: 0, kc: 0, sel: 0, q: '', list: null, res: [], total: 0, rows: new Map(), prev: null, rep: {}, eat: '', ptrAt: -1e9, gen: 0,
     folT: 0, here: null, from: null, moved: false, eatClick: -1e9 };
   const E = {};
@@ -206,7 +206,7 @@
     const ptr = performance.now() - S.ptrAt < 900, deckTouch = ptr && S.ptrType === 'touch' && LINUX();
     // (the Thor with its bottom screen on: the bottom screen is the keyboard. Here only the field and the matches, never
     // the letter grid nor Android's keyboard; the controller moves through the matches)
-    let bottomKb = false; try { const bs = ANDROID() && window.trustyshelf && trustyshelf.bottomScreen; const st = bs && bs.status && bs.status(); bottomKb = !!(st && st.available && st.enabled); } catch {}
+    let bottomKb = false; try { const bs = ANDROID() && window.rustyshelf && rustyshelf.bottomScreen; const st = bs && bs.status && bs.status(); bottomKb = !!(st && st.available && st.enabled); } catch {}
     S.bottomKb = bottomKb;
     const pad = !bottomKb && (how === 'pad' || deckTouch || (how !== 'kbd' && !ptr && !!b.pad()));
     Shelf.setMode('find');

@@ -5,11 +5,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting! The most helpful thing you can add is a problem report: in (T)rustyShelf, **Settings → System → Report a problem → Create**, then drag the zip from your Desktop into the box at the bottom.
+        Thanks for reporting! The most helpful thing you can add is a problem report: in RustyShelf, **Settings → System → Report a problem → Create**, then drag the zip from your Desktop into the box at the bottom.
   - type: input
     id: version
     attributes:
-      label: (T)rustyShelf version
+      label: RustyShelf version
       description: Settings → System → Updates / About. Filled in for you when you come from the app.
       placeholder: 1.3.0.0
     validations:

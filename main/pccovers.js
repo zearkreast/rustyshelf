@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/pccovers.js; modified for (T)rustyShelf (see the git history).
+// main/pccovers.js; modified for RustyShelf (see the git history).
 // (beta.5) Choosing a PC game's cover: Steam, Epic, Quiver and games added by hand (console games have the Art Studio).
 // The options: SteamGridDB's posters (with the player's own SteamGridDB key, Settings → Accounts & services), Steam's own
 // cover for a Steam game, and a picture of your own. The chosen one is kept as data\pc-covers\<game id>.<ext> and wins over
@@ -32,7 +32,7 @@ async function save(id, buf, ext) {
   await fs.promises.writeFile(tmp, buf); clear(id); await fs.promises.rename(tmp, dest); return dest;
 }
 
-// ((T)rustyShelf) custom PC game art found directly inside the game's directory or subdirectories
+// (RustyShelf) custom PC game art found directly inside the game's directory or subdirectories
 function folderCover(dirOrExe) {
   if (!dirOrExe) return null;
   let d = dirOrExe, base = '';
@@ -109,7 +109,7 @@ async function options(game) {
     for (const { a, i, t } of got) { if (!t) continue; const k = 'st' + i; keys[k] = { urls: [...steamArt(a.id, 'library_600x900_2x.jpg'), ...steamArt(a.id, 'library_600x900.jpg')] };
       list.push({ key: k, thumb: o.fileUrl(t), source: 'steamstore', label: "Steam's cover", sub: a.name ? `${a.name} on Steam` : "From Steam's store" }); }
   } catch (e) { o.log('PC cover: Steam store', e.message); }
-  // ((T)rustyShelf) console release boxes (PS5, Xbox Series X|S, PS4, Xbox One, Switch)
+  // (RustyShelf) console release boxes (PS5, Xbox Series X|S, PS4, Xbox One, Switch)
   if (o.consoleBoxes && game.title) {
     try {
       const reg = o.artRegion ? o.artRegion() : '';
@@ -189,7 +189,7 @@ async function fillMissing(games) {
   return { checked, downloaded };
 }
 
-// ((T)rustyShelf, asked for in Boxshelf's discussions) a PC game's console box made into a PC copy (main.js pcConsoleBoxes):
+// (RustyShelf, asked for in Boxshelf's discussions) a PC game's console box made into a PC copy (main.js pcConsoleBoxes):
 // data\pc-console-covers\<game id>.jpg, with where it came from beside it. Used only while Settings → PC games → Console box
 // art is on; a cover you chose comes first
 const boxDir = () => path.join(o.dataDir, 'pc-console-covers');
@@ -204,7 +204,7 @@ async function saveConsole(id, buf, from, part = '', plat = '') {
   }
   return f;
 }
-// the console a game's box comes from ('ps5', 'xone'…, covers.js PC_BOX_PLATS), or null. ((T)rustyShelf, issue 1) Only the cover in use counts:
+// the console a game's box comes from ('ps5', 'xone'…, covers.js PC_BOX_PLATS), or null. (RustyShelf, issue 1) Only the cover in use counts:
 // a cover you chose (data\pc-covers) is a console box only when it was picked as one (its .plat beside it); the
 // automatic console box (data\pc-console-covers) only while no cover is chosen. A Steam or SteamGridDB cover picked over
 // an automatic console box used to get that console's case (its proportions and colour), mixed up with the art.

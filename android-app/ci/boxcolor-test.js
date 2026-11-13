@@ -1,4 +1,4 @@
-// (T)rustyShelf discussion 15: Settings → PC games → Console box color. PC games in their console box keep each console's
+// RustyShelf discussion 15: Settings → PC games → Console box color. PC games in their console box keep each console's
 // colour, take one colour for all, or one per console. On the demo page. Run (after node copy-web.js):
 // node ci/boxcolor-test.js www ../out/boxcolor
 'use strict';

@@ -1,4 +1,4 @@
-// (T)rustyShelf's console box art for PC games (asked for in Boxshelf's discussions). Run: node ci/consolebox-test.js
+// RustyShelf's console box art for PC games (asked for in Boxshelf's discussions). Run: node ci/consolebox-test.js
 //   - main/covers.js consoleBox: a PC game's title is looked up in the box art database's console platforms, newest first
 //     (PS5, Xbox Series X|S, PS4, Xbox One, Switch); only a front scan counts; a title with none gives nothing
 //   - renderer/img-tools.js rebrand: the console's band across the top is measured and painted over with a Steam band of

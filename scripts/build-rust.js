@@ -23,7 +23,7 @@ execFileSync(cargoCmd, ['build', '--release'], {
 });
 
 const ext = process.platform === 'win32' ? '.exe' : '';
-const binName = `trustyshelf-imgtools${ext}`;
+const binName = `rustyshelf-imgtools${ext}`;
 const src = path.join(root, 'target', 'release', binName);
 const dstDir = path.join(root, 'main', 'bin');
 const dst = path.join(dstDir, binName);

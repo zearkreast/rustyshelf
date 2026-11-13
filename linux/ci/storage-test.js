@@ -1,4 +1,4 @@
-// (T)rustyShelf's PC game storage view (main/storage.js). Run: node linux/ci/storage-test.js
+// RustyShelf's PC game storage view (main/storage.js). Run: node linux/ci/storage-test.js
 //   - each game's folder is matched to the drive it is on (the longest mount that holds it; a Windows path by its drive letter)
 //   - drives and the games on them are listed biggest first, each drive with its free and total space
 //   - a game with no folder, a folder that isn't there, or a folder already listed is left out

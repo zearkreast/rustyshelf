@@ -1,4 +1,4 @@
-// beta issue 34: (T)rustyShelf 1.7.0.0 still hung at launch, the stall watch naming "scan steam" for minutes. Valve's text
+// beta issue 34: RustyShelf 1.7.0.0 still hung at launch, the stall watch naming "scan steam" for minutes. Valve's text
 // format reader went round forever on a space it didn't know (a no-break space, a form feed, a byte-order mark) between two
 // strings: neither the space skipper nor an unquoted string moved past it. Each case runs in a child process with a time
 // limit, so a parser that loops fails the check instead of hanging the test. Run: node linux/ci/vdf-test.js

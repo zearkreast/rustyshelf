@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/x360.js apart from the app's name ((T)rustyShelf).
+// main/x360.js apart from the app's name (RustyShelf).
 // Xbox 360: read the title ID out of a game (disc image or default.xex) and turn it into the real title,
 // so "DVD.iso" or a misspelled file name still gets the right name, art and info. Names come from the
 // Xenia compatibility trackers (via the Xenia Manager database on GitHub), cached for a week in data\.
@@ -27,7 +27,7 @@ function loadDb() {
 }
 function get(u) {
   return new Promise((resolve, reject) => {
-    const req = https.get(u, { headers: { 'User-Agent': 'TrustyShelf' } }, res => {
+    const req = https.get(u, { headers: { 'User-Agent': 'RustyShelf' } }, res => {
       if (res.statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${res.statusCode}`)); }
       let b = ''; res.setEncoding('utf8'); res.on('data', c => b += c); res.on('end', () => resolve(b)); res.on('error', reject);
     });

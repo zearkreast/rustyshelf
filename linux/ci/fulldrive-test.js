@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 24: a drive that runs out of space while box art or manuals download. The art run used to go on
+// RustyShelf issue 24: a drive that runs out of space while box art or manuals download. The art run used to go on
 // trying every picture for every game there (5,000 "no space left on device" in one log, the run looking frozen), and
 // manual pages were copied to the library's drive with the app held up. Run: node linux/ci/fulldrive-test.js
 //   - a picture that can't be written for lack of space marks its drive full for the run (logged once), and the next

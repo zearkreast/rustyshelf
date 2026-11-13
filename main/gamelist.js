@@ -1,4 +1,4 @@
-// (T)rustyShelf: the gamelist.xml that Batocera, RetroBat and EmulationStation keep in each system's games folder (asked for in
+// RustyShelf: the gamelist.xml that Batocera, RetroBat and EmulationStation keep in each system's games folder (asked for in
 // Boxshelf beta discussion 35). Each <game> names its file (<path>) and what was scraped for it: <name>, and pictures, a video
 // and a manual kept beside the games (./images/…, ./videos/…, ./manuals/…). The shelf takes the name and uses those files as
 // the game's art, so a collection already scraped there needs nothing downloaded again.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// (T)rustyShelf: every test, all at once. One command runs what used to be run by hand, one suite after another (about half an
+// RustyShelf: every test, all at once. One command runs what used to be run by hand, one suite after another (about half an
 // hour), at the same time on this PC: it takes as long as the slowest part (a device group, a few minutes) instead of the sum.
 //
 //   node scripts/test-all.js                 everything (the app is built unpacked first: a few seconds; the AppImage is built beside the
@@ -106,7 +106,7 @@ function changedPlan(files) {
     if (f === 'scripts/release-version.js') { named.add('release-version-test'); say(f, 'release-version-test'); continue; }
     if (/^scripts\/(fork-survey|credits|release-notes)\.js$/.test(f)) { named.add('fork-survey-test'); say(f, 'fork-survey-test'); continue; }
     if (/^package(-lock)?\.json$/.test(f)) { ['node', 'desktop', 'demo', 'device'].forEach(k => kinds.add(k)); say(f, 'everything (the app\'s packages and version)'); continue; }
-    if (/^(\.github\/|android-app\/ci\/[^/]*\.(yml|sh|bat)$|android-app\/ci\/fixtures\/README|scripts\/(community-report|push-build)\.js$|start-trustyshelf\.sh$|\.gitignore$|LICENSE|[^/]*\.(md|txt|bat)$)/.test(f)) { say(f, 'nothing (not the app\'s code)'); continue; }
+    if (/^(\.github\/|android-app\/ci\/[^/]*\.(yml|sh|bat)$|android-app\/ci\/fixtures\/README|scripts\/(community-report|push-build)\.js$|starrustyshelf\.sh$|\.gitignore$|LICENSE|[^/]*\.(md|txt|bat)$)/.test(f)) { say(f, 'nothing (not the app\'s code)'); continue; }
     ['node', 'desktop', 'demo', 'device'].forEach(k => kinds.add(k)); say(f, 'everything (not known to this script: to be safe)');
   }
   return { kinds, named, why };
@@ -114,7 +114,7 @@ function changedPlan(files) {
 
 const logDir = path.join(ROOT, 'linux-test-out', 'all');
 const UNPACKED = path.join(ROOT, 'dist', 'ts-unpacked'), APPIMAGE_DIR = path.join(ROOT, 'dist', 'ts-appimage'); // (their own folders: the usual dist/ is left alone)
-const exe = path.join(UNPACKED, 'linux-unpacked', 'trustyshelf');
+const exe = path.join(UNPACKED, 'linux-unpacked', 'rustyshelf');
 const appImage = () => { try { return fs.readdirSync(APPIMAGE_DIR).filter(f => /\.AppImage$/.test(f)).map(f => path.join(APPIMAGE_DIR, f))[0] || ''; } catch { return ''; } };
 const jobs = [];
 const add = (kind, name, cmd, args, o = {}) => { if (!only || only.includes(kind)) jobs.push({ kind, name, cmd, args, cwd: o.cwd || ROOT, env: o.env || {}, wait: o.wait || [] }); };

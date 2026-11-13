@@ -1,4 +1,4 @@
-// (T)rustyShelf: who made a change brought in from another fork, and how to credit them so GitHub shows it.
+// RustyShelf: who made a change brought in from another fork, and how to credit them so GitHub shows it.
 // Used by scripts/fork-survey.js (the credit lines for a port, the README's list) and scripts/release-notes.js (the release's
 // "Thanks" with @names, which GitHub turns into the release's Contributors).
 //
@@ -8,7 +8,7 @@
 //   - a `Co-authored-by: Name <address>` trailer: their avatar on the commit too (for the others, when several made it).
 //   - an @name in a release's notes: the release page lists them under Contributors.
 // The address is GitHub's no-reply one (<id>+<login>@users.noreply.github.com): it always links to the account, and it
-// never puts anyone's real e-mail in (T)rustyShelf's history.
+// never puts anyone's real e-mail in RustyShelf's history.
 // A port also says where it comes from: a `Ported-from: https://github.com/<owner>/<repo>/commit/<sha>` trailer (and
 // `git cherry-pick -x` writes "(cherry picked from commit <sha>)"). fork-survey.js reads both to know what was integrated.
 'use strict';

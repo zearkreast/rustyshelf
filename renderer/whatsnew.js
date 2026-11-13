@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// renderer/whatsnew.js; modified for (T)rustyShelf (its own versions' notes).
+// renderer/whatsnew.js; modified for RustyShelf (its own versions' notes).
 // What's new: each version's notes, shipped with the app (so the card after an update works offline, and on the Thor).
 // The shelf shows a version's highlights once, the first time it starts; Settings → System → What's new lists the
 // items (a short headline per row; the side card says more). scripts/release-notes.js prints the same notes as Markdown
@@ -23,7 +23,7 @@ window.BS_WHATSNEW = [
     sections: [
       { h: "New", items: [
         ["Find a game", "Search every shelf by title: press / or Ctrl+F, the Search button beside Menu, hold the left stick's click, or pick Find a game at the top of the quick menu. Matches show as you type, best first, and with nothing typed it lists what you played last. Pick one and the shelf goes straight to it, whichever console it's on. From sassiestrhihno's beta.12, by sassiestrhihno."],
-        ["Seamless play (Windows)", "Steam games and store games (Epic, Ubisoft Connect, the EA app, Xbox) keep the loading screen up until their window shows, then get the Home menu, their playtime and the way back to the shelf when they end, like the games (T)rustyShelf starts itself. Settings → Display → Screen & motion gets Screen mode (Full screen or a Window that remembers its place; F11 switches), and the Home menu gets Go to desktop. Turn it off in Settings → Display for the old way. From sassiestrhihno's beta.12, by sassiestrhihno."]
+        ["Seamless play (Windows)", "Steam games and store games (Epic, Ubisoft Connect, the EA app, Xbox) keep the loading screen up until their window shows, then get the Home menu, their playtime and the way back to the shelf when they end, like the games RustyShelf starts itself. Settings → Display → Screen & motion gets Screen mode (Full screen or a Window that remembers its place; F11 switches), and the Home menu gets Go to desktop. Turn it off in Settings → Display for the old way. From sassiestrhihno's beta.12, by sassiestrhihno."]
       ] },
       { h: "Box art and manuals", items: [
         ["Get box art in the sidebar", "Settings' sidebar has Get box art right under Box art & manuals: the download, its progress and its result in one press, with the percentage done showing on the sidebar from any page. The download adds a row for every console together, and the check before it counts the games checked in all."],
@@ -36,7 +36,7 @@ window.BS_WHATSNEW = [
         ["Quiver 4's apps", "Apps Quiver 4 puts in its console folders (Ports\\N64 and the like) are found from Quiver's list again, with the names and covers from Quiver's catalog, instead of turning up under their folder's name."]
       ] },
       { h: "Windows and consoles", items: [
-        ["The taskbar on the game's screen only", "Hide the taskbar during games now hides it only on the screen (T)rustyShelf and the game are on; your other screens keep theirs."],
+        ["The taskbar on the game's screen only", "Hide the taskbar during games now hides it only on the screen RustyShelf and the game are on; your other screens keep theirs."],
         ["Use RetroArch", "A console RetroArch runs has Use RetroArch on its page even when no RetroArch was found yet: pick retroarch.exe and the console runs in it, with the core of your choice."]
       ] }
     ]
@@ -69,7 +69,7 @@ window.BS_WHATSNEW = [
         ["Card boxes without a frame", "SNES, Game Boy Advance and the other consoles in printed card boxes no longer have a case-coloured frame round the cover: it runs right to the edges, like the real box. Plastic cases keep theirs."]
       ] },
       { h: "Box art", items: [
-        ["A quick check before the download", "Download missing art now no longer reads every games folder again before it starts: it uses the library (T)rustyShelf already has, says which console it's checking, and keeps going while you look at other pages."]
+        ["A quick check before the download", "Download missing art now no longer reads every games folder again before it starts: it uses the library RustyShelf already has, says which console it's checking, and keeps going while you look at other pages."]
       ] },
       { h: "Museum", items: [
         ["Smooth with a big library", "A row whose cases are small on screen is drawn as one block with a picture of its spines, instead of every case on its own: the wide view of a wall of thousands of games takes about 40 times fewer drawings a frame. Rows close by and the one you're on keep their real cases."],
@@ -94,14 +94,14 @@ window.BS_WHATSNEW = [
     sections: [
       { h: "Consoles", items: [
         ["PS Vita", "A new shelf for the PS Vita, in Vita3K. The games Vita3K has installed are found by themselves (its ux0 folder, wherever its settings keep it), named from each game's own info, and start straight in, fullscreen. A .vpk in a psvita folder is handed to Vita3K, which installs it and runs it."],
-        ["Every emulator found", "A console's page in Settings lists every emulator (T)rustyShelf found for it, each one press away: Flycast or RetroArch for the Dreamcast, Gopher64, RMG or RetroArch for the N64. Details → Emulator still lets a single game use another one."],
+        ["Every emulator found", "A console's page in Settings lists every emulator RustyShelf found for it, each one press away: Flycast or RetroArch for the Dreamcast, Gopher64, RMG or RetroArch for the N64. Details → Emulator still lets a single game use another one."],
         ["RetroArch core of your choice", "Consoles that run in RetroArch have a RetroArch core choice: FCEUmm, Nestopia or QuickNES for the NES, bsnes for the SNES, PCSX ReARMed or Beetle PSX for the PlayStation, and others. A core that isn't there yet is downloaded the first time you play."],
         ["BizHawk, Gopher64 and RAProject64", "These portable emulators with RetroAchievements built in are found by Find emulators in a folder and by the usual search, and each starts with its own options. BizHawk is used only when there's nothing else for a console, or when you pick it."],
-        ["Batocera and RetroBat gamelists", "A games folder with a gamelist.xml (Batocera, RetroBat and EmulationStation keep one) gives its games their names, and its box art, back covers, cartridges, pictures and PDF manuals, so nothing has to be downloaded again. Art (T)rustyShelf already has for a game comes first."]
+        ["Batocera and RetroBat gamelists", "A games folder with a gamelist.xml (Batocera, RetroBat and EmulationStation keep one) gives its games their names, and its box art, back covers, cartridges, pictures and PDF manuals, so nothing has to be downloaded again. Art RustyShelf already has for a game comes first."]
       ] },
       { h: "PC games", items: [
         ["Steam achievements", "A Steam game's Details shows its achievements, read from what Steam keeps on your PC: how many you've unlocked, and the full list with icons and unlock dates. Hidden ones stay hidden until you earn them. GOG, EA and Ubisoft keep theirs where they can't be read this way."],
-        ["Xbox app games", "With two or more Xbox app or Game Pass games installed, Windows refused the question (T)rustyShelf asked about them, so they all looked uninstalled. Each game is asked about on its own now, and the wrong answers saved before are thrown away."]
+        ["Xbox app games", "With two or more Xbox app or Game Pass games installed, Windows refused the question RustyShelf asked about them, so they all looked uninstalled. Each game is asked about on its own now, and the wrong answers saved before are thrown away."]
       ] },
       { h: "Export everything", items: [
         ["Its size first", "Settings → System → Export everything says how big the export will be before you choose a folder."],
@@ -154,7 +154,7 @@ window.BS_WHATSNEW = [
         ["A stall says where it is", "If the app ever gets stuck, the log says so while it's happening, after 5 s, 15 s, 30 s and on, naming the step it was on, instead of nothing at all."]
       ] },
       { h: "Switch 2", items: [
-        ["Builds that open .nup", "Fortune's Eden and other builds that open .nup games but name the format differently inside their program are no longer greyed out at Play. A build (T)rustyShelf can't be sure about stays startable, marked \"may not open .nup games\"."]
+        ["Builds that open .nup", "Fortune's Eden and other builds that open .nup games but name the format differently inside their program are no longer greyed out at Play. A build RustyShelf can't be sure about stays startable, marked \"may not open .nup games\"."]
       ] },
       { h: "DS", items: [
         ["The box fits the cover", "DS boxes have the same proportions as the 3DS case they match in size, so a DS cover fills its front instead of losing its sides."],
@@ -195,7 +195,7 @@ window.BS_WHATSNEW = [
       ] },
       { h: "Shelf and controllers", items: [
         ["Manual sorting with the mouse", "A quick drag scrolls the shelf and no longer grabs a box; hold a box still for a moment to pick it up. The shelf no longer keeps scrolling after a drop, and Custom can be left for A–Z or the others at once."],
-        ["PlayStation pads over Bluetooth", "A DualSense Windows has but the shelf got nothing from is read directly by (T)rustyShelf's controller helper, so it moves the shelf; a pad the shelf sees itself turns that off."],
+        ["PlayStation pads over Bluetooth", "A DualSense Windows has but the shelf got nothing from is read directly by RustyShelf's controller helper, so it moves the shelf; a pad the shelf sees itself turns that off."],
         ["Switch games folder", "The .nca parts of a dump no longer show up as games of their own."]
       ] },
       { h: "Achievements and startup", items: [
@@ -217,7 +217,7 @@ window.BS_WHATSNEW = [
     ],
     sections: [
       { h: "Updates and startup", items: [
-        ["Startup auto-update", "You can now enable automatic update checking at startup in Settings → System. When enabled, (T)rustyShelf checks for newer releases in the background, downloads and installs updates automatically without manual downloading, and alerts you with a 5-second countdown before restarting."],
+        ["Startup auto-update", "You can now enable automatic update checking at startup in Settings → System. When enabled, RustyShelf checks for newer releases in the background, downloads and installs updates automatically without manual downloading, and alerts you with a 5-second countdown before restarting."],
         ["Startup video trailer suppression", "Background video trailers are now suppressed on initial app launch until you browse or navigate the shelf, preventing trailers from auto-playing unexpectedly on startup."]
       ] }
     ]
@@ -235,8 +235,8 @@ window.BS_WHATSNEW = [
     ],
     sections: [
       { h: "Consoles and emulators", items: [
-        ["Citron Switch launch fix", "Fixed a crash when launching Nintendo Switch games through Citron. Citron's background directory scanning threads previously raced with game booting and UI teardown when multiple game folders were configured; (T)rustyShelf now safely caps game directories to internal NAND at launch and transparently restores all configured game folders when the emulator exits."],
-        ["Child process environment sanitization", "On Linux, emulators and child processes launched from the (T)rustyShelf AppImage no longer inherit APPDIR and bundled library search paths, preventing dynamic linker and library conflicts."]
+        ["Citron Switch launch fix", "Fixed a crash when launching Nintendo Switch games through Citron. Citron's background directory scanning threads previously raced with game booting and UI teardown when multiple game folders were configured; RustyShelf now safely caps game directories to internal NAND at launch and transparently restores all configured game folders when the emulator exits."],
+        ["Child process environment sanitization", "On Linux, emulators and child processes launched from the RustyShelf AppImage no longer inherit APPDIR and bundled library search paths, preventing dynamic linker and library conflicts."]
       ] }
     ]
   },
@@ -287,12 +287,12 @@ window.BS_WHATSNEW = [
         ["Full-screen first-run setup", "A full-screen setup wizard on Windows on a fresh install, with a sidebar showing progress and a hint pill under each step. By sassiestrhihno."]
       ] },
       { h: "Trailers and previews", items: [
-        ["YouTube trailer search", "When a game's LaunchBox trailer link is gone (private or removed), or there is none, (T)rustyShelf searches YouTube for its trailer instead. The result is remembered per game. By sassiestrhihno."],
+        ["YouTube trailer search", "When a game's LaunchBox trailer link is gone (private or removed), or there is none, RustyShelf searches YouTube for its trailer instead. The result is remembered per game. By sassiestrhihno."],
         ["Neighbours prepared ahead", "The clips for the two games either side of the one you're on are made in the background, so they play at once when you get there. By sassiestrhihno."],
         ["No-clip notice", "When no clip is coming (the link is gone and nothing fits on YouTube), the waiting box closes straight away instead of after 45 seconds. By sassiestrhihno."]
       ] },
       { h: "Achievements", items: [
-        ["25 consoles", "RetroAchievements covers 25 consoles in (T)rustyShelf (was 4): all the ones the site supports. Each shelf shows its set count and a 'why there\'s nothing' message when the game has none. By sassiestrhihno."],
+        ["25 consoles", "RetroAchievements covers 25 consoles in RustyShelf (was 4): all the ones the site supports. Each shelf shows its set count and a 'why there\'s nothing' message when the game has none. By sassiestrhihno."],
         ["Trophies opens the game's set", "The Trophies button in Inspect opens that game's achievement set page on RetroAchievements directly. By sassiestrhihno."]
       ] },
       { h: "Magazines and guides", items: [
@@ -324,7 +324,7 @@ window.BS_WHATSNEW = [
         ["Text size options", "Settings → Display → Text size on Android: Small, Default, Large, or the system font scale. Art Studio lifts when the keyboard opens. By sassiestrhihno."]
       ] },
       { h: "Fixes and other changes", items: [
-        ["GitHub bug report form", "Issues on GGStonks/t-rustyshelf now have a template with version and device fields, and a chooser that sends ideas and questions to Discussions. By sassiestrhihno."],
+        ["GitHub bug report form", "Issues on zearkreast/rustyshelf now have a template with version and device fields, and a chooser that sends ideas and questions to Discussions. By sassiestrhihno."],
         ["Quick menu sounds and Steam covers", "Quick menu: sound-related settings in one place; Steam covers shown in Inspect. Museum PDF range mode; Details smooth glide. By sassiestrhihno."],
         ["CI and repo parity", "Demo tests updated for the new tiles; Android package bumped to match beta.11."]
       ] }
@@ -362,8 +362,8 @@ window.BS_WHATSNEW = [
     ],
     sections: [
       { h: "Box art", items: [
-        ["Art match", "A ROM hack, a translation or a mod named after its serial or file name got no box art. Details → Art match searches the console's games in the box art databases by name: pick the right one and its box art is fetched for this game, and remembered. Back to automatic undoes it. Asked for by jhonam05 in (T)rustyShelf's issue 2."],
-        ["Console box art shows again", "With Settings → PC games → Console box art on, the console boxes were made but never shown: the shelf fell back to the made-up cases. They show now, back and spine too. Reported by jhonam05 in (T)rustyShelf's issue 1."],
+        ["Art match", "A ROM hack, a translation or a mod named after its serial or file name got no box art. Details → Art match searches the console's games in the box art databases by name: pick the right one and its box art is fetched for this game, and remembered. Back to automatic undoes it. Asked for by jhonam05 in RustyShelf's issue 2."],
+        ["Console box art shows again", "With Settings → PC games → Console box art on, the console boxes were made but never shown: the shelf fell back to the made-up cases. They show now, back and spine too. Reported by jhonam05 in RustyShelf's issue 1."],
         ["Automatic PC posters", "The automatic SteamGridDB posters and store box art for PC games had the same problem, and show now as well."]
       ] },
       { h: "Controllers", items: [
@@ -382,7 +382,7 @@ window.BS_WHATSNEW = [
     ],
     platforms: [
       "Windows: the window mode, HoYoPlay and the administrator start (they use Windows itself).",
-      "Linux: the Epic download manager, the installation status and the start script (start-trustyshelf.sh).",
+      "Linux: the Epic download manager, the installation status and the start script (starrustyshelf.sh).",
       "Windows and Linux: your own music, Storage, Export / Import everything and the Discord status.",
       "Windows, Linux and Android: saved looks, the Installed filter and the language choice."
     ],
@@ -406,13 +406,13 @@ window.BS_WHATSNEW = [
       ] },
       { h: "Consoles and emulators", items: [
         ["An original Xbox shelf", "Disc images (.iso, .xiso) from an xbox folder, started in xemu full screen, with box art, manuals and a black Xbox case. xemu needs its BIOS, boot ROM and hard disk set up first."],
-        ["Portable emulators", "Settings → Consoles → Find emulators in a folder looks for every emulator (T)rustyShelf knows in a folder you choose, four folders deep, even on another drive; RetroAchievements shows whether DuckStation, RetroArch and Flycast are signed in, portable or installed."],
+        ["Portable emulators", "Settings → Consoles → Find emulators in a folder looks for every emulator RustyShelf knows in a folder you choose, four folders deep, even on another drive; RetroAchievements shows whether DuckStation, RetroArch and Flycast are signed in, portable or installed."],
         ["More emulators found", "DeSmuME for the DS, VisualBoyAdvance-M for the Game Boy shelves, and more DuckStation builds are found and started."],
         ["Switch 2 sizes", "Unpacked Switch 2 games (a folder with exefs and romfs) show their size."]
       ] },
       { h: "Your data and the app", items: [
         ["Export everything, Import everything", "Settings → System: copy your whole collection (settings, favourites, history, art databases, themes, songs, and the art and manuals next to your games) to a folder, and bring it back on another PC. Nothing is deleted on import."],
-        ["A start for Linux", "start-trustyshelf.sh runs (T)rustyShelf from the source on any Linux with Node.js: it installs what it needs on the first run and repairs Electron if its download failed. --windowed starts in a window; the idea is from wouldja's launcher."],
+        ["A start for Linux", "starrustyshelf.sh runs RustyShelf from the source on any Linux with Node.js: it installs what it needs on the first run and repairs Electron if its download failed. --windowed starts in a window; the idea is from wouldja's launcher."],
         ["Versions and updates", "The version reads like the releases (1.1.0.0), the wording says Updates instead of beta, and the update check reads this repository's releases."]
       ] }
     ]
@@ -433,7 +433,7 @@ window.BS_WHATSNEW = [
     sections: [
       { h: 'Custom games and shelves', items: [
         ['A page for each custom game', 'Settings → Custom games → a game: its name, launch arguments (for example -dx12), its Platform and Remove. Details shows its program and arguments. By supalii, from their Boxshelf fork.'],
-        ['Put a program on any shelf', 'Platform puts it on Custom, PC or a console\'s shelf, beside that console\'s games. (T)rustyShelf still starts the program itself, never through the emulator. By supalii.'],
+        ['Put a program on any shelf', 'Platform puts it on Custom, PC or a console\'s shelf, beside that console\'s games. RustyShelf still starts the program itself, never through the emulator. By supalii.'],
         ['Xbox One shelf', 'A shelf for Xbox One ports and recompilations that run as PC programs: no emulator or games folder. It shows up once a program is put on it. By supalii.'],
         ['Automatic PC posters', 'With a SteamGridDB key and automatic box art on, PC games with no cover get a SteamGridDB poster. A cover you chose, the store\'s or Steam\'s always comes first. By supalii.'],
         ['Hide more tiles', 'Hide from shelf works on the Open emulator and Surprise me tiles too; Settings → Hidden games & tiles brings them back. By supalii.']
@@ -466,11 +466,11 @@ window.BS_WHATSNEW = [
     ],
     sections: [
       { h: 'New', items: [
-        ['Covers for every custom game', 'Settings → Custom games → Covers: go through every recomp, port and program without a cover (SteamGridDB\'s covers for each, A uses one, Skip moves on), or let (T)rustyShelf pick the best match for each in one go, with Undo. Needs a free SteamGridDB key.'],
+        ['Covers for every custom game', 'Settings → Custom games → Covers: go through every recomp, port and program without a cover (SteamGridDB\'s covers for each, A uses one, Skip moves on), or let RustyShelf pick the best match for each in one go, with Undo. Needs a free SteamGridDB key.'],
         ['Thor: video previews', 'Videos beside your games (a "videos", "media/videos" or "snap" folder in a console\'s games folder) play behind the case in Details, and YouTube trailers in the Media tab. Off until you switch them on: Settings → Shelf & museum → Video previews.'],
         ['Thor: ports and custom APKs', 'Settings → Games → Ports & custom APKs: switch on the apps that are games (ports, recomps, a custom APK) and they get a Custom shelf of their own, off the Apps shelf.'],
         ['Thor: six more consoles', 'Sega CD, 32X, Atari 2600, Lynx, WonderSwan and DOS, through RetroArch (MD.emu for Sega CD too), with their box art, manuals and achievements.'],
-        ['Steam Deck: leave any game', 'Hold Select + Start for a moment during a game and (T)rustyShelf closes it, whatever the emulator.'],
+        ['Steam Deck: leave any game', 'Hold Select + Start for a moment during a game and RustyShelf closes it, whatever the emulator.'],
         ['Accounts in setup', 'The first-run setup has an optional Accounts page: RetroAchievements, SteamGridDB, ScreenScraper and fanart.tv, each with a link to its free key, a Paste button and a Test. With a controller, an on-screen keyboard. Skip it and nothing changes.'],
         ['Manuals for many more consoles', 'Scan collections for PlayStation, NES, SNES, N64, Game Boy, DS, 3DS, Sega, Atari, TurboGrafx-16 and Neo Geo games, plus Nintendo\'s high-resolution manuals for Wii, GameCube, N64, DS and 3DS.']
       ] },
@@ -480,7 +480,7 @@ window.BS_WHATSNEW = [
         ['Cleaner manual pages', 'No more thumbnail "pages", huge scans made a sensible size, and digital manuals and box wraps are no longer cut in half.'],
         ['Fix a manual', 'In the manual reader, Fix manual (Y / W) offers Wrong game (set it aside and get the right one, from the scan collections first) or Repair (the same manual with its cover, pages and sizes put right). Right away, for that game only.'],
         ['Art Studio shows the whole box', 'The case in the Art Studio takes the shape of the game\'s box, so 3DS, PSP, Switch, Blu-ray and cartridge boxes show whole instead of cropped.'],
-        ['Wii U manuals open on the box', 'Manuals made from a Wii U game\'s own e-manual open on the box front again, wherever (T)rustyShelf runs from.'],
+        ['Wii U manuals open on the box', 'Manuals made from a Wii U game\'s own e-manual open on the box front again, wherever RustyShelf runs from.'],
         ['Right-click Paste', 'Text boxes have the usual Cut / Copy / Paste menu.'],
         ['Settings opens the right page', 'Links to a page of its own (from a card or the bottom screen) now land on that page, on every platform.']
       ] }
@@ -498,17 +498,17 @@ window.BS_WHATSNEW = [
     // (scripts/release-notes.js prints these under the notes: where each part works)
     platforms: [
       'Windows: everything above.',
-      'Linux / Steam Deck (experimental): everything except Set up for me, console trailers, scanning a folder of games and the Playnite import. On a Steam Deck, add (T)rustyShelf to Steam (it offers to) and play from Game Mode.',
+      'Linux / Steam Deck (experimental): everything except Set up for me, console trailers, scanning a folder of games and the Playnite import. On a Steam Deck, add RustyShelf to Steam (it offers to) and play from Game Mode.',
       'Android (AYN Thor): the new Details page and the magazines fix; video previews, Add games and the new consoles come to Android later.'
     ],
     sections: [
       { h: 'New', items: [
         ['Video previews', 'Rest on a game and its preview plays, softly behind the shelf and behind the case in Details: your own videos (ES-DE, EmuDeck, RetroBat, LaunchBox or a folder of your own), Steam\'s own trailers for Steam games, and console trailers from YouTube. Settings → Video previews, which also sets how soon they start (half a second to 15 seconds).'],
-        ['Console trailers', 'A console game\'s YouTube trailer is kept as a short clip (about 1 MB) the first time you rest on it, so it plays on the shelf just like a Steam trailer. It needs a free helper (yt-dlp), fetched once with one press: (T)rustyShelf asks you on the shelf, or Settings → Video previews.'],
+        ['Console trailers', 'A console game\'s YouTube trailer is kept as a short clip (about 1 MB) the first time you rest on it, so it plays on the shelf just like a Steam trailer. It needs a free helper (yt-dlp), fetched once with one press: RustyShelf asks you on the shelf, or Settings → Video previews.'],
         ['A new Details page', 'The game\'s logo, time played and last played, one Play button with Manual, Inspect and More beside it, and tabs: Overview, Media and Your copy (LB / RB, or Q / E). The game\'s art or its preview fills the background.'],
-        ['Add many games at once', 'Settings → Custom games → Add games, or the Add games tile at the end of the Custom shelf: pick several programs at once, or point (T)rustyShelf at a folder of games and tick the ones to add.'],
+        ['Add many games at once', 'Settings → Custom games → Add games, or the Add games tile at the end of the Custom shelf: pick several programs at once, or point RustyShelf at a folder of games and tick the ones to add.'],
         ['Import from Playnite (experimental)', 'Bring your Playnite library over in one go: games you added by hand, with their covers, and your emulated games\' folders. You see what will be added first, and one press removes it all again. Tell us how it goes.'],
-        ['Steam Deck: Game Mode and Add to Steam', '(T)rustyShelf now starts from Steam and in Game Mode by itself. On a Steam Deck in Desktop Mode it offers to add itself to Steam, so your controller works as a gamepad in games (outside Steam, B is the Esc key, which quits most emulators). Any time: Settings → System → Add (T)rustyShelf to Steam.'],
+        ['Steam Deck: Game Mode and Add to Steam', 'RustyShelf now starts from Steam and in Game Mode by itself. On a Steam Deck in Desktop Mode it offers to add itself to Steam, so your controller works as a gamepad in games (outside Steam, B is the Esc key, which quits most emulators). Any time: Settings → System → Add RustyShelf to Steam.'],
         ['Switch: Citron and Ryujinx', 'Found and started as well as Eden, so EmuDeck\'s Switch emulator works without setting anything up.'],
         ['Ten more consoles', 'Saturn, TurboGrafx-16, Neo Geo, Arcade, Sega CD, 32X, Atari 2600, Lynx, WonderSwan and DOS, through RetroArch, each with its own case and colours. Arcade games show their real names.'],
         ['Set up for me', 'Settings → a console → Set up for me: your controller mapped, the Home menu\'s Save and Load keys, one shared BIOS folder and graphics that suit your PC. Your files are backed up first, and Undo puts them back. The first run can do it for you.'],
@@ -522,7 +522,7 @@ window.BS_WHATSNEW = [
         ['Easier to find', 'Video previews has its own place in Settings, and Add games its own page, so the main pages stay short.']
       ] },
       { h: 'Fixed', items: [
-        ['Trailers play again', 'YouTube stopped playing trailers opened on their own. They now play in TrustyShelf\'s own player.'],
+        ['Trailers play again', 'YouTube stopped playing trailers opened on their own. They now play in RustyShelf\'s own player.'],
         ['Android: magazines and guides always show', 'The reading corner\'s list could stay empty on some devices; it now always loads.'],
         ['Your changes stay put', 'A game you renamed, or a finished "Set up for me", could be undone by changing another setting in the same visit.'],
         ['No accidental holds', 'Holding A on a disc, or holding Restart / Shut down, now stops if you switch away or pull down the notification shade, instead of finishing on its own.'],
@@ -533,13 +533,13 @@ window.BS_WHATSNEW = [
   },  {
     version: '1.82.0-beta.6', android: '0.4.0-beta.1', date: '2026-11-05', title: 'Now on Android and Linux, and clean game transitions',
     highlights: [
-      '(T)rustyShelf on Android (AYN Thor) and Linux / Steam Deck',
+      'RustyShelf on Android (AYN Thor) and Linux / Steam Deck',
       'Starting and quitting a game shows nothing but the game',
       'Twelve retro consoles, from PlayStation to Dreamcast'
     ],
     sections: [
       { h: 'New', items: [
-        ['Android and Linux', 'The AYN Thor gets (T)rustyShelf with its bottom screen; Linux and the Steam Deck get an AppImage (experimental).'],
+        ['Android and Linux', 'The AYN Thor gets RustyShelf with its bottom screen; Linux and the Steam Deck get an AppImage (experimental).'],
         ['Retro consoles', 'PlayStation, NES, SNES, Nintendo 64, Game Boy, Game Boy Color, Game Boy Advance, DS, Mega Drive, Master System, Game Gear and Dreamcast.'],
         ['Rename and change covers', 'Give any game the name you want, and pick its cover from every one found.']
       ] },

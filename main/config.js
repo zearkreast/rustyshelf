@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/config.js; modified for (T)rustyShelf (see the git history).
+// main/config.js; modified for RustyShelf (see the git history).
 const fs = require('fs');
 const path = require('path');
 const { CONSOLES, APPS } = require('./systems');
@@ -34,15 +34,15 @@ function defaults() {
     steam: { enabled: true, path: '', hideTools: true },
     // (beta.4) PC games beyond Steam (main/pcgames.js): Epic's installs on the PC shelf; Quiver Launcher's apps and games
     // added by hand ({ id, title, exe, args }) on the Custom shelf. quiverPath: a portable Quiver's folder, chosen or found
-    pc: { epic: true, quiver: true, quiverPath: '', custom: [], gog: true, ubisoft: true, ea: true, xbox: true, hoyoplay: true, consoleBox: false, // ((T)rustyShelf) PC games in their console box
+    pc: { epic: true, quiver: true, quiverPath: '', custom: [], gog: true, ubisoft: true, ea: true, xbox: true, hoyoplay: true, consoleBox: false, // (RustyShelf) PC games in their console box
       // the PC games folder (main/pcfolder.js): gamesDir = every folder in it is a game; userGamesDir = this player's own
       // copies (a folder there wins over the shared one of the same name); programs = { "<folder>": "<program inside it>" }
       // for a folder holding several
       gamesDir: '', userGamesDir: '', programs: {},
       // (Linux, main/linuxpc.js) Windows games run through Wine or Proton: runner = the one chosen in Settings ('' = the
-      // best one found), prefixDir = where each game's Wine prefix goes ('' = <(T)rustyShelf>/Prefixes); homeDir = the home a
+      // best one found), prefixDir = where each game's Wine prefix goes ('' = <RustyShelf>/Prefixes); homeDir = the home a
       // Linux game gets (its saves and settings; '' = the player's own); Epic through legendary (legendaryPath: '' = found
-      // by itself; epicDir: where Epic games install, '' = the PC games folder, else <(T)rustyShelf>/Epic Games)
+      // by itself; epicDir: where Epic games install, '' = the PC games folder, else <RustyShelf>/Epic Games)
       runner: '', prefixDir: '', homeDir: '', legendaryPath: '', epicDir: '',
       // (Linux) a game's own way of running, by game id: { runner: a runner id, prefix: its Wine prefix's folder, env: { NAME: value } }
       run: {} },
@@ -55,7 +55,7 @@ function defaults() {
     apps,
     ra: { user: '', key: '', enabled: true },
     // autoCovers / autoManuals: downloads from the Internet are opt-in for new installs; load() keeps them on for a config
-    // saved before the keys existed, so nothing changes for people already using (T)rustyShelf
+    // saved before the keys existed, so nothing changes for people already using RustyShelf
     keys: { fanart: '', steamgriddb: '', ssUser: '', ssPass: '', ssDevId: '', ssDevPass: '' }, // Settings → Accounts & services: personal API keys, kept encrypted on disk (steamgriddb: Art Studio posters; ss*: the ScreenScraper sign-in, 1.71)
     // Art Studio: styles = per console shelf style (a console without one follows defaultArtStyle(ui), i.e. the old Box art
     // region / Prefer HD settings, so nothing changes until a style is chosen); locks = per game parts auto-fetch never touches
@@ -111,7 +111,7 @@ function upgrade(cfg) {
     if (!['drift', 'night', 'glow', 'own', 'off'].includes(cfg.ui.music || 'drift')) cfg.ui.music = 'drift'; // ('own': your own files, main/music.js)
     if (!['chime', 'crystal', 'pulse', 'horizon', 'keys'].includes(cfg.ui.bootSound || 'chime')) cfg.ui.bootSound = 'chime';
     if (typeof cfg.ui.discordPresence !== 'boolean') cfg.ui.discordPresence = false; cfg.ui.discordAppId = String(cfg.ui.discordAppId || '').replace(/\D/g, '').slice(0, 25); // (Discord Rich Presence: main/presence.js)
-    if (!['en', 'pt'].includes(cfg.ui.language)) cfg.ui.language = 'en'; // ((T)rustyShelf) English, or Português (Brasil) (renderer/i18n.js, shared/i18n-main.js)
+    if (!['en', 'pt'].includes(cfg.ui.language)) cfg.ui.language = 'en'; // (RustyShelf) English, or Português (Brasil) (renderer/i18n.js, shared/i18n-main.js)
   }
   for (const s of CONSOLES) {
     const c = cfg.systems[s.id];
@@ -180,7 +180,7 @@ async function writeLater(json) {
 }
 // (beta.9) save(): checked and turned into text at once (so a bad object or a blocked file is said straight away, as
 // before), then written in the background: one write at a time, the newest settings always the ones written. flush()
-// ((T)rustyShelf quitting) writes anything still waiting, the old way, so nothing is lost.
+// (RustyShelf quitting) writes anything still waiting, the old way, so nothing is lost.
 let waiting = null, writing = false, lastJson = null;
 async function pump() {
   if (writing) return; writing = true;
@@ -189,7 +189,7 @@ async function pump() {
 }
 function save(cfg) {
   if (!isObj(cfg)) throw new Error('Not a settings object.');
-  if (readBlocked) throw new Error('Your settings file couldn\'t be read when (T)rustyShelf started (another program had it locked), so it won\'t be overwritten. Restart (T)rustyShelf to load it.');
+  if (readBlocked) throw new Error('Your settings file couldn\'t be read when RustyShelf started (another program had it locked), so it won\'t be overwritten. Restart RustyShelf to load it.');
   lastJson = waiting = JSON.stringify(cfg, null, 2);
   pump();
   return cfg;
@@ -221,7 +221,7 @@ function sanitize(cfg) {
   ui.previewDirs = [...new Set((Array.isArray(ui.previewDirs) ? ui.previewDirs : []).filter(x => typeof x === 'string' && x && x.length <= 1024))].slice(0, 20);
   ui.collections = (Array.isArray(ui.collections) ? ui.collections : []).filter(c => isObj(c) && typeof c.id === 'string' && c.id && typeof c.name === 'string').slice(0, 50)
     .map(c => ({ id: c.id.slice(0, 40), name: c.name.replace(/\s+/g, ' ').trim().slice(0, 40) || 'Collection', ids: [...new Set((Array.isArray(c.ids) ? c.ids : []).filter(x => typeof x === 'string' && x && x.length <= 1024))].slice(0, 5000) }));
-  // ((T)rustyShelf) Looks (Settings -> Display -> Looks): named sets of look settings; plain values only, the screen decides which keys it uses
+  // (RustyShelf) Looks (Settings -> Display -> Looks): named sets of look settings; plain values only, the screen decides which keys it uses
   ui.looks = (Array.isArray(ui.looks) ? ui.looks : []).filter(l => isObj(l) && typeof l.name === 'string').slice(0, 20).map(l => { const set = {};
     if (isObj(l.set)) for (const [k, v] of Object.entries(l.set).slice(0, 30)) if (/^[A-Za-z][A-Za-z0-9]{0,30}$/.test(k) && ((typeof v === 'string' && v.length <= 80) || (typeof v === 'number' && Number.isFinite(v)) || typeof v === 'boolean')) set[k] = v;
     return { name: l.name.replace(/\s+/g, ' ').trim().slice(0, 40) || 'Look', set }; });
@@ -237,7 +237,7 @@ function sanitize(cfg) {
       ...(s(v.runner, 1024) ? { runner: s(v.runner, 1024) } : {}), ...(s(v.prefix, 1024) && path.isAbsolute(s(v.prefix, 1024)) ? { prefix: s(v.prefix, 1024) } : {}),
       ...(isObj(v.env) ? { env: Object.fromEntries(Object.entries(v.env).filter(([k, x]) => ENV_NAME.test(k) && typeof x === 'string' && x.length <= 4096).slice(0, 50)) } : {}) }])) : {};
     cfg.pc.programs = isObj(cfg.pc.programs) ? Object.fromEntries(Object.entries(cfg.pc.programs).filter(([k, v]) => typeof v === 'string' && v && v.length <= 1024 && !path.isAbsolute(v) && !v.split(/[\\/]/).includes('..')).slice(0, 2000).map(([k, v]) => [String(k).slice(0, 200), v])) : {};
-    cfg.pc.boxColor = /^#[0-9a-f]{6}$/i.test(cfg.pc.boxColor || '') ? cfg.pc.boxColor : ''; cfg.pc.boxColors = isObj(cfg.pc.boxColors) ? Object.fromEntries(Object.entries(cfg.pc.boxColors).filter(([k, v]) => ['ps5', 'ps4', 'xsx', 'xone', 'sw'].includes(k) && /^#[0-9a-f]{6}$/i.test(v || ''))) : {}; /* ((T)rustyShelf, discussion 15) */ cfg.pc.quiverPath = s(cfg.pc.quiverPath, 1024); if (typeof cfg.pc.consoleBox !== 'boolean') cfg.pc.consoleBox = false; for (const k of ['epic', 'quiver', 'gog', 'ubisoft', 'ea', 'xbox', 'hoyoplay']) if (typeof cfg.pc[k] !== 'boolean') cfg.pc[k] = true; } // (beta.7: the four new stores)
+    cfg.pc.boxColor = /^#[0-9a-f]{6}$/i.test(cfg.pc.boxColor || '') ? cfg.pc.boxColor : ''; cfg.pc.boxColors = isObj(cfg.pc.boxColors) ? Object.fromEntries(Object.entries(cfg.pc.boxColors).filter(([k, v]) => ['ps5', 'ps4', 'xsx', 'xone', 'sw'].includes(k) && /^#[0-9a-f]{6}$/i.test(v || ''))) : {}; /* (RustyShelf, discussion 15) */ cfg.pc.quiverPath = s(cfg.pc.quiverPath, 1024); if (typeof cfg.pc.consoleBox !== 'boolean') cfg.pc.consoleBox = false; for (const k of ['epic', 'quiver', 'gog', 'ubisoft', 'ea', 'xbox', 'hoyoplay']) if (typeof cfg.pc[k] !== 'boolean') cfg.pc[k] = true; } // (beta.7: the four new stores)
   { const e = isObj(cfg.emuSetup) ? cfg.emuSetup : {}; cfg.emuSetup = { auto: e.auto !== false, graphics: ['auto', 'fast', 'balanced', 'pretty'].includes(e.graphics) ? e.graphics : 'auto', resume: e.resume === true,
     pending: [...new Set((Array.isArray(e.pending) ? e.pending : []).filter(x => typeof x === 'string' && x && x.length <= 1024))].slice(0, 40) }; }
   cfg.emuSeen = Array.isArray(cfg.emuSeen) ? [...new Set(cfg.emuSeen.filter(x => typeof x === 'string' && x && x.length <= 1024))].slice(0, 20) : [];

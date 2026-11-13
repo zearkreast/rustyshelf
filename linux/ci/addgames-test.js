@@ -1,4 +1,4 @@
-// (T)rustyShelf's folder scan for Add games (main/addgames.js; Boxshelf's folder-scan freeze). Run: node linux/ci/addgames-test.js
+// RustyShelf's folder scan for Add games (main/addgames.js; Boxshelf's folder-scan freeze). Run: node linux/ci/addgames-test.js
 //   - the async scan finds the same games as the synchronous one (main program picked the same way, helpers and
 //     loose programs handled the same)
 //   - a big folder doesn't hold the main process up: the event loop keeps getting turns during the scan

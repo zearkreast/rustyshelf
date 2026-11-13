@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/nx2.js; modified for (T)rustyShelf (see the git history).
+// main/nx2.js; modified for RustyShelf (see the git history).
 // Switch 2 games for Eglantine (an Eden fork). Most come unpacked: a folder with exefs\main (+ main.npdm) and romfs, or
 // the same split as base\ and updates\<version>\ (each update a full copy), or just <version>\ with no base at all.
 // Eden-family emulators boot such a game when handed its exefs\main. Packed games are .nsp / .xci / .nup files.
@@ -101,7 +101,7 @@ function setMemoFile(f) { memoFile = f; }
 function loadMemo() { if (memoLoaded) return; memoLoaded = true; try { const o = JSON.parse(fs.readFileSync(memoFile, 'utf8')); for (const [k, v] of Object.entries(o || {})) if (typeof v === 'boolean') nupMemo.set(k, v); } catch {} }
 // does a file contain this text? Read in 4 MB pieces (a build is 100+ MB: reading it whole held all of it in memory)
 async function fileHas(f, text) {
-  // ((T)rustyShelf issue 18) the text as plain bytes or in UTF-16 (Windows and Qt programs keep their strings that way:
+  // (RustyShelf issue 18) the text as plain bytes or in UTF-16 (Windows and Qt programs keep their strings that way:
   // Fortune's Eden opens .nup games and was greyed out, the plain text not being in its program)
   const needles = [Buffer.from(text, 'latin1'), Buffer.from(text, 'utf16le')], CH = 4 << 20, over = Math.max(...needles.map(n => n.length)); let fh;
   try {
@@ -110,7 +110,7 @@ async function fileHas(f, text) {
       if (needles.some(x => part.includes(x))) return true; keep = Math.min(over - 1, n); buf.copy(buf, 0, n - keep, n); pos += bytesRead; }
   } catch { return false; } finally { if (fh) await fh.close().catch(() => {}); }
 }
-// ((T)rustyShelf issue 18) the emulator's own libraries beside its program (a build can keep its file dialog in one), not
+// (RustyShelf issue 18) the emulator's own libraries beside its program (a build can keep its file dialog in one), not
 // the runtimes every build carries (Qt, Visual C++, SDL, Vulkan / DirectX, ffmpeg…); a dozen at most
 const NOT_OWN_DLL = /^(qt\d|vcruntime|msvcp|concrt|vccorlib|api-ms-|ucrtbase|sdl\d|vulkan|d3d|dxcompiler|dxil|libcrypto|libssl|libcurl|av(codec|format|util|filter|device)|sw(scale|resample)|postproc|opengl|libgcc|libstdc|libwinpthread|zlib|openal|discord|steam_api|libusb|libEGL|libGLES)/i;
 async function ownDlls(exe) {
@@ -132,7 +132,7 @@ function filesUnder(d, out = [], max = 400) {
   return out;
 }
 async function appImageHas(exe, text) {
-  let dir = ''; try { dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'trustyshelf-build-')); } catch { return null; }
+  let dir = ''; try { dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'rustyshelf-build-')); } catch { return null; }
   const unpack = args => new Promise(res => { try { const env = { ...process.env }; delete env.APPIMAGE_EXTRACT_AND_RUN;
     execFile(exe, args, { cwd: dir, env, timeout: 120000, maxBuffer: 8 << 20 }, err => res(!err)); } catch { res(false); } });
   try {
@@ -170,7 +170,7 @@ function buildExe(dir, files) {
 }
 // (Linux) a Switch 2 build is an AppImage (Eglantine.AppImage, Lichii_92.AppImage…), often several side by side in one
 // folder; the other consoles' emulators kept in the same place are left out
-const NOT_SW2 = /^(eden|citron|yuzu|suyu|sudachi|ryujinx|ryubing|dolphin|cemu|pcsx2|rpcs3|shadps4|ppsspp|xenia|azahar|lime3ds|citra|duckstation|retroarch|melonds|mgba|flycast|rmg|xemu|trustyshelf)/i;
+const NOT_SW2 = /^(eden|citron|yuzu|suyu|sudachi|ryujinx|ryubing|dolphin|cemu|pcsx2|rpcs3|shadps4|ppsspp|xenia|azahar|lime3ds|citra|duckstation|retroarch|melonds|mgba|flycast|rmg|xemu|rustyshelf)/i;
 const linuxBuilds = (dir, files) => process.platform === 'win32' ? [] : files.filter(e => /\.appimage$/i.test(e.name) && !NOT_SW2.test(e.name)).map(e => path.join(dir, e.name));
 function exesUnder(dir, depth, out) {
   let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }

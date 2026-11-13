@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// (T)rustyShelf: push a build and get on with the next thing. GitHub takes about 3 minutes to build; nothing here sits waiting
+// RustyShelf: push a build and get on with the next thing. GitHub takes about 3 minutes to build; nothing here sits waiting
 // for that, except when it has to.
 //
 //   node scripts/push-build.js "Build: what it is"   makes the empty "For build" commit on top of what's committed, pushes it
@@ -7,7 +7,7 @@
 //   node scripts/push-build.js --status              the latest runs of Build/release check as they are now (never waits)
 //   node scripts/push-build.js --wait                waits for the latest run to finish and says how it went (exit 1: failed)
 //   node scripts/push-build.js "…" --dry-run         says what it would do, and does nothing
-// Options: --repo owner/name (default GGStonks/t-rustyshelf), --trailer "Co-Authored-By: …" (or TS_COMMIT_TRAILER), the
+// Options: --repo owner/name (default zearkreast/rustyshelf), --trailer "Co-Authored-By: …" (or TS_COMMIT_TRAILER), the
 // commit's author from GIT_AUTHOR_* / GIT_COMMITTER_* when set, else git's own settings.
 //
 // The one wait: before pushing, a run that's still going is waited for. The workflow runs one at a time (its concurrency
@@ -19,7 +19,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2), opt = (n, d) => { const i = argv.indexOf('--' + n); return i < 0 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
-const REPO = String(opt('repo', 'GGStonks/t-rustyshelf')), DRY = argv.includes('--dry-run');
+const REPO = String(opt('repo', 'zearkreast/rustyshelf')), DRY = argv.includes('--dry-run');
 const TRAILER = String(opt('trailer', process.env.TS_COMMIT_TRAILER || '') || '');
 const title = argv.find((a, i) => !a.startsWith('--') && !['--repo', '--trailer'].includes(argv[i - 1]));
 const sh = (cmd, args, o = {}) => execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', o.quiet ? 'ignore' : 'inherit'], ...o }).trim();

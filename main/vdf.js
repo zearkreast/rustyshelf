@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/vdf.js apart from the app's name ((T)rustyShelf) and the fix below that keeps the parser from looping forever.
+// main/vdf.js apart from the app's name (RustyShelf) and the fix below that keeps the parser from looping forever.
 // Minimal parser for Valve's text KeyValues format (.vdf / .acf).
 function parse(text) {
   let i = 0;
@@ -7,7 +7,7 @@ function parse(text) {
   function skip() {
     while (i < n) {
       const c = text[i];
-      // ((T)rustyShelf, beta issue 34) every kind of space counts: a no-break space, form feed or stray byte-order mark
+      // (RustyShelf, beta issue 34) every kind of space counts: a no-break space, form feed or stray byte-order mark
       // between two strings used to stop both this and an unquoted string, so the parser went round forever on that
       // character and the app hung at launch reading Steam's files
       if (/\s/.test(c)) { i++; continue; }

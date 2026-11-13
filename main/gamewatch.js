@@ -1,7 +1,7 @@
 // From sassiestrhihno's 1.82.0-beta.12 source (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0), brought into
-// (T)rustyShelf.
-// (beta.12, Seamless play) Watches a game (T)rustyShelf didn't start itself: a Steam game (started with steam://rungameid) or a
-// store's game (Epic, Ubisoft Connect, the EA app, Xbox), so it gets what a game (T)rustyShelf started gets: the Home menu, the
+// RustyShelf.
+// (beta.12, Seamless play) Watches a game RustyShelf didn't start itself: a Steam game (started with steam://rungameid) or a
+// store's game (Epic, Ubisoft Connect, the EA app, Xbox), so it gets what a game RustyShelf started gets: the Home menu, the
 // return to the shelf when it ends, and its playtime. Windows only, and nothing here runs unless a game is being watched.
 //   - Steam: HKCU\Software\Valve\Steam\RunningAppID says which Steam game is running (read with reg.exe).
 //   - Every store: the game's process is one whose program sits inside the game's install folder (one process listing
@@ -11,7 +11,7 @@
 // game's own launcher may hand over to the real game) or every 15 s to be sure.
 // Closing: the game's own processes are asked to close (taskkill without /F, like a click on the X), forced after a wait.
 // Steam, the store launchers and their helpers are never touched.
-// One watch at a time (one game at a time, like everything (T)rustyShelf starts). The readers are injectable for the tests.
+// One watch at a time (one game at a time, like everything RustyShelf starts). The readers are injectable for the tests.
 'use strict';
 const EventEmitter = require('events');
 const fs = require('fs');
@@ -56,7 +56,7 @@ function linuxProcs(o = {}, procDir = '/proc') {
   return out;
 }
 async function readRunningAppId(want) {
-  // (Linux: the one asked for when any game process has it; (T)rustyShelf's own id, when Steam started (T)rustyShelf, never counts)
+  // (Linux: the one asked for when any game process has it; RustyShelf's own id, when Steam started RustyShelf, never counts)
   if (process.platform === 'linux') { const own = new Set([+process.env.SteamAppId || 0, +process.env.SteamGameId || 0].filter(Boolean));
     const ids = linuxProcs({ env: true }).filter(x => x.appid && !x.skip && x.pid !== process.pid && !own.has(x.appid)).map(x => x.appid);
     return want && ids.includes(+want) ? +want : ids[0] || 0; }
@@ -76,7 +76,7 @@ async function listProcesses() {
   if (process.platform !== 'win32') return [];
   return parseList(await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', LIST_PS], 15000));
 }
-// still running? (a process (T)rustyShelf may not open, an elevated game, still counts as running)
+// still running? (a process RustyShelf may not open, an elevated game, still counts as running)
 function alive(pid) { try { process.kill(pid, 0); return true; } catch (e) { return !!(e && e.code === 'EPERM'); } }
 // ask to close (like a click on the X), or force it and whatever it started
 function kill(pid, force) {
@@ -112,7 +112,7 @@ function create(deps = {}) {
   const T = Object.assign({ waitPollMs: 2000, alivePollMs: 500, verifyMs: 15000, giveUpMs: 90000, appidOnlyMs: 15000, steamGraceMs: 10000 }, deps.times || {});
   let cur = null;
 
-  // the game's processes in a listing: inside its folder, not a launcher, not (T)rustyShelf
+  // the game's processes in a listing: inside its folder, not a launcher, not RustyShelf
   const gameProcs = (list, w) => (list || []).filter(p => p && p.pid > 0 && p.pid !== d.selfPid && !isLauncher(p.name || W.basename(p.exe || '')) && under(w.dir, p.exe));
   // the one to follow for its window: the program the store names, else the first that isn't a helper
   function pick(found, w) {

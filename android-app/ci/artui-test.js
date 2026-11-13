@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/ci/artui-test.js apart from the app's name ((T)rustyShelf).
+// android-app/ci/artui-test.js apart from the app's name (RustyShelf).
 // Device test pass "box art screens" (1.80), run by web-device-test.js. Checks results, never speed. The demo page as Windows:
 //   Settings → Box art & manuals opens with Art Studio first and a cover summary in its heading; a console's games grid has the
 //   No cover filter, part pictures with a mark (✓ ! × •) instead of letters, a key in the console's own word for the disc (UMD
@@ -28,7 +28,7 @@ module.exports = async function artUiPass({ browser, base, check, newPage, OUT }
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-ms-')), cd = path.join(tmp, 'covers'); fs.mkdirSync(cd);
       S.init({ dataDir: path.join(tmp, 'data'), log: () => {}, send: () => {}, changed: () => {}, fileUrl: f => 'bsfile:///' + f });
       const put = (d, tag, n) => { fs.mkdirSync(d, { recursive: true }); for (let i = 1; i <= n; i++) fs.writeFileSync(path.join(d, `${b}-manual-${String(i).padStart(2, '0')}.jpg`), Buffer.alloc(1000 + i * 10, tag)); };
-      // (the made-up copies are dated 2020, so the backups (T)rustyShelf makes now are always the newest: the order, and so which
+      // (the made-up copies are dated 2020, so the backups RustyShelf makes now are always the newest: the order, and so which
       // of two identical copies is listed, never depends on today's date. It did: "2026-11-07T…" sorts after "2026-11-06_…")
       const orig = path.join(cd, '.manual-originals', b); put(cd, 'A', 3); ['10', '11', '12'].forEach(h => put(path.join(orig, `2020-01-01_${h}-00-00`), 'B', 4)); put(path.join(orig, '2020-01-01_13-00-00'), 'A', 3);
       const mg = { sysId: 'gc', key: 'gc|' + path.join(cd, b + '.iso').toLowerCase(), dir: cd, home: cd, base: b, game: { file: path.join(cd, b + '.iso'), title: 'Game' } };
@@ -71,7 +71,7 @@ module.exports = async function artUiPass({ browser, base, check, newPage, OUT }
     const gp = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = {};
       const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(900); }
-      const g = (await window.trustyshelf.artGames({ systemId: 'gc' }))[0];
+      const g = (await window.rustyshelf.artGames({ systemId: 'gc' }))[0];
       Setup.open({ page: 'artgame', systemId: 'gc', file: g.file, title: g.title });
       for (let i = 0; i < 50 && document.querySelectorAll('.bsa-card').length < 3; i++) await w(200); await w(800);
       const pk = document.querySelector('.bsa-pk'), parts = document.querySelector('.bsa-parts');
@@ -142,7 +142,7 @@ module.exports = async function artUiPass({ browser, base, check, newPage, OUT }
     const ms = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = { counts: [] };
       const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(900); }
-      const g = (await window.trustyshelf.artGames({ systemId: 'gc' }))[0]; Setup.open({ page: 'artgame', systemId: 'gc', file: g.file, title: g.title });
+      const g = (await window.rustyshelf.artGames({ systemId: 'gc' }))[0]; Setup.open({ page: 'artgame', systemId: 'gc', file: g.file, title: g.title });
       await w(1500); for (let i = 0; i < 40 && !document.querySelector('.bsa-part.man'); i++) await w(200); // (the art page rebuilt first)
       const crumb0 = () => ((document.querySelector('#bss .bss-crumb') || {}).textContent || '');
       for (let i = 0; i < 5 && !/Manual/.test(crumb0()); i++) { const m = document.querySelector('.bsa-part.man'); if (m) m.click(); await w(800); }
@@ -162,7 +162,7 @@ module.exports = async function artUiPass({ browser, base, check, newPage, OUT }
       const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       const until = async (ok, ms = 5000) => { for (let t = 0; t < ms && !ok(); t += 100) await w(100); await w(150); };
       if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(900); }
-      const g = (await window.trustyshelf.artGames({ systemId: 'gc' }))[0];
+      const g = (await window.rustyshelf.artGames({ systemId: 'gc' }))[0];
       for (const page of ['artgame', 'manualgame']) {
         Setup.open({ page, systemId: 'gc', file: g.file, title: g.title }); await until(() => Settings.isOpen() && document.querySelectorAll('.bsa-card').length > 0); await w(600);
         out[page + 'Open'] = Settings.isOpen(); key('Escape'); await until(() => !Settings.isOpen(), 3000); out[page + 'Closed'] = !Settings.isOpen(); await w(700); }

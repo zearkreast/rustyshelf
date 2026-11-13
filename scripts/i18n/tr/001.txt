@@ -7,7 +7,7 @@
 338|Para um console só, adicione uma imagem com o nome da estante dele: gc, wii, wiiu, sw, sw2, ps2, ps3, ps4, ps5, psp, x360, n3ds, pc.
 339|shade: quanto a imagem fica mais escura (de 0 a 0.9), para a estante continuar fácil de ler.
 340|blur: true suaviza a imagem. glow: o brilho da luz embaixo da estante (de 0 a 1).
-341|Depois, no (T)rustyShelf: Configurações > Tela > Procurar temas de novo. Temas são só imagens e configurações, nunca programas.
+341|Depois, no RustyShelf: Configurações > Tela > Procurar temas de novo. Temas são só imagens e configurações, nunca programas.
 342|Iniciar
 344|Configuração
 353|Digitar
@@ -33,7 +33,7 @@
 375|o download falhou
 376|só
 377|jogos lidos
-379|Menu Home do (T)rustyShelf
+379|Menu Home do RustyShelf
 382|(não foi possível pausar)
 384|Estado carregado
 385|tirar a captura de tela
@@ -115,7 +115,7 @@
 522|Concluído
 523|Parado ·
 524|Melhor manual em inglês
-525|O manual completo em inglês mais nítido (como o (T)rustyShelf sempre escolheu)
+525|O manual completo em inglês mais nítido (como o RustyShelf sempre escolheu)
 526|Inglês · Europa
 527|Livretos PAL em inglês
 528|Livretos japoneses

@@ -133,9 +133,9 @@
 3666|As capas estão prontas para ${i.got} [[${i.got===1?"":"s"}|jogo|jogos]]. Mude o visual de qualquer console em Configurações → Capas e manuais → Estúdio de capas.
 3667|Baixando capas · ${i.system||"games"}: ${i.done} de ${i.total}
 3668|Baixando capas…
-3669|Não foi possível acessar os bancos de capas agora. O (T)rustyShelf tenta de novo na próxima vez que iniciar.
+3669|Não foi possível acessar os bancos de capas agora. O RustyShelf tenta de novo na próxima vez que iniciar.
 3670|As capas estão prontas.
-3671|Quer um visual diferente para um console, ou para um jogo só? O Estúdio de capas tem todas as versões que o (T)rustyShelf encontrou.
+3671|Quer um visual diferente para um console, ou para um jogo só? O Estúdio de capas tem todas as versões que o RustyShelf encontrou.
 3672|Abrir o Estúdio de capas
 3673|Termine a configuração para chegar à sua estante
 3706|Clássicos de PC
@@ -149,7 +149,7 @@
 3788|Windows: tudo acima, menos as partes do Thor.
 3789|Android (AYN Thor): prévias em vídeo nos Detalhes, ports e APKs personalizados, seis consoles a mais.
 3790|Capas para todos os jogos personalizados
-3791|Configurações → Jogos personalizados → Capas: passe por cada recomp, port e programa sem capa (as capas do SteamGridDB para cada um, A usa uma, Pular passa para o próximo), ou deixe o (T)rustyShelf escolher a melhor opção para cada um de uma vez, com Desfazer. Precisa de uma chave gratuita do SteamGridDB.
+3791|Configurações → Jogos personalizados → Capas: passe por cada recomp, port e programa sem capa (as capas do SteamGridDB para cada um, A usa uma, Pular passa para o próximo), ou deixe o RustyShelf escolher a melhor opção para cada um de uma vez, com Desfazer. Precisa de uma chave gratuita do SteamGridDB.
 3792|Thor: prévias em vídeo
 3793|Vídeos ao lado dos seus jogos (uma pasta "videos", "media/videos" ou "snap" na pasta de jogos de um console) tocam atrás da caixa nos Detalhes, e os trailers do YouTube na aba Mídia. Desligado até você ligar: Configurações → Estante e museu → Prévias em vídeo.
 3794|Thor: ports e APKs personalizados
@@ -157,7 +157,7 @@
 3796|Thor: seis consoles a mais
 3797|Sega CD, 32X, Atari 2600, Lynx, WonderSwan e DOS, pelo RetroArch (MD.emu para o Sega CD também), com capas, manuais e conquistas.
 3798|Steam Deck: saia de qualquer jogo
-3799|Segure Select + Start por um instante durante um jogo e o (T)rustyShelf fecha ele, seja qual for o emulador.
+3799|Segure Select + Start por um instante durante um jogo e o RustyShelf fecha ele, seja qual for o emulador.
 3800|Contas na configuração
 3801|A configuração inicial tem uma página opcional de Contas: RetroAchievements, SteamGridDB, ScreenScraper e fanart.tv, cada um com um link para a chave gratuita, um botão Colar e um Teste. Com controle, um teclado na tela. Pule e nada muda.
 3802|Manuais para muito mais consoles
@@ -174,7 +174,7 @@
 3813|O Estúdio de capas mostra a caixa inteira
 3814|A caixa no Estúdio de capas toma a forma da caixa do jogo, então as caixas de 3DS, PSP, Switch, Blu-ray e cartucho aparecem inteiras em vez de cortadas.
 3815|Manuais de Wii U abrem na caixa
-3816|Os manuais feitos a partir do manual eletrônico de um jogo de Wii U voltam a abrir na frente da caixa, de onde quer que o (T)rustyShelf rode.
+3816|Os manuais feitos a partir do manual eletrônico de um jogo de Wii U voltam a abrir na frente da caixa, de onde quer que o RustyShelf rode.
 3817|Colar com o botão direito
 3818|As caixas de texto têm o menu de sempre Recortar / Copiar / Colar.
 3819|As Configurações abrem a página certa
@@ -186,16 +186,16 @@
 3825|Dez consoles a mais, incluindo Saturn, Neo Geo, Arcade e DOS
 3826|Configurar para mim: uma opção configura RetroArch, Dolphin, DuckStation, PCSX2 e PPSSPP
 3827|Windows: tudo acima.
-3828|Linux / Steam Deck (experimental): tudo menos Configurar para mim, trailers de console, procurar numa pasta de jogos e a importação do Playnite. Num Steam Deck, adicione o (T)rustyShelf à Steam (ele oferece) e jogue pelo Modo Jogo.
+3828|Linux / Steam Deck (experimental): tudo menos Configurar para mim, trailers de console, procurar numa pasta de jogos e a importação do Playnite. Num Steam Deck, adicione o RustyShelf à Steam (ele oferece) e jogue pelo Modo Jogo.
 3829|Pare num jogo e a prévia dele toca, suavemente atrás da estante e atrás da caixa nos Detalhes: os seus próprios vídeos (ES-DE, EmuDeck, RetroBat, LaunchBox ou uma pasta sua), os trailers da própria Steam para jogos da Steam, e trailers de console do YouTube. Configurações → Prévias em vídeo, que também define quando elas começam (de meio segundo a 15 segundos).
-3830|O trailer do YouTube de um jogo de console fica guardado como um trecho curto (cerca de 1 MB) na primeira vez que você para nele, para tocar na estante igual a um trailer da Steam. Ele precisa de um ajudante gratuito (yt-dlp), baixado uma vez com um toque: o (T)rustyShelf pergunta na estante, ou em Configurações → Prévias em vídeo.
+3830|O trailer do YouTube de um jogo de console fica guardado como um trecho curto (cerca de 1 MB) na primeira vez que você para nele, para tocar na estante igual a um trailer da Steam. Ele precisa de um ajudante gratuito (yt-dlp), baixado uma vez com um toque: o RustyShelf pergunta na estante, ou em Configurações → Prévias em vídeo.
 3831|Uma página de Detalhes nova
 3832|O logo do jogo, o tempo jogado e o último jogado, um botão Jogar com Manual, Inspecionar e Mais ao lado, e abas: Resumo, Mídia e Sua cópia (LB / RB, ou Q / E). A arte do jogo ou a prévia preenche o fundo.
 3833|Adicione muitos jogos de uma vez
-3834|Configurações → Jogos personalizados → Adicionar jogos, ou o bloco Adicionar jogos no fim da estante Personalizados: escolha vários programas de uma vez, ou aponte o (T)rustyShelf para uma pasta de jogos e marque os que quer adicionar.
+3834|Configurações → Jogos personalizados → Adicionar jogos, ou o bloco Adicionar jogos no fim da estante Personalizados: escolha vários programas de uma vez, ou aponte o RustyShelf para uma pasta de jogos e marque os que quer adicionar.
 3835|Traga a sua biblioteca do Playnite de uma vez: os jogos que você adicionou à mão, com as capas, e as pastas dos seus jogos emulados. Você vê primeiro o que vai ser adicionado, e um toque remove tudo de novo. Conte como foi.
 3836|Steam Deck: Modo Jogo e Adicionar à Steam
-3837|O (T)rustyShelf agora abre pela Steam e no Modo Jogo sozinho. Num Steam Deck no Modo Desktop, ele oferece se adicionar à Steam, para o seu controle funcionar como gamepad nos jogos (fora da Steam, o B é a tecla Esc, que fecha a maioria dos emuladores). A qualquer hora: Configurações → Sistema → Adicionar o (T)rustyShelf à Steam.
+3837|O RustyShelf agora abre pela Steam e no Modo Jogo sozinho. Num Steam Deck no Modo Desktop, ele oferece se adicionar à Steam, para o seu controle funcionar como gamepad nos jogos (fora da Steam, o B é a tecla Esc, que fecha a maioria dos emuladores). A qualquer hora: Configurações → Sistema → Adicionar o RustyShelf à Steam.
 3838|Switch: Citron e Ryujinx
 3839|Encontrados e abertos tão bem quanto o Eden, então o emulador de Switch do EmuDeck funciona sem configurar nada.
 3840|Dez consoles a mais
@@ -214,7 +214,7 @@
 3853|As prévias em vídeo ganharam um lugar próprio nas Configurações, e o Adicionar jogos uma página própria, então as páginas principais continuam curtas.
 3854|Correções
 3855|Os trailers tocam de novo
-3856|O YouTube parou de tocar trailers abertos sozinhos. Agora eles tocam no player do próprio (T)rustyShelf.
+3856|O YouTube parou de tocar trailers abertos sozinhos. Agora eles tocam no player do próprio RustyShelf.
 3857|Android: revistas e guias sempre aparecem
 3858|As suas mudanças ficam
 3859|Um jogo que você renomeou, ou um "Configurar para mim" concluído, podiam ser desfeitos ao mudar outra configuração na mesma visita.
@@ -225,7 +225,7 @@
 3864|Android: toques depois de um deslize rápido
 3865|Depois de deslizar a estante ou a barra de consoles, o primeiro toque num jogo ou console não fazia nada. Agora funciona de primeira.
 3866|Agora no Android e no Linux, e transições de jogo limpas
-3867|(T)rustyShelf no Android (AYN Thor) e no Linux / Steam Deck
+3867|RustyShelf no Android (AYN Thor) e no Linux / Steam Deck
 3868|Abrir e sair de um jogo não mostra nada além do jogo
 3869|Doze consoles retrô, do PlayStation ao Dreamcast
 3870|Android e Linux

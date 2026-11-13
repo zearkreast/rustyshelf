@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is Boxshelf's
-// android-app/ci/emu-names-test.js (upstream 1.82.0-beta.11), adapted for (T)rustyShelf.
+// android-app/ci/emu-names-test.js (upstream 1.82.0-beta.11), adapted for RustyShelf.
 // (beta.11) Other standalone emulators are found and started with their own options: DuckStation's builds under any of
 // their names, DeSmuME on the DS shelf, mGBA and VisualBoyAdvance-M on the Game Boy shelves. Plain Node (no Electron):
 // node android-app/ci/emu-names-test.js  → exits 1 on a failure. Windows names (the Linux table replaces them there).

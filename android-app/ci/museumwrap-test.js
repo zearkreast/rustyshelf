@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 17: the museum with a big library. A console with more than 240 games (120 before the wall got wider) continues on the shelves below
+// RustyShelf issue 17: the museum with a big library. A console with more than 240 games (120 before the wall got wider) continues on the shelves below
 // (evenly split, the plaque says which part), the wall no longer stretches with the biggest console, and past ten shelves
 // three picture lights follow the row in view instead of one spot light per row. On the demo page (?big= gives every
 // console that many games). Run (after node copy-web.js): node ci/museumwrap-test.js www ../out/museumwrap

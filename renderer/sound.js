@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// renderer/sound.js apart from the app's name ((T)rustyShelf).
-/* (T)rustyShelf UI sound, second pass. Still fully synthesised (nothing to download, always in tune with itself),
+// renderer/sound.js apart from the app's name (RustyShelf).
+/* RustyShelf UI sound, second pass. Still fully synthesised (nothing to download, always in tune with itself),
    but built like a small instrument rather than a beeper:
    - every voice is a struck/plucked tone: a fast pitch drop at the onset (the "thump" that makes a tick feel
      physical), inharmonic partials for the glass/bell voices, a touch of noise for the transient
@@ -215,11 +215,11 @@ window.Sound = (() => {
   };
   let bootPick = 'chime'; // until one of the new ones is picked
   BOOTS.chime = () => bootChime();
-  // The (T)rustyShelf boot: one signature you'll know from the first note, the same on every console but played in that
+  // The RustyShelf boot: one signature you'll know from the first note, the same on every console but played in that
   // console's own key (so a GameCube boot and a Wii boot are related, not identical). A soft power-on thump, a breath of
   // air sweeping up, four clear bell notes rising (root, fifth, sixth, octave) and a bright open chord that rings out
   // over a warm pad, with two tiny sparkles at the top. Crisp attacks, short room, everything done by ~3 s.
-  // ((T)rustyShelf, beta discussion 36) the boot's own volume (Settings → Sound → Boot sound volume, 0-1), on top of the
+  // (RustyShelf, beta discussion 36) the boot's own volume (Settings → Sound → Boot sound volume, 0-1), on top of the
   // interface volume: every voice of the boot is scheduled right here, so it's scaled while they are
   let bootLevel = 1;
   function bootSig() { TRIM = TRIM0 * bootLevel; try { if (BOOTS[bootPick]) return BOOTS[bootPick](); return bootChime(); } finally { TRIM = TRIM0; } }
@@ -752,7 +752,7 @@ window.Sound = (() => {
   // fade everything out over ms, then suspend; the next sound brings the level straight back
   let fadeT = 0;
   function fadeOut(ms = 900) { if (!ctx || ctx.state !== 'running' || !master) return suspend(); const t = ctx.currentTime; master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + ms / 1000); clearTimeout(fadeT); fadeT = setTimeout(() => { suspend(); }, ms + 60); }
-  // made once while (T)rustyShelf is idle after start-up: the audio engine and the 'air' noise buffers cost ~50 ms the first time
+  // made once while RustyShelf is idle after start-up: the audio engine and the 'air' noise buffers cost ~50 ms the first time
   function warm() { try { const c = ensure(); if (c) { airNoise(c); if (BAKE) primeTicks(); } } catch {} }
   return { warm, setSink, play, set, render, renderDemo, renderMusic, ambientStart, ambientStop, music: () => amb ? { track: amb.id, level: amb.level / MUS_GAIN, step: amb.step } : null, tracks: Object.keys(TRACKS).map(id => [id, TRACKS[id].name]), roomStart, roomStop, suspend, fadeOut, nextSong, loadSongs, song: () => { const s = curSong(); return s ? { name: s.name, hue: s.hue, builtIn: s.builtIn } : null; },
     // tests: switch the Android pre-rendered ticks off/on and see the banks

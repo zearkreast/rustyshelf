@@ -1,4 +1,4 @@
-// (T)rustyShelf: PC & Switch box art overhaul specifications test
+// RustyShelf: PC & Switch box art overhaul specifications test
 // Run: node linux/ci/pc-boxart-test.js
 'use strict';
 const fs = require('fs'), path = require('path');

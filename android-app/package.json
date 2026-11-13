@@ -1,8 +1,8 @@
 {
-  "name": "trustyshelf-android",
+  "name": "rustyshelf-android",
   "version": "1.82.0-beta.11",
   "private": true,
-  "description": "Android (AYN Thor) shell for (T)rustyShelf: packages ../renderer with Capacitor",
+  "description": "Android (AYN Thor) shell for RustyShelf: packages ../renderer with Capacitor",
   "scripts": {
     "web": "node copy-web.js",
     "sync": "node copy-web.js && cap sync android",

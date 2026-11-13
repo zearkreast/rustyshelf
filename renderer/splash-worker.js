@@ -1,14 +1,14 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// renderer/splash-worker.js apart from the app's name ((T)rustyShelf).
-// (T)rustyShelf start-up logo, drawn in its own thread (an OffscreenCanvas in a worker).
+// renderer/splash-worker.js apart from the app's name (RustyShelf).
+// RustyShelf start-up logo, drawn in its own thread (an OffscreenCanvas in a worker).
 // It is drawn still at first, while the shelf loads behind it (the first second of a launch keeps the whole PC busy),
 // and the light only sweeps across once the shelf is ready ("play"), so nothing else is competing for those frames.
 let ctx = null, cv = null, W = 0, H = 0, fs = 0, dpr = 1, family = 'sans-serif', L = null;
-const WORD = '(T)RUSTYSHELF';
+const WORD = 'RUSTYSHELF';
 const ease = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3), inOut = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 function layout() { ctx.font = `800 ${fs}px ${family}`; const sp = fs * .34, ws = [...WORD].map(c => ctx.measureText(c).width); return { ws, sp, total: ws.reduce((a, b) => a + b, 0) + sp * (WORD.length - 1) }; }
-// (the logo's colours: RUSTY in rust, (T) and SHELF in steel; a gradient fill, the light's sweep, covers every letter alike)
-const STEEL = 'rgba(221,228,234,.92)', RUST = '#d4522c', isRusty = i => i >= 3 && i <= 7;
+// (the logo's colours: RUSTY in rust, SHELF in steel; a gradient fill, the light's sweep, covers every letter alike)
+const STEEL = 'rgba(221,228,234,.92)', RUST = '#d4522c', isRusty = i => i <= 4;
 function word(x0, y, fill) { let x = x0; [...WORD].forEach((c, i) => { ctx.fillStyle = fill || (isRusty(i) ? RUST : STEEL); ctx.fillText(c, x, y); x += L.ws[i] + L.sp; }); }
 function draw(p) { // p: 0 = still, 0..1 = the sweep
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); ctx.textBaseline = 'middle'; ctx.font = `800 ${fs}px ${family}`;
@@ -26,6 +26,6 @@ onmessage = async e => {
   const d = e.data;
   if (d.play) { if (L) requestAnimationFrame(frame); else postMessage({ done: true, frames: 0 }); return; }
   cv = d.canvas; ctx = cv.getContext('2d'); W = d.w; H = d.h; fs = d.fs; dpr = d.dpr; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  try { const f = new FontFace('TrustyShelfLogo', 'url(fonts/lexend-latin-800-normal.woff2)', { weight: '800' }); await Promise.race([f.load().then(() => { self.fonts.add(f); family = 'TrustyShelfLogo'; }), new Promise(r => setTimeout(r, 300))]); } catch (x) {}
+  try { const f = new FontFace('RustyShelfLogo', 'url(fonts/lexend-latin-800-normal.woff2)', { weight: '800' }); await Promise.race([f.load().then(() => { self.fonts.add(f); family = 'RustyShelfLogo'; }), new Promise(r => setTimeout(r, 300))]); } catch (x) {}
   L = layout(); draw(0); requestAnimationFrame(() => postMessage({ ready: true })); // once this is on screen the page's own copy steps aside
 };

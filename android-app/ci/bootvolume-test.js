@@ -1,4 +1,4 @@
-// (T)rustyShelf: the boot sound's own volume (Settings → Sound → Boot sound volume; asked for in Boxshelf beta discussion 36),
+// RustyShelf: the boot sound's own volume (Settings → Sound → Boot sound volume; asked for in Boxshelf beta discussion 36),
 // on the demo page as Windows. Run (after node copy-web.js): node ci/bootvolume-test.js www ../out/bootvolume
 //   - Settings → Sound has the row, right below Boot sound, at 100% by default
 //   - the boot, rendered offline, is about half as loud at 50% and silent at 0%, while a menu sound stays as loud as before
@@ -36,7 +36,7 @@ server.listen(0, async () => {
       return out; });
     // the slider: a press on its bar moves it, and it's saved
     if (st.bar) { await page.mouse.click(st.bar.x, st.bar.y); await page.waitForTimeout(1500); }
-    st.saved = await page.evaluate(async () => (await trustyshelf.getConfig()).config.ui.bootVolume);
+    st.saved = await page.evaluate(async () => (await rustyshelf.getConfig()).config.ui.bootVolume);
     check('Settings → Sound has Boot sound volume right below Boot sound, at 100%', st.order === 1 && /100%/.test(st.text), JSON.stringify(st));
     check('The boot is about half as loud at 50% and silent at 0%', st.full > 0.01 && st.half > st.full * .3 && st.half < st.full * .7 && st.zero < st.full * .01, JSON.stringify(st));
     check('…and the menu sounds stay as loud as before', st.move1 > 0 && Math.abs(st.move2 - st.move1) < st.move1 * .2 /* (each render varies a little: it's never halved) */, JSON.stringify(st));

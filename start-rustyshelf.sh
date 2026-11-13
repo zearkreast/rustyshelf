@@ -1,8 +1,8 @@
 #!/bin/sh
-# (T)rustyShelf from the source on Linux (Arch, CachyOS, Omarchy, Fedora, Ubuntu, SteamOS Desktop Mode …).
-#   ./start-trustyshelf.sh              fullscreen
-#   ./start-trustyshelf.sh --windowed   in a window
-#   ./start-trustyshelf.sh --check      only get everything ready (node_modules and Electron), then stop
+# RustyShelf from the source on Linux (Arch, CachyOS, Omarchy, Fedora, Ubuntu, SteamOS Desktop Mode …).
+#   ./starrustyshelf.sh              fullscreen
+#   ./starrustyshelf.sh --windowed   in a window
+#   ./starrustyshelf.sh --check      only get everything ready (node_modules and Electron), then stop
 # The first run installs what it needs (about a minute). If npm stops before Electron's download is unpacked (it can when
 # the install is interrupted), this finishes the unpacking from the downloaded archive with `unzip` instead of starting over.
 # The ready-made AppImage from the releases page needs none of this.
@@ -11,7 +11,7 @@
 set -eu
 cd "$(dirname "$(readlink -f "$0")")"
 
-say() { printf '%s\n' "(T)rustyShelf: $*" >&2; }
+say() { printf '%s\n' "RustyShelf: $*" >&2; }
 need() { command -v "$1" >/dev/null 2>&1 || { say "needs $1. $2"; exit 1; }; }
 
 need node "Install Node.js (Arch / CachyOS / Omarchy: sudo pacman -S nodejs npm; Fedora: sudo dnf install nodejs; Ubuntu: sudo apt install nodejs npm)."

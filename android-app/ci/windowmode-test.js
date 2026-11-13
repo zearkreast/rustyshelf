@@ -1,4 +1,4 @@
-// (T)rustyShelf's per-game window mode, the page side (Details → Window), on the demo page as Windows (?pcx=1: a Quiver game on the
+// RustyShelf's per-game window mode, the page side (Details → Window), on the demo page as Windows (?pcx=1: a Quiver game on the
 // Custom shelf, an Epic, GOG and Ubisoft games on the PC shelf).
 // Run (after node copy-web.js): node ci/windowmode-test.js www ../out/windowmode
 //   - a Quiver game's Details has a Window button: it starts on "the game's own", each press goes on (borderless → windowed → the
@@ -25,7 +25,7 @@ server.listen(0, async () => {
       const closeDet = async () => { if (window.Shelf && Shelf._qs && Shelf._qs().mode === 'details') { key('Escape'); await w(900); } };
       const go = async t => { await closeDet(); for (let i = 0; i < 30 && Shelf._qs().g !== t; i++) { key('ArrowRight'); await w(350); } for (let i = 0; i < 30 && Shelf._qs().g !== t; i++) { key('ArrowLeft'); await w(350); } return Shelf._qs().g === t; };
       const btn = () => document.getElementById('dWindow'), seen = () => !!btn() && !btn().hidden, text = () => (btn() || {}).textContent || '';
-      const cfg = async id => ((await trustyshelf.getConfig()).config.games || {})[id];
+      const cfg = async id => ((await rustyshelf.getConfig()).config.games || {})[id];
       const out = {};
       // a Quiver game on the Custom shelf
       out.customTab = await tab('Custom'); out.found = await go('Quarantine'); key('i'); await w(900);

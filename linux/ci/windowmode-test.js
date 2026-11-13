@@ -1,4 +1,4 @@
-// (T)rustyShelf's per-game window mode (main/windowmode.js). Run: node linux/ci/windowmode-test.js
+// RustyShelf's per-game window mode (main/windowmode.js). Run: node linux/ci/windowmode-test.js
 //   - a saved config keeps a game's window mode ('borderless' / 'windowed') beside its emulator and name, and drops anything else
 //   - the mode of a game is read from the config; only the games the shelf starts itself take one
 //   - the PowerShell command is one safe line: the Windows helper's source has no single quote, the command quotes the game's

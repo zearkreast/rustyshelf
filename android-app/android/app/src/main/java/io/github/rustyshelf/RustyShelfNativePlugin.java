@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// android-app/android/app/src/main/java/io/github/boxshelf/BoxshelfNativePlugin.java; modified for (T)rustyShelf (see the git history).
-package io.github.trustyshelf;
+// android-app/android/app/src/main/java/io/github/boxshelf/BoxshelfNativePlugin.java; modified for RustyShelf (see the git history).
+package io.github.rustyshelf;
 
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
@@ -55,26 +55,26 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * (T)rustyShelf's Android side: the few things the shared UI can't do from a web page.
+ * RustyShelf's Android side: the few things the shared UI can't do from a web page.
  * pickFolder (Storage Access Framework, permission kept across restarts), listFiles (fast recursive listing of a picked
  * folder), apps / activities (which emulators are installed), launch (start an emulator with a game), readText /
  * writeText (settings in the app's private storage), and a "resume" event when the player comes back from a game.
  */
-@CapacitorPlugin(name = "TrustyShelfNative")
-public class TrustyShelfNativePlugin extends Plugin {
+@CapacitorPlugin(name = "RustyShelfNative")
+public class RustyShelfNativePlugin extends Plugin {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     // box art downloads get their own threads, so a slow server never holds up a folder scan (io) or the page. Six: the
     // page asks for up to four pictures at once (each source has its own limit there) plus a lookup or a name list, and
     // most of a download is waiting on the network. Background priority: they never compete with the shelf's frames
     private final ExecutorService net = Executors.newFixedThreadPool(6, r -> {
-        Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "trustyshelf-net");
+        Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "rustyshelf-net");
         t.setDaemon(true);
         return t;
     });
     // ...but at most two pictures are decoded and scaled at once (the CPU- and memory-heavy part: a big full wrap can
     // take tens of MB while it is cut), whatever number are downloading
     private final Semaphore decodeGate = new Semaphore(2);
-    private static final Set<String> SKIP_DIRS = new HashSet<>(java.util.Arrays.asList("dlc", "update", "updates", "patches", "mods", "sce_sys", "sce_module", "trustyshelf art", "boxshelf art"));
+    private static final Set<String> SKIP_DIRS = new HashSet<>(java.util.Arrays.asList("dlc", "update", "updates", "patches", "mods", "sce_sys", "sce_module", "rustyshelf art", "boxshelf art"));
 
     // ---------- folders ----------
     @PluginMethod
@@ -90,7 +90,7 @@ public class TrustyShelfNativePlugin extends Plugin {
         Intent data = result.getData();
         if (data == null || data.getData() == null) { JSObject r = new JSObject(); r.put("canceled", true); call.resolve(r); return; }
         Uri tree = data.getData();
-        // read + write, so the same pick works for an art & manuals folder (T)rustyShelf saves into (read only if write isn't offered)
+        // read + write, so the same pick works for an art & manuals folder RustyShelf saves into (read only if write isn't offered)
         ContentResolver cr = getContext().getContentResolver();
         // (beta.10) whether Android kept the permission is said back (persisted): without it the folder reads today but not
         // after a restart, and the page tells the player so instead of the pick quietly "working"
@@ -115,7 +115,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     }
 
     @PluginMethod
-    public void folderAccess(PluginCall call) { // the folders (T)rustyShelf can still read (permissions survive reboots, not uninstalls)
+    public void folderAccess(PluginCall call) { // the folders RustyShelf can still read (permissions survive reboots, not uninstalls)
         JSArray a = new JSArray();
         for (android.content.UriPermission p : getContext().getContentResolver().getPersistedUriPermissions()) if (p.isReadPermission()) a.put(p.getUri().toString());
         JSObject r = new JSObject(); r.put("uris", a); call.resolve(r);
@@ -195,7 +195,7 @@ public class TrustyShelfNativePlugin extends Plugin {
         });
     }
 
-    // ((T)rustyShelf) a small text file in a picked folder: a PC game's export file, which holds its store id (GameNative's
+    // (RustyShelf) a small text file in a picked folder: a PC game's export file, which holds its store id (GameNative's
     // Frontend sync writes one per game) { uri } → { text } (its first 4 KB; only content:// documents)
     @PluginMethod
     public void readDoc(PluginCall call) {
@@ -327,7 +327,7 @@ public class TrustyShelfNativePlugin extends Plugin {
         } catch (SecurityException e) { call.reject("Android blocked opening the emulator: " + e.getMessage()); }
     }
 
-    // ---------- the Home screen ((T)rustyShelf as the Thor's launcher, and the way back out) ----------
+    // ---------- the Home screen (RustyShelf as the Thor's launcher, and the way back out) ----------
     private Intent homeIntent() { return new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME); }
 
     @PluginMethod
@@ -378,7 +378,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     @PluginMethod
     public void closeApp(PluginCall call) { call.resolve(); getActivity().runOnUiThread(() -> getActivity().finishAndRemoveTask()); }
 
-    // the Home key while (T)rustyShelf is the Home app (or a launcher shortcut) arrives here as a new intent
+    // the Home key while RustyShelf is the Home app (or a launcher shortcut) arrives here as a new intent
     @Override
     protected void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
@@ -413,17 +413,17 @@ public class TrustyShelfNativePlugin extends Plugin {
     public void readingZip(PluginCall call) { reading().zip(call); }
 
     // ---------- box art (downloaded here, never by the page: no CORS, never on the UI thread) ----------
-    // The original picture is saved in a "TrustyShelf Art" folder inside the games folder the player picked (so it stays with
+    // The original picture is saved in a "RustyShelf Art" folder inside the games folder the player picked (so it stays with
     // the games, like the covers folder on Windows); if Android only gave read access there, in the app's own storage.
     // A display-size copy (about 512 px tall) always goes to the app's own storage: that's what the shelf shows, so a
     // 3000 px scan never has to be decoded while the cases slide.
-    private static final String ART_DIR = "TrustyShelf Art";
-    // game manuals (0.3.0): page pictures in a "TrustyShelf Manuals" folder beside the games (read: also the PC's "covers" and
+    private static final String ART_DIR = "RustyShelf Art";
+    // game manuals (0.3.0): page pictures in a "RustyShelf Manuals" folder beside the games (read: also the PC's "covers" and
     // "manuals" folders copied over with the games)
-    private static final String MANUAL_DIR = "TrustyShelf Manuals";
+    private static final String MANUAL_DIR = "RustyShelf Manuals";
     private static String folderFor(String f) { return "covers".equals(f) ? "covers" : "manuals".equals(f) ? MANUAL_DIR : "pcmanuals".equals(f) ? "manuals" : ART_DIR; }
     private static final Pattern PNG_HREF = Pattern.compile("href=\"([^\"]+?\\.png)\"", Pattern.CASE_INSENSITIVE);
-    private final Object artDirLock = new Object(); // two downloads must not both create "TrustyShelf Art" (Android would make "TrustyShelf Art (1)")
+    private final Object artDirLock = new Object(); // two downloads must not both create "RustyShelf Art" (Android would make "RustyShelf Art (1)")
     private final java.util.Map<String, String> artDirs = new java.util.HashMap<>(); // tree|sub → folder id (only touched under artDirLock)
     private String ua = null;
 
@@ -431,7 +431,7 @@ public class TrustyShelfNativePlugin extends Plugin {
         if (ua != null) return ua;
         String v = "0";
         try { v = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName; } catch (Exception ignored) {}
-        ua = "TrustyShelf/" + v + " (Android)";
+        ua = "RustyShelf/" + v + " (Android)";
         return ua;
     }
 
@@ -579,7 +579,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     // low-priority thread of its own so a folder scan or a download never waits on it, and the file never crosses the
     // bridge. { items: [{ uri, kind, name, exts }] } → { hashes: [32 hex characters, or "" when it couldn't be made] }
     private final ExecutorService hashPool = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "trustyshelf-rahash");
+        Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "rustyshelf-rahash");
         t.setDaemon(true);
         return t;
     });
@@ -660,7 +660,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     // ScreenScraper's sign-in, added to one of its addresses at the moment of the request, from the saved settings: the page
     // never builds, logs or keeps an address with the password in it (or passes one through the bridge, which logs calls in
     // debug builds). Not a ScreenScraper https address: left as it is
-    // (beta.10) (T)rustyShelf's own ScreenScraper developer login, when this build has one: assets/ss-dev.json { "devId", "devPass" }
+    // (beta.10) RustyShelf's own ScreenScraper developer login, when this build has one: assets/ss-dev.json { "devId", "devPass" }
     // (outside the web page's folder, so the page can't read it; never in git, the .gitignore lists it). Read once; null: none
     private String[] ssOwn = null; private boolean ssOwnRead = false;
     private synchronized String[] readSsOwnDev() {
@@ -691,10 +691,10 @@ public class TrustyShelfNativePlugin extends Plugin {
             if (devId.isEmpty() && !devPass.isEmpty() && !user.isEmpty()) devId = user;
             if (user.isEmpty() && !devId.isEmpty()) user = devId;
             if (pass.isEmpty() && !devPass.isEmpty()) pass = devPass;
-            if (devId.isEmpty()) { String[] own = readSsOwnDev(); if (own != null) { devId = own[0]; devPass = own[1]; } } // (beta.10) (T)rustyShelf's own, when this build has one
+            if (devId.isEmpty()) { String[] own = readSsOwnDev(); if (own != null) { devId = own[0]; devPass = own[1]; } } // (beta.10) RustyShelf's own, when this build has one
             StringBuilder b = new StringBuilder(url);
             char sep = url.indexOf('?') >= 0 ? '&' : '?';
-            String[][] add = { { "softname", "TrustyShelf" }, { "ssid", user }, { "sspassword", pass }, { "devid", devId }, { "devpassword", devId.isEmpty() ? "" : devPass } };
+            String[][] add = { { "softname", "RustyShelf" }, { "ssid", user }, { "sspassword", pass }, { "devid", devId }, { "devpassword", devId.isEmpty() ? "" : devPass } };
             for (String[] kv : add) {
                 if (kv[1].isEmpty()) continue;
                 b.append(sep).append(kv[0]).append('=').append(java.net.URLEncoder.encode(kv[1], "UTF-8"));
@@ -738,15 +738,15 @@ public class TrustyShelfNativePlugin extends Plugin {
         return null;
     }
 
-    // "TrustyShelf Art" (and its sub folder, when one is asked for) in the picked games folder; created when make is true
+    // "RustyShelf Art" (and its sub folder, when one is asked for) in the picked games folder; created when make is true
     private String artDirId(ContentResolver cr, Uri tree, String sub, boolean make) throws IOException { return artDirId(cr, tree, ART_DIR, sub, make); }
 
-    // folder: "TrustyShelf Art", or (read only) the Windows build's "covers" folder beside the games
+    // folder: "RustyShelf Art", or (read only) the Windows build's "covers" folder beside the games
     private String artDirId(ContentResolver cr, Uri tree, String folder, String sub, boolean make) throws IOException {
         synchronized (artDirLock) {
             String cacheKey = tree + "|" + (sub == null ? "" : sub) + (ART_DIR.equals(folder) ? "" : "|" + folder), known = artDirs.get(cacheKey);
             if (known != null) return known;
-            String id = startId(tree); // "TrustyShelf Art" goes inside the console's own folder, also when that's a sub folder of the pick
+            String id = startId(tree); // "RustyShelf Art" goes inside the console's own folder, also when that's a sub folder of the pick
             String[] path = (sub == null || sub.isEmpty()) ? new String[] { folder } : new String[] { folder, safeName(sub) };
             for (String part : path) {
                 String kid = findChild(cr, tree, id, part, true);
@@ -766,7 +766,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     private void forgetArtDir(Uri tree, String folder, String sub) { synchronized (artDirLock) { artDirs.remove(tree + "|" + (sub == null ? "" : sub) + (ART_DIR.equals(folder) ? "" : "|" + folder)); } }
 
     @PluginMethod
-    public void artList(PluginCall call) { // the pictures already in a games folder's "TrustyShelf Art" → { exists, files: [{ name, uri }] }
+    public void artList(PluginCall call) { // the pictures already in a games folder's "RustyShelf Art" → { exists, files: [{ name, uri }] }
         // (folder: "covers" lists the Windows build's art folder instead, so art scraped on the PC and copied over is used)
         final String treeStr = call.getString("tree"), sub = call.getString("sub", ""), folder = folderFor(call.getString("folder", ""));
         if (treeStr == null || treeStr.isEmpty()) { call.reject("No folder given"); return; }
@@ -920,11 +920,11 @@ public class TrustyShelfNativePlugin extends Plugin {
         return "png";
     }
 
-    // the original into "TrustyShelf Art" in the games folder → its content:// address, or null when that folder can't be
+    // the original into "RustyShelf Art" in the games folder → its content:// address, or null when that folder can't be
     // written (read-only permission, a removed SD card…)
     private String saveToTree(String treeStr, String sub, String file, String ext, byte[] body) { return saveToTree(treeStr, ART_DIR, sub, file, ext, body); }
 
-    // the same into another of (T)rustyShelf's folders beside the games ("TrustyShelf Manuals")
+    // the same into another of RustyShelf's folders beside the games ("RustyShelf Manuals")
     private String saveToTree(String treeStr, String folder, String sub, String file, String ext, byte[] body) {
         if (treeStr == null || treeStr.isEmpty()) return null;
         Uri doc = null; ContentResolver cr = getContext().getContentResolver();
@@ -958,7 +958,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     public void fetchFile(PluginCall call) {
         // a manual page saved as it comes (no display copy): { tree, sub, folder: "manuals", name (no extension), url, key }
         // → { ok, name, file } / { ok: false, missing } (not there) / { ok: false, busy } (offline, or the server said slow down).
-        // No tree (art kept inside (T)rustyShelf), or a folder Android only lets us read: the app's own storage instead.
+        // No tree (art kept inside RustyShelf), or a folder Android only lets us read: the app's own storage instead.
         final String treeStr = call.getString("tree", ""), sub = call.getString("sub", ""), url = call.getString("url", ""), name = safeName(call.getString("name", "file")), key = call.getString("key", "file");
         final String folder = "manuals".equals(call.getString("folder", "")) ? MANUAL_DIR : ART_DIR;
         // pdf (0.3.1): a whole PDF manual, kept in the app's cache only (the page turns it into pictures, saved with saveBytes)
@@ -1017,7 +1017,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     // (beta.10) previews copy on a thread of their own (a 300 MB video used to hold up folder scans, art lists and manual
     // pages on io), and only the newest ask counts: one for another video (you moved on) stops an older copy part way
     private final ExecutorService previewIo = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "trustyshelf-preview");
+        Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "rustyshelf-preview");
         t.setDaemon(true);
         return t;
     });
@@ -1061,7 +1061,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     @PluginMethod
     public void saveBytes(PluginCall call) {
         // a picture made in the page (a PDF manual's page): { tree, sub, folder: "manuals", name (no extension), ext, b64, key }
-        // → { ok, name, file } into "TrustyShelf Manuals" beside the games, or the app's own storage when that can't be written
+        // → { ok, name, file } into "RustyShelf Manuals" beside the games, or the app's own storage when that can't be written
         final String treeStr = call.getString("tree", ""), sub = call.getString("sub", ""), name = safeName(call.getString("name", "file")), key = call.getString("key", "file");
         final String ext = "png".equals(call.getString("ext", "jpg")) ? "png" : "jpg", b64 = call.getString("b64", "");
         final String folder = "manuals".equals(call.getString("folder", "")) ? MANUAL_DIR : ART_DIR;
@@ -1134,7 +1134,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     }
 
     @PluginMethod
-    public void artThumb(PluginCall call) { // a display copy of a picture already there (TrustyShelf Art, or the app's own) → { display }
+    public void artThumb(PluginCall call) { // a display copy of a picture already there (RustyShelf Art, or the app's own) → { display }
         // (split, want, dname, ratio, depth: a full wrap, as fetchArt → also parts: { front, back, spine })
         final String src = call.getString("src"), key = call.getString("key", "art"), name = safeName(call.getString("name", "art"));
         final int maxH = Math.max(64, Math.min(2048, call.getInt("maxH", 512)));
@@ -1182,7 +1182,7 @@ public class TrustyShelfNativePlugin extends Plugin {
         });
     }
 
-    // a picture (T)rustyShelf may read: a content:// document (a picked folder, a picked picture) or a file of its own
+    // a picture RustyShelf may read: a content:// document (a picked folder, a picked picture) or a file of its own
     private byte[] readSrc(String src) throws IOException {
         if (src.startsWith("content:")) {
             try (InputStream in = getContext().getContentResolver().openInputStream(Uri.parse(src))) {
@@ -1192,7 +1192,7 @@ public class TrustyShelfNativePlugin extends Plugin {
         }
         File f = new File(src);
         String path = f.getCanonicalPath(), files = getContext().getFilesDir().getCanonicalPath(), cache = getContext().getCacheDir().getCanonicalPath();
-        if (!path.startsWith(files + File.separator) && !path.startsWith(cache + File.separator)) throw new IOException("Not one of (T)rustyShelf's files");
+        if (!path.startsWith(files + File.separator) && !path.startsWith(cache + File.separator)) throw new IOException("Not one of RustyShelf's files");
         try (InputStream in = new FileInputStream(f)) { return readAll(in, 40 * 1024 * 1024); }
     }
 
@@ -1305,7 +1305,7 @@ public class TrustyShelfNativePlugin extends Plugin {
     @PluginMethod
     public void saveArt(PluginCall call) {
         // { src (a studio download, a picked picture or a kept older one), tree, sub, name, key, dname, maxH, cut?, ratio, depth }
-        // → { ok, display, file, saved: 'folder' | 'app', name, old? }. The picture goes into "TrustyShelf Art" as <name>.<ext>
+        // → { ok, display, file, saved: 'folder' | 'app', name, old? }. The picture goes into "RustyShelf Art" as <name>.<ext>
         // (a face cut from a wrap: as a JPEG). Whatever was there under that name, in any picture type, is first copied to the
         // app's own storage (old: for Undo) and then removed, so the folder never holds two pictures for one part.
         // dname: the display copy's own name (new each time, so the shelf never shows a cached older picture)
@@ -1354,7 +1354,7 @@ public class TrustyShelfNativePlugin extends Plugin {
 
     private static final String[] PIC_EXTS = { "png", "jpg", "jpeg", "webp" };
 
-    // every "<name>.<png|jpg|jpeg|webp>" in the games folder's TrustyShelf Art: the first is kept in the app's own storage
+    // every "<name>.<png|jpg|jpeg|webp>" in the games folder's RustyShelf Art: the first is kept in the app's own storage
     // (→ its path, for Undo) and all are removed. One that can't be kept is left where it is (never lost)
     private String clearOld(String treeStr, String sub, String name, String key) {
         String old = null;
@@ -1475,7 +1475,7 @@ public class TrustyShelfNativePlugin extends Plugin {
             } catch (Throwable e) {
                 call.reject(job.cancelled() ? "cancelled" : ("LaunchBox: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage())));
             } finally { synchronized (this) { if (lbJob == job) lbJob = null; } }
-        }, "trustyshelf-lb");
+        }, "rustyshelf-lb");
         t.setDaemon(true);
         t.start();
     }

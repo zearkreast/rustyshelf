@@ -1,4 +1,4 @@
-// (T)rustyShelf, Boxshelf beta issue 1: a PlayStation pad Windows has but Chromium never lists (a DualSense over Bluetooth)
+// RustyShelf, Boxshelf beta issue 1: a PlayStation pad Windows has but Chromium never lists (a DualSense over Bluetooth)
 // is read by the controller helper instead. Run (after node copy-web.js): node ci/padfeed-test.js www ../out/padfeed
 //   - the helper script reads it on FEED 1 and reports PAD <button> lines; main presses them on the page as keys
 //   - on the demo page: no pad in Chromium and a PlayStation pad plugged in turns the feed on; a pad Chromium sees turns it off;
@@ -24,7 +24,7 @@ server.listen(0, async () => {
     const run = async (pads, name) => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } }), page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
       await page.goto(`http://localhost:${server.address().port}/index.html?platform=windows&shelf=1`); await page.waitForTimeout(3000);
-      await page.evaluate(p => { window.__feed = []; const api = window.trustyshelf; api.padsPresent = async () => p; api.padFeed = async on => { window.__feed.push(on); return on; }; }, pads);
+      await page.evaluate(p => { window.__feed = []; const api = window.rustyshelf; api.padsPresent = async () => p; api.padFeed = async on => { window.__feed.push(on); return on; }; }, pads);
       await page.bringToFront(); await page.waitForTimeout(6800);
       const on = await page.evaluate(() => ({ on: window.BS_padFeed(), calls: window.__feed.slice() }));
       await page.evaluate(() => dispatchEvent(new Event('gamepadconnected'))); await page.waitForTimeout(200);

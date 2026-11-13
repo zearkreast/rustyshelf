@@ -1,4 +1,4 @@
-// (T)rustyShelf: PCSX2's RetroAchievements sign-in is found wherever PCSX2 keeps its settings (Boxshelf beta issue 28: signed
+// RustyShelf: PCSX2's RetroAchievements sign-in is found wherever PCSX2 keeps its settings (Boxshelf beta issue 28: signed
 // in inside PCSX2, but not ticked). Made-up home folders. Run: node linux/ci/pcsx2-ra-test.js
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -15,7 +15,7 @@ const ps2 = async env => (await raemu.check(cfg, { ps2: true }, env)).find(r => 
     // Documents moved to another drive (Windows' Location tab): only Windows knows where
     let home = path.join(tmp, 'h1'), docs = path.join(tmp, 'D', 'MyDocs'); fs.mkdirSync(home, { recursive: true }); put(path.join(docs, 'PCSX2', 'inis', 'PCSX2.ini'), INI);
     let r = await ps2({ USERPROFILE: home, BS_DOCUMENTS: docs });
-    check('Documents moved to another drive: signed in, as the account set in (T)rustyShelf', r.state === 'ok' && r.user === 'Stonk', JSON.stringify(r));
+    check('Documents moved to another drive: signed in, as the account set in RustyShelf', r.state === 'ok' && r.user === 'Stonk', JSON.stringify(r));
     // OneDrive for work, with a translated Documents folder
     home = path.join(tmp, 'h2'); put(path.join(home, 'OneDrive - Contoso', 'Documenti', 'PCSX2', 'inis', 'PCSX2.ini'), INI);
     r = await ps2({ USERPROFILE: home });

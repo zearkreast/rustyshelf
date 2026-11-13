@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 25: "Hide the taskbar during games" hides the taskbar on (T)rustyShelf's monitor only (where the game
+// RustyShelf issue 25: "Hide the taskbar during games" hides the taskbar on RustyShelf's monitor only (where the game
 // opens), not on every monitor. Run: node linux/ci/taskbar-test.js
 //   - the pad helper hides it with its own window handle ($self), so only that monitor's taskbar goes
 //   - the one-off PowerShell (no helper running) hides it near the window handle main gave (setSelf); showing shows them all

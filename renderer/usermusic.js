@@ -1,4 +1,4 @@
-// (T)rustyShelf: your own menu music, played in the page. The files come from api.musicList() as addresses (main/music.js: the
+// RustyShelf: your own menu music, played in the page. The files come from api.musicList() as addresses (main/music.js: the
 // audio files in the Music folder beside the app); they play one after another in a shuffled order, fading in and out, and
 // stop whenever the menu music does (a game starts, the window hides, sound is off). Skips a file it can't play.
 // UserMusic.start({ level, master }): level = Settings' music volume (0-1), master = the interface volume (0-1);
@@ -6,7 +6,7 @@
 /* global */
 (function () {
   'use strict';
-  const api = window.trustyshelf;
+  const api = window.rustyshelf;
   let list = null, loading = null, order = [], pos = -1, last = -1, el = null, want = false, vol = 0, target = 0, fadeT = 0, fails = 0, name = '', stopT = 0;
 
   function load(force) {

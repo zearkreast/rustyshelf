@@ -1,8 +1,8 @@
 [package]
-name = "trustyshelf-imgtools"
+name = "rustyshelf-imgtools"
 version = "1.3.0"
 edition = "2021"
-description = "Native image manipulation and spine-cutting engine for (T)rustyShelf"
+description = "Native image manipulation and spine-cutting engine for RustyShelf"
 
 [dependencies]
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }

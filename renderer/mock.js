@@ -1,9 +1,9 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// renderer/mock.js; modified for (T)rustyShelf (see the git history).
+// renderer/mock.js; modified for RustyShelf (see the git history).
 // Demo data so the screen can be previewed in a normal browser (no Electron).
-// The real app replaces window.trustyshelf from preload.js, so this file does nothing there.
+// The real app replaces window.rustyshelf from preload.js, so this file does nothing there.
 (function(){
-if(window.trustyshelf)return;
+if(window.rustyshelf)return;
 const titles={
   gc:["Aether Drift","Bramblewood Tales","Cinder Circuit","Coral Kingdom","Echo Hollow","Ferrous Fist","Gale Riders","Kettle Knight","Lumen Isle","Moonmallow","Orbit Odyssey","Sky Harbor","Tidewalker"],
   wii:["Bubble Bay Bowling","Clockwork Carnival","Felt Friends","Jumble Jam","Paper Pilots","Snowglobe Party","Woolly Wonders"],
@@ -26,7 +26,7 @@ const consoles=[
   {id:"n3ds",name:"3DS",emulatorName:"Azahar",exeNames:["azahar.exe"],extensions:["3ds","cci","cxi"],gameArgs:'-f "{rom}"'},
   {id:"xboxone",name:"Xbox One",emulatorName:"",standalone:true,exeNames:[],extensions:[]} // (supalii's fork: a standalone shelf, PC programs only)
 ];
-const root="C:\\Users\\you\\Desktop\\TrustyShelf";
+const root="C:\\Users\\you\\Desktop\\RustyShelf";
 const emu={gc:"Dolphin\\Dolphin.exe",wii:"Dolphin\\Dolphin.exe",wiiu:"Cemu\\Cemu.exe",sw:"Eden\\eden.exe",psp:"PPSPP\\PPSSPPWindows64.exe",ps3:"RPCS3\\rpcs3.exe",n3ds:"Azahar\\azahar.exe"};
 const folder={gc:"Gamecube",wii:"Wii",wiiu:"Wii U",sw:"Switch",psp:"PSP",ps3:"PS3",n3ds:"3DS"};
 // ?sw2=1 (beta.3 device test): a Switch 2 shelf with three Eglantine builds, for Settings → Switch 2 → Builds. Off by default,
@@ -34,7 +34,7 @@ const folder={gc:"Gamecube",wii:"Wii",wiiu:"Wii U",sw:"Switch",psp:"PSP",ps3:"PS
 const curVer=()=>{const e=(window.BS_WHATSNEW||[])[0];return (location.search.match(/[?&]ver=([\w.-]+)/)||[])[1]||window.__BS_APP_VER||(e&&e.version)||"1.0.1.0"};
 const updNewer=()=>{if(!/[?&]update=newer/.test(location.search))return null;const W=window.BS_WHATSNEW||[],a=W[0],b=W[1];if(!a||!b)return null;
   const md=["## "+a.title,"",...(a.highlights||[]).map(h=>"- "+h),"",...(a.sections||[]).flatMap(x=>["### "+x.h,"",...x.items.map(i=>"- **"+i[0]+"**: "+i[1]),""])].join("\n");
-  return {current:b.version,latest:a.version,newer:true,url:"https://github.com/GGStonks/t-rustyshelf/releases/tag/v"+a.version,notes:md,links:{page:"https://github.com/GGStonks/t-rustyshelf",releases:"https://github.com/GGStonks/t-rustyshelf/releases",issues:"https://github.com/GGStonks/t-rustyshelf/issues/new/choose"},checkedAt:Date.now()}};
+  return {current:b.version,latest:a.version,newer:true,url:"https://github.com/zearkreast/rustyshelf/releases/tag/v"+a.version,notes:md,links:{page:"https://github.com/zearkreast/rustyshelf",releases:"https://github.com/zearkreast/rustyshelf/releases",issues:"https://github.com/zearkreast/rustyshelf/issues/new/choose"},checkedAt:Date.now()}};
 const SW2=/[?&]sw2=1/.test(location.search),PCX=/[?&]pcx=1/.test(location.search);let customPick=0; // (supalii: each "Add one program" picks a new program)
 if(SW2){consoles.push({id:"sw2",name:"Switch 2",emulatorName:"Eglantine",exeNames:["eglantine.exe"],extensions:["nsp","xci","nup"],gameArgs:'-f -g "{rom}"'});titles.sw2=["Glimmer Kart","Hollow Ridge","Tidal Run"];emu.sw2="Switch 2 emu\\Selvet Forks\\performance-6\\eglantine.exe";folder.sw2="Switch 2"}
 // ?retro=1 (beta.6 device test): a few of the retro shelves (RetroArch, DuckStation) with games, for their cases, titles,
@@ -74,7 +74,7 @@ if(RETRO)Object.assign(ext,{psx:"cue",snes:"sfc",gba:"gba",megadrive:"md",dreamc
 if(WAVE2)Object.assign(ext,{saturn:"chd",arcade:"zip",atari2600:"a26"});
 let onExit=()=>{};const apiHooks={};
 const wait=ms=>new Promise(r=>setTimeout(r,ms));const mockDl={};
-window.trustyshelf={
+window.rustyshelf={
   // Demo platform: 'android' inside the Capacitor shell (window.Capacitor), else 'web'; ?platform=windows|android overrides for testing
   platform:(()=>{const q=(location.search.match(/[?&]platform=(\w+)/)||[])[1];const os=q||(window.Capacitor?'android':'web');const all=os==='windows';
     return {os,caps:{steam:all,power:all,homeMenu:all,emuSettings:all,autostart:all,displays:all,folders:all,companionServer:all,winMode:all,dolphinIpl:all,raAutoConfig:all,winStores:all}};})(),
@@ -112,7 +112,7 @@ window.trustyshelf={
   previewYtMove:async(rect,show)=>{window.__ytOn=!!show;if(rect)window.__ytRect=rect},previewYtStop:async()=>{window.__ytOn=false;window.__ytStops=(window.__ytStops||0)+1},
       onPreviewYt:fn=>{ytFns.push(fn)},previewClearSteam:async()=>true,
       onPreviewClip:fn=>{clipFns.push(fn)},onClipProgress:fn=>{progFns.push(fn)},
-      // (beta.8) ?deck=desktop: a Steam Deck in Desktop Mode, (T)rustyShelf not started by Steam (?deck=steam: started by Steam)
+      // (beta.8) ?deck=desktop: a Steam Deck in Desktop Mode, RustyShelf not started by Steam (?deck=steam: started by Steam)
       deckInfo:async()=>{const m=(location.search.match(/[?&]deck=(\w+)/)||[])[1];return m?{linux:true,deck:true,steam:m==="steam",gameMode:false,canAdd:true,inSteam:!!window.__inSteam,flags:[]}:{linux:false,deck:false,steam:false,gameMode:false,canAdd:false}},
       addToSteam:async()=>{await wait(200);window.__added=(window.__added||0)+1;window.__inSteam=true;return {ok:true,users:1,updated:false,reopened:true}},
       clipStatus:async()=>({supported:true,helper,getting:false,n:kept.size,bytes:kept.size*4e6}),
@@ -121,7 +121,7 @@ window.trustyshelf={
       previewCount:async()=>{await wait(300);return {total:23,systems:[{id:"gc",name:"GameCube",n:9,of:13},{id:"wii",name:"Wii",n:5,of:7},{id:"psp",name:"PSP",n:4,of:5},{id:"ps3",name:"PS3",n:5,of:7}],steamBytes:18874368}}}})(),closeTrailer:async()=>true,onTrailerClosed:()=>{},
   getConfig:async()=>({...((location.search.match(/[?&]ver=([\w.-]+)/)||[])[1]?{version:(location.search.match(/[?&]ver=([\w.-]+)/)||[])[1]}:{}) /* (beta.7) ?ver=: the app version, for What's new */,config:JSON.parse(JSON.stringify(config)),consoles,apps:[{id:"stremio",name:"Stremio",exeNames:["stremio.exe"]},{id:"nuvio",name:"Nuvio",exeNames:["Nuvio.exe"]}],appRoot:root}),
   saveConfig:async c=>{config=JSON.parse(JSON.stringify(c));return config},
-  emulatorsIn:async dir=>{await wait(400);return {systems:{wiiu:dir+"\\Cemu Portable\\Cemu.exe",psp:dir+"\\PPSSPP\\PPSSPPWindows64.exe"}}}, // ((T)rustyShelf) Find emulators in a folder
+  emulatorsIn:async dir=>{await wait(400);return {systems:{wiiu:dir+"\\Cemu Portable\\Cemu.exe",psp:dir+"\\PPSSPP\\PPSSPPWindows64.exe"}}}, // (RustyShelf) Find emulators in a folder
   detect:async()=>{await wait(700);const systems={};consoles.forEach(c=>{if(!c.standalone)systems[c.id]={emulator:root+"\\"+emu[c.id],romDirs:folder[c.id]?[root+"\\ROMS\\"+folder[c.id]]:[]}});return {systems,steam:{path:"C:\\Program Files (x86)\\Steam"},apps:{stremio:{path:"C:\\Users\\you\\AppData\\Local\\Programs\\LNV\\Stremio-4\\stremio.exe"},nuvio:{path:null}},appRoot:root}},
   scan:async()=>{
     const out=[];
@@ -195,7 +195,7 @@ window.trustyshelf={
     const list=[{key:"cm-"+id+"-0",source:"commons",label:`${word} logo`,licence:"Public domain",by:"",preview:svg(960,163,"#111")},{key:"cm-"+id+"-1",source:"commons",label:`${word} symbol`,licence:"CC0",by:"",preview:svg(960,960,"#7b6cff","◆")},
       {key:"cm-"+id+"-2",source:"commons",label:`${word} logo, stacked`,licence:"Public domain",by:"",preview:svg(600,960,"#fff","S","#e60012")},{key:"cm-"+id+"-3",source:"commons",label:"Broken file",licence:"Public domain",by:"",preview:"data:image/png;base64,AAAA"}];
     return{ok:true,list,offline:false}},
-  useLogo:async(id,key)=>{const L=await window.trustyshelf.findLogos(id);const c=L.list.find(x=>x.key===key);if(!c)return{ok:false,error:"That logo is no longer offered."};const T=window.__mockThemes=window.__mockThemes||{};const t=T[id]=T[id]||{};t.logoPrev=true;t.logo=URL.createObjectURL(new Blob([decodeURIComponent(c.preview.split(",")[1])],{type:"image/svg+xml"}));return{ok:true}}, /* (a blob: address, as the CSP lets the logo be read; the app hands over bsfile: ones) */
+  useLogo:async(id,key)=>{const L=await window.rustyshelf.findLogos(id);const c=L.list.find(x=>x.key===key);if(!c)return{ok:false,error:"That logo is no longer offered."};const T=window.__mockThemes=window.__mockThemes||{};const t=T[id]=T[id]||{};t.logoPrev=true;t.logo=URL.createObjectURL(new Blob([decodeURIComponent(c.preview.split(",")[1])],{type:"image/svg+xml"}));return{ok:true}}, /* (a blob: address, as the CSP lets the logo be read; the app hands over bsfile: ones) */
   restoreLogo:async id=>{const T=window.__mockThemes||{},t=T[id];if(!t||!t.logoPrev)throw new Error("No earlier logo to bring back.");t.logo=null;t.logoPrev=false;return true},
   saveConsoleFit:async(id,p)=>{(window.__fitSaves=window.__fitSaves||[]).push([id,p]);return p},
   openThemeFolder:async()=>{},
@@ -208,12 +208,12 @@ window.trustyshelf={
   // 1.55 Settings APIs (fakes): displays, backup / restore, problem report, play history, account status
   listDisplays:async()=>[{id:"1",label:"Display 1 — 1920×1080 (main)",primary:true,current:true,width:1920,height:1080},{id:"2",label:"Display 2 — 3840×2160",primary:false,current:false,width:3840,height:2160}],
   moveToDisplay:async id=>{(window.__moves=window.__moves||[]).push(id);return true},
-  backupSettings:async()=>({ok:true,file:"C:\\Users\\you\\Documents\\TrustyShelf settings.json"}),
+  backupSettings:async()=>({ok:true,file:"C:\\Users\\you\\Documents\\RustyShelf settings.json"}),
   restoreSettings:async()=>{config=Object.assign(JSON.parse(JSON.stringify(config)),{ui:Object.assign({},config.ui,{theme:"aurora"})});(apiHooks.lib||[]).forEach(f=>f({restored:1}));(apiHooks.hist||[]).forEach(f=>f({restored:1}));return {ok:true}},
-  reportProblem:async()=>({ok:true,file:"C:\\Users\\you\\Desktop\\TrustyShelf problem report.zip"}),
+  reportProblem:async()=>({ok:true,file:"C:\\Users\\you\\Desktop\\RustyShelf problem report.zip"}),
   // (1.82) the beta page: a newer beta is out (tests check the Settings rows and the shelf's notice)
   // the fork's own versions: up to date, or (?update=1, for the update card) the app one release behind, with the newest release's real notes (renderer/whatsnew.js)
-  updateCheck:async()=>{const n=updNewer();return n||{current:curVer(),latest:curVer(),newer:false,url:"https://github.com/GGStonks/t-rustyshelf/releases",notes:""}},
+  updateCheck:async()=>{const n=updNewer();return n||{current:curVer(),latest:curVer(),newer:false,url:"https://github.com/zearkreast/rustyshelf/releases",notes:""}},
   onUpdate:cb=>{if(/[?&]update=(1|newer)/.test(location.search))setTimeout(()=>{const n=updNewer();if(n)cb(n)},400)}, // (?update=newer: the app one release behind; ?update=1: up to date, nothing to show)
   clearHistory:async()=>{(apiHooks.hist||[]).forEach(f=>f({cleared:1}));return {ok:true}},
   onHistoryChanged:fn=>{(apiHooks.hist=apiHooks.hist||[]).push(fn)},
@@ -222,15 +222,15 @@ window.trustyshelf={
     // ScreenScraper (1.71): an account with no developer login answers "developer login not accepted" (window.__ssNoDev)
     screenscraper:config.keys&&config.keys.ssUser&&config.keys.ssPass?(window.__ssNoDev&&!config.keys.ssDevId&&!config.keys.ssDevPass?{state:"fail",at:Date.now(),msg:"developer login not accepted"}:{state:"ok",at:Date.now(),msg:"Working",left:19876}):{state:"none",at:0,msg:"Not set up"}}),
   clipboardText:async()=>String(window.__bsClip||"").split(/\r?\n/)[0].trim(), // (beta.9: tests set window.__bsClip)
-  testApi:async s=>{await wait(300);const st=await window.trustyshelf.apiStatus();(apiHooks.api||[]).forEach(f=>f(st));return st[s]},
+  testApi:async s=>{await wait(300);const st=await window.rustyshelf.apiStatus();(apiHooks.api||[]).forEach(f=>f(st));return st[s]},
   onApiStatus:fn=>{(apiHooks.api=apiHooks.api||[]).push(fn)},
   raEmulators:async()=>[{system:"gc",emulator:"Dolphin",state:"ok",user:"paul"},{system:"wii",emulator:"Dolphin",state:"off",user:"paul",detail:"Achievements are turned off in Dolphin"},{system:"psp",emulator:"PPSSPP",state:"signed-out"},{system:"ps2",emulator:"PCSX2",state:"no-emulator"}],
   // the rest of preload.js, as neutral fakes (empty lists, no account, nothing opened) so every screen runs here the way it
   // does with nothing set up: a call the renderer makes must never be a TypeError in the preview (test scenarios patch these)
   log:()=>{},uiBusy:()=>{},homeMeta:()=>{},shelfInfo:()=>{},openShelfMenu:()=>{},shelfMenuKey:()=>{},
   onLaunchStatus:()=>{},onRunReady:()=>{},onRunQuitting:()=>{},onRunAside:()=>{},onRaUnlocks:()=>{},onTvFound:()=>{},onShelfMenu:()=>{},onShelfMenuRequest:()=>{},onUiScale:()=>{},onArchiveProgress:()=>{},
-  cachedLibrary:async()=>null,scanIfChanged:async()=>window.trustyshelf.scan(),
-  pcAchievements:async appid=>{await wait(200);if(appid!=="400000")return null;const L=[["First Light","Start a new run",1],["Night Shift","Finish chapter one",1],["Clean Hands","Finish without a crash",0],["Collector","Find every badge",0]]; /* ((T)rustyShelf discussion 22) a Steam game's achievements */
+  cachedLibrary:async()=>null,scanIfChanged:async()=>window.rustyshelf.scan(),
+  pcAchievements:async appid=>{await wait(200);if(appid!=="400000")return null;const L=[["First Light","Start a new run",1],["Night Shift","Finish chapter one",1],["Clean Hands","Finish without a crash",0],["Collector","Find every badge",0]]; /* (RustyShelf discussion 22) a Steam game's achievements */
     return {id:appid,title:"Cobalt Drift",source:"Steam",total:L.length,earned:2,points:0,pointsEarned:0,mastered:"",achievements:L.map(([t,d,e],i)=>({id:"1."+i,title:t,desc:d,points:0,badge:null,earned:!!e,hardcore:false,date:e?"2026-10-0"+(i+1)+" 20:00:00":null,rarity:null}))}},
   raEnabled:async()=>({enabled:false,systems:["gc","wii","psp","ps2"]}),raProfile:async()=>null,raShelf:async()=>({}),raProgress:async()=>null,
   
@@ -249,16 +249,16 @@ window.trustyshelf={
         return {done:names.filter(k=>k!=="Dolphin"),later:[],left:names.filter(k=>k==="Dolphin"),emuSetup:{auto:true,graphics:"auto",resume:false,pending:[]}}}}})(),
   getAutostart:async()=>({enabled:false}),setAutostart:async v=>({enabled:!!v,how:"shortcut"}),
   songs:async()=>[],songRead:async()=>{throw new Error("Preview mode")},
-  // ((T)rustyShelf) your own menu music: ?music=0 pretends the Music folder is empty; else three short silent WAVs as blob addresses
+  // (RustyShelf) your own menu music: ?music=0 pretends the Music folder is empty; else three short silent WAVs as blob addresses
   ...((()=>{const q=(location.search.match(/[?&]platform=(\w+)/)||[])[1];return (q||(window.Capacitor?'android':'web'))!=='android'&&!/[?&]fakeNative=1/.test(location.search)})()?{musicList:async()=>{if(/[?&]music=0/.test(location.search))return [];window.__mockTracks=window.__mockTracks||["Track A","Track B","Track C"].map((n,i)=>{const rate=8000,sec=2+i,n16=rate*sec,b=new ArrayBuffer(44+n16*2),v=new DataView(b),w=(o,t)=>{for(let k=0;k<t.length;k++)v.setUint8(o+k,t.charCodeAt(k))};
       w(0,"RIFF");v.setUint32(4,36+n16*2,true);w(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n16*2,true);
       return {name:n,url:URL.createObjectURL(new Blob([b],{type:"audio/wav"}))}});return window.__mockTracks},openMusicFolder:async()=>true}:{}), // (Android has no Music folder)
-  // ((T)rustyShelf issue #2) Details → Art match: a pretend database (the demo has no LaunchBox index)
+  // (RustyShelf issue #2) Details → Art match: a pretend database (the demo has no LaunchBox index)
   ...((()=>{const q=(location.search.match(/[?&]platform=(\w+)/)||[])[1];return (q||(window.Capacitor?'android':'web'))!=='android'&&!/[?&]fakeNative=1/.test(location.search)})()?{ // (not on Android: the app there has no Art match)
   artMatchSearch:async(id,term)=>{const w=String(term||"").toLowerCase().split(/\s+/).filter(Boolean);const all=[["Dragon Ball Z: Budokai Tenkaichi 3","launchbox",12],["Dragon Ball Z: Budokai Tenkaichi 2","launchbox",9],["Dragon Ball Z: Budokai 3","launchbox",7],["Dragon Ball Z - Budokai Tenkaichi 3","libretro",1]];
     window.__amSearch=(window.__amSearch||[]).concat({id,term});return {list:all.filter(([n])=>w.every(x=>n.toLowerCase().includes(x))).map(([name,source,pictures])=>({name,source,pictures,thumb:""})),index:"ready"}},
   artMatchSet:async(id,name)=>{config.games=config.games||{};const c={...(config.games[id]||{})};if(name)c.artName=String(name);else delete c.artName;if(Object.keys(c).length)config.games[id]=c;else delete config.games[id];window.__amSet=(window.__amSet||[]).concat({id,name});return {artName:name||"",games:JSON.parse(JSON.stringify(config.games))}}}:{}),
-  gameWindow:async(id,w)=>{config.games=config.games||{};const o=config.games[id]=config.games[id]||{};if(w)o.window=w;else delete o.window;if(!Object.keys(o).length)delete config.games[id];window.__winCalls=(window.__winCalls||[]).concat({id,w});return {window:w||"",games:config.games}}, // ((T)rustyShelf) a PC game's window mode
+  gameWindow:async(id,w)=>{config.games=config.games||{};const o=config.games[id]=config.games[id]||{};if(w)o.window=w;else delete o.window;if(!Object.keys(o).length)delete config.games[id];window.__winCalls=(window.__winCalls||[]).concat({id,w});return {window:w||"",games:config.games}}, // (RustyShelf) a PC game's window mode
   library:async()=>/[?&]mags=1/.test(location.search)?[1,2,3].map(n=>({id:"np"+n,kind:"magazine",type:"pdf",title:`Nintendo Power Issue ${n} (198${7+n})`,series:"Nintendo Power"})).concat([{id:"gi1",kind:"magazine",type:"pdf",title:"Game Informer Issue 1 (1991)",series:"Game Informer"}]):[] /* (beta.11 ?mags=1: a file box of three issues and one on its own) */,libraryCover:async()=>null,libraryPages:async()=>[],stremioLibrary:async()=>[],stremioPoster:async()=>null,stremioDetails:async()=>null,
   tvScan:async()=>true,tvList:async()=>[],tvAdFor:async()=>null,tvLocal:async()=>null,
   manualCoverage:async()=>consoles.filter(c=>config.systems[c.id]&&config.systems[c.id].romDirs.length).map(c=>({id:c.id,name:c.name,total:titles[c.id].length,have:0,low:0})),
@@ -278,11 +278,11 @@ window.trustyshelf={
   archiveDownload:(id,kind,title)=>new Promise((res,rej)=>{mockDl[id]={rej,t:setTimeout(()=>{delete mockDl[id];res({existed:false,name:`${title}.pdf`,count:0})},4000)}}),
   archiveCancel:async id=>{const j=mockDl[id];if(!j)return false;clearTimeout(j.t);delete mockDl[id];setTimeout(()=>j.rej(new Error("Cancelled.")),50);return true},
   readingWhere:async()=>({root,custom:false,magazines:root+"\\Magazines",guides:root+"\\Guides"}),
-  readingOld:async()=>[{root:"C:\\Users\\you\\Desktop\\Old (T)rustyShelf",why:"log",magazines:{files:12,bytes:9.6e8},guides:{files:3,bytes:2.1e8},files:15,bytes:1.17e9}],
+  readingOld:async()=>[{root:"C:\\Users\\you\\Desktop\\Old RustyShelf",why:"log",magazines:{files:12,bytes:9.6e8},guides:{files:3,bytes:2.1e8},files:15,bytes:1.17e9}],
   readingImport:async()=>{await wait(600);return {copied:15,skipped:0,failed:0,bytes:1.17e9,total:15}},readingImportStop:async()=>true,onReadingImport:()=>{}
 };
-artStudioMock(window.trustyshelf,{consoles,titles,config:()=>config,root,folder,ext,wait});
-manualStudioMock(window.trustyshelf,{consoles,titles,config:()=>config,root,folder,ext,wait});
+artStudioMock(window.rustyshelf,{consoles,titles,config:()=>config,root,folder,ext,wait});
+manualStudioMock(window.rustyshelf,{consoles,titles,config:()=>config,root,folder,ext,wait});
 })();
 
 // ---------- Art Studio (1.67) fake: the whole art:* contract (scratchpad/studio/SPEC.md) ----------
@@ -325,7 +325,7 @@ const DRAW={front:cover,back,spine,disc};
 const SRC={launchbox:"LaunchBox",libretro:"libretro",gametdb:"GameTDB",steam:"Steam",steamgriddb:"SteamGridDB",screenscraper:"ScreenScraper",current:"In use",earlier:"Earlier"};
 const RG={usa:"USA",eur:"EUR",jpn:"JPN",world:"World"};
 const TDB=new Set(["gc","wii","wiiu"]);
-// every version (T)rustyShelf "found" for one game + part; deterministic per game, so lists are stable between visits
+// every version RustyShelf "found" for one game + part; deterministic per game, so lists are stable between visits
 function versions(sys,g,part){const n=hash(g.title+part),L=[],add=(key,source,reg,ed,kind,w,h,x={})=>L.push({key,source,region:reg,edition:ed,kind,w,h,...x});
   if(g.noCands&&g.noCands.includes(part)&&!(part==="disc"&&indexBuilt))return L;
   if(g.only){add("cur-"+part,"current",g.region,"original","scan",600,860);return L}
@@ -389,7 +389,7 @@ o.consoles.forEach(c=>{styles[c.id]={preset:"authentic",region:"usa",parts:{}};
     if(c.id==="gc"&&(i===0||i===3)){g.lock.front={look:"hd"};const L=versions(c.id,g,"front"),hd=L.find(x=>x.kind==="hd");if(hd)g.sel.front=hd.key}
     if(c.id==="wii"&&i===1){g.lock.disc={look:"region:jpn"};g.sel.disc="lb-jpn-d"}
     if(c.id==="gc"&&i===4)g.frozen=true; // a game locked as it is (1.68)
-    // pictures from before 1.68 that (T)rustyShelf can't vouch for: kept (locked) at the console's first style change
+    // pictures from before 1.68 that RustyShelf can't vouch for: kept (locked) at the console's first style change
     g.legacy=PARTS.filter(p=>g.sel[p]&&(hash(t+p)%5===1));
     return g})});
 const keptOnce={};
@@ -497,7 +497,7 @@ const hash=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=M
 const xe=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const url=s=>"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(s);
 const LN={en:"English",fr:"French",de:"German",ja:"Japanese",es:"Spanish",it:"Italian"},RN={usa:"USA",eur:"Europe",jpn:"Japan"};
-const PREFS=[{id:"best",label:"Best English manual",sub:"The sharpest complete English manual (how (T)rustyShelf always chose)"},{id:"region:eur",label:"English · Europe",sub:"PAL booklets in English"},{id:"region:jpn",label:"Japanese",sub:"Japanese booklets"},{id:"lang:fr",label:"French",sub:"Manuals in French"},{id:"lang:de",label:"German",sub:"Manuals in German"},{id:"lang:es",label:"Spanish",sub:"Manuals in Spanish"},{id:"lang:it",label:"Italian",sub:"Manuals in Italian"}];
+const PREFS=[{id:"best",label:"Best English manual",sub:"The sharpest complete English manual (how RustyShelf always chose)"},{id:"region:eur",label:"English · Europe",sub:"PAL booklets in English"},{id:"region:jpn",label:"Japanese",sub:"Japanese booklets"},{id:"lang:fr",label:"French",sub:"Manuals in French"},{id:"lang:de",label:"German",sub:"Manuals in German"},{id:"lang:es",label:"Spanish",sub:"Manuals in Spanish"},{id:"lang:it",label:"Italian",sub:"Manuals in Italian"}];
 // a booklet's first page: the game's colour, its title, the language's word for "instruction booklet", blurred when low-res
 function page(title,lang,w,v){const h=(hash(title)+v*37)%360,blur=w&&w<700?2.2:w&&w<1000?.9:0,word={en:"INSTRUCTION BOOKLET",fr:"MODE D'EMPLOI",de:"SPIELANLEITUNG",ja:"取扱説明書",es:"MANUAL DE INSTRUCCIONES",it:"ISTRUZIONI"}[lang]||"INSTRUCTION BOOKLET";
   return url(`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="360" viewBox="0 0 260 360"><g ${blur?`filter="url(#b)"`:""}><defs><filter id="b"><feGaussianBlur stdDeviation="${blur}"/></filter></defs><rect width="260" height="360" fill="#f3efe4"/><rect x="0" y="0" width="260" height="120" fill="hsl(${h},55%,38%)"/><circle cx="200" cy="70" r="70" fill="hsl(${(h+40)%360},70%,60%)" opacity=".5"/><text x="18" y="160" font-family="Arial" font-weight="800" font-size="20" fill="#222">${xe(title.slice(0,22))}</text><text x="18" y="186" font-family="Arial" font-size="11" letter-spacing="1.5" fill="#555">${xe(word)}</text>${[0,1,2,3,4,5].map(i=>`<rect x="18" y="${214+i*18}" width="${150+((v+i)*29)%70}" height="6" fill="#bbb"/>`).join("")}</g></svg>`)}

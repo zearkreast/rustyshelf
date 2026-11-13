@@ -30,7 +30,7 @@ server.listen(0, async () => {
         const word = () => (document.getElementById('sysWord') || {}).textContent || '';
         const noteOn = () => { const n = document.getElementById('lNote'); return n && n.classList.contains('on') ? n.textContent : ''; };
         const back = async () => { for (let i = 0; i < 40 && Shelf.getMode() !== 'browse'; i++) await w(250); return Shelf.getMode(); };
-        const c = (await window.trustyshelf.getConfig()).config; c.steam = { enabled: true, path: 'C:\\Steam' }; await window.trustyshelf.saveConfig(c); await Shelf.refresh(true); await w(1500);
+        const c = (await window.rustyshelf.getConfig()).config; c.steam = { enabled: true, path: 'C:\\Steam' }; await window.rustyshelf.saveConfig(c); await Shelf.refresh(true); await w(1500);
         for (let i = 0; i < 30 && !word().trim().startsWith('PC'); i++) { key('ArrowDown'); await w(500); }
         out.shelf = word(); out.game = Shelf._qs().g;
         if (!/Cobalt Drift|Glasshouse|Hollow Crown|Night Courier/.test(out.game || '')) return out; // (never Play some other game)
@@ -39,7 +39,7 @@ server.listen(0, async () => {
         await w(800);
         window.__watchMode = 'giveup'; key('Enter'); await w(3500); out.gu = { mode: Shelf.getMode(), note: noteOn() }; key('Escape'); out.gu.back = await back(); window.__watchMode = '';
         await w(800);
-        const c2 = (await window.trustyshelf.getConfig()).config; c2.ui.seamless = false; await window.trustyshelf.saveConfig(c2);
+        const c2 = (await window.rustyshelf.getConfig()).config; c2.ui.seamless = false; await window.rustyshelf.saveConfig(c2);
         const n0 = (window.__watched || []).length; key('Enter'); await w(2600); out.off = { mode: Shelf.getMode(), watched: (window.__watched || []).length - n0, note: noteOn() };
         key('Escape'); out.off.back = await back();
         return out; });

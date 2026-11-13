@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/ci/beta-test.js apart from the app's name ((T)rustyShelf).
+// android-app/ci/beta-test.js apart from the app's name (RustyShelf).
 // Device test pass "beta" (1.82), run by web-device-test.js. Checks results, never speed.
 //   Node: a new install starts with the menu music off and the beta update check on, and a saved config keeps its music
 //   choice; the fork's own version numbers order (1.0.1.1 after 1.0.1.0, 1.0.1+0 is 1.0.1.0).
@@ -58,7 +58,7 @@ module.exports = async function betaPass({ browser, base, check, newPage, OUT })
     // (beta.3) a game's manual page: its left column (Manual, Lock this manual, the console's choice), the cards and the first
     // page all have real width and fit the screen, for a game with a manual and one without (1.80 had squeezed the column to 0)
     const man = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = [];
-      const G = await window.trustyshelf.manualGames({ systemId: 'gc' });
+      const G = await window.rustyshelf.manualGames({ systemId: 'gc' });
       for (const g of [G.find(x => x.status === 'have'), G.find(x => x.status === 'missing')]) {
         if (!g) { out.push({ none: true }); continue; }
         if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(800); }
@@ -88,7 +88,7 @@ module.exports = async function betaPass({ browser, base, check, newPage, OUT })
       const rowsNow = () => [...document.querySelectorAll('#bss .bss-row')].map(r => ({ nm: (r.querySelector('.nm') || {}).textContent || '', t: r.textContent.replace(/\s+/g, ' ').trim() }));
       const row = n => [...document.querySelectorAll('#bss .bss-row')].find(r => ((r.querySelector('.nm') || {}).textContent || '') === n);
       const click = async (n, ms = 500) => { const r = row(n); if (r) r.click(); await w(ms); return !!r; };
-      const sw2 = async () => (await window.trustyshelf.getConfig()).config.systems.sw2;
+      const sw2 = async () => (await window.rustyshelf.getConfig()).config.systems.sw2;
       const EM = 'Emulators (forks)'; // (beta.11, was "Builds")
       Setup.open({ page: 'sw2' }); for (let i = 0; i < 40 && !row(EM); i++) await w(150); await w(800);
       for (let i = 0; i < 20; i++) { out.consoleRow = (rowsNow().find(r => r.nm === EM) || {}).t || ''; if (/\d+ emulators? ·/.test(out.consoleRow)) break; await w(200); }
@@ -97,7 +97,7 @@ module.exports = async function betaPass({ browser, base, check, newPage, OUT })
       // (beta.11) Remove (pressed twice) on a found emulator hides it, and Play asks again when it was the one always used
       out.rows = rowsNow().length; await click('Remove an emulator', 400); out.rmBtn = (rowsNow().find(r => r.nm === 'Orchid v0.7.0') || {}).t;
       await click('Orchid v0.7.0', 200); await click('Orchid v0.7.0', 1500); c = await sw2();
-      out.hid = { hidden: c.buildHidden, ask: c.askBuild, names: rowsNow().map(r => r.nm), play: ((await window.trustyshelf.sw2Builds('')).builds || []).map(b => b.label) };
+      out.hid = { hidden: c.buildHidden, ask: c.askBuild, names: rowsNow().map(r => r.nm), play: ((await window.rustyshelf.sw2Builds('')).builds || []).map(b => b.label) };
       const sh = rowsNow().find(r => /^Show removed emulators/.test(r.nm)); if (sh) await click(sh.nm, 1500); c = await sw2();
       out.shown = { hidden: c.buildHidden, names: rowsNow().map(r => r.nm) }; await click('Remove an emulator', 400); out.doneBtn = (rowsNow().find(r => r.nm === 'Orchid v0.7.0') || {}).t;
       await click('Ask each time', 900); c = await sw2(); out.ask = c.askBuild;
@@ -125,21 +125,21 @@ module.exports = async function betaPass({ browser, base, check, newPage, OUT })
       for (let i = 0; i < 30 && !names().length; i++) await w(100); out.first = names();
       const add = [...document.querySelectorAll('.buildpick .bp-row')].find(r => r.classList.contains('bp-add')); if (add) add.click();
       for (let i = 0; i < 40 && !names().some(n => /program\.exe/.test(n)); i++) await w(100); await w(300); out.again = names();
-      out.saved = ((await window.trustyshelf.getConfig()).config.systems.sw2 || {}).buildExes || [];
+      out.saved = ((await window.rustyshelf.getConfig()).config.systems.sw2 || {}).buildExes || [];
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); out.result = await Promise.race([p, w(3000).then(() => 'timeout')]); await w(400);
       out.closed = !document.querySelector('.buildpick.on'); return out; });
     check('Beta (Windows): Play\'s build list ends with "+ Add another emulator…", which adds the program and shows the list again with it',
       bpk.first[bpk.first.length - 1] === '+ Add another emulator…' && bpk.first.length === 4 && bpk.again.some(n => /program\.exe/.test(n)) && bpk.again[bpk.again.length - 1] === '+ Add another emulator…'
         && bpk.saved.some(x => /program\.exe$/i.test(x)) && bpk.result === null && bpk.closed, JSON.stringify(bpk).slice(0, 600));
     // (beta.11) Settings → Shelf → Surprise me: Off takes the Surprise me case off every shelf; From every shelf brings it back
-    const sm = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), api = window.trustyshelf;
+    const sm = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), api = window.rustyshelf;
       const rnd = () => Shelf._lib.shelves().filter(s => s.random).length;
       const set = async v => { const c = (await api.getConfig()).config; if (v === 'off') c.ui.surpriseMe = 'off'; else delete c.ui.surpriseMe; await api.saveConfig(c); await Shelf.refresh(true); await w(400); };
       const before = rnd(); await set('off'); const off = rnd(); await set('on'); return { before, off, back: rnd() }; });
     check('Beta (Windows): Surprise me can be turned off (no Surprise me case on any shelf) and back on', sm.before > 0 && sm.off === 0 && sm.back === sm.before, JSON.stringify(sm));
     // (beta.11) a Switch Pro pad: changing Button prompts to Xbox pictures doesn't turn its A (right button) into Back, so
     // the next A press stays on the page and the choice is saved (it used to swap at once and A left Settings)
-    const pp = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = {}, api = window.trustyshelf;
+    const pp = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = {}, api = window.rustyshelf;
       const btn = () => ({ pressed: false, touched: false, value: 0 });
       const pad = { id: 'Wireless Gamepad (STANDARD GAMEPAD Vendor: 057e Product: 2009)', index: 0, connected: true, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 18 }, btn) };
       Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad, null, null, null] }); window.dispatchEvent(Object.assign(new Event('gamepadconnected'), { gamepad: pad }));
@@ -171,14 +171,14 @@ module.exports = async function betaPass({ browser, base, check, newPage, OUT })
       Setup.open({ page: 'display' }); for (let i = 0; i < 40 && !document.querySelector('#bss.on .bss-tiles'); i++) await w(150); await w(600);
       for (let i = 0; i < 6 && cur() !== 'Theme'; i++) { key('ArrowDown'); await w(200); }
       key('ArrowRight'); await w(60); const picked = on(); key('Enter'); await w(120); const shelfNow = [...document.body.classList].filter(c => /^theme-/.test(c)).join(' ');
-      key('Enter'); await w(300); const out = { row: cur(), picked, afterA: on(), shelfNow, saved: (await window.trustyshelf.getConfig()).config.ui.theme, toast: ((document.querySelector('#bss .bss-toast') || {}).textContent || '') };
+      key('Enter'); await w(300); const out = { row: cur(), picked, afterA: on(), shelfNow, saved: (await window.rustyshelf.getConfig()).config.ui.theme, toast: ((document.querySelector('#bss .bss-toast') || {}).textContent || '') };
       if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(800); }
-      const c = (await window.trustyshelf.getConfig()).config; c.ui.theme = 'spectrum'; await window.trustyshelf.saveConfig(c); Shelf.setTheme(null); await w(300); return out; });
+      const c = (await window.rustyshelf.getConfig()).config; c.ui.theme = 'spectrum'; await window.rustyshelf.saveConfig(c); Shelf.setTheme(null); await w(300); return out; });
     check('Beta (Windows): A on a theme tile keeps that theme (twice: still the same), puts it on the shelf at once and says so',
       th.row === 'Theme' && !!th.picked && th.afterA === th.picked && !!th.shelfNow && /Theme: /.test(th.toast), JSON.stringify(th));
     // a console's box art games page never stays on "Loading…": a list that doesn't come says so after 20 s, and the page
     // asks again by itself (the first ask is made to hang here)
-    const lg = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), api = window.trustyshelf, orig = api.artGames; let n = 0;
+    const lg = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), api = window.rustyshelf, orig = api.artGames; let n = 0;
       api.artGames = a => (++n === 1 ? new Promise(() => {}) : orig(a));
       Setup.open({ page: 'artstudio', systemId: 'wii' }); const txt = () => ((document.querySelector('#bss .bsa-empty') || {}).textContent || '').trim();
       let said = ''; for (let i = 0; i < 60; i++) { await w(500); if (/took too long/.test(txt())) { said = txt(); break; } }
@@ -205,7 +205,7 @@ module.exports = async function betaPass({ browser, base, check, newPage, OUT })
     check('Beta (Windows): the magazine finder shows each download\'s size, flags a big one, and a very big one asks "Yes, download 753 MB" before it starts',
       /753 MB/.test(iaw.text) && /Large download: 753 MB/.test(iaw.text) && /Yes, download 753 MB/.test(iaw.armed) && !/Yes, download/.test(iaw.started) && /Starting|Cancel|%/.test(iaw.started) && /40 MB/.test(iaw.small) && !/Large download/.test(iaw.small), JSON.stringify(iaw));
     // (beta.4) Quick menu → Updates: A checks now (the release check answers with this build's own version, so nothing is offered)
-    const qu = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), api = window.trustyshelf;
+    const qu = await w3.page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), api = window.rustyshelf;
       const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       let opened = ''; const oe = api.openExternal; api.openExternal = async u => { opened = u; return true; };
       Shelf.homeButton(); await w(700);

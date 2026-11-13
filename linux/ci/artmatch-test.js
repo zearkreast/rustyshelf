@@ -1,4 +1,4 @@
-// (T)rustyShelf's Art match (its issue #2: a ROM hack named after its serial gets no art), the box art side (main/covers.js), on a
+// RustyShelf's Art match (its issue #2: a ROM hack named after its serial gets no art), the box art side (main/covers.js), on a
 // made-up LaunchBox index: no network. Run: node linux/ci/artmatch-test.js
 //   - the search lists a console's games whose names hold every word typed, the exact name first, with its pictures
 //   - nothing typed, or a console the index hasn't, finds nothing; one game listed twice is listed once (the one with more art)

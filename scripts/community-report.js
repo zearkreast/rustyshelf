@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// (T)rustyShelf's community report: everything people around Boxshelf and (T)rustyShelf ask for, report, build and say,
+// RustyShelf's community report: everything people around Boxshelf and RustyShelf ask for, report, build and say,
 // gathered from GitHub into one report, and the list of what is waiting for an answer from you. No AI: it collects and
 // sorts (keyword rules); an AI (or you) reads to-answer.md and decides what to reply.
 //
 //   node scripts/community-report.js [--out community-report] [--since 2026-11-01] [--no-forks] [--no-search]
-//        [--no-notifications] [--repos owner/repo,owner/repo] [--mine GGStonks/t-rustyshelf] [--me GGStonks]
+//        [--no-notifications] [--repos owner/repo,owner/repo] [--mine zearkreast/rustyshelf] [--me GGStonks]
 //        [--depth 3] [--jobs 8] [--tone]
 //
 // What it reads (GitHub's API, with your `gh` sign-in or GITHUB_TOKEN):
@@ -17,12 +17,12 @@
 //   - elsewhere on GitHub: repositories, issues / pull requests and code that mention Boxshelf, and projects built from it
 //   - your GitHub notifications (last 30 days): anything that names or involves you is caught even outside the
 //     repositories above (it never marks them as read)
-//   - your repository's commit messages and release tags: what (T)rustyShelf already did about each conversation
+//   - your repository's commit messages and release tags: what RustyShelf already did about each conversation
 // What it writes (in --out, which git ignores):
-//   report.md       the report: waiting for your answer, done in (T)rustyShelf but not told yet, new since last time
+//   report.md       the report: waiting for your answer, done in RustyShelf but not told yet, new since last time
 //                   (threads, messages, edits), notifications, then everything by kind, forks and the rest of GitHub
 //   to-answer.md    for the AI that answers: each thread that waits for you, with the whole conversation, what
-//   to-answer.json  (T)rustyShelf did about it (commits, the release they're in), and how to post the reply
+//   to-answer.json  RustyShelf did about it (commits, the release they're in), and how to post the reply
 //   tone.md         how you write on GitHub, worked out from all your comments (rebuilt whenever you've posted a new one)
 //   tone-rules.md   yours to edit: rules for replies that always apply (tone.md starts with them); made with the first one if missing
 //   data.json       everything collected, for other tools
@@ -43,7 +43,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto'), { 
 const argv = process.argv.slice(2), opt = (n, d) => { const i = argv.indexOf('--' + n); return i < 0 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
 const OUT = path.resolve(String(opt('out', 'community-report')));
 const REPOS = String(opt('repos', 'sassiestrhihno/boxshelf-beta,sassiestrhihno/boxshelf-source')).split(',').map(s => s.trim()).filter(Boolean);
-const MINE = String(opt('mine', 'GGStonks/t-rustyshelf'));
+const MINE = String(opt('mine', 'zearkreast/rustyshelf'));
 const ME = String(opt('me', MINE.split('/')[0])), me = ME.toLowerCase();
 const SINCE = opt('since', '') ? new Date(String(opt('since'))) : null;
 const DEPTH = +opt('depth', 3) || 3, FORKS = !argv.includes('--no-forks'), SEARCH = !argv.includes('--no-search'), NOTIFY = !argv.includes('--no-notifications');
@@ -92,7 +92,7 @@ if (argv.includes('--done-notification')) {
   process.exit(0);
 }
 const TOKEN = token(); if (!TOKEN) { console.error('No GitHub sign-in: run `gh auth login` or set GITHUB_TOKEN.'); process.exit(2); }
-const H = { Authorization: `Bearer ${TOKEN}`, 'User-Agent': 'trustyshelf-community-report', Accept: 'application/vnd.github+json' };
+const H = { Authorization: `Bearer ${TOKEN}`, 'User-Agent': 'rustyshelf-community-report', Accept: 'application/vnd.github+json' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // at most JOBS requests at the same time (only the requests themselves wait for a turn, so nothing can block itself)
 const slots = (() => { let active = 0; const q = []; const next = () => { if (active >= JOBS || !q.length) return; active++; const { fn, res, rej } = q.shift(); fn().then(res, rej).finally(() => { active--; next(); }); }; return fn => new Promise((res, rej) => { q.push({ fn, res, rej }); next(); }); })();
@@ -295,7 +295,7 @@ function releaseOf(sha) { // the first release tag (vA.B.C.D) that holds a commi
 function latestRelease() { try { return execFileSync('git', ['tag', '--sort=-creatordate', '--list', 'v*'], { encoding: 'utf8', cwd: ROOT }).split('\n').filter(Boolean)[0] || ''; } catch { return ''; } }
 function patternsFor(it) {
   const n = it.number, short = it.repo.split('/')[1], mineRepo = it.repo === MINE;
-  if (mineRepo) return [new RegExp(`\\b(fix(es|ed)?|close[sd]?|resolve[sd]?)\\s+(${MINE.replace('/', '\\/')})?#${n}\\b`, 'i'), new RegExp(`${short}(#|/issues/|/pull/|/discussions/)${n}\\b`, 'i'), new RegExp(`\\(T\\)rustyShelf('s)? (issue|pull request|discussion) #?${n}\\b`, 'i')];
+  if (mineRepo) return [new RegExp(`\\b(fix(es|ed)?|close[sd]?|resolve[sd]?)\\s+(${MINE.replace('/', '\\/')})?#${n}\\b`, 'i'), new RegExp(`${short}(#|/issues/|/pull/|/discussions/)${n}\\b`, 'i'), new RegExp(`RustyShelf('s)? (issue|pull request|discussion) #?${n}\\b`, 'i')];
   return it.kind === 'pull' ? [new RegExp(`pull request #?${n}\\b`, 'i'), new RegExp(`${short}[^\\n]{0,40}pull/${n}\\b`, 'i')]
     : it.kind === 'issue' ? [new RegExp(`\\bissues?\\s+(\\d+\\s*(,|and|/|&)\\s*)*${n}\\b`, 'i'), new RegExp(`${short}/issues/${n}\\b`, 'i')]
     : [new RegExp(`${short}/discussions/${n}\\b`, 'i')];
@@ -327,7 +327,7 @@ function mentioned(it, commits) { // → { level: 'mentioned' | 'maybe' | '', co
 // a message of yours that promises something (it'll be in the next release, you'll add / fix / look at it) stays "open" until a
 // later message of yours in the same conversation says it's out (released, "it's out", "is in <version>", "shipped")
 const PROMISE = /\b(next release|upcoming release|next version|going into the next|will be (in|added|fixed)|i'?ll (add|fix|look|make|check|follow|do|try|bring|work)|will do|on my list|haven'?t forgotten|i'm (going to|beginning to) (add|work|look))\b/i;
-const TOLD_OUT = /\b(it'?s out|is out|out now|released|shipped|it'?s in (the )?(\(T\)rustyShelf )?\d+\.\d+|is in (the )?(\(T\)rustyShelf )?\d+\.\d+(\.\d+)*( release)?|out in \d+\.\d+|in the (\(T\)rustyShelf )?\d+\.\d+(\.\d+)* release|release \(?v?\d+\.\d+|releases\/tag\/v?\d+)\b/i;
+const TOLD_OUT = /\b(it'?s out|is out|out now|released|shipped|it'?s in (the )?(RustyShelf )?\d+\.\d+|is in (the )?(RustyShelf )?\d+\.\d+(\.\d+)*( release)?|out in \d+\.\d+|in the (RustyShelf )?\d+\.\d+(\.\d+)* release|release \(?v?\d+\.\d+|releases\/tag\/v?\d+)\b/i;
 function promisesOf(it) {
   const mine = it.messages.filter(m => isMe(m.author)), open = [];
   // (an offer that waits for the other person isn't a promise: "if …, tell me … and I'll look")
@@ -360,7 +360,7 @@ function toneMd(mine, at, rules) {
     return /\?$/.test(l) && /\b(try|tell me|let me know|could you|can you)\b/i.test(l) ? 'asks them to try it / tell how it goes (a question)'
       : /\b(tell me|let me know)\b/i.test(l) ? 'invites them to tell you how it goes' : /\bfeel free|welcome\b/i.test(l) ? 'invites them to open issues / pull requests'
       : /\b(glad|thanks|thank you|have fun|keep it up)\b/i.test(l) ? 'thanks / warm sign-off' : /\?$/.test(l) ? 'another question' : 'a plain statement of what is done'; });
-  const PHR = [['the (T)rustyShelf fork', /the \(T\)rustyShelf fork/i], ['"(T)rustyShelf" by name', /\(T\)rustyShelf/], ['a Settings → path', /Settings →/], ['a version or release', /\b\d+\.\d+(\.\d+){0,2}\b|\brelease\b/i],
+  const PHR = [['the RustyShelf fork', /the RustyShelf fork/i], ['"RustyShelf" by name', /RustyShelf/], ['a Settings → path', /Settings →/], ['a version or release', /\b\d+\.\d+(\.\d+){0,2}\b|\brelease\b/i],
     ['"tell me" / "let me know"', /\b(tell me|let me know)\b/i], ['"could you try"', /\bcould you\b|\btry\b/i], ['"feel free"', /\bfeel free\b/i], ['an exclamation mark', /!/], ['a question mark', /\?/],
     ['contractions (it\'s, I\'ll, don\'t)', /\b\w+'(s|re|ll|d|ve|t|m)\b/i], ['"I" (first person)', /\bI\b/], ['a link', /https?:\/\/|\]\(/], ['markdown (bold, lists, code)', /\*\*|^\s*[-*]\s|`/m], ['emoji', /\p{Extended_Pictographic}/u],
     ['a long dash (— or –)', /[—–]/], ['honesty about limits ("I can only", "couldn\'t test")', /\b(can only|cannot test|can't test|couldn't|haven't been able|not on a real)\b/i], ['credit to other people ("by …", "thanks to")', /\bby [A-Z@]\w+|\bthanks to\b|\bcredited\b/]];
@@ -372,7 +372,7 @@ function toneMd(mine, at, rules) {
   const greet = pct(t => /^\s*(hey|hi|hello)\b/i.test(t)), ex = pct(t => /!/.test(t)), ctr = pct(t => /\b\w+'(s|re|ll|d|ve|t|m)\b/i.test(t)), md = pct(t => /\*\*|^\s*[-*]\s|`/m.test(t)), emo = pct(t => /\p{Extended_Pictographic}/u.test(t)), dash = pct(t => /[—–]/.test(t));
   L.push(`- Short and plain: most replies are ${q(.25)}–${q(.75)} words (median ${q(.5)}), in sentences of about ${sentLen} words. One paragraph, rarely two.`);
   L.push(`- Friendly and direct, written in the first person, like talking to someone: contractions in ${ctr}% of replies${greet >= 20 ? `; opens with "Hey" / "Hi" in ${greet}%` : ''}.`);
-  L.push(`- Goes straight to what's new (it's done or out, why it happened, how to use it), in everyday words, without restating what the person just wrote; says where to find it (a Settings → path in ${pct(t => /Settings →/.test(t))}%), names the fork as "the (T)rustyShelf fork" (${pct(t => /the \(T\)rustyShelf fork/i.test(t))}%) and the version or release it's in (${pct(t => /\b\d+\.\d+(\.\d+){0,2}\b|\brelease\b/i.test(t))}%).`);
+  L.push(`- Goes straight to what's new (it's done or out, why it happened, how to use it), in everyday words, without restating what the person just wrote; says where to find it (a Settings → path in ${pct(t => /Settings →/.test(t))}%), names the fork as "the RustyShelf fork" (${pct(t => /the RustyShelf fork/i.test(t))}%) and the version or release it's in (${pct(t => /\b\d+\.\d+(\.\d+){0,2}\b|\brelease\b/i.test(t))}%).`);
   L.push(`- Ends by asking the person to try it and say how it goes, or with a warm line (see "How replies end" below).`);
   L.push(`- Exclamation marks in ${ex}% of replies, for warmth ("Good idea!", "Thanks!", "It's out now!")${emo ? '' : '; no emoji'}${md <= 15 ? '; almost no markdown (no headings, bold or lists)' : ''}${dash <= 5 ? '; no long dashes: commas, colons and full stops instead' : ''}.`);
   if (pct(t => /\b(can only|cannot test|can't test|couldn't|haven't been able|not on a real)\b/i.test(t))) L.push('- Honest about what couldn\'t be checked (for example only Linux at hand), and asks the person to confirm on their machine.');
@@ -510,14 +510,14 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
     it.waiting = it.messages.filter(m => !isMe(m.author) && !isBot(m.author) && !m.hidden && String(m.at) > lastMine && !(m.type === 'post' && isMe(it.author)))
       .filter(m => !(['skip', 'answered'].includes(it.status) && (!d.until || String(m.at) <= String(d.until))));
     for (const m of it.waiting) if (THANKS.test(plain(m.body))) m.thanks = true;
-    // done in (T)rustyShelf after your last message here: maybe they don't know yet
+    // done in RustyShelf after your last message here: maybe they don't know yet
     it.notTold = it.done.filter(c => String(c.date) > lastMine && !isMe(it.author));
     it.promises = ['done', 'skip'].includes(it.status) ? [] : promisesOf(it); // (what you said you'd do here, not told as out yet)
   }
   const shown = data.items.filter(it => !SINCE || new Date(it.updated || it.created) >= SINCE);
 
   // ---- tone.md: rebuilt whenever you've written something new (or it isn't there yet) ----
-  const where = it => it.repo === MINE ? `(T)rustyShelf ${it.kind} #${it.number}` : `${it.fork ? `${it.fork} (fork)` : it.repo.split('/')[1]} ${it.kind} #${it.number}`;
+  const where = it => it.repo === MINE ? `RustyShelf ${it.kind} #${it.number}` : `${it.fork ? `${it.fork} (fork)` : it.repo.split('/')[1]} ${it.kind} #${it.number}`;
   const mineMsgs = data.items.flatMap(it => it.messages.filter(m => isMe(m.author) && !(m.type === 'post' && it.kind === 'pull')).map(m => ({ ...m, where: `${where(it)}: ${it.title}` })));
   const toneHash = crypto.createHash('sha1').update(mineMsgs.map(m => m.id + (m.edited || '')).sort().join(',')).digest('hex');
   const rulesFile = path.join(OUT, 'tone-rules.md');
@@ -544,12 +544,12 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
     notificationIds: it.notificationIds || [],
     markNotificationDone: (it.notificationIds && it.notificationIds.length) ? it.notificationIds.map(nid => `gh api -X DELETE /notifications/threads/${nid}`).join(' && ') : null,
     waiting: it.waiting.map(m => ({ author: m.author, at: m.at, url: m.url, type: m.type, text: plain(m.body), body: m.body, thanks: !!m.thanks, isNew: m.isNew })),
-    reply: howToReply(it, it.waiting[it.waiting.length - 1]), doneInTrustyShelf: it.done, conversation: it.messages.map(m => ({ author: m.author, at: m.at, type: m.type, url: m.url, text: plain(m.body) })) }));
+    reply: howToReply(it, it.waiting[it.waiting.length - 1]), doneInRustyShelf: it.done, conversation: it.messages.map(m => ({ author: m.author, at: m.at, type: m.type, url: m.url, text: plain(m.body) })) }));
   const promised = data.items.filter(it => it.promises.length);
   fs.writeFileSync(path.join(OUT, 'to-answer.json'), JSON.stringify({ at: data.at, me: ME, latestRelease: release, tone: 'tone.md', threads: answerJson, promised: promised.map(it => ({ key: it.key, where: where(it), title: it.title, promises: it.promises })),
     notTold: notToldItems.map(it => ({ key: it.key, where: where(it), title: it.title, lastMine: it.lastMine, done: it.notTold, reply: howToReply(it, null) })) }, null, 1));
-  const T = [`# Waiting for an answer from ${ME}`, '', `Made ${when(data.at)} UTC by scripts/community-report.js. Latest (T)rustyShelf release: ${release || '(none)'}.`, '',
-    `For the AI that answers: reply in ${ME}'s voice, as described in tone.md (next to this file; it starts with the rules ${ME} set, then quotes all of ${ME}'s comments). For each thread below: read the whole conversation, check what (T)rustyShelf already did (commits, and the release they're in, or "not released yet"), and decide whether a reply is needed (a plain "thanks, it works" may need none). Post with the command given (the reply's text in reply.md). After posting, run the script again: the thread leaves this list and tone.md is rebuilt.`, ''];
+  const T = [`# Waiting for an answer from ${ME}`, '', `Made ${when(data.at)} UTC by scripts/community-report.js. Latest RustyShelf release: ${release || '(none)'}.`, '',
+    `For the AI that answers: reply in ${ME}'s voice, as described in tone.md (next to this file; it starts with the rules ${ME} set, then quotes all of ${ME}'s comments). For each thread below: read the whole conversation, check what RustyShelf already did (commits, and the release they're in, or "not released yet"), and decide whether a reply is needed (a plain "thanks, it works" may need none). Post with the command given (the reply's text in reply.md). After posting, run the script again: the thread leaves this list and tone.md is rebuilt.`, ''];
   if (!waitingItems.length) T.push('Nothing is waiting for an answer.', '');
   for (const it of waitingItems) {
     const last = it.waiting[it.waiting.length - 1];
@@ -559,7 +559,7 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
     if (it.poll) T.push(`Poll: ${esc(it.poll.question)}: ${it.poll.options.map(o => `${esc(o.option)} ${o.votes}`).join(', ')} (${it.poll.votes} votes)`, '');
     if (it.answered) T.push('Marked as answered on GitHub.', '');
     T.push(`Waiting: ${it.waiting.map(m => `${m.author} (${when(m.at)}${m.isNew ? ', new' : ''}${m.thanks ? ', a thanks' : ''})`).join(', ')}${it.lastMine ? ` · your last message: ${when(it.lastMine)}` : ' · you haven\'t written here yet'}`, '');
-    T.push(it.done.length ? `(T)rustyShelf did: ${it.done.map(c => `${c.sha} "${esc(c.subject)}" (${day(c.date)}, ${c.release ? 'in ' + c.release : 'not released yet'})`).join('; ')}` : '(T)rustyShelf did: nothing that names this thread in a commit (check by hand: it may be done under another name).', '');
+    T.push(it.done.length ? `RustyShelf did: ${it.done.map(c => `${c.sha} "${esc(c.subject)}" (${day(c.date)}, ${c.release ? 'in ' + c.release : 'not released yet'})`).join('; ')}` : 'RustyShelf did: nothing that names this thread in a commit (check by hand: it may be done under another name).', '');
     T.push(`Reply: \`${howToReply(it, last).command}\``);
     if (it.notificationIds && it.notificationIds.length) {
       const cmds = it.notificationIds.map(nid => `gh api -X DELETE /notifications/threads/${nid}`).join(' && ');
@@ -569,7 +569,7 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
     for (const m of it.messages) T.push(`- **${m.author}**${isMe(m.author) ? ' (you)' : ''}, ${when(m.at)}, ${m.type}${m.type === 'reply' ? ' (under a comment)' : ''}${m.path ? ` on ${m.path}` : ''}${it.waiting.includes(m) ? ' · **waiting**' : ''} · [link](${m.url})`, '', plain(m.body).split('\n').map(l => '  > ' + l).join('\n') || '  > (empty)', '');
   }
   if (notToldItems.length) {
-    T.push('# Done in (T)rustyShelf after your last message, maybe not told yet', '');
+    T.push('# Done in RustyShelf after your last message, maybe not told yet', '');
     for (const it of notToldItems) T.push(`- [${esc(it.title)}](${it.url}) · ${where(it)} · ${it.notTold.map(c => `${c.sha} "${esc(c.subject)}" (${day(c.date)}, ${c.release || 'not released yet'})`).join('; ')} · your last message ${it.lastMine ? when(it.lastMine) : 'none'} · reply: \`${howToReply(it, null).command}\``);
     T.push('');
   }
@@ -581,14 +581,14 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
   fs.writeFileSync(path.join(OUT, 'to-answer.md'), T.join('\n') + '\n');
 
   // ---- report.md ----
-  const L = [], status = it => [it.status ? `**${it.status}**${it.note ? ` (${esc(it.note)})` : ''}` : '', it.mine === 'mentioned' ? 'named in (T)rustyShelf commits' : it.mine === 'maybe' ? 'maybe done (a commit names a discussion like it)' : ''].filter(Boolean).join(' · ') || 'open';
-  L.push(`# Boxshelf and (T)rustyShelf community report`, '', `Made ${when(data.at)} UTC by scripts/community-report.js in ${Math.round((Date.now() - t0) / 1000)} s (no AI: collected and sorted by keyword rules)${SINCE ? `, showing what changed since ${day(SINCE.toISOString())}` : ''}.`, '');
+  const L = [], status = it => [it.status ? `**${it.status}**${it.note ? ` (${esc(it.note)})` : ''}` : '', it.mine === 'mentioned' ? 'named in RustyShelf commits' : it.mine === 'maybe' ? 'maybe done (a commit names a discussion like it)' : ''].filter(Boolean).join(' · ') || 'open';
+  L.push(`# Boxshelf and RustyShelf community report`, '', `Made ${when(data.at)} UTC by scripts/community-report.js in ${Math.round((Date.now() - t0) / 1000)} s (no AI: collected and sorted by keyword rules)${SINCE ? `, showing what changed since ${day(SINCE.toISOString())}` : ''}.`, '');
   L.push(`Read: ${data.repos.map(r => `${r.full}${r.own ? ' (yours)' : ''} (${r.stars}★, ${r.forks} forks)`).join(', ')}; ${data.forks.length} forks; ${data.items.length} conversations with ${data.items.reduce((a, it) => a + it.messages.length, 0)} messages; ${data.notifications.threads.length} notifications; ${calls} API calls.${toneNew ? ' tone.md rebuilt (new comments from you).' : ''}`, '');
   L.push(`## Waiting for your answer (${waitingItems.length})`, '', waitingItems.length ? 'Everything is in to-answer.md, with the whole conversations and how to reply.' : 'Nothing.', '');
   for (const it of waitingItems) { L.push(`- [${esc(it.title)}](${it.url}) · ${where(it)}${it.repo === MINE ? ' · **your repository**' : ''} · ${it.type}`);
     for (const m of it.waiting) L.push(`  - ${m.author}, ${when(m.at)}${m.isNew ? ' · **new**' : ''}${m.thanks ? ' · a thanks' : ''}: ${esc(excerpt(plain(m.body), 400))} ([link](${m.url}))`); }
   if (waitingItems.length) L.push('');
-  if (notToldItems.length) { L.push(`## Done in (T)rustyShelf, maybe not told yet (${notToldItems.length})`, ''); for (const it of notToldItems) L.push(`- [${esc(it.title)}](${it.url}) · ${where(it)} · ${it.notTold.map(c => `${c.sha} ${esc(c.subject)} (${c.release || 'not released yet'})`).join('; ')}`); L.push(''); }
+  if (notToldItems.length) { L.push(`## Done in RustyShelf, maybe not told yet (${notToldItems.length})`, ''); for (const it of notToldItems) L.push(`- [${esc(it.title)}](${it.url}) · ${where(it)} · ${it.notTold.map(c => `${c.sha} ${esc(c.subject)} (${c.release || 'not released yet'})`).join('; ')}`); L.push(''); }
   const promisedR = data.items.filter(it => it.promises.length);
   if (promisedR.length) { L.push(`## Promised by you, not told as out yet (${promisedR.length})`, ''); for (const it of promisedR) L.push(`- [${esc(it.title)}](${it.url}) · ${where(it)}: ${it.promises.map(p => `"${esc(excerpt(p.text, 160))}" (${day(p.at)})`).join('; ')}`); L.push(''); }
   const open = shown.filter(it => !['done', 'skip'].includes(it.status) && it.state !== 'closed' && it.state !== 'merged' || (it.kind === 'pull' && !it.mine && !it.status));
@@ -609,7 +609,7 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
     if (un.length) { L.push('Unread:', ''); for (const x of un) L.push(`- ${x.repo} ${x.type}: ${esc(x.title)} (${x.reason}, ${when(x.updated)})${x.key ? ` · ${x.key}` : ''}`); L.push(''); }
     if (data.notifications.other.length) { L.push('Other notifications (builds, releases):', ''); for (const x of data.notifications.other.slice(0, 15)) L.push(`- ${x.repo} ${x.type}: ${esc(x.title)} (${x.reason}${x.unread ? ', unread' : ''}, ${when(x.updated)})`); L.push(''); }
   }
-  L.push('## At a glance', '', '| Kind | Open | Of which not named in (T)rustyShelf yet |', '|---|---|---|');
+  L.push('## At a glance', '', '| Kind | Open | Of which not named in RustyShelf yet |', '|---|---|---|');
   for (const k of Object.keys(KIND_NAME)) { const a = open.filter(it => it.type === k); if (a.length) L.push(`| ${KIND_NAME[k]} | ${a.length} | ${a.filter(it => !it.mine && !it.status).length} |`); }
   const forkCommits = data.forks.reduce((a, f) => a + f.work.reduce((b, w) => b + w.commits.length, 0), 0);
   L.push(`| Fork commits not in the original | ${forkCommits} (in ${data.forks.filter(f => f.work.length).length} forks) | |`, '');
@@ -622,7 +622,7 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
       if (excerpt(it.body)) L.push(`> ${excerpt(it.body)}`, '');
       if (it.poll) L.push(`Poll: ${esc(it.poll.question)}: ${it.poll.options.map(o => `${esc(o.option)} ${o.votes}`).join(', ')} (${it.poll.votes} votes)`, '');
       if (it.asks.length) { L.push('What is asked / reported:'); for (const a of it.asks) L.push(`- ${esc(a)}`); L.push(''); }
-      if (it.done.length) L.push(`(T)rustyShelf: ${it.done.map(c => `${c.sha} ${esc(c.subject)} (${c.release || 'not released yet'})`).join('; ')}`, '');
+      if (it.done.length) L.push(`RustyShelf: ${it.done.map(c => `${c.sha} ${esc(c.subject)} (${c.release || 'not released yet'})`).join('; ')}`, '');
       if (it.kind === 'pull') { L.push(`Code: ${it.head} → ${it.base}, +${it.additions} −${it.deletions}${it.commits.length ? `; commits: ${it.commits.slice(0, 8).map(esc).join(' · ')}` : ''}`, ''); if (it.files.length) L.push(`Files: ${it.files.slice(0, 20).map(esc).join(', ')}`, ''); }
     }
   }
@@ -632,11 +632,11 @@ const kindsFor = r => [...(r.has_issues ? ['issues'] : []), 'pulls', ...(r.has_d
   const lastForks = (before && before.forks) || {}, allMsgs = commits ? commits.map(c => c.msg).join('\0') : '';
   for (const f of withWork) {
     const named = allMsgs && new RegExp(`\\b${f.owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(allMsgs);
-    L.push(`### [${f.full}](https://github.com/${f.full}) (fork of ${f.root}${f.parent !== f.root ? ` via ${f.parent}` : ''}${f.ofMine ? ', **a fork of yours**' : ''}, last push ${day(f.pushed)})${named ? ' · its owner is named in (T)rustyShelf commits (ported?)' : ''}`, '');
+    L.push(`### [${f.full}](https://github.com/${f.full}) (fork of ${f.root}${f.parent !== f.root ? ` via ${f.parent}` : ''}${f.ofMine ? ', **a fork of yours**' : ''}, last push ${day(f.pushed)})${named ? ' · its owner is named in RustyShelf commits (ported?)' : ''}`, '');
     if (f.description) L.push(`> ${esc(f.description)}`, '');
     for (const w of f.work) {
       L.push(`Branch \`${w.branch}\`: ${w.ahead} commits ahead, ${w.behind} behind · [compare](${w.url})`, '');
-      for (const c of w.commits) L.push(`- ${c.sha} ${esc(c.message)} (${c.author || '?'}, ${day(c.date)})${before && !(lastForks[f.full] || []).includes(c.sha) ? ' · **new**' : ''}${commits && commits.some(x => x.sha.startsWith(c.sha)) ? ' · in (T)rustyShelf' : ''}`);
+      for (const c of w.commits) L.push(`- ${c.sha} ${esc(c.message)} (${c.author || '?'}, ${day(c.date)})${before && !(lastForks[f.full] || []).includes(c.sha) ? ' · **new**' : ''}${commits && commits.some(x => x.sha.startsWith(c.sha)) ? ' · in RustyShelf' : ''}`);
       L.push('', `Files: ${w.files.slice(0, 30).map(x => `${x.path} (${x.status}, +${x.add} −${x.del})`).join(', ')}${w.files.length > 30 ? ` and ${w.files.length - 30} more` : ''}`, '');
     }
   }

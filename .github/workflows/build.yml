@@ -1,4 +1,4 @@
-# (T)rustyShelf builds: Windows (portable exe), Linux (AppImage) and Android (APK), as the run's downloads. Called by
+# RustyShelf builds: Windows (portable exe), Linux (AppImage) and Android (APK), as the run's downloads. Called by
 # build-release-check.yml (a "For build" commit) and by release.yml (a release). Nothing is published here.
 name: Build
 
@@ -37,11 +37,11 @@ jobs:
           npx electron-builder --linux AppImage --publish never
           -c.extraMetadata.version=${{ inputs.semver }}
           -c.buildVersion=${{ inputs.version }}
-          -c.linux.artifactName=TrustyShelf-${{ inputs.version }}-linux.AppImage
+          -c.linux.artifactName=RustyShelf-${{ inputs.version }}-linux.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: dist/TrustyShelf-${{ inputs.version }}-linux.AppImage
+          path: dist/RustyShelf-${{ inputs.version }}-linux.AppImage
           if-no-files-found: error
           retention-days: 14
 
@@ -65,11 +65,11 @@ jobs:
           npx electron-builder --win portable --publish never
           -c.extraMetadata.version=${{ inputs.semver }}
           -c.buildVersion=${{ inputs.version }}
-          -c.win.artifactName=TrustyShelf-${{ inputs.version }}-windows-portable.exe
+          -c.win.artifactName=RustyShelf-${{ inputs.version }}-windows-portable.exe
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: dist/TrustyShelf-${{ inputs.version }}-windows-portable.exe
+          path: dist/RustyShelf-${{ inputs.version }}-windows-portable.exe
           if-no-files-found: error
           retention-days: 14
 
@@ -103,14 +103,14 @@ jobs:
       - name: Build the APK
         working-directory: android-app/android
         env:
-          TRUSTYSHELF_VERSION_CODE: ${{ inputs.code }}
+          RUSTYSHELF_VERSION_CODE: ${{ inputs.code }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
-          mv app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TrustyShelf-${{ inputs.version }}-android.apk"
+          mv app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/RustyShelf-${{ inputs.version }}-android.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: TrustyShelf-${{ inputs.version }}-android.apk
+          path: RustyShelf-${{ inputs.version }}-android.apk
           if-no-files-found: error
           retention-days: 14

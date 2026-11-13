@@ -1,15 +1,15 @@
-// (T)rustyShelf: Export everything / Import everything (Settings → System), asked for in Boxshelf's issue 18: a big
+// RustyShelf: Export everything / Import everything (Settings → System), asked for in Boxshelf's issue 18: a big
 // collection's art and manuals take days to download, so they can be carried to another PC (or a second install) whole.
 // Kept free of Electron (main.js passes in what it knows), so linux/ci/dataexport-test.js runs it on its own.
 //
-// An export is one folder, "(T)rustyShelf export <date>", holding:
+// An export is one folder, "RustyShelf export <date>", holding:
 //   data/          the data folder: settings, favourites, play history, box art database, caches of art, PC covers …
 //                  (not the browser engine's caches, logs or sign-ins: cookies, Epic's login, the phone pairing)
-//   app/<name>/    the app folder's Library (art kept in (T)rustyShelf's folder), themes, Custom themes, Guides,
+//   app/<name>/    the app folder's Library (art kept in RustyShelf's folder), themes, Custom themes, Guides,
 //                  Magazines and Songs, and an art library kept elsewhere as app/Library-elsewhere
 //   rom-art/<console>/<n>/   art and manuals kept next to the games (each console's covers / manuals folders)
 //   manifest.json  what's where, and where it came from
-// ((T)rustyShelf issue 6) exportSize() says how big an export is before a folder is chosen. An export said in bytes and files
+// (RustyShelf issue 6) exportSize() says how big an export is before a folder is chosen. An export said in bytes and files
 // as it goes (onProgress: done / total, files, the step, time left), and it can be paused, resumed and cancelled (control:
 // { paused, cancelled }, read between files). Exporting into a folder that already holds an export (or into the export
 // itself) updates that export: only files that are new or changed (another size or time) are copied, so the second run of a
@@ -103,18 +103,18 @@ function parts({ appRoot, dataDir, cfg, artDirsFor, artLib }) {
 }
 // → { bytes, files }: how big an export of this install would be (before a folder is chosen)
 async function exportSize(o) { let bytes = 0, files = 0; for (const p of parts(o)) for (const f of await list(p.src, p.filter)) { bytes += f.size; files++; } return { bytes, files }; }
-const isExport = d => { try { return /\(T\)rustyShelf/.test(JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')).app || ''); } catch { return false; } };
-// the earlier export to update: dest itself, else the newest "(T)rustyShelf export …" folder in it
+const isExport = d => { try { return /(\(T\)r|R)ustyShelf/.test(JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')).app || ''); } catch { return false; } };
+// the earlier export to update: dest itself, else the newest "RustyShelf export …" folder in it
 function earlier(dest) {
   if (isExport(dest)) return dest;
   let ents = []; try { ents = fs.readdirSync(dest, { withFileTypes: true }); } catch {}
-  return ents.filter(e => e.isDirectory() && /^\(T\)rustyShelf export /.test(e.name)).map(e => path.join(dest, e.name)).filter(isExport).sort().pop() || null;
+  return ents.filter(e => e.isDirectory() && /^(\(T\)r|R)ustyShelf export /.test(e.name)).map(e => path.join(dest, e.name)).filter(isExport).sort().pop() || null;
 }
 // → { dir, bytes, files, parts, updated, copied, copiedBytes, unchanged }
 async function exportAll({ dest, appRoot, dataDir, cfg, artDirsFor, artLib, version, onStep = () => {}, onProgress, control }) {
   if (!dest || !isDir(dest)) throw new Error('Choose a folder to export to.');
-  const prev = earlier(dest), dir = prev || path.join(dest, `(T)rustyShelf export ${stamp()}`); await ensureDir(dir);
-  const manifest = { app: '(T)rustyShelf', version: version || '', at: new Date().toISOString(), from: { appRoot, dataDir }, parts: [], romArt: [] };
+  const prev = earlier(dest), dir = prev || path.join(dest, `RustyShelf export ${stamp()}`); await ensureDir(dir);
+  const manifest = { app: 'RustyShelf', version: version || '', at: new Date().toISOString(), from: { appRoot, dataDir }, parts: [], romArt: [] };
   if (prev) { try { const m = JSON.parse(await fsp.readFile(path.join(dir, 'manifest.json'), 'utf8')); manifest.first = m.first || m.at; } catch {} }
   const j = job({ control, onProgress, same: !!prev, what: 'export' }), steps = [];
   for (const p of parts({ appRoot, dataDir, cfg, artDirsFor, artLib })) steps.push({ ...p, to: path.join(dir, p.to), files: await list(p.src, p.filter) });
@@ -128,8 +128,8 @@ async function exportAll({ dest, appRoot, dataDir, cfg, artDirsFor, artLib, vers
 // → { files, parts, skipped: [what had nowhere to go] }
 async function importAll({ src, appRoot, dataDir, artDirsFor, artLib, readCfg, onStep = () => {}, onProgress, control }) {
   const j = job({ control, onProgress, what: 'import' }), copy = async (from, to, filter) => { await j.run({ label: '', to, files: await list(from, filter) }); };
-  let manifest; try { manifest = JSON.parse(await fsp.readFile(path.join(src, 'manifest.json'), 'utf8')); } catch { throw new Error('That folder isn\'t a (T)rustyShelf export (no manifest.json in it).'); }
-  if (manifest.app !== '(T)rustyShelf' && manifest.app !== 'Boxshelf') throw new Error('That folder isn\'t a (T)rustyShelf export.');
+  let manifest; try { manifest = JSON.parse(await fsp.readFile(path.join(src, 'manifest.json'), 'utf8')); } catch { throw new Error('That folder isn\'t a RustyShelf export (no manifest.json in it).'); }
+  if (!['RustyShelf', '(T)rustyShelf', 'Boxshelf'].includes(manifest.app)) throw new Error('That folder isn\'t a RustyShelf export.');
   const steps = [], skipped = [];
   if (isDir(path.join(src, 'data'))) steps.push(['Settings and downloads', async () => {
     const cfgNow = path.join(dataDir, 'config.json');

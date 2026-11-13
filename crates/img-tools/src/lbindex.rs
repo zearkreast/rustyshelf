@@ -760,7 +760,7 @@ mod tests {
 
     #[test]
     fn test_sharding_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("trustyshelf_test_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir().join(format!("rustyshelf_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 

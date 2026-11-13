@@ -1,4 +1,4 @@
-// (T)rustyShelf's Discord Rich Presence: while a game runs, Discord shows "Playing <title>" with the shelf's name, and
+// RustyShelf's Discord Rich Presence: while a game runs, Discord shows "Playing <title>" with the shelf's name, and
 // clears it when the game closes. Talks to Discord's own app over its local socket (no library, nothing sent anywhere
 // else). Needs a Discord application id (discord.com/developers → New application): the id is the one the player (or
 // the maker) puts in Settings → Display → Discord. Off unless it's switched on and an id is set; if Discord isn't running,
@@ -72,7 +72,7 @@ function configure({ enabled, appId, logger } = {}) {
 // A game started: "Playing <title>" with the shelf's name and the time it began
 function setGame(title, shelf) {
   if (!on) return;
-  send({ details: `Playing ${String(title || 'a game').slice(0, 120)}`, state: String(shelf || '(T)rustyShelf').slice(0, 120),
+  send({ details: `Playing ${String(title || 'a game').slice(0, 120)}`, state: String(shelf || 'RustyShelf').slice(0, 120),
     timestamps: { start: Math.floor(Date.now() / 1000) }, instance: false });
 }
 // The game closed (or the shelf is back): nothing shown

@@ -1,4 +1,4 @@
-// (T)rustyShelf manual sorting with the mouse (Boxshelf beta discussion 19): a quick drag across the shelf scrolls it and never
+// RustyShelf manual sorting with the mouse (Boxshelf beta discussion 19): a quick drag across the shelf scrolls it and never
 // grabs a box; a drag and drop that ends leaves no scrolling behind; Custom can be left for A-Z (and the others) from the Sort
 // panel. On the demo page. Run (after node copy-web.js): node ci/sortdrag-test.js www ../out/sortdrag
 'use strict';

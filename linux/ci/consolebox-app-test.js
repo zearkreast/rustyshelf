@@ -1,6 +1,6 @@
-// (T)rustyShelf: PC covers made by the app itself show on the shelf (its issue #1: with Settings → PC games → Console box art on,
+// RustyShelf: PC covers made by the app itself show on the shelf (its issue #1: with Settings → PC games → Console box art on,
 // the covers went back to the made-up cases). On the real app, on a virtual screen (xvfb-run), in a made-up home folder.
-//   node linux/ci/consolebox-app-test.js <TrustyShelf-…-linux.AppImage or the unpacked trustyshelf>
+//   node linux/ci/consolebox-app-test.js <RustyShelf-…-linux.AppImage or the unpacked rustyshelf>
 //   - a console box made for a PC game (data/pc-console-covers) is that game's cover, and the picture really loads on the page
 //   - an automatic PC poster (data/pc-covers-auto) loads too
 //   - Console box art off: the console box isn't used any more
@@ -13,8 +13,8 @@ let fails = 0; const check = (name, ok, detail) => { console.log((ok ? 'PASS  ' 
 const HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'bxbox-'));
 const mk = (p, body, exec) => { const f = path.join(HOME, p); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, body || ''); if (exec) fs.chmodSync(f, 0o755); return f; };
 const moon = mk('Games/Moon Forge/MoonForge.sh', '#!/bin/sh\nexit 0\n', true), star = mk('Games/Star Field/StarField.sh', '#!/bin/sh\nexit 0\n', true);
-const data = path.join(HOME, 'TrustyShelf', 'data');
-mk('TrustyShelf/data/config.json', JSON.stringify({ setupDone: true,
+const data = path.join(HOME, 'RustyShelf', 'data');
+mk('RustyShelf/data/config.json', JSON.stringify({ setupDone: true,
   ui: { bootIntro: 'off', sound: false, music: 'off', startFullscreen: true, openInto: 'last', autoCovers: false, lastSeenVersion: require('../../package.json').version.replace('+', '.') },
   steam: { enabled: false }, pc: { epic: false, quiver: false, consoleBox: true, custom: [{ id: 'moon', title: 'Moon Forge', exe: moon, args: '' }, { id: 'star', title: 'Star Field', exe: star, args: '' }] }, systems: {} }, null, 2));
 async function cdp(url) {
@@ -27,7 +27,7 @@ async function cdp(url) {
 }
 async function pageTarget(port) {
   for (let i = 0; i < 120; i++) { try { const l = await (await fetch('http://127.0.0.1:' + port + '/json')).json(); const t = l.find(x => x.type === 'page' && /index\.html/.test(x.url)); if (t) return t.webSocketDebuggerUrl; } catch {} await sleep(500); }
-  throw new Error('the (T)rustyShelf page never came up');
+  throw new Error('the RustyShelf page never came up');
 }
 const shot = async (p, name) => { try { const r = await p.send('Page.captureScreenshot', { format: 'png' }); if (r.result && r.result.data) fs.writeFileSync(path.join(OUT, name + '.png'), Buffer.from(r.result.data, 'base64')); } catch {} };
 
@@ -45,7 +45,7 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
     const jpg = Buffer.from(await p.ev(`(() => { const c = document.createElement('canvas'); c.width = 60; c.height = 84; const x = c.getContext('2d'); x.fillStyle = '#c33'; x.fillRect(0, 0, 60, 84); x.fillStyle = '#fff'; x.fillRect(8, 8, 44, 10); return c.toDataURL('image/jpeg', .9).split(',')[1]; })()`), 'base64');
     fs.mkdirSync(path.join(data, 'pc-console-covers'), { recursive: true }); fs.writeFileSync(path.join(data, 'pc-console-covers', 'custom-moon.jpg'), jpg);
     fs.mkdirSync(path.join(data, 'pc-covers-auto'), { recursive: true }); fs.writeFileSync(path.join(data, 'pc-covers-auto', 'custom-star.jpg'), jpg);
-    const front = async t => { const lib = await p.ev('window.trustyshelf.scan()'); for (const s of lib) { const g = (s.games || []).find(x => x.title === t); if (g) return (g.art && g.art.front) || ''; } return null; };
+    const front = async t => { const lib = await p.ev('window.rustyshelf.scan()'); for (const s of lib) { const g = (s.games || []).find(x => x.title === t); if (g) return (g.art && g.art.front) || ''; } return null; };
     const loads = u => p.ev(`new Promise(res => { const i = new Image(); i.onload = () => res({ ok: true, w: i.naturalWidth }); i.onerror = () => res({ ok: false }); i.src = ${JSON.stringify(u)}; setTimeout(() => res({ ok: false, timeout: true }), 8000); })`);
     const status = u => p.ev(`fetch(${JSON.stringify(u)}).then(r => r.status, e => 'error ' + e.message)`);
     const m = await front('Moon Forge'), s = await front('Star Field');
@@ -56,7 +56,7 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
     const sl = s ? await loads(s) : { ok: false }, ss = s ? await status(s) : 0;
     check('…and it really shows on the page too', sl.ok && ss === 200, JSON.stringify({ sl, ss }));
     // switched off: the console box isn't used
-    await p.ev(`(async () => { const c = (await window.trustyshelf.getConfig()).config; c.pc.consoleBox = false; await window.trustyshelf.saveConfig(c); })()`);
+    await p.ev(`(async () => { const c = (await window.rustyshelf.getConfig()).config; c.pc.consoleBox = false; await window.rustyshelf.saveConfig(c); })()`);
     const m2 = await front('Moon Forge');
     check('Console box art off: the console box isn\'t the cover any more', !/pc-console-covers/.test(decodeURIComponent(m2 || '')), m2);
     await shot(p, 'consolebox-shelf');

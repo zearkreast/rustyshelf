@@ -1,14 +1,14 @@
 2480|Procurar ${exe}
 2481|Apontar para ${exe}
-2482|Encontrado automaticamente quando está na pasta do (T)rustyShelf ou num lugar de instalação comum. Procurar emuladores de novo (Consoles) procura mais uma vez.
+2482|Encontrado automaticamente quando está na pasta do RustyShelf ou num lugar de instalação comum. Procurar emuladores de novo (Consoles) procura mais uma vez.
 2483|Versões
-2484|Qual versão do Eglantine abre os seus jogos de Switch 2: todas as versões que o (T)rustyShelf encontrou (a mesma lista que o Jogar mostra), Perguntar sempre, e versões guardadas em outras pastas.
+2484|Qual versão do Eglantine abre os seus jogos de Switch 2: todas as versões que o RustyShelf encontrou (a mesma lista que o Jogar mostra), Perguntar sempre, e versões guardadas em outras pastas.
 2485|Perguntar sempre
 2486|Procurando versões…
 2487|${sw2b.length} [[${sw2b.length===1?"":"s"}|versão encontrada|versões encontradas]]
 2488|Nenhuma versão encontrada ainda · adicione uma aqui
 2489|Usar o emulador encontrado
-2490|O (T)rustyShelf encontrou esta cópia. Use ela para esta estante.
+2490|O RustyShelf encontrou esta cópia. Use ela para esta estante.
 2491|Usar o Dolphin do ${twin==="gc"?"GameCube":"Wii"}
 2492|Pasta de jogos ${i+1}
 2493|Pasta de jogos
@@ -16,7 +16,7 @@
 2497|Pasta removida desta estante (nada foi apagado)
 2498|Aperte de novo para remover esta pasta
 2499|Adicionar a pasta encontrada
-2500|O (T)rustyShelf encontrou jogos para este console aqui.
+2500|O RustyShelf encontrou jogos para este console aqui.
 2501|Configurar o ${emu} para mim
 2502|Controle, atalhos do menu Home, uma pasta de BIOS e um perfil de gráficos para o ${emu}: com backup antes, e Desfazer volta tudo.
 2503|Adicionar outra pasta de jogos
@@ -32,7 +32,7 @@
 2513|Baixar o ${emu}
 2514|Abre a página oficial de download do ${emu}.
 2515|Opções do emulador
-2516|O que o (T)rustyShelf passa quando abre o emulador sozinho.
+2516|O que o RustyShelf passa quando abre o emulador sozinho.
 2517|Inicialização do GameCube
 2518|Tocar a inicialização de verdade do GameCube
 2519|Pular os avisos do Dolphin
@@ -46,7 +46,7 @@
 2527|Padrão:
 2528|Padrão: ${def.gameArgs||"(none)"}
 2529|Restaurar as opções de abertura padrão
-2530|Volta as opções de abertura para o padrão do (T)rustyShelf.
+2530|Volta as opções de abertura para o padrão do RustyShelf.
 2531|Opções de abertura de volta ao padrão
 2532|Pasta de capas própria
 2533|(usa a biblioteca de capas)
@@ -59,11 +59,11 @@
 2540|e a inicialização de verdade do GameCube
 2541|Abrir o ${emu} sozinho, opções de abertura, a tela de carregamento mais longa${id==="gc"&&iplCap()?" and the real GameCube startup":""}.
 2542|O ${emu} roda os jogos de ${def.name}.
-2543|As ferramentas do próprio ${emu}, como o (T)rustyShelf abre ele, e as configurações raramente necessárias de ${def.name}.
+2543|As ferramentas do próprio ${emu}, como o RustyShelf abre ele, e as configurações raramente necessárias de ${def.name}.
 2544|A ordem das estantes na parte de cima. O Início sempre vem primeiro. Pegue uma, mova e solte.
 2545|Pegue e depois mova para cima ou para baixo na lista.
 2546|Voltar à ordem padrão
-2547|Volta as estantes para a ordem do próprio (T)rustyShelf.
+2547|Volta as estantes para a ordem do próprio RustyShelf.
 2548|Ordem padrão
 2549|Aperte de novo para restaurar a ordem das estantes
 2550|Capas
@@ -191,7 +191,7 @@
 2675|${pcSt[k]} instalados
 2676|Nenhum instalado
 2678|Mostrar os jogos do Quiver
-2679|O (T)rustyShelf procura onde o Quiver normalmente guarda a biblioteca. Uma cópia portátil (extraída em qualquer lugar) é encontrada com Procurar, ou escolha a pasta dela.
+2679|O RustyShelf procura onde o Quiver normalmente guarda a biblioteca. Uma cópia portátil (extraída em qualquer lugar) é encontrada com Procurar, ou escolha a pasta dela.
 2680|Procurando o Quiver Launcher…
 2681|Quiver Launcher encontrado em
 2682|Quiver Launcher encontrado em ${folderName(d)}
@@ -234,7 +234,7 @@
 2723|Versões guardadas em outro lugar
 2724|Adicionar uma pasta de versões
 2725|Procurar…
-2726|Uma pasta com várias versões (os seus forks). O (T)rustyShelf procura até quatro pastas para dentro dela.
+2726|Uma pasta com várias versões (os seus forks). O RustyShelf procura até quatro pastas para dentro dela.
 2727|Escolha uma pasta de versões do Eglantine
 2728|Essa pasta já está na lista
 2729|Procurando versões em
@@ -269,14 +269,14 @@
 2762|Preencha a conta primeiro
 2763|Não funcionou:
 2764|Não funcionou: ${st.msg||""}
-2765|O (T)rustyShelf inicia com o Windows
+2765|O RustyShelf inicia com o Windows
 2766|Removido da inicialização
 2767|Baixar ${upd.latest}
 2768|Atualizado
 2769|Verificar agora
 2770|Procurando um beta mais novo…
 2771|Não foi possível acessar a página do beta. Tente de novo mais tarde
-2772|Saiu o (T)rustyShelf ${upd.latest}: aperte de novo para baixar
+2772|Saiu o RustyShelf ${upd.latest}: aperte de novo para baixar
 2773|Você tem o beta mais novo
 2774|Nenhum beta publicado ainda
 2775|Salvo:
@@ -289,7 +289,7 @@
 2782|Não foi possível criar${r&&r.error?": "+r.error:""}
 2783|Não foi possível apagar
 2784|O Personalizar abre a partir da estante daquele console
-2785|De uma pasta antiga do (T)rustyShelf
+2785|De uma pasta antiga do RustyShelf
 2786|Trazer de ${o.root}
 2787|${readCopy.done} / ${readCopy.total} · Parar
 2788|Copiando… · Parar

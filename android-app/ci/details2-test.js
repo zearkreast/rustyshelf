@@ -1,6 +1,6 @@
 // Details redesigned around the case (renderer/app.js dvBuild / dvFill, details2.css; from upstream beta.12), Windows 1280x720
 // on the demo page: Details opens as one page in sections with the section bar (Overview, Screenshots, About, Your play,
-// Achievements, Your copy, Info); (T)rustyShelf's own buttons are still there (Window, Box size, Move earlier / later, Art
+// Achievements, Your copy, Info); RustyShelf's own buttons are still there (Window, Box size, Move earlier / later, Art
 // match, Install, Collections, Hide, Rename, Emulator…, in the page or its More menu); E / Q jump a section; Status is set
 // and saved per game (and pressed again, cleared); Favourite follows H; Esc closes it; no page errors.
 // On the demo page. Run (after node copy-web.js): node ci/details2-test.js www ../out/details2
@@ -31,16 +31,16 @@ server.listen(0, async () => {
         status: !!document.getElementById('dvStatus'), cur: (document.querySelector('#dvNav .dv-t.cur') || {}).textContent };
     });
     check('Details opens as one page in sections (the section bar shows them)', st.mode === 'details' && st.dv2 && ['Overview', 'Screenshots', 'About', 'Your play', 'Achievements', 'Your copy', 'Info'].every(t => st.tabs.includes(t)), JSON.stringify(st));
-    check('(T)rustyShelf\'s own Details buttons and panels are all in the new page (none left behind)', ['dPlay', 'dFav', 'dWindow', 'dBoxSize', 'dMoveEarlier', 'dMoveLater', 'dArtMatch', 'dInstall', 'dCols', 'dHide', 'dRename', 'dBoxArt', 'dStats', 'dShots', 'dGrid'].every(i => st.ids.includes(i)) && !st.orphans.length, JSON.stringify({ have: st.ids, orphans: st.orphans }));
+    check('RustyShelf\'s own Details buttons and panels are all in the new page (none left behind)', ['dPlay', 'dFav', 'dWindow', 'dBoxSize', 'dMoveEarlier', 'dMoveLater', 'dArtMatch', 'dInstall', 'dCols', 'dHide', 'dRename', 'dBoxArt', 'dStats', 'dShots', 'dGrid'].every(i => st.ids.includes(i)) && !st.orphans.length, JSON.stringify({ have: st.ids, orphans: st.orphans }));
     await page.keyboard.press('e'); await page.waitForTimeout(1200);
     const c1 = await page.evaluate(() => (document.querySelector('#dvNav .dv-t.cur') || {}).textContent);
     check('E jumps to the next section', !!c1 && c1 !== st.cur, JSON.stringify({ before: st.cur, after: c1 }));
     const gid = await page.evaluate(() => Shelf._tour.game().id);
     await page.evaluate(() => { const b = document.querySelector('#dvStatus .dv-opt[data-v="playing"]'); if (b) b.click(); }); await page.waitForTimeout(700);
-    const s1 = await page.evaluate(async id => { const c = (await window.trustyshelf.getConfig()).config; return { saved: (c.games && c.games[id] && c.games[id].status) || '', on: !!document.querySelector('#dvStatus .dv-opt.on[data-v="playing"]') }; }, gid);
+    const s1 = await page.evaluate(async id => { const c = (await window.rustyshelf.getConfig()).config; return { saved: (c.games && c.games[id] && c.games[id].status) || '', on: !!document.querySelector('#dvStatus .dv-opt.on[data-v="playing"]') }; }, gid);
     check('Status: Playing is set and saved for this game', s1.saved === 'playing' && s1.on, JSON.stringify(s1));
     await page.evaluate(() => { const b = document.querySelector('#dvStatus .dv-opt[data-v="playing"]'); if (b) b.click(); }); await page.waitForTimeout(700);
-    const s2 = await page.evaluate(async id => { const c = (await window.trustyshelf.getConfig()).config; return (c.games && c.games[id] && c.games[id].status) || ''; }, gid);
+    const s2 = await page.evaluate(async id => { const c = (await window.rustyshelf.getConfig()).config; return (c.games && c.games[id] && c.games[id].status) || ''; }, gid);
     check('Status: pressed again, it\'s cleared', s2 === '', s2);
     await page.screenshot({ path: path.join(OUT, 'details2.png') }).catch(() => {});
     await page.keyboard.press('Escape'); await page.waitForTimeout(1200);

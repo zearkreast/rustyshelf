@@ -1,11 +1,11 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// preload.js; modified for (T)rustyShelf (see the git history).
+// preload.js; modified for RustyShelf (see the git history).
 // The only bridge between the launcher screen and your PC.
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const call = (name, arg) => ipcRenderer.invoke(name, arg).then(r => { if (!r.ok) throw new Error(r.error); return r.data; });
 
-contextBridge.exposeInMainWorld('trustyshelf', {
+contextBridge.exposeInMainWorld('rustyshelf', {
   // What this build can do (docs/PLATFORM-API.md). The Android build reports os 'android' and turns off what it can't do.
   // (Linux / Steam Deck: no power menu, in-game Home menu, Windows emulator-settings fixes, start-with-Windows, Dolphin IPL
   // setup, RetroArch auto-config or taskbar switch there yet)
@@ -32,8 +32,8 @@ contextBridge.exposeInMainWorld('trustyshelf', {
   uiBusy: () => ipcRenderer.send('ui:busy'),
   saveConfig: cfg => call('config:save', cfg),
   detect: () => call('detect'),
-  emulatorsFound: systemId => call('detect:emulators', { systemId }), // ((T)rustyShelf) every emulator found for a console
-  emulatorsIn: dir => call('detect:folder', { dir }), // ((T)rustyShelf) portable emulators in a folder you pick
+  emulatorsFound: systemId => call('detect:emulators', { systemId }), // (RustyShelf) every emulator found for a console
+  emulatorsIn: dir => call('detect:folder', { dir }), // (RustyShelf) portable emulators in a folder you pick
   scan: () => call('library:scan'),
   scanIfChanged: () => call('library:scan', { ifChanged: true }),
   cachedLibrary: () => call('library:cached'),
@@ -106,7 +106,7 @@ contextBridge.exposeInMainWorld('trustyshelf', {
   manualCoverage: () => call('manuals:coverage'),
   artCoverage: () => call('covers:coverage'),
   onCoversProgress: fn => ipcRenderer.on('covers:progress', (e, info) => fn(info)),
-  onCoversChecking: fn => ipcRenderer.on('covers:checking', (e, info) => fn(info)), // ((T)rustyShelf, issue 24)
+  onCoversChecking: fn => ipcRenderer.on('covers:checking', (e, info) => fn(info)), // (RustyShelf, issue 24)
   onCoversAuto: fn => ipcRenderer.on('covers:auto', (e, info) => fn(info)), // the background art check (first-run Done screen)
   onLibraryChanged: fn => ipcRenderer.on('library:changed', (e, info) => fn(info)),
   onShelfMenu: fn => ipcRenderer.on('shelf:menu', (e, d) => fn(d)),
@@ -132,13 +132,13 @@ contextBridge.exposeInMainWorld('trustyshelf', {
   openSongsFolder: () => call('songs:open'),
   epicDownloads: () => call('epic:downloads'), epicPause: id => call('epic:pause', { id }), epicResume: id => call('epic:resume', { id }), epicStop: id => call('epic:stop', { id }),
   epicRemove: id => call('epic:remove', { id }), epicMove: (id, delta) => call('epic:move', { id, delta }), epicClearDone: () => call('epic:clearDone'),
-  onEpicQueue: fn => { const h = (_e, l) => fn(l); ipcRenderer.on('epic:queue', h); return () => ipcRenderer.removeListener('epic:queue', h); }, // ((T)rustyShelf) the Epic download manager
-  artMatchSearch: (id, term) => call('art:matchSearch', { id, term }), artMatchSet: (id, name) => call('art:matchSet', { id, name }), // ((T)rustyShelf issue #2) Details → Art match
+  onEpicQueue: fn => { const h = (_e, l) => fn(l); ipcRenderer.on('epic:queue', h); return () => ipcRenderer.removeListener('epic:queue', h); }, // (RustyShelf) the Epic download manager
+  artMatchSearch: (id, term) => call('art:matchSearch', { id, term }), artMatchSet: (id, name) => call('art:matchSet', { id, name }), // (RustyShelf issue #2) Details → Art match
   gameInstall: (id, install) => call('game:install', { id, install }), pcStorage: () => call('pc:storage'), // Details → Installation; Settings → PC games → Storage
-  gameWindow: (id, window) => call('game:window', { id, window }), // ((T)rustyShelf) a PC game's window mode
-  musicList: () => call('music:list'), openMusicFolder: () => call('music:open'), // ((T)rustyShelf) your own menu music
+  gameWindow: (id, window) => call('game:window', { id, window }), // (RustyShelf) a PC game's window mode
+  musicList: () => call('music:list'), openMusicFolder: () => call('music:open'), // (RustyShelf) your own menu music
   raProgress: (systemId, title, force) => call('ra:progress', { systemId, title, force }),
-  pcAchievements: appid => call('pc:achievements', { appid }), // ((T)rustyShelf) a Steam game's achievements, read from Steam's own files
+  pcAchievements: appid => call('pc:achievements', { appid }), // (RustyShelf) a Steam game's achievements, read from Steam's own files
   raShelf: (systemId, titles) => call('ra:shelf', { systemId, titles }),
   raProfile: () => call('ra:profile'),
   raEnabled: () => call('ra:enabled'),
@@ -157,7 +157,7 @@ contextBridge.exposeInMainWorld('trustyshelf', {
   onPreviewYt: (fn) => { const h = (_e, d) => fn(d); ipcRenderer.on('preview:yt', h); return () => ipcRenderer.removeListener('preview:yt', h); },
   // (beta.8) console trailers: a clip became ready; the helper's status, download and progress; clearing the clips
   onPreviewClip: (fn) => { const h = (_e, d) => fn(d); ipcRenderer.on('preview:clip', h); return () => ipcRenderer.removeListener('preview:clip', h); },
-  // (beta.8) Steam Deck: where (T)rustyShelf runs ({ deck, steam, gameMode, canAdd, inSteam }) and Add (T)rustyShelf to Steam
+  // (beta.8) Steam Deck: where RustyShelf runs ({ deck, steam, gameMode, canAdd, inSteam }) and Add RustyShelf to Steam
   deckInfo: () => call('deck:info'), addToSteam: (closeSteam) => call('deck:addToSteam', { closeSteam: !!closeSteam }),
   clipStatus: () => call('ytclip:status'), clipHelper: () => call('ytclip:helper'), clipClear: () => call('ytclip:clear'),
   onClipProgress: (fn) => { const h = (_e, d) => fn(d); ipcRenderer.on('ytclip:progress', h); return () => ipcRenderer.removeListener('ytclip:progress', h); },
@@ -184,7 +184,7 @@ contextBridge.exposeInMainWorld('trustyshelf', {
   gameEmulator: id => call('game:emulator', { id }),
   onWiimote: fn => ipcRenderer.on('wiimote', (e, d) => fn(d)), // the Wii remote: { x, y, seen, b, hold } / { on }
   wmRumble: ms => ipcRenderer.send('wm:rumble', ms),
-  padsPresent: () => call('pads:present'), padFeed: on => call('pad:feed', { on: !!on }), // ((T)rustyShelf) a PlayStation pad the shelf gets nothing from: read it directly // the real controllers plugged in: [{ vendor, product, style }]
+  padsPresent: () => call('pads:present'), padFeed: on => call('pad:feed', { on: !!on }), // (RustyShelf) a PlayStation pad the shelf gets nothing from: read it directly // the real controllers plugged in: [{ vendor, product, style }]
   onExited: fn => ipcRenderer.on('run:exited', (e, info) => fn(info)),
   onRunReady: fn => ipcRenderer.on('run:ready', () => fn()),
   onRunQuitting: fn => ipcRenderer.on('run:quitting', () => fn()),
@@ -195,10 +195,10 @@ contextBridge.exposeInMainWorld('trustyshelf', {
   backupSettings: () => call('settings:backup'),
   restoreSettings: () => call('settings:restore'),
   reportProblem: () => call('app:reportProblem'),
-  exportData: dest => call('data:export', { dest }), importData: src => call('data:import', { src }), // ((T)rustyShelf) Export / Import everything
+  exportData: dest => call('data:export', { dest }), importData: src => call('data:import', { src }), // (RustyShelf) Export / Import everything
   onDataProgress: fn => ipcRenderer.on('data:progress', (e, s) => fn(s)),
-  dataSize: () => call('data:size'), pauseData: paused => call('data:pause', { paused }), cancelData: () => call('data:cancel'), // ((T)rustyShelf issue 6) the export's size first, pause / resume, cancel
-  awakeState: () => call('awake:state'), onAwake: fn => ipcRenderer.on('awake:state', (e, s) => fn(s)), // ((T)rustyShelf issue 7) the PC kept awake during a long job
+  dataSize: () => call('data:size'), pauseData: paused => call('data:pause', { paused }), cancelData: () => call('data:cancel'), // (RustyShelf issue 6) the export's size first, pause / resume, cancel
+  awakeState: () => call('awake:state'), onAwake: fn => ipcRenderer.on('awake:state', (e, s) => fn(s)), // (RustyShelf issue 7) the PC kept awake during a long job
   clearHistory: () => call('history:clear'),
   onHistoryChanged: fn => ipcRenderer.on('history:changed', (e, info) => fn(info)),
   apiStatus: () => call('api:status'),

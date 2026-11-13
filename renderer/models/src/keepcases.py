@@ -1,4 +1,4 @@
-# (T)rustyShelf, Boxshelf beta issue 32: the PS2, Wii, Wii U and GameCube keep cases, modelled from photos of the real
+# RustyShelf, Boxshelf beta issue 32: the PS2, Wii, Wii U and GameCube keep cases, modelled from photos of the real
 # cases. Run headless:  blender -b -P renderer/models/src/keepcases.py -- renderer/models
 # Each case is exported open and flat (the pose renderer/inspect3d.js builds its hinged case in), height 1 = 190 mm:
 #   Spine  x in [-D/2, D/2]          the hinge strip, its printed face at z < 0

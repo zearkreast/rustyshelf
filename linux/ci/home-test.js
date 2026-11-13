@@ -1,5 +1,5 @@
-// (T)rustyShelf's original Xbox shelf (xemu), on the real AppImage on a virtual screen (xvfb-run), in a made-up home folder.
-//   node linux/ci/xbox-test.js <TrustyShelf-…-linux.AppImage>
+// RustyShelf's original Xbox shelf (xemu), on the real AppImage on a virtual screen (xvfb-run), in a made-up home folder.
+//   node linux/ci/xbox-test.js <RustyShelf-…-linux.AppImage>
 // An Xbox game in ~/Emulation/roms/xbox and a pretend xemu (~/.local/bin/xemu: writes down the options it was given, runs
 // 7 s, closes). Checks: detection finds xemu and the folder, the Xbox shelf shows the game in its own case, Play starts
 // xemu with -full-screen -dvd_path <game>, the shelf comes back after, no script errors. Screenshots go to linux-test-out/.
@@ -15,7 +15,7 @@ const mk = (p, body, exec) => { const f = path.join(HOME, p); fs.mkdirSync(path.
 const argsFile = path.join(HOME, 'xemu-args.txt');
 const xemu = mk('.local/bin/xemu', `#!/bin/sh\nfor a in "$@"; do echo "$a"; done > "${argsFile}"\nsleep 7\nexit 0\n`, true);
 const rom = mk('Emulation/roms/xbox/Halo - Combat Evolved (USA).iso', 'x');
-mk('TrustyShelf/data/config.json', JSON.stringify({ setupDone: true,
+mk('RustyShelf/data/config.json', JSON.stringify({ setupDone: true,
   ui: { bootIntro: 'off', sound: false, music: 'off', startFullscreen: true, openInto: 'last', autoCovers: false, lastSeenVersion: require('../../package.json').version.replace('+', '.') },
   steam: { enabled: false }, pc: { epic: false, quiver: false, custom: [] },
   systems: { xbox: { enabled: true, emulator: xemu, romDirs: [path.dirname(rom)] } } }, null, 2));
@@ -30,7 +30,7 @@ async function cdp(url) {
 }
 async function pageTarget(port) {
   for (let i = 0; i < 120; i++) { try { const l = await (await fetch('http://127.0.0.1:' + port + '/json')).json(); const t = l.find(x => x.type === 'page' && /index\.html/.test(x.url)); if (t) return t.webSocketDebuggerUrl; } catch {} await sleep(500); }
-  throw new Error('the (T)rustyShelf page never came up');
+  throw new Error('the RustyShelf page never came up');
 }
 const shot = async (p, name) => { try { const r = await p.send('Page.captureScreenshot', { format: 'png' }); if (r.result && r.result.data) fs.writeFileSync(path.join(OUT, name + '.png'), Buffer.from(r.result.data, 'base64')); } catch {} };
 
@@ -57,7 +57,7 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
     check('no script errors', !errs.length, errs.slice(0, 3).join(' | '));
   } catch (e) { check('the test ran to the end', false, e && e.stack || e); }
   finally {
-    try { fs.copyFileSync(path.join(HOME, 'TrustyShelf', 'data', 'trustyshelf.log'), path.join(OUT, 'trustyshelf-xbox.log')); } catch {}
+    try { fs.copyFileSync(path.join(HOME, 'RustyShelf', 'data', 'rustyshelf.log'), path.join(OUT, 'rustyshelf-xbox.log')); } catch {}
     fs.writeFileSync(path.join(OUT, 'app-output-xbox.txt'), appOut);
     try { if (p) p.close(); } catch {}
     try { process.kill(app.pid, 'SIGTERM'); } catch {} await sleep(1500); try { process.kill(-app.pid, 'SIGKILL'); } catch {}

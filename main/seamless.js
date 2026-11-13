@@ -1,13 +1,13 @@
 // From sassiestrhihno's 1.82.0-beta.12 source (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0), brought into
-// (T)rustyShelf.
+// RustyShelf.
 // (beta.12) Seamless play (Windows): starting and closing any game feels like a console. This module holds what main.js
 // needs for it, so main.js only has small hooks:
 //   - Steam and store games (Epic, Ubisoft Connect, the EA app, Xbox) are watched (main/gamewatch.js) and get what a game
-//     (T)rustyShelf starts itself gets: the loading cover until the game's window shows, the Home menu, playtime, the quit
+//     RustyShelf starts itself gets: the loading cover until the game's window shows, the Home menu, playtime, the quit
 //     cover and the return to the shelf (launchWatched).
 //   - Screen mode (Settings → Display → Screen & TV): Full screen (today's behaviour) or Window (the taskbar is never
 //     hidden; the window's place and size are remembered). F11 switches and the choice is kept.
-//   - Home menu → Go to desktop ((T)rustyShelf minimised; Guide or the taskbar brings it back).
+//   - Home menu → Go to desktop (RustyShelf minimised; Guide or the taskbar brings it back).
 //   - A launch timeline in the log for each launch (cover up, process, window, cover down, game ended, shelf back).
 // Settings → Display → Seamless play (cfg.ui.seamless, on by default) off: none of this, exactly the earlier behaviour.
 'use strict';
@@ -68,11 +68,11 @@ function shelfActionsFor(u, platform, base) { const b = (base || ['shelfhome', '
 const shelfActions = base => shelfActionsFor(ui(), ctx.platform || process.platform, base);
 function goToDesktop(win) {
   if (!on() || !win || win.isDestroyed()) return false;
-  fromDesktop = true; ctx.log('Home menu: Go to desktop ((T)rustyShelf minimised, the taskbar back)');
+  fromDesktop = true; ctx.log('Home menu: Go to desktop (RustyShelf minimised, the taskbar back)');
   try { win.minimize(); } catch {}
   return true;
 }
-// Guide pressed while (T)rustyShelf sits minimised after Go to desktop: true = bring it back (the caller does)
+// Guide pressed while RustyShelf sits minimised after Go to desktop: true = bring it back (the caller does)
 function backFromDesktop(win) { if (!fromDesktop) return false; fromDesktop = false; try { return !!win && !win.isDestroyed() && win.isMinimized(); } catch { return false; } }
 
 // ---------- the launch timeline ----------

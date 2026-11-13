@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/android/app/src/main/java/io/github/boxshelf/MainActivity.java apart from the app's name ((T)rustyShelf).
-package io.github.trustyshelf;
+// android-app/android/app/src/main/java/io/github/boxshelf/MainActivity.java apart from the app's name (RustyShelf).
+package io.github.rustyshelf;
 
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -18,7 +18,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 /**
- * (T)rustyShelf on Android (AYN Thor). The shared UI runs in Capacitor's WebView; this activity only makes it feel like a
+ * RustyShelf on Android (AYN Thor). The shared UI runs in Capacitor's WebView; this activity only makes it feel like a
  * console front end: full screen with the system bars hidden, screen kept on, and controller buttons left to the
  * page's Gamepad API instead of Android turning B into "Back" and closing the app.
  */
@@ -27,7 +27,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(TrustyShelfNativePlugin.class); // folders, emulator detection, launching (must come before super.onCreate)
+        registerPlugin(RustyShelfNativePlugin.class); // folders, emulator detection, launching (must come before super.onCreate)
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -43,7 +43,7 @@ public class MainActivity extends BridgeActivity {
             wv.setBackgroundColor(0xFF0B0B14);
         }
 
-        // System back (gesture / nav bar) becomes Esc on the page, so it steps back through (T)rustyShelf's screens instead of
+        // System back (gesture / nav bar) becomes Esc on the page, so it steps back through RustyShelf's screens instead of
         // closing the app. Skipped right after a controller button, which the page already read through the Gamepad API.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -55,9 +55,9 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * (T)rustyShelf runs at 60 Hz, like the Windows build on a TV. The Thor's main screen runs at 120 Hz, which asked the phone
+     * RustyShelf runs at 60 Hz, like the Windows build on a TV. The Thor's main screen runs at 120 Hz, which asked the phone
      * GPU to draw the 3D shelf and the museum twice as often as a PC does, and any frame that missed the 8 ms budget showed
-     * as a stutter. Only this window asks for it: games and emulators launched from (T)rustyShelf keep the screen's full rate.
+     * as a stutter. Only this window asks for it: games and emulators launched from RustyShelf keep the screen's full rate.
      */
     private void pinRefreshRate() {
         try {

@@ -1,4 +1,4 @@
-// (T)rustyShelf's Discord Rich Presence (main/presence.js): against a fake Discord socket on this machine (a made-up
+// RustyShelf's Discord Rich Presence (main/presence.js): against a fake Discord socket on this machine (a made-up
 // XDG_RUNTIME_DIR). Run: node linux/ci/presence-test.js
 //   - on, with an id: the handshake (v 1, the id) is sent, then "Playing <title>" with the shelf's name and a start time
 //   - a game closing clears it (activity null)

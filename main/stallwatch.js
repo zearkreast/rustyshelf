@@ -1,4 +1,4 @@
-// ((T)rustyShelf, Boxshelf beta issue 34) The stall watch: a small thread of its own that writes to the log while the main
+// (RustyShelf, Boxshelf beta issue 34) The stall watch: a small thread of its own that writes to the log while the main
 // process is stuck, not only once it's free again. The freeze watch in main.js measures a stall when it ends, so a stall
 // that never ends (the window "not responding" until Windows closes it) left nothing in the log after the last step. The
 // main process ticks a shared counter four times a second and tells the thread what it's doing (markEvent); when the

@@ -245,7 +245,7 @@ fn run_worker() {
 }
 
 fn print_usage() {
-    eprintln!("Usage: trustyshelf-imgtools [COMMAND / OPTIONS]");
+    eprintln!("Usage: rustyshelf-imgtools [COMMAND / OPTIONS]");
     eprintln!("Commands:");
     eprintln!("  lbindex --xml <PATH> --out <PATH> --platforms <LIST> --version <V> [--shards <DIR>]");
     eprintln!("  lbshards --index <PATH> --dir <DIR>");
@@ -406,7 +406,7 @@ fn main() {
     }
 
     if args.iter().any(|a| a == "--version") {
-        println!("trustyshelf-imgtools {}", env!("CARGO_PKG_VERSION"));
+        println!("rustyshelf-imgtools {}", env!("CARGO_PKG_VERSION"));
         return;
     }
 

@@ -1,4 +1,4 @@
-// (T)rustyShelf's Epic download manager (main/epicdl.js), run against a pretend legendary that installs slowly and prints legendary's
+// RustyShelf's Epic download manager (main/epicdl.js), run against a pretend legendary that installs slowly and prints legendary's
 // progress lines. Run: node linux/ci/epicdl-test.js
 //   - installs run one at a time, in order; progress, speed and time left come through
 //   - Pause stops the running install (its process ends) and the next one starts; Resume puts it back in the queue; it goes on

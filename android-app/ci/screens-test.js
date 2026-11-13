@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/ci/screens-test.js apart from the app's name ((T)rustyShelf).
+// android-app/ci/screens-test.js apart from the app's name (RustyShelf).
 // Device test pass "screens" (Android 0.4.0), run by web-device-test.js. Checks results, never speed.
 // The Android build on screens other than the Thor's (the adapter's pretend device, ?fakeNative=1): a 20:9 phone, a small
 // phone and a 16:10 tablet, all landscape. On each: the shelf comes up with a game chosen, nothing spills sideways (no
@@ -25,7 +25,7 @@ module.exports = async function screensPass({ browser, base, check, OUT }) {
       await page.goto(base + '?fakeNative=1'); await page.waitForTimeout(4000);
       // set up three consoles the way pass 2 does, then start again on a filled shelf
       await page.evaluate(async () => {
-        const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+        const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
         const dirs = [await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' })];
         c.systems.gc.romDirs = [dirs[0]]; c.systems.gc.emulator = det.systems.gc.emulator;
         c.systems.psx.romDirs = [dirs[1]]; c.systems.psx.emulator = det.systems.psx.emulator;
@@ -128,7 +128,7 @@ module.exports = async function screensPass({ browser, base, check, OUT }) {
     try {
       const url = base + '?fakeNative=1';
       await page.goto(url); await page.waitForTimeout(4000);
-      await page.evaluate(async () => { const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+      await page.evaluate(async () => { const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
         const d0 = await api.pick({ kind: 'folder' }); c.systems.gc.romDirs = [d0]; c.systems.gc.emulator = det.systems.gc.emulator; c.setupDone = true; await api.saveConfig(c); await api.scan(); });
       await page.goto(url); await page.waitForFunction(() => window.Shelf && Shelf._qs && Shelf._qs().g, null, { timeout: 90000, polling: 250 }); await page.waitForTimeout(2500);
       // (onto a game first: the shelf opens on its Surprise me / emulator case, which has no box art)

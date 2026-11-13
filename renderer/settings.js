@@ -1,12 +1,12 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// renderer/settings.js; modified for (T)rustyShelf (see the git history).
+// renderer/settings.js; modified for RustyShelf (see the git history).
 // Settings: the full-screen settings app (sidebar of sections, a page of rows, an info panel and a hint bar), built for
 // the couch: controller, keyboard or mouse, search with an on-screen keyboard, live previews. Opened through
 // Setup.open() (setup.js keeps the first-run wizard and the big tools: box art / manual downloads, the Internet Archive
 // finder, which open over this screen via Setup.openLegacy and come back to the same row when closed).
 (function(){
 "use strict";
-const api=window.trustyshelf||{};
+const api=window.rustyshelf||{};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const eq=(a,b)=>a===b||(a!=null&&b!=null&&String(a)===String(b))||(typeof a==="number"&&typeof b==="number"&&Math.abs(a-b)<1e-6);
@@ -55,7 +55,7 @@ const HELP={gc:"Dolphin runs GameCube games. Point to Dolphin.exe.",wii:"Dolphin
   wiiu:"Cemu runs Wii U games: .wua, .wud / .wux or extracted game folders. Disc images need your keys.txt set up in Cemu.",sw:"A Switch emulator runs Switch games: Eden, Citron or Ryujinx (other yuzu forks work too). Point to its program (eden.exe, citron.exe, Ryujinx.exe, or its AppImage on Linux).",sw2:"A Switch 2 emulator runs Switch 2 games: Eglantine or any fork of it (Lichii, Orchid…). Point to its program (eglantine.exe, lichii.exe…, or its AppImage on Linux); every build is found, and Builds picks which one plays. Unpacked game folders work (exefs + romfs, or base + updates: the newest update is started), and .nsp / .xci.",
   psp:"PPSSPP runs PSP games. Point to PPSSPPWindows64.exe.",
   psvita:"Vita3K runs PS Vita games. Install them in Vita3K first (drop a .vpk or .pkg on it): the shelf lists its installed games (ux0\\app) and starts them straight in. Vita3K needs the PS Vita firmware installed once.",ps2:"PCSX2 runs PS2 games (.iso, .chd, .cso, .zso). It needs a PS2 BIOS of its own.",
-  ps3:"RPCS3 runs PS3 games. Install the PS3 system software in RPCS3 first.",ps4:"shadPS4 runs PS4 games: folders with an eboot.bin inside.",ps5:"Kyty (KytyJets) runs PS5 games: folders with an eboot.bin inside. (T)rustyShelf starts them with your Kyty launcher's settings (resolution, controller, add-ons folder) and the build's own preset.",
+  ps3:"RPCS3 runs PS3 games. Install the PS3 system software in RPCS3 first.",ps4:"shadPS4 runs PS4 games: folders with an eboot.bin inside.",ps5:"Kyty (KytyJets) runs PS5 games: folders with an eboot.bin inside. RustyShelf starts them with your Kyty launcher's settings (resolution, controller, add-ons folder) and the build's own preset.",
   xbox:"xemu runs original Xbox games: .iso disc images (XISO). Set up its BIOS, boot ROM and hard disk in xemu first (Machine → System).",
   gamecom:"MAME runs Game.com games: .bin or .tgc cartridges. Put the Game.com's own system file, gamecom.zip (from a MAME BIOS set), in MAME's roms folder first.",
   x360:"Xenia runs Xbox 360 games: .iso discs, extracted folders, XBLA .xex files or .zar archives.",n3ds:"Azahar runs 3DS games: decrypted .3ds / .cci / .cxi, or decrypted .cia files (installed into Azahar the first time you play)."};
@@ -64,8 +64,8 @@ const MUS_OPTS={light:[["gallery","Classic"],["daylight","Daylight"],["night","E
   tvStand:[["cart","Wooden TV cart"],["cabinet","Low cabinet"],["floor","Floor-standing set"],["wall","Wall mount"]],tvSize:[["s","Small"],["m","Medium"],["l","Large"]],tvPos:[["left","Left"],["centre","Centre"],["right","Right"]],tvCh:[["ads","Vintage commercials"],["trailers","Game trailers"],["recent","Recently played"],["mix","Shuffle all"]],
   wall:[["plaster","Dark plaster"],["wood","Wood panels"],["brick","Brick"],["wallpaper","Wallpaper"],["green","Green"],["burgundy","Burgundy"],["navy","Navy"]],
   floor:[["stone","Stone"],["wood","Wood boards"],["carpet","Carpet"],["checker","Checkerboard"]],shelf:[["walnut","Walnut"],["oak","Oak"],["black","Black"],["white","White"]]};
-function musOpts(key){const R=window.TrustyShelfMuseumRoom,o=R&&R.opts&&R.opts.find(x=>x.key===key);return o&&o.opts?o.opts:MUS_OPTS[key]}
-const musDef=k=>{const R=window.TrustyShelfMuseumRoom;return R&&R.defaults&&R.defaults[k]!==undefined?R.defaults[k]:MUS_DEF[k]};
+function musOpts(key){const R=window.RustyShelfMuseumRoom,o=R&&R.opts&&R.opts.find(x=>x.key===key);return o&&o.opts?o.opts:MUS_OPTS[key]}
+const musDef=k=>{const R=window.RustyShelfMuseumRoom;return R&&R.defaults&&R.defaults[k]!==undefined?R.defaults[k]:MUS_DEF[k]};
 
 /* ---------- state ---------- */
 let root=null,stage=null,E={};
@@ -92,7 +92,7 @@ const smMode=()=>{const m=gp("ui.screenMode");return m==="window"||m==="full"?m:
 const F=(label,path,kind,info,x={})=>({t:"path",label,kind,info,...bindv(path,""),d:undefined,...x});
 const X=(label,path,info,x={})=>({t:"text",label,info,...bindv(path,""),d:undefined,...x});
 const H=(text,x={})=>({t:"head",text,...x});
-// ((T)rustyShelf, discussion 15) PC games' console box colours: the choices, and the consoles a PC game's box comes from
+// (RustyShelf, discussion 15) PC games' console box colours: the choices, and the consoles a PC game's box comes from
 const BOX_COLORS=[["","Each console's own"],["#14233f","Dark blue"],["#1d4ed8","Blue"],["#1b1f27","Black"],["#3a3f4a","Grey"],["#f2f3f5","White"],["#107c10","Green"],["#d8101f","Red"],["#5b2a86","Purple"],["#b8860b","Gold"]];
 const BOX_PLATS=[["ps5","PS5"],["ps4","PS4"],["xsx","Xbox Series X|S"],["xone","Xbox One"],["sw","Switch"]];
 const labelled=(fn,row)=>Object.defineProperty(row,"label",{get:fn,enumerable:true,configurable:true}); // a row whose name follows the state (rows are kept between redraws)
@@ -142,7 +142,7 @@ const svcSet=s=>s==="ra"?!!(gp("ra.user")&&gp("ra.key")):s==="screenscraper"?!!(
 function svcState(s){const st=status[s]||{};if(!svcSet(s))return {state:"none"};return st.state&&st.state!=="none"?st:{state:"unknown"}} // set up but never checked: main says "none" (Not checked yet)
 function acctDot(){const L=["ra",...ART_SVC].map(svcState).filter(x=>x.state!=="none"&&x.state!=="unknown");if(!L.length)return null;return L.some(x=>x.state==="fail")?"warn":"ok"}
 function pathSub(p,want){if(!p)return null;const ok=pathOk[p];if(ok==null){if(ok===undefined)pathAsk.add(p);return null}const good=want==="file"?ok.file:ok.dir;return good?{text:want==="file"?"Found":"Folder found",cls:"ok"}:{text:"Can't find it",cls:"bad"}}
-function openLink(url){if(api.openExternal)Promise.resolve(api.openExternal(url)).then(()=>toast("Opened in your browser")).catch(e=>toast(errMsg(e)));else toast("Opening links needs a newer (T)rustyShelf")}
+function openLink(url){if(api.openExternal)Promise.resolve(api.openExternal(url)).then(()=>toast("Opened in your browser")).catch(e=>toast(errMsg(e)));else toast("Opening links needs a newer RustyShelf")}
 function twice(key,run,msg){const t=Date.now();if(askT[key]&&t-askT[key]<4000){askT[key]=0;run()}else{askT[key]=t;toast(msg||"Press again to confirm");setTimeout(()=>{if(askT[key]===t){askT[key]=0;bump()}},4100)}bump()}
 const asking=key=>askT[key]&&Date.now()-askT[key]<4000;
 
@@ -161,19 +161,19 @@ function build(){
   const musC=(label,key,info,x={})=>C(label,"ui.museumStyle."+key,()=>musOpts(key),musDef(key),info,{preview:"mus",...x});
   const musT=(label,key,info,x={})=>T(label,"ui.museumStyle."+key,musDef(key)!==undefined?!!musDef(key):true,info,{...x});
   SECTIONS=[
-  {g:"Games",id:"consoles",name:"Consoles",ic:"games",badge:consolesReady,lead:"Every console (T)rustyShelf can run. Pick one to set its emulator, games folders and how it starts.",rows:[
+  {g:"Games",id:"consoles",name:"Consoles",ic:"games",badge:consolesReady,lead:"Every console RustyShelf can run. Pick one to set its emulator, games folders and how it starts.",rows:[
     {t:"consoles",label:"Consoles",info:""},
     H("For every console"),
     F("RetroArch location","retroarch","file","Point to retroarch.exe to use it across all supported retro consoles. Each retro console without its own emulator will use this RetroArch automatically.",{want:"file",rescan:true,ph:"Point to retroarch.exe",filters:[{name:"RetroArch",extensions:["exe","*"]}],keys:"retroarch emulator retro core shared"}),
-    A("Find emulators again",()=>detecting?"Searching…":"Search","Looks in the usual install places and your (T)rustyShelf folder for emulators and games folders you haven't set up yet, and fills in any console that has nothing set.",runDetect,{keys:"detect scan auto find"}),
-    ...(api.emulatorsIn?[A("Find emulators in a folder",()=>detecting?"Searching…":"Choose","Portable emulators kept anywhere (another drive, a USB stick): choose the folder they're in and (T)rustyShelf looks through it, four folders deep, for every emulator it knows. Each console with no emulator set gets the one found; the ones already set are left as they are.",runFolderDetect,{keys:"portable emulators folder find search usb drive"})]:[]),
+    A("Find emulators again",()=>detecting?"Searching…":"Search","Looks in the usual install places and your RustyShelf folder for emulators and games folders you haven't set up yet, and fills in any console that has nothing set.",runDetect,{keys:"detect scan auto find"}),
+    ...(api.emulatorsIn?[A("Find emulators in a folder",()=>detecting?"Searching…":"Choose","Portable emulators kept anywhere (another drive, a USB stick): choose the folder they're in and RustyShelf looks through it, four folders deep, for every emulator it knows. Each console with no emulator set gets the one found; the ones already set are left as they are.",runFolderDetect,{keys:"portable emulators folder find search usb drive"})]:[]),
   ]},
   {g:"Games",id:"pc",name:"PC games",ic:"pc",lead:onLinux()?"Your Steam games, your Epic library and your PC games folder on the PC shelf. Windows games play through Wine / Proton.":"Your installed Steam games, on a shelf of their own.",rows:[
     T("Show installed Steam games","steam.enabled",true,"Adds a PC shelf with every game Steam has installed. Uninstalled games are left out.",{rescan:true,keys:"steam"}),
     T("Hide Steam tools","steam.hideTools",true,"Leaves Proton, Steamworks Common Redistributables and other tools off the shelf.",{rescan:true,keys:"redistributables proton steam"}),
-    // ((T)rustyShelf, asked for in Boxshelf's discussions)
+    // (RustyShelf, asked for in Boxshelf's discussions)
     T("Console box art","pc.consoleBox",false,"Each PC game shows the box of its newest console release (PS5, Xbox Series X|S, PS4, Xbox One or Switch), with a Steam band where the console's logo was. Made in the background from the box art database (box art downloads build it the first time). A cover you chose always comes first; games with no console release keep their own art.",{rescan:true,keys:"console box physical case ps5 xbox switch steam cover retail"}),
-    // ((T)rustyShelf, discussion 15) the colour of a PC game's console box: each console's own (PS blue, Xbox green…), one
+    // (RustyShelf, discussion 15) the colour of a PC game's console box: each console's own (PS blue, Xbox green…), one
     // colour for every PC game, or one per console
     C("Console box color","pc.boxColor",BOX_COLORS,"","The case colour of PC games shown in their console box. Each console's own keeps the PlayStation blue, Xbox green and Switch red; any other choice gives every PC game that one colour. Box color per console, below, sets one console's on its own.",{when:()=>!!gp("pc.consoleBox"),rescan:true,keys:"color colour case box console pc steam blue green single one"}),
     M("Box color per console","pc-boxcolors","One case colour for the PC games in a given console's box (PS5, PS4, Xbox Series X|S, Xbox One, Switch).","Each console's PC games in a colour of your choice. Same as above follows Console box color.",
@@ -181,12 +181,12 @@ function build(){
     F("Steam folder","steam.path","folder","The folder that contains steam.exe. Found automatically; change it only if Steam lives somewhere unusual.",{ph:"C:\\Program Files (x86)\\Steam",rescan:true,want:"dir",pickTitle:"Choose your Steam folder"}),
     A("Get Steam","Open site","Opens Steam's download page in your browser.",()=>openLink(OFFICIAL.steam)),
     // (beta.4) Epic's installs join the PC shelf (main/pcgames.js reads its install list; Play goes through its launcher)
-    T(onLinux()?"Show Epic Games":"Show installed Epic Games","pc.epic",true,onLinux()?"Adds every game on your Epic account to the PC shelf. The ones not installed are greyed: Play installs them. (T)rustyShelf starts them through Wine / Proton, signed in to your Epic account.":"Adds the games the Epic Games Launcher has installed to the PC shelf. They start through the Epic launcher, so its sign-in and cloud saves work as usual.",{rescan:true,keys:"epic games store fortnite launcher",sub:()=>pcCount("epic")}),
+    T(onLinux()?"Show Epic Games":"Show installed Epic Games","pc.epic",true,onLinux()?"Adds every game on your Epic account to the PC shelf. The ones not installed are greyed: Play installs them. RustyShelf starts them through Wine / Proton, signed in to your Epic account.":"Adds the games the Epic Games Launcher has installed to the PC shelf. They start through the Epic launcher, so its sign-in and cloud saves work as usual.",{rescan:true,keys:"epic games store fortnite launcher",sub:()=>pcCount("epic")}),
     // (beta.7) more stores: each one's installs join the PC shelf (main/pcgames.js storeGames)
-    T("Show installed GOG games","pc.gog",true,"Adds the games GOG Galaxy has installed to the PC shelf. GOG games have no copy protection, so (T)rustyShelf starts them itself, with the Home menu and quit combo like any game.",{rescan:true,keys:"gog galaxy store",sub:()=>pcCount("gog")}),
+    T("Show installed GOG games","pc.gog",true,"Adds the games GOG Galaxy has installed to the PC shelf. GOG games have no copy protection, so RustyShelf starts them itself, with the Home menu and quit combo like any game.",{rescan:true,keys:"gog galaxy store",sub:()=>pcCount("gog")}),
     T("Show installed Ubisoft games","pc.ubisoft",true,"Adds the games Ubisoft Connect has installed to the PC shelf. They start through Ubisoft Connect, so its sign-in and cloud saves work as usual.",{rescan:true,keys:"ubisoft connect uplay store",sub:()=>pcCount("ubisoft")}),
     T("Show installed EA games","pc.ea",true,"Adds the games the EA app has installed to the PC shelf. They start through the EA app, so its sign-in and cloud saves work as usual.",{rescan:true,keys:"ea app origin electronic arts store",sub:()=>pcCount("ea")}),
-    T("Show installed HoYoPlay games","pc.hoyoplay",true,"Adds Genshin Impact, Honkai: Star Rail, Zenless Zone Zero and Honkai Impact 3rd, as HoYoPlay lists them, to the PC shelf. (T)rustyShelf starts the game itself, so HoYoPlay doesn't have to run; a game that needs administrator rights gets Windows' usual prompt. Updates stay in HoYoPlay.",{rescan:true,keys:"hoyoplay hoyoverse genshin honkai star rail zenless mihoyo",sub:()=>pcCount("hoyoplay")}),
+    T("Show installed HoYoPlay games","pc.hoyoplay",true,"Adds Genshin Impact, Honkai: Star Rail, Zenless Zone Zero and Honkai Impact 3rd, as HoYoPlay lists them, to the PC shelf. RustyShelf starts the game itself, so HoYoPlay doesn't have to run; a game that needs administrator rights gets Windows' usual prompt. Updates stay in HoYoPlay.",{rescan:true,keys:"hoyoplay hoyoverse genshin honkai star rail zenless mihoyo",sub:()=>pcCount("hoyoplay")}),
     T("Show installed Xbox games","pc.xbox",true,"Adds the games the Xbox app has installed (Game Pass included) to the PC shelf. They start like any Xbox app game, signed in with your Microsoft account.",{rescan:true,keys:"xbox game pass microsoft store",sub:()=>pcCount("xbox")}),
     M("Storage","pcstorage","Every installed PC game with its size, by drive, and how much room each drive has.","The PC games that are installed (Steam, Epic, GOG, HoYoPlay and the PC games folder) with the room they take, on each drive, biggest first.",[{t:"dyn",fn:pcStorageRows}],{when:()=>!!api.pcStorage,keys:"storage disk space drive size games installed free",sub:()=>({text:pcStor&&pcStor.drives?`${pcStor.drives.length} drive${pcStor.drives.length===1?"":"s"}`:"Disk space per drive"})}),
     {t:"dyn",fn:pcFolderRows}, // the PC games folder: each folder in it is a game
@@ -197,9 +197,9 @@ function build(){
   {g:"Games",id:"apps",name:"Apps",ic:"apps",dot:()=>Object.values(cfg.apps||{}).some(a=>a&&a.enabled!==false&&a.path)?"ok":null,lead:"Stremio and Nuvio, launched from the Media shelf.",rows:appRows},
   {g:"Look & sound",id:"display",name:"Display",ic:"display",lead:"How the shelf looks from the couch.",rows:[
     C("Language","ui.language",[["en","English"],["pt","Português (Brasil)"]],"en","The language the screen and the system windows (open, save, errors) are shown in. The screen reloads to switch.",{keys:"language idioma portuguese portugues brasil translate english",live:()=>{(async()=>{try{await save()}catch{}location.reload()})()}}),
-    // ((T)rustyShelf, Discord Rich Presence: main/presence.js) "Playing …" on your Discord profile while a game runs
+    // (RustyShelf, Discord Rich Presence: main/presence.js) "Playing …" on your Discord profile while a game runs
     T("Show what I'm playing on Discord","ui.discordPresence",false,"While a game runs, your Discord profile says \"Playing <title>\". It needs a Discord application id (below): make one free at discord.com/developers, and paste its id.",{keys:"discord presence rich status playing activity"}),
-    X("Discord application ID","ui.discordAppId","The number from your Discord application's page (General Information). Nothing is sent anywhere else: (T)rustyShelf only talks to the Discord app on this computer.",{ph:"Paste the id here",keys:"discord application id client"}),
+    X("Discord application ID","ui.discordAppId","The number from your Discord application's page (General Information). Nothing is sent anywhere else: RustyShelf only talks to the Discord app on this computer.",{ph:"Paste the id here",keys:"discord application id client"}),
     C("Interface size","ui.uiScale",[[1,"Standard"],[1.15,"Large"],[1.3,"Extra large"]],1,"Bigger text and buttons for a TV across the room.",{more:"Large suits most 55\" and bigger TVs at 2–3 m. Extra large for very far seating.",live:()=>fit(),keys:"zoom text big small scale"}),
     C("Box scale","ui.boxScale",[[0.8,"80%"],[0.9,"90%"],[1,"100%"],[1.1,"110%"],[1.2,"120%"]],1,"Scale of the 3D game boxes on your shelves.",{more:"Adjust box height and width to your liking.",live:v=>applyUi({boxScale:+v}),keys:"box scale size height width zoom"}),
     T("Auto-hide navigation shortcuts","ui.autoHideHints",false,"Fade out the bottom shortcut hints after a few seconds of inactivity. Pressing any button or moving the mouse brings them back.",{keys:"auto hide navigation shortcuts hints bottom timeout",live:v=>applyUi({autoHideHints:v})}),
@@ -208,7 +208,7 @@ function build(){
     {t:"theme",label:"Theme",info:"The colour and mood behind your shelves. This page takes on each theme's colour as you move through them; close Settings to see it on your shelf.",opts:()=>THEMES.map(t=>[t[0],t[1]]),...bindv("ui.theme","spectrum"),live:v=>{applyTint();clearTimeout(themeT);themeT=setTimeout(()=>shelf("setTheme",v),150)},keys:"spectrum classic keys arcade aurora midnight artwork blur picture wallpaper game art cube blue shift swirl pocket oled walnut forest crt vhs synthwave background colour color"},
     // (1.76, Windows) custom themes: a picture becomes a theme (a folder in Custom themes\ with the picture and a theme.json); (1.78) on a page of their own
     M("Custom themes","custom-themes","Make a theme from any picture, or open the folder your themes live in.","A picture becomes a theme behind your shelves.",[
-    A("Make a theme from a picture","Choose","Pick any picture (JPG, PNG, WebP or SVG). (T)rustyShelf makes a theme from it and shows it behind your shelves. Change its name, shade or glow later in its theme.json.",async()=>{
+    A("Make a theme from a picture","Choose","Pick any picture (JPG, PNG, WebP or SVG). RustyShelf makes a theme from it and shows it behind your shelves. Change its name, shade or glow later in its theme.json.",async()=>{
       const f=await pick({kind:"file",title:"Choose a picture for your theme",filters:[{name:"Pictures",extensions:["jpg","jpeg","png","webp","svg"]}]}),file=typeof f==="string"?f:f&&f.path;if(!file)return;
       try{const id=await api.customThemeCreate(file);await shelf("reloadCustomThemes");if(id&&(window.BS_CUSTOM_THEMES||[]).some(t=>t.id===id)){sp("ui.theme",id);shelf("setTheme",id);applyTint();changed(null);const t=window.BS_CUSTOM_THEMES.find(x=>x.id===id);toast(`New theme: ${t?t.name:"your picture"}`)}else toast("Theme made. Find themes again to see it")}catch(e){toast(errMsg(e))}},
       {when:()=>!!api.customThemeCreate,keys:"custom own theme picture wallpaper photo image background make create",ns:true}),
@@ -217,7 +217,7 @@ function build(){
     A("Find themes again","Find","Looks in the custom themes folder again after you add, change or remove a theme.",async()=>{await shelf("reloadCustomThemes");const n=(window.BS_CUSTOM_THEMES||[]).length;toast(n?`${n} custom theme${n===1?"":"s"}`:"No custom themes yet")},
       {when:()=>!!api.customThemes,keys:"custom themes reload refresh",ns:true})],
       {when:()=>!!api.customThemeCreate,keys:"custom own themes picture wallpaper photo image background make create folder"}),
-    // ((T)rustyShelf) Looks: the theme, size, clock, order, filter and sound you have now, saved by name and put back later in one press
+    // (RustyShelf) Looks: the theme, size, clock, order, filter and sound you have now, saved by name and put back later in one press
     M("Looks","looks","Save the look you have now (theme, size, clock, order, filter and sound) under a name, and switch back to it later.","A look keeps the settings that make the shelf look and sound the way it does. Applying one sets them all and reloads the screen.",[{t:"dyn",fn:looksRows}],
       {keys:"looks look workspace preset layout theme profile save colour color",sub:()=>({text:looks().length?`${looks().length} saved`:"Save the look you have now"})}),
     C("Clock","ui.clock",[["full","Day, date and time"],["time","Time only"],["off","Hidden"]],"full","What shows in the top corner of the shelf.",{keys:"time date",live:v=>applyUi({clock:v})}),
@@ -228,8 +228,8 @@ function build(){
       get:()=>{const s=api.bottomScreen&&api.bottomScreen.status();return s&&typeof s.enabled==="boolean"?(s.enabled?"on":"off"):(gp("ui.bottomScreen")||"on")},
       sub:()=>{const s=api.bottomScreen&&api.bottomScreen.status();return s&&s.builtIn===false?{text:`A second display was found${s.name?` (${s.name})`:""}. On this device (${s.device||"not a Thor"}) it stays off unless you turn it on.`}:null}}),
     H("Starting up"),
-    C("Startup animation","ui.bootIntro",[["ripple","Logo + ripple"],["fade","Logo + fade"],["off","Off"]],"ripple","The (T)rustyShelf logo shows while your shelf loads, then the games come in: the one you were on first, rippling out to each side, or the whole shelf fading up together. Off starts straight on the shelf.",{keys:"boot intro",live:v=>{try{localStorage.setItem("bootIntro",v)}catch{}}}),
-    C("Open into","ui.openInto",[["last","Last shelf"],["home","Home shelf"],["museum","Museum"]],"last","Where (T)rustyShelf goes when it starts: the console shelf you were on last time, Home (continue playing and favourites), or straight into the museum.",{more:"Museum: after the (T)rustyShelf logo the lights come up in the museum overview (a little slower to start than the shelf). B still takes you to the shelf any time.",keys:"start startup boot launch open first home museum shelf",live:v=>applyUi({openInto:v})}),
+    C("Startup animation","ui.bootIntro",[["ripple","Logo + ripple"],["fade","Logo + fade"],["off","Off"]],"ripple","The RustyShelf logo shows while your shelf loads, then the games come in: the one you were on first, rippling out to each side, or the whole shelf fading up together. Off starts straight on the shelf.",{keys:"boot intro",live:v=>{try{localStorage.setItem("bootIntro",v)}catch{}}}),
+    C("Open into","ui.openInto",[["last","Last shelf"],["home","Home shelf"],["museum","Museum"]],"last","Where RustyShelf goes when it starts: the console shelf you were on last time, Home (continue playing and favourites), or straight into the museum.",{more:"Museum: after the RustyShelf logo the lights come up in the museum overview (a little slower to start than the shelf). B still takes you to the shelf any time.",keys:"start startup boot launch open first home museum shelf",live:v=>applyUi({openInto:v})}),
     // (beta.11, Android) how big everything is: the page's layout width (android-early.js). Automatic: by the screen's
     // size and Android's font size. A change redraws the page (settings saved first)
     ...(window.bsPlatform&&bsPlatform.os==="android"?[C("Text size","ui.textSize",[["auto","Automatic"],["normal","Normal"],["large","Large"],["larger","Larger"]],"auto","How big the text and everything else is. Automatic goes by your screen's size and Android's font size.",{keys:"text size font bigger larger small read zoom scale accessibility",live:v=>{try{localStorage.setItem("bs-textsize",v)}catch{}const cur=window.__bsLayoutW||1440;toast("Resizing…");Promise.resolve(save()).catch(()=>{}).then(()=>setTimeout(()=>{if(({normal:1440,large:1280,larger:1152})[v]!==cur||v==="auto")location.reload()},350))}})]:[]),
@@ -239,44 +239,44 @@ function build(){
     H("More"),
     M("Screen & motion","display-more","Which screen, fullscreen, fitting the picture to your TV, reduce motion and the box shine.","Set these once for your TV.",[
       {t:"choice",label:"Screen mode",opts:[["full","Full screen"],["window","Window"]],path:"ui.screenMode",d:"full",get:()=>smMode(),set:v=>sp("ui.screenMode",v),
-        info:"Full screen: like a console, with the taskbar hidden while games run. Window: (T)rustyShelf in a window you can move and size (it opens where you left it) and the taskbar always there, so you can click away any time. F11 switches too.",
+        info:"Full screen: like a console, with the taskbar hidden while games run. Window: RustyShelf in a window you can move and size (it opens where you left it) and the taskbar always there, so you can click away any time. F11 switches too.",
         keys:"screen mode full screen fullscreen window windowed taskbar f11 desktop",when:smOn,live:v=>{if(api.setScreenMode)Promise.resolve(api.setScreenMode(v)).catch(e=>toast(errMsg(e)))}}, // (upstream beta.12, Seamless play)
-      T("Start in fullscreen","ui.startFullscreen",true,"Opens (T)rustyShelf fullscreen. Press F11 any time to switch.",{keys:"full screen window",when:()=>!smOn()}),
-      T("Hide the taskbar during games","ui.hideTaskbar",true,"Nothing but (T)rustyShelf and your game on screen: the Windows taskbar on the screen (T)rustyShelf is on is hidden while a game starts, runs and closes, and comes back on the shelf. Your other screens keep theirs.",{keys:"taskbar windows bar immersion flash desktop start menu",when:()=>!(smOn()&&smMode()==="window")}),
-      C("Screen","ui.display",()=>displays,"","Which screen (T)rustyShelf opens on, for a PC with both a monitor and a TV. Games open on the same screen.",{when:()=>!!(displays&&displays.length),keys:"monitor tv hdmi output display second",live:v=>{if(api.moveToDisplay){const d=(displays||[]).find(x=>x[0]===v);Promise.resolve(api.moveToDisplay(v||(d&&d[2])||"")).catch(e=>toast(errMsg(e)))}}}),
+      T("Start in fullscreen","ui.startFullscreen",true,"Opens RustyShelf fullscreen. Press F11 any time to switch.",{keys:"full screen window",when:()=>!smOn()}),
+      T("Hide the taskbar during games","ui.hideTaskbar",true,"Nothing but RustyShelf and your game on screen: the Windows taskbar on the screen RustyShelf is on is hidden while a game starts, runs and closes, and comes back on the shelf. Your other screens keep theirs.",{keys:"taskbar windows bar immersion flash desktop start menu",when:()=>!(smOn()&&smMode()==="window")}),
+      C("Screen","ui.display",()=>displays,"","Which screen RustyShelf opens on, for a PC with both a monitor and a TV. Games open on the same screen.",{when:()=>!!(displays&&displays.length),keys:"monitor tv hdmi output display second",live:v=>{if(api.moveToDisplay){const d=(displays||[]).find(x=>x[0]===v);Promise.resolve(api.moveToDisplay(v||(d&&d[2])||"")).catch(e=>toast(errMsg(e)))}}}),
       S("Fit to TV","ui.safeArea",100,90,100,1,v=>v+"%","Shrinks everything slightly if your TV cuts off the edges of the picture (overscan). Watch the corners of the screen while you change it.",{keys:"overscan safe area edges cut off zoom",live:v=>{applyUi({safeArea:v});fit()}}),
       T("Reduce motion","ui.reduceMotion",false,"Tones down the startup ripple, the museum walk-in and the moving theme backgrounds.",{keys:"animation accessibility motion sickness",live:v=>{applyUi({reduceMotion:v});document.body.classList.toggle("bss-reduce",!!v)}}),
       C("Box shine","ui.boxShine",[["on","On"],["less","Less"],["off","Off"]],"on","The shine that glides over the box front when you stop on a game. Less leaves it to the landed game; Off turns it off completely.",{keys:"box shine sheen gloss glare glossiness light reflection finish cover",live:v=>applyUi({boxShine:v})}),
     ]),
   ]},
-  {g:"Look & sound",id:"perf",name:"Performance",ic:"perf",lead:"One setting for how much (T)rustyShelf asks of your graphics card.",rows:[
+  {g:"Look & sound",id:"perf",name:"Performance",ic:"perf",lead:"One setting for how much RustyShelf asks of your graphics card.",rows:[
     C("Performance","ui.performance",[["auto","Automatic"],["high","High"],["balanced","Balanced"],...(window.bsPlatform&&bsPlatform.os==="android"?[["handheld","Handheld"]]:[]),["low","Low"]],"auto",perfWhy+", and lets the museum render a touch softer whenever frames run slow.",{more:"High: everything on (reflections, glow, shadows, full resolution).\nBalanced: lighter shadows, background at 30 fps.\nLow: still background, no blur or shadows, museum at 0.8×.\nHandheld (Android): no reflections or glow pulse, no museum shadows, background at 30 fps.\nVisual effects and museum shadows follow this level.",keys:"fps lag slow graphics smooth effects reflections glow shadows",live:v=>shelf("setPerformance",v)}),
   ]},
   {g:"Look & sound",id:"sound",name:"Sound",ic:"sound",lead:"Interface sounds, menu music, songs and the museum's room tone.",rows:[
     T("Interface sounds","ui.sound",true,"Ticks, whooshes and chimes as you move around.",{live:v=>shelf("sound",{enabled:v,preview:v?"open":null})}),
-    S("Volume","ui.volume",.7,0,1,.05,v=>Math.round(v*100)+"%","How loud (T)rustyShelf's own sounds are. Games and apps aren't affected.",{keys:"loud quiet",live:v=>{shelf("sound",{volume:v});soundSoon("open")}}),
+    S("Volume","ui.volume",.7,0,1,.05,v=>Math.round(v*100)+"%","How loud RustyShelf's own sounds are. Games and apps aren't affected.",{keys:"loud quiet",live:v=>{shelf("sound",{volume:v});soundSoon("open")}}),
     {t:"choice",label:"Voice",opts:[["aero","Aero"],["melody","Melody"],["musicbox","Music box"]],path:"ui.soundTheme",d:"aero",get:()=>voiceOf(gp("ui.soundTheme")),set:v=>sp("ui.soundTheme",v),info:"Aero: soft, pure and airy; each console's shelf plays in its own key.\nMelody: a soft piano — every move plays the next note of a song, and the song changes every few minutes.\nMusic box: small steel tines, warm and gentle.",keys:"sound theme piano",live:v=>shelf("sound",{theme:v,preview:"open"})},
-    C("Menu music","ui.music",()=>[["drift","Drift"],["night","Night"],["glow","Glow"],...(api.musicList?[["own","Your music"]]:[]),["off","Off"]],"off","Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. Your music: the audio files (mp3, ogg, wav, flac, m4a, opus) in the Music folder beside (T)rustyShelf, shuffled. It fades out when a game starts.",{get:()=>{const v=gp("ui.music");return ({calm:"drift",lounge:"night",chime:"glow"})[v]||v||"drift"} /* (1.75's names) */,keys:"ambient background music bgm soundtrack",live:v=>{shelf("sound",{music:v});if(v==="own"&&api.musicList)api.musicList().then(l=>{if(!l||!l.length)toast("No music yet: put audio files in the Music folder (the Music folder row opens it)")}).catch(()=>{})}}),
+    C("Menu music","ui.music",()=>[["drift","Drift"],["night","Night"],["glow","Glow"],...(api.musicList?[["own","Your music"]]:[]),["off","Off"]],"off","Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. Your music: the audio files (mp3, ogg, wav, flac, m4a, opus) in the Music folder beside RustyShelf, shuffled. It fades out when a game starts.",{get:()=>{const v=gp("ui.music");return ({calm:"drift",lounge:"night",chime:"glow"})[v]||v||"drift"} /* (1.75's names) */,keys:"ambient background music bgm soundtrack",live:v=>{shelf("sound",{music:v});if(v==="own"&&api.musicList)api.musicList().then(l=>{if(!l||!l.length)toast("No music yet: put audio files in the Music folder (the Music folder row opens it)")}).catch(()=>{})}}),
     A("Music folder","Open","Drop your own audio files here (mp3, ogg, wav, flac, m4a, opus; sub-folders too), then pick Your music under Menu music and press Reload music.",()=>api.openMusicFolder&&api.openMusicFolder(),{when:()=>!!api.musicList,keys:"music folder own songs mp3 audio files"}),
     A("Reload music","Reload","Reads your Music folder again.",async()=>{const n=await shelf("reloadMusic");toast(`${n||0} track${n===1?"":"s"} found`)},{when:()=>!!api.musicList,keys:"reload music own audio"}),
-    S("Music volume","ui.musicLevel",.4,0,1,.05,v=>Math.round(v*100)+"%","How loud the menu music plays, under (T)rustyShelf's other sounds.",{keys:"ambient background music bgm quiet loud",when:()=>gp("ui.music")!=="off",live:v=>shelf("sound",{musicLevel:v})}),
+    S("Music volume","ui.musicLevel",.4,0,1,.05,v=>Math.round(v*100)+"%","How loud the menu music plays, under RustyShelf's other sounds.",{keys:"ambient background music bgm quiet loud",when:()=>gp("ui.music")!=="off",live:v=>shelf("sound",{musicLevel:v})}),
     C("Boot sound","ui.bootSound",[["chime","Chime"],["crystal","Crystal"],["pulse","Pulse"],["horizon","Horizon"],["keys","Keys"]],"chime","The sting that plays with a console's boot animation.",{live:v=>{shelf("sound",{boot:v});soundSoon("boot")}}),
-    // ((T)rustyShelf, beta discussion 36) the boot sting on its own, under the interface volume
+    // (RustyShelf, beta discussion 36) the boot sting on its own, under the interface volume
     S("Boot sound volume","ui.bootVolume",1,0,1,.05,v=>Math.round(v*100)+"%","How loud the boot sound plays, on its own: lower it without making the menu sounds quieter. It still follows the overall Volume.",{keys:"boot sound volume loud quiet sting startup",live:v=>{shelf("sound",{bootVolume:v});soundSoon("boot")}}),
     C("Boot screen length","ui.bootLen",[["short","Short"],["normal","Normal"],["long","Long"]],"normal","How long a console's boot screen stays up before the game starts (the built-in one; a console's own boot video plays to its end).",{keys:"boot animation intro launch time longer",when:()=>!!(window.bsPlatform&&bsPlatform.os==="android")}), // (Android only: the PC keeps its short one)
-    C("Output device","ui.audioOut",()=>outputs,"","Where (T)rustyShelf's sounds play. Games use their own emulator's audio setting.",{when:()=>!!(outputs&&outputs.length),keys:"audio hdmi speakers headphones",live:v=>applyUi({audioOut:v})}),
+    C("Output device","ui.audioOut",()=>outputs,"","Where RustyShelf's sounds play. Games use their own emulator's audio setting.",{when:()=>!!(outputs&&outputs.length),keys:"audio hdmi speakers headphones",live:v=>applyUi({audioOut:v})}),
     A("Next song","Skip","Moves on to the next song.",()=>{if(window.Sound&&Sound.nextSong){Sound.nextSong("pick");if(Sound.play)Sound.play("shelf");const s=Sound.song&&Sound.song();if(s)toast("Now playing: "+s.name)}},{when:melody,sub:()=>{const s=window.Sound&&Sound.song&&Sound.song();return s?{text:"Now playing: "+s.name}:null}}),
     H("More"),
     M("Room tone & songs","sound-more","The museum's room tone, and (with Melody) your own songs.","The quiet room sound in the museum, and the songs Melody plays.",[
       H("Museum"),
       T("Room tone in the museum","ui.museumRoom",true,"A quiet room sound while you walk the museum."),
       H("Songs",{when:melody}),
-      T("Include the built-in songs","ui.builtInSongs",true,"With Melody, (T)rustyShelf's own songs play along with any MIDI files in your Songs folder.",{when:melody,live:v=>{if(window.Sound&&Sound.set)Sound.set({builtInSongs:v})}}),
+      T("Include the built-in songs","ui.builtInSongs",true,"With Melody, RustyShelf's own songs play along with any MIDI files in your Songs folder.",{when:melody,live:v=>{if(window.Sound&&Sound.set)Sound.set({builtInSongs:v})}}),
       A("Songs folder","Open","Drop .mid files here (piano versions of game themes work great), then press Reload.",()=>api.openSongsFolder&&api.openSongsFolder(),{when:melody,keys:"midi"}),
       A("Reload songs","Reload","Reads your Songs folder again.",async()=>{const r=await shelf("reloadSongs");if(r)toast(`${r.songs} song${r.songs===1?"":"s"} loaded`+(r.skipped&&r.skipped.length?` · ${r.skipped.length} couldn't be read`:""))},{when:melody}),
     ]),
   ]},
-  {g:"(T)rustyShelf",id:"shelf",name:"Shelf",ic:"shelf",lead:"How the shelf behaves: console order, shuffle and the idle show.",rows:[
+  {g:"RustyShelf",id:"shelf",name:"Shelf",ic:"shelf",lead:"How the shelf behaves: console order, shuffle and the idle show.",rows:[
     /* (beta.11, Windows and Linux) the first-run tour again (tour.js): Settings closes, then it starts on the shelf */
     ...(window.bsPlatform&&bsPlatform.os==="android"?[]:[A("Show the tour","Start","A one-minute look at the basics: consoles, Details, Inspect, the quick menu, the Art Studio and where to add games.",()=>{Promise.resolve(close()).then(()=>setTimeout(()=>{if(window.BS_TOUR)BS_TOUR.start()},450))},{keys:"tour tutorial intro help guide basics how learn"})]),
     A("Console order","Reorder","The order of the consoles along the top. Home always comes first.",()=>openSub({kind:"order"}),{keys:"shelf order arrange tabs move"}),
@@ -293,7 +293,7 @@ function build(){
     C("Attract mode starts after","ui.attractMinutes",[[2,"2 min"],[3,"3 min"],[5,"5 min"],[10,"10 min"],[20,"20 min"]],3,"How long without input before the tour begins.",{keys:"idle",live:v=>applyUi({attractMinutes:v})}),
     C("Dim the screen after","ui.dimMinutes",[[0,"Never"],[10,"10 min"],[20,"20 min"],[30,"30 min"]],0,"Fades the screen to black after a long idle spell, to protect OLED TVs. Any button wakes it.",{keys:"oled burn in screensaver blank sleep",live:v=>applyUi({dimMinutes:v})}),
   ]},
-  {g:"(T)rustyShelf",id:"museum",name:"Museum",ic:"museum",lead:"Your collection's room. Changes preview live behind this page; all of them can also be changed inside the museum (Y).",rows:[
+  {g:"RustyShelf",id:"museum",name:"Museum",ic:"museum",lead:"Your collection's room. Changes preview live behind this page; all of them can also be changed inside the museum (Y).",rows:[
     H("Lighting"),
     {t:"choice",label:"Scene",opts:()=>musOpts("light"),...bindv("ui.museumLight","gallery"),set:v=>{sp("ui.museumLight",v);if(cfg.ui.museumStyle)cfg.ui.museumStyle.timeOfDay=false},info:"The whole room's light at once, cross-faded as you change it. Classic is the original look; Neon night lights each shelf in its console's colour; Lights out leaves only the TV and the shelves' own glow.",keys:"lighting mood daylight evening neon spotlit gallery dark",preview:"mus",live:v=>shelf("setMuseumLight",v)},
     musT("Follow the time of day","timeOfDay","Daylight in the morning, Classic in the afternoon, Evening at night."),
@@ -313,7 +313,7 @@ function build(){
         musC("Size","tvSize","Small, medium or large.",{when:on}),
         musC("Position","tvPos","Left or right of the room, or in the middle between the shelves and the reading corner (which moves along to make room).",{when:on,keys:"left right centre center"}),
         musC("Channel","tvCh","What's on when you switch it on. At the TV, up and down change the channel too; Shuffle all mixes the other three.",{when:on,keys:"commercials trailers recently played",preview:null}),
-        musS("TV volume","tvVol",0,1,.1,pct,"On top of (T)rustyShelf's own volume.",{when:on,preview:null,keys:"sound loud"}),
+        musS("TV volume","tvVol",0,1,.1,pct,"On top of RustyShelf's own volume.",{when:on,preview:null,keys:"sound loud"}),
         musT("Mute the TV","tvMute","Pictures only.",{when:on,keys:"sound silent"}),
         musT("Sound only when I'm looking at it","tvNear","The sound fades in as you face the TV or walk up to it, and away as you leave.",{when:on,keys:"sound fade near"}),
         musS("CRT effect","tvCrt",0,1,.1,pct,"Scanlines, curved glass and glow on the TV's picture.",{when:on,keys:"scanlines curvature glow"}),
@@ -331,15 +331,15 @@ function build(){
       A("Reset the room",()=>asking("musreset")?"Press again":"Reset","Puts every museum setting back to how it started.",()=>twice("musreset",()=>{delete cfg.ui.museumStyle;cfg.ui.museumLight="gallery";shelf("setMuseumLight","gallery");changed(null);toast("The room is back to how it started")},"Press again to reset the room"),{warnBtn:()=>asking("musreset")}),
     ]),
   ]},
-  {g:"(T)rustyShelf",id:"pad",name:"Controller",ic:"pad",lead:"Pads, button prompts and the in-game Home menu.",rows:[
-    {t:"dyn",fn:()=>{const n=window.BS_padName?BS_padName():"";return [A(n?`In use: ${n}`:"No controller in use yet","Refresh",n?"The controller (T)rustyShelf last saw you press, and the buttons it shows for it. Press a button on another one to switch.":"Press a button on a controller and (T)rustyShelf shows what it is here.",()=>{try{listSig="";render()}catch{}},{keys:"detected controller which pad model dualsense xbox switch",ns:true})]}},
+  {g:"RustyShelf",id:"pad",name:"Controller",ic:"pad",lead:"Pads, button prompts and the in-game Home menu.",rows:[
+    {t:"dyn",fn:()=>{const n=window.BS_padName?BS_padName():"";return [A(n?`In use: ${n}`:"No controller in use yet","Refresh",n?"The controller RustyShelf last saw you press, and the buttons it shows for it. Press a button on another one to switch.":"Press a button on a controller and RustyShelf shows what it is here.",()=>{try{listSig="";render()}catch{}},{keys:"detected controller which pad model dualsense xbox switch",ns:true})]}},
     C("Button prompts","ui.buttons",[["auto","Match my controller"],["xbox","Xbox (A B X Y)"],["ps","PlayStation (shapes)"],["nintendo","Nintendo (B A Y X)"]],"auto","Changes the button pictures on screen.",{keys:"glyphs icons playstation xbox",live:v=>shelf("setButtons",v)}),
     C("Confirm button","ui.confirmButton",()=>{const st=padStyle(),L=st==="ps"?["Cross","Circle"]:st==="nintendo"?["B","A"]:["A","B"];return [["auto","Match my controller"],["a",`${L[0]} (bottom)`],["b",`${L[1]} (right)`]]},"auto","Which button selects. Match my controller: A on the right with a Switch pad, as on a Switch; the bottom button with Xbox and PlayStation pads.",{keys:"swap a b nintendo",live:v=>applyUi({confirmButton:v})}),
     C("Scroll speed","ui.scrollSpeed",[["relaxed","Relaxed"],["normal","Normal"],["fast","Fast"]],"normal","How quickly the shelf moves when you hold the stick or d-pad.",{keys:"repeat hold speed",live:v=>applyUi({scrollSpeed:v})}),
     T("Controller rumble","ui.rumble",true,"Short pulses as you play: launching a game, the shuffle landing, favouriting or hiding a game, changing shelf, and picking things up in the museum.",{keys:"vibration"}),
     ...(window.bsPlatform&&bsPlatform.os==="android"?[]:[
-      // ((T)rustyShelf, asked on Boxshelf's issue 1) a PlayStation pad that does nothing while Steam is open: Steam Input has taken it
-      A("PlayStation pad does nothing?","How","While Steam is open, Steam Input can take a DualSense or DualShock 4 for itself, and then (T)rustyShelf gets nothing from it. In Steam, open Settings → Controller and turn off Steam Input for PlayStation controllers, or close Steam while you use the shelf. If you start (T)rustyShelf from Steam (added as a non-Steam game), turn Steam Input off in its controller settings there instead.",
+      // (RustyShelf, asked on Boxshelf's issue 1) a PlayStation pad that does nothing while Steam is open: Steam Input has taken it
+      A("PlayStation pad does nothing?","How","While Steam is open, Steam Input can take a DualSense or DualShock 4 for itself, and then RustyShelf gets nothing from it. In Steam, open Settings → Controller and turn off Steam Input for PlayStation controllers, or close Steam while you use the shelf. If you start RustyShelf from Steam (added as a non-Steam game), turn Steam Input off in its controller settings there instead.",
         ()=>toast("Steam → Settings → Controller: turn off Steam Input for PlayStation controllers, or close Steam"),{ns:true,keys:"playstation ps5 ps4 dualsense dualshock steam input not working nothing controller pad"}),
       // (1.78) the Wii remote on a page of its own (only DolphinBar owners need it); its row shows On / Off
       M("Wii remote","pad-wiimote","A Wii remote on a Mayflash DolphinBar: point to move the hand, A to click. Turn it on or off, and how you hold it.","A Wii remote on a Mayflash DolphinBar, as a pointer and a controller.",[
@@ -352,7 +352,7 @@ function build(){
     T("Home menu","ui.homeMenu",true,"In a game: press Guide (or hold View / Back for a second) to pause, save, load, take a screenshot or quit. On the shelf: the same button opens Home shelf, Museum, Settings and Power. Keyboard: Home or P.",{more:"If Guide opens the Xbox Game Bar instead, turn off 'Open Game Bar using this button on a controller' in Windows Settings → Gaming."}),
     C("Home menu layout","ui.homeLayout",[["side","Side guide"],["center","Centred card"]],"side","Where the Home menu appears.",{when:()=>gp("ui.homeMenu")!==false}),
     H("Quit combo"),
-    T("Quit combo","ui.quitCombo",true,"Hold these buttons about a second while a game runs to close the emulator and come back; hold them on the shelf to quit (T)rustyShelf."),
+    T("Quit combo","ui.quitCombo",true,"Hold these buttons about a second while a game runs to close the emulator and come back; hold them on the shelf to quit RustyShelf."),
     {t:"choice",label:"Buttons to hold",when:()=>gp("ui.quitCombo")!==false,opts:comboOpts,...bindv("ui.quitComboKeys","l3+r3"),set:v=>{sp("ui.quitComboKeys",v);sp("ui.quitComboChosen",true)},info:"The buttons for the quit combo. They're the same buttons by position on every pad.",keys:"quit combo exit close game hold l3 r3 lb rb start back select plus minus options share"},
   ]},
   // (1.80) Box art first: the summary in the heading, Art Studio as the page's first row (with the games that have no cover)
@@ -362,19 +362,19 @@ function build(){
       H("Consoles",{em:()=>{const L=Object.values(sJobs).filter(j=>j.state==="run");return L.length?`${L.length} re-fetch${L.length===1?"":"es"} running`:"Box art per console and per game"}}),
       {t:"dyn",fn:studioRows},
       H(""),
-      A("Refresh art database",()=>lbRef?"Cancel":"Refresh","Downloads the LaunchBox game database again (about 110 MB) and rebuilds (T)rustyShelf's index of it, so newer picture types (reconstructed fronts and backs, new scans) show up in Art Studio. Your box art isn't touched; the old index keeps working until the new one is ready.",refreshIndex,{when:()=>!!api.artRefreshIndex,warnBtn:()=>!!lbRef,keys:"launchbox index database rebuild update metadata refresh reconstructed",sub:()=>({text:refText(),cls:lbRef?"warn":""})}),
+      A("Refresh art database",()=>lbRef?"Cancel":"Refresh","Downloads the LaunchBox game database again (about 110 MB) and rebuilds RustyShelf's index of it, so newer picture types (reconstructed fronts and backs, new scans) show up in Art Studio. Your box art isn't touched; the old index keeps working until the new one is ready.",refreshIndex,{when:()=>!!api.artRefreshIndex,warnBtn:()=>!!lbRef,keys:"launchbox index database rebuild update metadata refresh reconstructed",sub:()=>({text:refText(),cls:lbRef?"warn":""})}),
     ],{when:()=>!!api.artStudio,keys:"art studio box art covers style look region hd special edition missing no cover",btn:()=>{const n=artNoCover();return n?`${n} without a cover`:""},warnBtn:()=>artNoCover()>0,
       sub:()=>{const L=Object.values(sJobs).filter(j=>j.state==="run"&&!j.man);return L.length?{text:`${L.length} re-fetch${L.length===1?"":"es"} running`,cls:"warn"}:{text:"Choose how each console's box art looks, and fix any game"}}}),
     T("Fetch box art for new games","ui.autoCovers",false,api.artStudio?"Covers, backs, spines and discs for new games, in the background, the way each console's shelf style asks. Searching sends game titles to LaunchBox, libretro, GameTDB and GamesDatabase.org; no accounts needed. With a SteamGridDB key, PC games with no cover get a poster from SteamGridDB too (their titles are sent there).":"Covers, backs, spines and discs for new games, in the background. Searching sends game titles to LaunchBox, libretro, GameTDB and GamesDatabase.org; no accounts needed. With a SteamGridDB key, PC games with no cover get a poster from SteamGridDB too (their titles are sent there).",{keys:"covers scrape download"}),
     ...(window.bsPlatform&&bsPlatform.os==="android"?[]:[T("Make missing backs and spines","ui.makeBacks",true,"A game with a cover but no scanned back or spine anywhere (most Switch 2 games, for now) gets them made: the back from its artwork, screenshots, description and rating, the spine in its console's style with the game's logo. A real scan replaces either as soon as one is found.",{keys:"back spine cover generate make missing switch 2"})]),
     // (Android swaps these two rows for its own by their old labels: android-api.js BS_SETTINGS_PATCH)
-    // ((T)rustyShelf, issue 14) one press to get all missing art, or to pick a stopped download up again
+    // (RustyShelf, issue 14) one press to get all missing art, or to pick a stopped download up again
     labelled(()=>artResumeOf()?"Resume box art download":"Get all missing art",A("Get all missing art",()=>AG.busy?"Running…":artResumeOf()?"Resume":"Get","One press: a box art download that stopped part way (cancelled, an update, the app closed) picks up where it was, with the same consoles and parts. With nothing to resume, every console still missing covers, backs, spines or discs gets them. Pictures you already have are kept.",agOneClick,
       {when:()=>!!api.artCoverage&&!!api.downloadCovers,keys:"resume continue missing box art covers one click download all",sub:()=>{const r=artResumeOf();return AG.busy?{text:"Downloading…",cls:"warn"}:r?{text:`Stopped part way · ${Object.keys(r.plan).length} console${Object.keys(r.plan).length===1?"":"s"} to finish`,cls:"warn"}:null}})),
     M(window.bsPlatform&&bsPlatform.os==="android"?"Download box art now":"Download missing art now","art-get","Pick the consoles and what to get (covers, backs, spines, discs), then download with progress and Cancel.","Pick the consoles and what to get. Pictures you already have are kept, and each console follows its Art Studio style.",[{t:"dyn",fn:artGetRows}],{when:()=>!!api.artCoverage&&!!api.downloadCovers,keys:"download box art now covers scrape",sub:()=>AG.busy?{text:"Downloading…",cls:"warn"}:AG.loading?{text:"Checking what you have"+(AG.chk?" · "+AG.chk.name:"")+"…"}:null}),
     H("Manuals"),
     T("Fetch manuals for new games","ui.autoManuals",false,"Finds the game's manual (archive.org and GamesDatabase.org) and turns it into pages you can read in Inspect.",{keys:"booklet"}),
-    T("Only sure English manuals","ui.manualSure",true,"Skips manuals (T)rustyShelf isn't sure about when you download them below. Off takes the best match for every game.",{keys:"language unsure"}),
+    T("Only sure English manuals","ui.manualSure",true,"Skips manuals RustyShelf isn't sure about when you download them below. Off takes the best match for every game.",{keys:"language unsure"}),
     M(window.bsPlatform&&bsPlatform.os==="android"?"Download manuals now":"Get manuals","man-get","Pick the consoles, then download their manuals with progress and Cancel.","Pick the consoles to look for manuals on. Manuals you already have are kept.",[{t:"dyn",fn:manGetRows}],{when:()=>!!api.manualCoverage&&!!api.findManuals,keys:"download manuals now booklet",sub:()=>MG.busy?{text:"Downloading…",cls:"warn"}:null}),
     M("Manuals by console","art-manuals","Every manual found for each game, per console: another language, region or sharper scan, or a PDF of your own.","Pick a console, then any game to see every manual found for it.",[
       {t:"dyn",fn:manualRows}, // Manual Studio: one row per console → its games → every manual for a game
@@ -389,7 +389,7 @@ function build(){
     C("Play previews","ui.previews",()=>window.bsPlatform&&bsPlatform.os==="android"?[["off","Off"],["details","In Details"]]:[["off","Off"],["details","In Details"],["shelf","Details and shelf"]],"off",
       "In Details: under the game's art, or in its Media tab. Details and shelf: softly behind the cases too while you rest on a game.",{keys:"video preview trailer snap movie playnite"}),
     // (beta.8) console trailers (main/ytclips.js): the switch, then the helper (fetched once) or what's kept
-    T("Console trailers","ui.previewClips",true,"Saves the first 20 seconds of a console game's YouTube trailer as a small clip, so it plays behind the shelf and in Details just like a Steam trailer. Made the first time you rest on a game, never in bulk, and kept in (T)rustyShelf's data folder (the Steam and console clips share 400 MB; the oldest go first).",{when:()=>gp("ui.previews")!=="off"&&clipOk(),keys:"console trailers youtube clips download playnite video preview shelf"}),
+    T("Console trailers","ui.previewClips",true,"Saves the first 20 seconds of a console game's YouTube trailer as a small clip, so it plays behind the shelf and in Details just like a Steam trailer. Made the first time you rest on a game, never in bulk, and kept in RustyShelf's data folder (the Steam and console clips share 400 MB; the oldest go first).",{when:()=>gp("ui.previews")!=="off"&&clipOk(),keys:"console trailers youtube clips download playnite video preview shelf"}),
     {t:"dyn",fn:clipRows},
     T("Play previews with sound","ui.previewSound",false,"Off: previews play silently (Steam's trailer clips are always silent).",{when:()=>gp("ui.previews")!=="off",keys:"video preview sound audio mute"}),
     C("Start a preview after","ui.previewDelay",[[0.5,"Half a second"],[1,"1 second"],[1.5,"1.5 seconds"],[2,"2 seconds"],[3,"3 seconds"],[5,"5 seconds"],[8,"8 seconds"],[10,"10 seconds"],[15,"15 seconds"]],1.5,"How long you rest on a game before its preview starts (on the shelf, half a second more, so browsing quickly stays calm).",{when:()=>gp("ui.previews")!=="off",keys:"video preview delay wait"}),
@@ -403,7 +403,7 @@ function build(){
     H("Find more"),
     A("Find on the Internet Archive","Browse","Search and download classic magazines and strategy guides. Only scans anyone may download are shown.",()=>legacy("reading"),{keys:"nintendo power game informer magazines guides archive.org download"}),
     H("Folders"),
-    F("Magazines & guides folder","ui.readingLibrary","folder","Magazines\\ and Guides\\ are kept in this folder. Changing it doesn't move anything already downloaded: copy the two folders across yourself.",{ph:"Beside (T)rustyShelf",d:"",want:"dir",pickTitle:"Choose a folder for your magazines and guides",keys:"reading corner folder path location",sub:()=>({text:readFolder("Magazines").replace(/[\\/]Magazines$/,"")})}),
+    F("Magazines & guides folder","ui.readingLibrary","folder","Magazines\\ and Guides\\ are kept in this folder. Changing it doesn't move anything already downloaded: copy the two folders across yourself.",{ph:"Beside RustyShelf",d:"",want:"dir",pickTitle:"Choose a folder for your magazines and guides",keys:"reading corner folder path location",sub:()=>({text:readFolder("Magazines").replace(/[\\/]Magazines$/,"")})}),
     A("Magazines folder","Open","PDF, CBZ / CBR, or a folder of page images per issue. Sub-folders become series (Magazines\\Nintendo Power\\Issue 12.pdf).",()=>api.openLibraryFolder&&api.openLibraryFolder("magazine"),{keys:"reading corner",sub:()=>({text:readFolder("Magazines")})}),
     A("Guides folder","Open","Strategy guides for the reading corner, in the same formats.",()=>api.openLibraryFolder&&api.openLibraryFolder("guide"),{keys:"reading corner strategy",sub:()=>({text:readFolder("Guides")})}),
     {t:"dyn",fn:readingOldRows}, // last: rows that turn up later must not move the ones a deep link counted
@@ -417,50 +417,50 @@ function build(){
     svcRow("screenscraper","Box fronts, backs, full wraps (for spines) and disc / cartridge art by region, offered in Art Studio.","screenscraper screen scraper account art studio box back spine disc"),
   ]},
   {g:"System",id:"phone",name:"Phone companion",ic:"phone",dot:()=>phone&&phone.on?"ok":phone&&phone.enabled&&phone.error?"warn":null,lead:"Browse your games on your phone, start one on the TV, read its manual, and use the phone as a remote and keyboard. The phone has to be on the same Wi-Fi as this PC.",rows:[
-    {t:"toggle",label:"Phone companion",info:"Runs a small web page on your home network for paired phones. Only phones that scanned the code (or typed the PIN) can use it; nothing is reachable from the internet. Windows may ask the first time whether to allow (T)rustyShelf on your network: choose Private networks.",get:()=>!!(phone&&phone.enabled),set:setPhone,nosave:true,keys:"phone mobile remote companion qr pair wifi app",when:()=>!!api.companionSet},
+    {t:"toggle",label:"Phone companion",info:"Runs a small web page on your home network for paired phones. Only phones that scanned the code (or typed the PIN) can use it; nothing is reachable from the internet. Windows may ask the first time whether to allow RustyShelf on your network: choose Private networks.",get:()=>!!(phone&&phone.enabled),set:setPhone,nosave:true,keys:"phone mobile remote companion qr pair wifi app",when:()=>!!api.companionSet},
     H("",{pair:true,when:()=>!!(phone&&phone.enabled)}),
     A("New PIN","New PIN","Makes a new PIN and code. Phones already paired stay paired.",newPhonePin,{when:()=>!!(phone&&phone.on),keys:"phone pin code"}),
-    {t:"choice",label:"Port",opts:[8730,8731,8732,8733,8734,8080,8888,9000,9730].map(p=>[p,String(p)]),d:8730,get:()=>phone&&phone.wantPort||8730,set:setPhonePort,nosave:true,info:"The network port the phone page uses. Change it only if another program already uses this one ((T)rustyShelf moves to the next free one by itself and says so above).",when:()=>!!(api.companionSet&&phone&&phone.enabled),keys:"phone port network"},
+    {t:"choice",label:"Port",opts:[8730,8731,8732,8733,8734,8080,8888,9000,9730].map(p=>[p,String(p)]),d:8730,get:()=>phone&&phone.wantPort||8730,set:setPhonePort,nosave:true,info:"The network port the phone page uses. Change it only if another program already uses this one (RustyShelf moves to the next free one by itself and says so above).",when:()=>!!(api.companionSet&&phone&&phone.enabled),keys:"phone port network"},
     H("Paired phones",{em:()=>{const n=phone&&phone.phones?phone.phones.length:0;return n?`${n} phone${n===1?"":"s"}`:""},when:()=>!!api.companionSet}),
     {t:"dyn",fn:phoneRows},
-    A("Forget all phones",()=>asking("phones")?"Press again":"Forget all","Unpairs every phone. Each one has to scan the code again to use (T)rustyShelf.",()=>twice("phones",()=>forgetPhone("all"),"Press again to forget every paired phone"),{when:()=>!!(phone&&phone.phones&&phone.phones.length),warnBtn:()=>asking("phones"),keys:"phone unpair forget"}),
+    A("Forget all phones",()=>asking("phones")?"Press again":"Forget all","Unpairs every phone. Each one has to scan the code again to use RustyShelf.",()=>twice("phones",()=>forgetPhone("all"),"Press again to forget every paired phone"),{when:()=>!!(phone&&phone.phones&&phone.phones.length),warnBtn:()=>asking("phones"),keys:"phone unpair forget"}),
   ]},
   {g:"System",id:"sys",name:"System",ic:"sys",lead:"Startup, folders and housekeeping.",rows:[
-    {t:"dyn",fn:deckRows}, // (beta.8) Linux / Steam Deck: Add (T)rustyShelf to Steam
-    {t:"toggle",label:"Start (T)rustyShelf with Windows",info:"Boots straight into the shelf when you sign in. Pair it with Start in fullscreen for a console-style setup.",get:()=>!!(autostart&&autostart.enabled),set:setAutostart,nosave:true,keys:"autostart boot login startup",when:()=>!!api.setAutostart},
-    A("Use (T)rustyShelf as the Home screen",()=>homeApp&&homeApp.isDefault?"On · change":"Off · set up","Makes the Home button open (T)rustyShelf, like a console. Android asks you to pick the Home app on its own screen; pick (T)rustyShelf there (or your old launcher to undo it).",async()=>{try{await api.openHomeSettings()}catch(e){toast(errMsg(e))}},{when:()=>!!api.openHomeSettings,keys:"home launcher default cocoon"}),
-    A("Exit to the device's home screen",()=>homeApp&&homeApp.previousLabel?"Open "+homeApp.previousLabel:"Exit","Opens the launcher you used before (T)rustyShelf. (T)rustyShelf stays ready in the background.",async()=>{try{await api.power("exitHome")}catch(e){toast(errMsg(e))}},{when:()=>!!api.openHomeSettings,keys:"exit launcher home cocoon stock"}),
+    {t:"dyn",fn:deckRows}, // (beta.8) Linux / Steam Deck: Add RustyShelf to Steam
+    {t:"toggle",label:"Start RustyShelf with Windows",info:"Boots straight into the shelf when you sign in. Pair it with Start in fullscreen for a console-style setup.",get:()=>!!(autostart&&autostart.enabled),set:setAutostart,nosave:true,keys:"autostart boot login startup",when:()=>!!api.setAutostart},
+    A("Use RustyShelf as the Home screen",()=>homeApp&&homeApp.isDefault?"On · change":"Off · set up","Makes the Home button open RustyShelf, like a console. Android asks you to pick the Home app on its own screen; pick RustyShelf there (or your old launcher to undo it).",async()=>{try{await api.openHomeSettings()}catch(e){toast(errMsg(e))}},{when:()=>!!api.openHomeSettings,keys:"home launcher default cocoon"}),
+    A("Exit to the device's home screen",()=>homeApp&&homeApp.previousLabel?"Open "+homeApp.previousLabel:"Exit","Opens the launcher you used before RustyShelf. RustyShelf stays ready in the background.",async()=>{try{await api.power("exitHome")}catch(e){toast(errMsg(e))}},{when:()=>!!api.openHomeSettings,keys:"exit launcher home cocoon stock"}),
     A("Rescan games","Rescan","Looks for new games in every folder now.",async()=>{await save();needRescan=false;toast("Rescanning…");try{await shelf("refresh",true);toast("Library rescanned")}catch(e){toast(errMsg(e))}},{keys:"refresh library scan"}),
-    // ((T)rustyShelf issue 7) the PC doesn't go to sleep in the middle of a box art download, an export or an import (main.js awake)
+    // (RustyShelf issue 7) the PC doesn't go to sleep in the middle of a box art download, an export or an import (main.js awake)
     T("Keep the PC awake during long jobs","ui.keepAwake",true,"While box art downloads, Export or Import everything runs, Add games reads a folder or the box art database is rebuilt, the PC doesn't go to sleep. The screen can still turn off. It goes back to normal as soon as the job ends.",{when:()=>!!api.awakeState,keys:"sleep prevent awake power standby suspend long job download export import"}),
     H("Backup & help"),
     A("Back up settings","Save","Saves your settings, favourites and play history to a file you can restore later or on a new PC. Keys and passwords aren't included.",backup,{when:()=>!!api.backupSettings,keys:"backup export"}),
     A("Restore settings","Open","Loads a backup file. Your current keys and passwords are kept.",restoreBackup,{when:()=>!!api.restoreSettings,keys:"backup import restore"}),
-    // ((T)rustyShelf, Boxshelf's issue 18) a big collection's art and manuals, carried to another PC whole
-    A("Export everything",()=>dataBusy==="export"?"Exporting…":"Export","Your settings, favourites and play history, everything (T)rustyShelf downloaded (box art, manuals, the box art database) and the art kept next to your games, copied into a folder you choose. Take it to another PC and use Import everything there. Sign-ins aren't included. Choose the same folder again later and the earlier export is updated: only what's new or changed is copied.",exportEverything,{when:()=>!!api.exportData,keys:"export copy move transfer another pc all art manuals downloads backup differential update size",sub:()=>dataSub("export")}),
-    // ((T)rustyShelf issue 6) a running export or import: pause / resume, cancel
+    // (RustyShelf, Boxshelf's issue 18) a big collection's art and manuals, carried to another PC whole
+    A("Export everything",()=>dataBusy==="export"?"Exporting…":"Export","Your settings, favourites and play history, everything RustyShelf downloaded (box art, manuals, the box art database) and the art kept next to your games, copied into a folder you choose. Take it to another PC and use Import everything there. Sign-ins aren't included. Choose the same folder again later and the earlier export is updated: only what's new or changed is copied.",exportEverything,{when:()=>!!api.exportData,keys:"export copy move transfer another pc all art manuals downloads backup differential update size",sub:()=>dataSub("export")}),
+    // (RustyShelf issue 6) a running export or import: pause / resume, cancel
     A("Pause or resume",()=>dataProg&&dataProg.paused?"Resume":"Pause",`Holds the ${dataBusy||"export"} where it is (nothing is lost), and carries on from there.`,dataPause,{when:()=>!!dataBusy&&!!api.pauseData,ns:true,sub:()=>dataSub(dataBusy)}),
     A("Cancel",()=>"Cancel",`Stops the ${dataBusy||"export"} between two files. What was copied stays where it is; exporting into the same folder again carries on from there.`,()=>twice("datacancel",dataCancel,"Press again to cancel"),{when:()=>!!dataBusy&&!!api.cancelData,ns:true,ask:"datacancel"}),
-    A("Import everything",()=>dataBusy==="import"?"Importing…":"Import","Copies an export into this (T)rustyShelf: its settings and downloads replace these (your current settings are kept beside them as a backup file), art goes back next to your games, then (T)rustyShelf starts again. Account keys may need entering again.",importEverything,{when:()=>!!api.importData,ask:"dataimport",keys:"import restore move transfer another pc all art manuals downloads"}),
+    A("Import everything",()=>dataBusy==="import"?"Importing…":"Import","Copies an export into this RustyShelf: its settings and downloads replace these (your current settings are kept beside them as a backup file), art goes back next to your games, then RustyShelf starts again. Account keys may need entering again.",importEverything,{when:()=>!!api.importData,ask:"dataimport",keys:"import restore move transfer another pc all art manuals downloads"}),
     A("Smoothness test","Run","Scrolls the shelf by itself for about 45 seconds, switching effects off one at a time, and writes how smooth each was to the log. Leave the controller alone while it runs; Esc stops it.",async()=>{await close();setTimeout(()=>{if(window.Shelf&&Shelf.smoothTest)Shelf.smoothTest()},900)},{when:()=>!!(window.Shelf&&Shelf.smoothTest),keys:"performance fps frame rate lag stutter smooth benchmark"}),
     A("Report a problem","Create","Bundles the log and settings (keys removed) into one file on your Desktop, ready to send.",report,{when:()=>!!api.reportProblem,keys:"bug log help support"}),
     A("Report a bug online","Open","Opens the bug form on GitHub in your browser. Attach the file Report a problem makes, and say what you were doing.",reportOnline,{when:()=>!!api.updateCheck,keys:"bug issue github feedback beta tester"}),
-    A("About",()=>"(T)rustyShelf "+(info.version||""),"(T)rustyShelf "+(info.version||"")+". A console-style front end for your emulators, Steam and media apps.",()=>{infoOpen=!infoOpen;renderInfo()},{keys:"version",keepInfo:true,more:"Box art: LaunchBox Games Database, libretro thumbnails, GameTDB, GamesDatabase.org. Manuals, magazines and commercials: the Internet Archive. Achievements: RetroAchievements."}),
-    M("What's new","whatsnew","Each version's changes: the newest one out, and the one you have.","What changed in each version of (T)rustyShelf. Select an item to read more about it.",[{t:"dyn",fn:wnRows}],{keys:"what's new whats new release notes patch notes changelog changes version update",sub:()=>{const e=wnFor(info.version);return {text:upd&&upd.newer?`${upd.latest} is out`:e?e.title:"Release notes"}}}),
-    A("Updates",updBtn,"Looks on (T)rustyShelf's releases page on GitHub for a newer version. When there is one, this opens its download page: unzip it over this folder and your settings are kept.",checkUpdates,{when:()=>!!api.updateCheck,keys:"update new version beta download upgrade"}),
-    T("Check for new versions","ui.updateCheck",true,"Once each time (T)rustyShelf starts, it asks its releases page on GitHub whether a newer version is out, and says so on the shelf. Nothing downloads by itself.",{when:()=>!!api.updateCheck,keys:"update check online automatic"}),
+    A("About",()=>"RustyShelf "+(info.version||""),"RustyShelf "+(info.version||"")+". A console-style front end for your emulators, Steam and media apps.",()=>{infoOpen=!infoOpen;renderInfo()},{keys:"version",keepInfo:true,more:"Box art: LaunchBox Games Database, libretro thumbnails, GameTDB, GamesDatabase.org. Manuals, magazines and commercials: the Internet Archive. Achievements: RetroAchievements."}),
+    M("What's new","whatsnew","Each version's changes: the newest one out, and the one you have.","What changed in each version of RustyShelf. Select an item to read more about it.",[{t:"dyn",fn:wnRows}],{keys:"what's new whats new release notes patch notes changelog changes version update",sub:()=>{const e=wnFor(info.version);return {text:upd&&upd.newer?`${upd.latest} is out`:e?e.title:"Release notes"}}}),
+    A("Updates",updBtn,"Looks on RustyShelf's releases page on GitHub for a newer version. When there is one, this opens its download page: unzip it over this folder and your settings are kept.",checkUpdates,{when:()=>!!api.updateCheck,keys:"update new version beta download upgrade"}),
+    T("Check for new versions","ui.updateCheck",true,"Once each time RustyShelf starts, it asks its releases page on GitHub whether a newer version is out, and says so on the shelf. Nothing downloads by itself.",{when:()=>!!api.updateCheck,keys:"update check online automatic"}),
     T("Automatically update on startup","ui.autoUpdate",false,"At startup, check for updates and automatically install any new version found, then restart.",{when:()=>!!api.updateCheck,keys:"update auto automatic download upgrade restart"}),
     H("More"),
     M("Advanced","sys-more","Run setup again, the app folder, clearing the play history and restoring emulator settings.","Setup, folders and resets you rarely need.",[
       A("Run setup again","Start","Walks through the first-time setup.",()=>legacy("welcome",{wizard:true}),{keys:"wizard first"}),
       A("App folder","Open","Settings, covers and the log that records launches, downloads and errors.",()=>api.openAppFolder&&api.openAppFolder(),{keys:"logs data"}),
       A("Clear play history",()=>asking("hist")?"Press again":"Clear","Forgets last played and play time for every game (Recently played and Most played start over).",()=>twice("hist",clearHistory,"Press again to clear the play history"),{when:()=>!!api.clearHistory,warnBtn:()=>asking("hist"),keys:"privacy history reset recently played"}),
-      A("Restore emulator settings","Restore","Puts back Eden's, PCSX2's and RPCS3's own settings from before (T)rustyShelf first changed them.",async()=>{try{const r=await api.restoreEmuSettings();toast(r&&r.length?`Restored ${r.length} emulator settings file${r.length>1?"s":""}`:"Nothing to restore")}catch(e){toast(errMsg(e))}},{when:()=>!!api.restoreEmuSettings,keys:"backup eden pcsx2 rpcs3"}),
+      A("Restore emulator settings","Restore","Puts back Eden's, PCSX2's and RPCS3's own settings from before RustyShelf first changed them.",async()=>{try{const r=await api.restoreEmuSettings();toast(r&&r.length?`Restored ${r.length} emulator settings file${r.length>1?"s":""}`:"Nothing to restore")}catch(e){toast(errMsg(e))}},{when:()=>!!api.restoreEmuSettings,keys:"backup eden pcsx2 rpcs3"}),
     ]),
-    A("Quit (T)rustyShelf","Quit","Closes (T)rustyShelf completely. Sleep, Restart and Shut down are in the Home menu.",async()=>{await save();api.quit&&api.quit()},{keys:"exit close"}),
+    A("Quit RustyShelf","Quit","Closes RustyShelf completely. Sleep, Restart and Shut down are in the Home menu.",async()=>{await save();api.quit&&api.quit()},{keys:"exit close"}),
   ]},
   ];
-  // ((T)rustyShelf, issue 24) Get box art one press from the sidebar: the download's picker, its progress and its result
+  // (RustyShelf, issue 24) Get box art one press from the sidebar: the download's picker, its progress and its result
   // (the same rows as Box art & manuals → Download missing art now), with how far it is on the sidebar from any page
   {const at=SECTIONS.findIndex(x=>x.id==="art");if(at>=0&&api.artCoverage&&api.downloadCovers&&!(window.bsPlatform&&bsPlatform.os==="android"))SECTIONS.splice(at+1,0,{g:"Library",id:"artget",name:"Get box art",ic:"art",lead:"Download what's still missing: covers, backs, spines and discs. It keeps going while you look at other pages.",badge:artBadge,rows:[{t:"dyn",fn:artGetRows}]})}
   if(!api.previewFind)SECTIONS=SECTIONS.filter(s=>s.id!=="previews"); // (beta.9: on Android too; its Settings puts them under Shelf & museum, android-settings.js)
@@ -490,7 +490,7 @@ function svcPage0(id){const n=SVC_N[id]||id,P=(lead,rows)=>({g:"Library",id:"acc
     X("Key","keys.steamgriddb","Your SteamGridDB API key. Stored encrypted.",{secret:true,ph:"Not set",fan:true,keys:"api key steamgriddb steam grid posters"}),
     test("Test the key","Checks the key."),
     A("Get a free key","Open site","Sign in at steamgriddb.com (a free Steam sign-in), then Preferences → API → copy the key and paste it above.",()=>openLink("https://www.steamgriddb.com/profile/preferences/api"),{keys:"steamgriddb"})]);
-  return P("Box fronts, backs, full wraps ((T)rustyShelf cuts the spine from them) and disc or cartridge art, by region, in Art Studio. Optional, and needs a free ScreenScraper account. ScreenScraper only answers apps registered with it: until (T)rustyShelf's registration is done, the test says \"Not available yet\" and no account can sign in (unless you have your own developer login, below). Box art still comes from libretro, LaunchBox and SteamGridDB meanwhile.",[
+  return P("Box fronts, backs, full wraps (RustyShelf cuts the spine from them) and disc or cartridge art, by region, in Art Studio. Optional, and needs a free ScreenScraper account. ScreenScraper only answers apps registered with it: until RustyShelf's registration is done, the test says \"Not available yet\" and no account can sign in (unless you have your own developer login, below). Box art still comes from libretro, LaunchBox and SteamGridDB meanwhile.",[
     X("Username","keys.ssUser","Your screenscraper.fr username. Stored encrypted.",{ph:"Not set",fan:true,keys:"screenscraper account user login"}),
     X("Password","keys.ssPass","Your screenscraper.fr password. Stored encrypted, sent only to ScreenScraper.",{secret:true,ph:"Not set",fan:true,keys:"screenscraper password"}),
     X("Developer ID","keys.ssDevId","Only if ScreenScraper gave you a developer login of your own (devid, often your username). If left blank, your username above is used.",{ph:"Your developer ID or username",fan:true,keys:"screenscraper devid developer"}),
@@ -513,24 +513,24 @@ async function forgetPhone(id){try{phone=await api.companionForget(id);toast(id=
 function phoneRows(){if(!api.companionSet)return [];const L=phone&&phone.phones||[];
   if(!L.length)return [{t:"action",label:"No phones paired yet",btn:"—",info:"Switch the phone companion on and scan the code with your phone's camera.",run:()=>{},ns:true,dim:true}];
   return L.map(p=>({t:"action",label:p.name||"Phone",btn:()=>asking("ph"+p.id)?"Press again":"Forget",warnBtn:()=>asking("ph"+p.id),ns:true,keys:"phone paired",
-    info:"Forget unpairs this phone: it has to scan the code again to use (T)rustyShelf.",sub:()=>({text:`Paired ${when(p.added)}${p.seen?` · last used ${when(p.seen)}`:""}`}),
+    info:"Forget unpairs this phone: it has to scan the code again to use RustyShelf.",sub:()=>({text:`Paired ${when(p.added)}${p.seen?` · last used ${when(p.seen)}`:""}`}),
     run:()=>twice("ph"+p.id,()=>forgetPhone(p.id),`Press again to forget ${p.name||"this phone"}`)}))}
 function pairHtml(){const p=phone;
   if(!p||(!p.on&&!p.error))return `<div class="bss-pairmsg">Starting…</div>`;
   if(!p.on)return `<div class="bss-pairmsg bad">${esc(p.error)}</div>`;
   return `<div class="bss-pair"><div class="qr">${p.qr||""}</div><div class="pt"><div class="lbl">Scan with your phone's camera, or open</div><div class="url">${esc(p.url)}</div><div class="lbl">and enter the PIN</div><div class="pin">${esc(String(p.pin).slice(0,3))} ${esc(String(p.pin).slice(3))}</div>`+
     (p.locked?`<div class="warn">Pairing is locked for ${p.locked} min after 5 wrong PINs</div>`:"")+(p.note?`<div class="note">${esc(p.note)}</div>`:"")+
-    `<div class="note">The first time, Windows may ask whether to allow (T)rustyShelf on your network: choose Private networks, then Allow.</div></div></div>`}
+    `<div class="note">The first time, Windows may ask whether to allow RustyShelf on your network: choose Private networks, then Allow.</div></div></div>`}
 /* RetroAchievements in each emulator: signed in, as whom, switched on */
 let raEmu=null,raEmuBusy=false,emuAsk=null;
 const RA_SYS={gc:"GameCube",wii:"Wii",psp:"PSP",ps2:"PS2"};
-const RA_STEPS={Dolphin:"1. Open Dolphin.\n2. Config → Achievements.\n3. Log in with your RetroAchievements username and password, then tick Enable.\n4. Close Dolphin. (T)rustyShelf checks again when you come back.",
-  PPSSPP:"1. Open PPSSPP.\n2. Settings → Tools → RetroAchievements.\n3. Log in with your RetroAchievements account.\n4. Close PPSSPP. (T)rustyShelf checks again when you come back.",
-  PCSX2:"1. Open PCSX2.\n2. Settings → Achievements.\n3. Tick Enable Achievements, then press Login.\n4. Close PCSX2. (T)rustyShelf checks again when you come back.",
-  // ((T)rustyShelf: portable emulators, asked for in Boxshelf's discussions)
-  DuckStation:"1. Open DuckStation.\n2. Settings → Achievements.\n3. Tick Enable Achievements, then press Login and sign in.\n4. Close DuckStation. (T)rustyShelf checks again when you come back.",
-  RetroArch:"1. Open RetroArch.\n2. Settings → Achievements.\n3. Turn Achievements on and enter your RetroAchievements username and password.\n4. Close RetroArch (it saves on exit). (T)rustyShelf checks again when you come back.",
-  Flycast:"1. Open Flycast.\n2. Settings → Achievements.\n3. Tick Enabled, enter your username and password, then press Login.\n4. Close Flycast. (T)rustyShelf checks again when you come back."};
+const RA_STEPS={Dolphin:"1. Open Dolphin.\n2. Config → Achievements.\n3. Log in with your RetroAchievements username and password, then tick Enable.\n4. Close Dolphin. RustyShelf checks again when you come back.",
+  PPSSPP:"1. Open PPSSPP.\n2. Settings → Tools → RetroAchievements.\n3. Log in with your RetroAchievements account.\n4. Close PPSSPP. RustyShelf checks again when you come back.",
+  PCSX2:"1. Open PCSX2.\n2. Settings → Achievements.\n3. Tick Enable Achievements, then press Login.\n4. Close PCSX2. RustyShelf checks again when you come back.",
+  // (RustyShelf: portable emulators, asked for in Boxshelf's discussions)
+  DuckStation:"1. Open DuckStation.\n2. Settings → Achievements.\n3. Tick Enable Achievements, then press Login and sign in.\n4. Close DuckStation. RustyShelf checks again when you come back.",
+  RetroArch:"1. Open RetroArch.\n2. Settings → Achievements.\n3. Turn Achievements on and enter your RetroAchievements username and password.\n4. Close RetroArch (it saves on exit). RustyShelf checks again when you come back.",
+  Flycast:"1. Open Flycast.\n2. Settings → Achievements.\n3. Tick Enabled, enter your username and password, then press Login.\n4. Close Flycast. RustyShelf checks again when you come back."};
 function loadRaEmu(manual){if(!api.raEmulators||raEmuBusy)return;raEmuBusy=true;if(isOpen)bump();
   Promise.resolve(api.raEmulators()).then(l=>{raEmu=Array.isArray(l)?l:[];if(manual)toast(raSummary()||"Checked")}).catch(e=>{raEmu=raEmu||[];if(manual)toast(errMsg(e))}).finally(()=>{raEmuBusy=false;if(isOpen)bump()})}
 const emuOf=sys=>(raEmu||[]).find(x=>x.system===sys);
@@ -543,12 +543,12 @@ function emuSteps(sys){const e=emuOf(sys)||{},em=e.emulator||"the emulator",me=g
   if(e.state==="unsupported")return `There are no RetroAchievements sets for ${conName(sys)} yet.`;
   if(e.state==="no-emulator")return `Set ${conName(sys)}'s emulator first: Consoles → ${conName(sys)} → Emulator.`;
   if(e.state==="ok")return `All set: achievements you earn in ${em} show up on each game's details.`;
-  const pre=e.state==="other-user"?`${em} is signed in as ${e.user||"another account"}${me?`, but (T)rustyShelf uses ${me}. Log out there first, then log in as ${me}.`:"."}\n\n`:e.state==="unknown"||!e.state?`${em} hasn't saved its settings yet: open it once, then come back.\n\n`:"";
+  const pre=e.state==="other-user"?`${em} is signed in as ${e.user||"another account"}${me?`, but RustyShelf uses ${me}. Log out there first, then log in as ${me}.`:"."}\n\n`:e.state==="unknown"||!e.state?`${em} hasn't saved its settings yet: open it once, then come back.\n\n`:"";
   return pre+(RA_STEPS[e.emulator]||`Sign in to RetroAchievements in ${em}'s settings.`)+(e.detail?`\n\n${e.detail}`:"")}
 function emuRows(){if(!api.raEmulators)return [];const list=raEmu&&raEmu.length?raEmu:Object.keys(RA_SYS).map(system=>({system}));
   return list.map(e=>{const sys=e.system,emu=e.emulator||(consoleList().find(c=>c.id===sys)||{}).emulatorName||"";
     return {t:"action",label:emu?`${conName(sys)} · ${emu}`:conName(sys),emu:sys,ns:true,keepInfo:true,keys:"retroachievements achievements emulator sign in",
-      get info(){const x=emuOf(sys);return !x?"Checking this emulator's achievements sign-in.":x.state==="ok"?"Achievements unlock in this emulator and show up in (T)rustyShelf.":x.state==="unsupported"?"This console has no achievement sets yet.":"Achievements won't unlock here until this is fixed."},
+      get info(){const x=emuOf(sys);return !x?"Checking this emulator's achievements sign-in.":x.state==="ok"?"Achievements unlock in this emulator and show up in RustyShelf.":x.state==="unsupported"?"This console has no achievement sets yet.":"Achievements won't unlock here until this is fixed."},
       more:()=>emuSteps(sys),run:()=>emuAct(sys)}})}
 async function emuAct(sys){const e=emuOf(sys);if(!e||e.state==="unsupported"){infoOpen=true;renderInfo();return}
   if(e.state==="no-emulator"){openConsole(sys);return}
@@ -560,7 +560,7 @@ function hiddenRows(){if(!(window.Shelf&&Shelf.hiddenList))return [];const L=hid
   return L.map(g=>({t:"action",label:g.title||g.id,btn:"Unhide",info:"Hidden from every shelf, the museum, shuffle and the idle show. Unhide puts it back.",sub:()=>({text:names[g.system]||g.system||""}),ns:true,keys:"hidden hide",
     run:async()=>{await save();shelf("setHidden",g.id,false);if(Array.isArray(cfg.ui.hidden))cfg.ui.hidden=cfg.ui.hidden.filter(x=>x!==g.id);hidden=(hidden||[]).filter(x=>x.id!==g.id);toast(`${g.title||"Item"} is back on the shelf`);bump()}}))}
 
-// ((T)rustyShelf, its discussions #10) every emulator found for a console, asked for once when its page is first shown
+// (RustyShelf, its discussions #10) every emulator found for a console, asked for once when its page is first shown
 let emuFound={};
 function emuFoundFor(id){if(emuFound[id]===undefined&&api.emulatorsFound){emuFound[id]=null;Promise.resolve(api.emulatorsFound(id)).then(l=>{emuFound[id]=Array.isArray(l)?l:[];bump()},()=>{emuFound[id]=[]})}return emuFound[id]||[]}
 // one console's page
@@ -570,14 +570,14 @@ function conPages(id){
   if(def.standalone){
     const rows=[T("Show this shelf",p+"enabled",true,"Turn this shelf off without losing its settings. Its programs go back to the Custom shelf meanwhile.",{rescan:true,keys:"hide shelf console off",sub:()=>({text:conStatus(def),cls:conState(def)==="ok"?"ok":""})}),
       H("Standalone games"),
-      A("Add or assign a game","Open",`Add a program in Settings → Custom games, then choose ${def.name} under Platform. (T)rustyShelf starts it directly; no emulator is involved.`,()=>goSecId("custom"),{ns:true,keys:"add exe port recomp game"})];
+      A("Add or assign a game","Open",`Add a program in Settings → Custom games, then choose ${def.name} under Platform. RustyShelf starts it directly; no emulator is involved.`,()=>goSecId("custom"),{ns:true,keys:"add exe port recomp game"})];
     return {main:{g:"Games",id:"console",sys:id,name:def.name,ic:"games",lead:`A shelf for ${def.name} ports and recompilations that run as PC programs. No emulator is needed.`,rows},
       adv:{g:"Games",id:"console",sys:id,name:"Standalone games",lead:`${def.name} games on this shelf are started directly from their program.`,rows}};
   }
   // the shelf on / off first, with where it stands ("Ready · 13 games", "Needs Dolphin"); then the emulator and games
   // folders by name (the whole path is in the explanation on the right)
   const rows=[T("Show this shelf",p+"enabled",true,"Turn a console off without losing its settings.",{rescan:true,keys:"hide shelf console off",sub:()=>{const st=conState(def);return {text:conStatus(def),cls:st==="ok"?"ok":st==="warn"?"warn":""}}}),
-    F("Emulator",p+"emulator","file",id==="sw"?"The Switch emulator this shelf uses: Eden, Citron or Ryujinx. One game can use a different one: Details → Emulator.":`The ${emu} program this shelf uses.`,{rescan:true,want:"file",short:v=>{const b=progName(v).toLowerCase();return ({citron:"Citron",ryujinx:"Ryujinx"})[b]||((def.exeNames||[]).some(x=>progName(x).toLowerCase()===b)?emu:progName(v))} /* the usual program: its proper name (PPSSPP, not PPSSPPWindows64); (beta.10) the Switch's other emulators by their own names */,filters:[{name:emu,extensions:["exe"]}],pickTitle:`Find ${exe}`,ph:()=>def.retro&&gp("retroarch")?`Using shared RetroArch (${progName(gp("retroarch"))})`:`Point to ${exe}`,sub:()=>{const v=c.emulator||(def.retro?gp("retroarch"):"");if(!v)return null;const s=pathSub(v,"file");if(!c.emulator&&def.retro&&gp("retroarch"))return s?{text:"Shared RetroArch",cls:s.cls}:{text:"Shared RetroArch",cls:"ok"};return s},more:()=>c.emulator?c.emulator:(def.retro&&gp("retroarch")?`${gp("retroarch")} (shared RetroArch)`:"Found automatically when it's in your (T)rustyShelf folder or a usual install place. Find emulators again (Consoles) looks once more.")})];
+    F("Emulator",p+"emulator","file",id==="sw"?"The Switch emulator this shelf uses: Eden, Citron or Ryujinx. One game can use a different one: Details → Emulator.":`The ${emu} program this shelf uses.`,{rescan:true,want:"file",short:v=>{const b=progName(v).toLowerCase();return ({citron:"Citron",ryujinx:"Ryujinx"})[b]||((def.exeNames||[]).some(x=>progName(x).toLowerCase()===b)?emu:progName(v))} /* the usual program: its proper name (PPSSPP, not PPSSPPWindows64); (beta.10) the Switch's other emulators by their own names */,filters:[{name:emu,extensions:["exe"]}],pickTitle:`Find ${exe}`,ph:()=>def.retro&&gp("retroarch")?`Using shared RetroArch (${progName(gp("retroarch"))})`:`Point to ${exe}`,sub:()=>{const v=c.emulator||(def.retro?gp("retroarch"):"");if(!v)return null;const s=pathSub(v,"file");if(!c.emulator&&def.retro&&gp("retroarch"))return s?{text:"Shared RetroArch",cls:s.cls}:{text:"Shared RetroArch",cls:"ok"};return s},more:()=>c.emulator?c.emulator:(def.retro&&gp("retroarch")?`${gp("retroarch")} (shared RetroArch)`:"Found automatically when it's in your RustyShelf folder or a usual install place. Find emulators again (Consoles) looks once more.")})];
   // Switch 2 (Windows): which Eglantine build Play starts. "Ask each time" (the default) shows the list at Play; a build
   // picked here becomes the shelf's emulator and Play starts in it straight away. A game's own Details → Emulator wins.
   // (beta.3) a page of its own: every build (the list Play shows), Ask each time, and builds or folders kept elsewhere
@@ -587,18 +587,18 @@ function conPages(id){
     {keys:"build builds fork forks eglantine lichii orchid selevet version branch which emulator choose",btn:()=>{const b=sw2Fixed();return b?b.label||progName(b.exe):"Ask each time"},
      sub:()=>(sw2Want(),{text:sw2b==null?"Looking for emulators…":sw2b.length?`${sw2b.length} emulator${sw2b.length===1?"":"s"} · add or remove here`:"None yet · add one here",cls:sw2b&&!sw2b.length?"warn":""})}));
   const d=det&&det.systems&&det.systems[id];
-  // ((T)rustyShelf, its discussions #10) every emulator found for this console, each one press away (Flycast or RetroArch for the
+  // (RustyShelf, its discussions #10) every emulator found for this console, each one press away (Flycast or RetroArch for the
   // Dreamcast, Gopher64, RMG or RetroArch for the N64); the one in use isn't listed
   {const found=[...new Set([...((d&&(d.emulators&&d.emulators.length?d.emulators:d.emulator?[d.emulator]:[]))||[]),...emuFoundFor(id)])],same=(a,b)=>String(a||"").toLowerCase()===String(b||"").toLowerCase(),lbl=x=>window.BSEmuName?BSEmuName.label(x):progName(x);
-    for(const x of found)if(!same(x,c.emulator))rows.push(A(found.length>1?`Use ${lbl(x)}`:"Use the emulator found","Use",`(T)rustyShelf found ${lbl(x)} here. Use it for this shelf (one game can still use another: Details → Emulator).`,()=>{c.emulator=x;changed({rescan:true});esReset&&esReset(id)},{sub:()=>({text:x}),ns:true,keys:"emulator choose switch other found "+lbl(x)}));}
-  // ((T)rustyShelf, discussion 10 again) a console RetroArch runs always has a way over to it: with no RetroArch found or set
+    for(const x of found)if(!same(x,c.emulator))rows.push(A(found.length>1?`Use ${lbl(x)}`:"Use the emulator found","Use",`RustyShelf found ${lbl(x)} here. Use it for this shelf (one game can still use another: Details → Emulator).`,()=>{c.emulator=x;changed({rescan:true});esReset&&esReset(id)},{sub:()=>({text:x}),ns:true,keys:"emulator choose switch other found "+lbl(x)}));}
+  // (RustyShelf, discussion 10 again) a console RetroArch runs always has a way over to it: with no RetroArch found or set
   // under RetroArch location, the only choice was the file window for its own emulator (DuckStation for the PlayStation).
   // Picking retroarch.exe here uses it for this shelf, and keeps it as the RetroArch for the other retro consoles if none is set
   {const isRa=x=>/retroarch/i.test(progName(x||"")),known=[...((d&&(d.emulators&&d.emulators.length?d.emulators:d.emulator?[d.emulator]:[]))||[]),...emuFoundFor(id)];
     if(def.retro&&!isRa(c.emulator)&&!known.some(isRa))rows.push(A("Use RetroArch","Choose…",`Runs ${def.name} games in RetroArch, with the core you pick, instead of ${emu}. Point to retroarch.exe; it's kept as your RetroArch for the other retro consoles too if you haven't set one.`,
       async()=>{const win=!window.bsPlatform||bsPlatform.os!=="linux",p=await pick({kind:"file",title:"Choose RetroArch (retroarch.exe)",...(win?{filters:[{name:"RetroArch",extensions:["exe"]}]}:{})}),f=typeof p==="string"?p:p&&p.path;if(!f)return;
         if(!isRa(f)){toast("That isn't RetroArch: choose retroarch.exe");return}c.emulator=f;if(!gp("retroarch"))sp("retroarch",f);changed({rescan:true});if(typeof esReset==="function")esReset(id);toast(`${def.name} now runs in RetroArch`)},{ns:true,keys:"retroarch core libretro use choose swanstation beetle"}))}
-  // ((T)rustyShelf, its discussions #10) the RetroArch core this console runs in (the shelf's own, or another libretro core)
+  // (RustyShelf, its discussions #10) the RetroArch core this console runs in (the shelf's own, or another libretro core)
   if(def.retro&&(def.raCores||[]).length>1)rows.push(C("RetroArch core",p+"raCore",def.raCores.map(([v,n])=>[v,v===def.raCore?`${n} (usual)`:n]),def.raCore,`The core RetroArch runs ${def.name} games in. A core that isn't there yet is downloaded the first time you play. Save states made in one core don't load in another; in-game saves usually carry over.`,
     {when:()=>/retroarch/i.test(progName(c.emulator||(def.retro?gp("retroarch")||"":""))),keys:"core retroarch libretro choose switch "+def.raCores.map(x=>x[1]).join(" "),live:()=>{if(typeof esReset==="function")esReset(id)}}));
   const twin=id==="wii"?"gc":id==="gc"?"wii":null;
@@ -606,9 +606,9 @@ function conPages(id){
   c.romDirs.forEach((dir,i)=>rows.push({t:"folder",label:c.romDirs.length>1?`Games folder ${i+1}`:"Games folder",info:"Where this console's games are. Subfolders are searched too. Select it twice to remove it from this shelf (nothing is deleted).",more:dir,short:folderName,get:()=>dir,ns:true,
     // (beta.10) the confirmation is keyed by the folder itself, not its place in the list (removing another one moved it onto this one)
     run:()=>twice("rd:"+id+":"+dir,()=>{const k=c.romDirs.indexOf(dir);if(k>=0)c.romDirs.splice(k,1);if(window.bsPlatform&&bsPlatform.os==="android")rdGone().add(dir);changed({rescan:true});toast("Folder removed from this shelf (nothing was deleted)")},"Press again to remove this folder"),ask:"rd:"+id+":"+dir,sub:()=>pathSub(dir,"dir")}));
-  (d&&d.romDirs||[]).filter(x=>!c.romDirs.includes(x)&&!rdGone().has(x)).forEach(x=>rows.push(A("Add the folder found","Add","(T)rustyShelf found games for this console here.",()=>{if(!c.romDirs.includes(x))c.romDirs.push(x);changed({rescan:true})},{sub:()=>({text:x}),ns:true})));
+  (d&&d.romDirs||[]).filter(x=>!c.romDirs.includes(x)&&!rdGone().has(x)).forEach(x=>rows.push(A("Add the folder found","Add","RustyShelf found games for this console here.",()=>{if(!c.romDirs.includes(x))c.romDirs.push(x);changed({rescan:true})},{sub:()=>({text:x}),ns:true})));
   // (beta.7) Set up for me: the emulator set up the way the shelf expects, on a page of its own
-  if(esCan(c))rows.push(M(`Set up ${emu} for me`,"emusetup-"+id,`Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for ${emu}: backed up first, and Undo puts it back.`,`(T)rustyShelf sets ${emu} up the way the shelf works best. Each switch is one kind of change; your files are backed up first, and Undo puts them back.`,[{t:"dyn",fn:()=>emuSetupRows(id)}],{keys:"setup set up configure configuration automatic easy controller pad hotkeys bios graphics resolution preset",sub:()=>(esGet(id),esSub(id)),ns:true}));
+  if(esCan(c))rows.push(M(`Set up ${emu} for me`,"emusetup-"+id,`Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for ${emu}: backed up first, and Undo puts it back.`,`RustyShelf sets ${emu} up the way the shelf works best. Each switch is one kind of change; your files are backed up first, and Undo puts them back.`,[{t:"dyn",fn:()=>emuSetupRows(id)}],{keys:"setup set up configure configuration automatic easy controller pad hotkeys bios graphics resolution preset",sub:()=>(esGet(id),esSub(id)),ns:true}));
   rows.push(A(c.romDirs.length?"Add another games folder":"Add a games folder","Add",`Another folder to look in for this console's games${def.hint?` (${def.hint})`:def.extensions?` (${def.extensions.slice(0,4).map(e=>"."+e).join(", ")}…)`:""}.` /* def.hint: a console whose games aren't plain files (PS3 / PS4 game folders) says so in systems.js */,async()=>{const r=await pick({kind:"folder",title:`Choose a ${def.name} games folder`});if(r)rdGone().delete(r);if(r&&!c.romDirs.includes(r)){c.romDirs.push(r);changed({rescan:true})}},{keys:"roms games folder"}),
     H("When you press Play"),
     // what the two switches do (app.js play()): your boot video, when this console has one, plays first; otherwise the boot
@@ -621,7 +621,7 @@ function conPages(id){
   const adv=[H(emu),
     A("Open the emulator on its own","Open","Starts the emulator without a game so you can change its graphics or controls.",async()=>{await save();try{await api.launchEmulator(id)}catch(e){toast(errMsg(e))}},{when:()=>!!c.emulator&&!!api.launchEmulator,ns:true}),
     A("Get "+emu,"Open site",`Opens ${emu}'s official download page.`,()=>openLink(OFFICIAL[id]),{when:()=>!!OFFICIAL[id],ns:true}),
-    X("Emulator options",p+"emulatorArgs","What (T)rustyShelf passes when it opens the emulator on its own.",{ph:"(none)",d:def.emulatorArgs||"",mono:true})];
+    X("Emulator options",p+"emulatorArgs","What RustyShelf passes when it opens the emulator on its own.",{ph:"(none)",d:def.emulatorArgs||"",mono:true})];
   // the real GameCube startup as a short checklist: the switch says whether your IPL.bin is there; "Add your IPL.bin"
   // shows only while it isn't; its two fine-tunings only while the startup is on
   const iplOk=()=>!!(ipl&&ipl.found&&ipl.found.length);
@@ -634,24 +634,24 @@ function conPages(id){
     T("Start games through Kyty's launcher",p+"viaLauncher",false,"Off: Play starts the game straight away, with the settings you chose in Kyty's launcher (and the KytyJets preset). On: Play opens Kyty's launcher and you start the game there (it can't be told which game to open)."));
   adv.push(H("Launching"),
     S("Longest loading screen",p+"coverSeconds",def.coverSeconds!=null?def.coverSeconds:4,0,30,.5,v=>v===0?"Off":v+" s","The black loading screen hides the emulator's windows while it starts. It lifts as soon as the game is fullscreen; this is only the longest it waits. 0 turns it off."),
-    X("Game launch options",p+"gameArgs","What (T)rustyShelf passes to the emulator when you play. {rom} is the game file.",{d:def.gameArgs,mono:true,more:"Default: "+(def.gameArgs||"(none)")}),
-    A("Restore default launch options","Restore","Puts the launch options back to (T)rustyShelf's defaults.",()=>{c.gameArgs=def.gameArgs||"";c.emulatorArgs=def.emulatorArgs||"";changed(null);toast("Launch options back to the defaults")},{ns:true}),
+    X("Game launch options",p+"gameArgs","What RustyShelf passes to the emulator when you play. {rom} is the game file.",{d:def.gameArgs,mono:true,more:"Default: "+(def.gameArgs||"(none)")}),
+    A("Restore default launch options","Restore","Puts the launch options back to RustyShelf's defaults.",()=>{c.gameArgs=def.gameArgs||"";c.emulatorArgs=def.emulatorArgs||"";changed(null);toast("Launch options back to the defaults")},{ns:true}),
     H("More"),
-    F("Own art folder",p+"artDir","folder","A folder with this console's covers, if you keep them separately. Name images after the game file, like Pikmin (USA).png; add -back for the back cover.",{ph:"(uses the art library)",d:"",want:"dir",short:folderName,rescan:true,pickTitle:"Choose a cover art folder",when:()=>!(window.bsPlatform&&bsPlatform.os==="android")})); // Android: art lives in "TrustyShelf Art" beside the games, there is no art library
+    F("Own art folder",p+"artDir","folder","A folder with this console's covers, if you keep them separately. Name images after the game file, like Pikmin (USA).png; add -back for the back cover.",{ph:"(uses the art library)",d:"",want:"dir",short:folderName,rescan:true,pickTitle:"Choose a cover art folder",when:()=>!(window.bsPlatform&&bsPlatform.os==="android")})); // Android: art lives in "RustyShelf Art" beside the games, there is no art library
   rows.push(H("More"),
     A("Box art (Art Studio)","Open",`Jumps to ${def.name}'s games in the Art Studio: its shelf style, and every version of any game's art (manuals are a row away).`,()=>{route("artstudio",{systemId:id});render()},{ns:true}),
     A("Customize (3D, logo, boot video)","Open","Its logo, 3D console, controller and disc models and boot video (the Customize screen).",()=>customize(id),{ns:true}),
     {t:"action",label:"Emulator & advanced",btn:"",open:true,ns:true,info:`Open ${emu} on its own, launch options, the longest loading screen${id==="gc"&&iplCap()?" and the real GameCube startup":""}.`,run:()=>openSub({kind:"conadv",id})});
   return {main:{g:"Games",id:"console",sys:id,name:def.name,ic:"games",lead:HELP[id]||`${emu} runs ${def.name} games.`,rows},
-    adv:{g:"Games",id:"console",sys:id,name:"Emulator & advanced",lead:`${emu}'s own tools, how (T)rustyShelf starts it, and the rarely-needed settings for ${def.name}.`,rows:adv}};
+    adv:{g:"Games",id:"console",sys:id,name:"Emulator & advanced",lead:`${emu}'s own tools, how RustyShelf starts it, and the rarely-needed settings for ${def.name}.`,rows:adv}};
 }
 const consolePage=id=>conPages(id).main,conAdvPage=id=>conPages(id).adv;
 // the console order: A picks a shelf up, up / down moves it, A (or B) puts it down
 function orderList(){const pcMine=((cfg.pc&&cfg.pc.custom)||[]).some(g=>g&&g.shelf==="pc"); /* (supalii: a game added by hand on the PC shelf brings it, Steam or not) */const known=[...consoleList().filter(c=>sysCfg(c.id).enabled!==false).map(c=>[c.id,c.name]),...(cfg.steam&&cfg.steam.enabled!==false||pcMine?[["pc","PC"]]:[]),["media","Media"]];
   const saved=(cfg.ui.shelfOrder||[]).filter(id=>known.some(k=>k[0]===id));return {known,order:[...saved,...known.map(k=>k[0]).filter(id=>!saved.includes(id))]}}
 function orderPage(){const {known,order}=orderList(),nm=id=>(known.find(k=>k[0]===id)||[id,id])[1];
-  return {g:"(T)rustyShelf",id:"order",name:"Console order",ic:"shelf",lead:"The order of the shelves along the top. Home always comes first. Pick one up, move it, put it down.",
-    rows:[...order.map((id,i)=>({t:"order",label:nm(id),id,n:i+1,info:"Pick it up, then move it up or down the list.",ns:true})),H(""),A("Reset to default order",()=>asking("ordreset")?"Press again":"Reset","Puts the shelves back in (T)rustyShelf's own order.",()=>twice("ordreset",()=>{delete cfg.ui.shelfOrder;changed({rescan:true});toast("Default order")},"Press again to reset the shelf order"),{ns:true,warnBtn:()=>asking("ordreset"),ask:"ordreset"})]}} // (beta.10) pressed twice, like the other resets
+  return {g:"RustyShelf",id:"order",name:"Console order",ic:"shelf",lead:"The order of the shelves along the top. Home always comes first. Pick one up, move it, put it down.",
+    rows:[...order.map((id,i)=>({t:"order",label:nm(id),id,n:i+1,info:"Pick it up, then move it up or down the list.",ns:true})),H(""),A("Reset to default order",()=>asking("ordreset")?"Press again":"Reset","Puts the shelves back in RustyShelf's own order.",()=>twice("ordreset",()=>{delete cfg.ui.shelfOrder;changed({rescan:true});toast("Default order")},"Press again to reset the shelf order"),{ns:true,warnBtn:()=>asking("ordreset"),ask:"ordreset"})]}} // (beta.10) pressed twice, like the other resets
 function moveOrder(d){const {order}=orderList(),i=rowI,j=i+d;if(!grab||j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];cfg.ui.shelfOrder=order.slice();rowI=j;changed({rescan:true})}
 
 /* ---------- Get box art / Get manuals (1.75): Settings pages, replacing the classic panel's grids ----------
@@ -671,19 +671,19 @@ function dlClock(){clearTimeout(dlTick);if(!(AG.busy||MG.busy))return;dlTick=set
 function agPlan(){const pl=gp("ui.artPlan");if(pl&&typeof pl==="object")return {...pl};const o={};consoleList().forEach(c=>{o[c.id]=PARTS4.map(x=>x[0])});return o}
 // the parts every ticked console gets (none ticked: the last ones chosen here, else all four)
 function agParts(sys,pl){const on=sys.filter(c=>(pl[c.id]||[]).length);if(!on.length)return AG.parts?[...AG.parts]:PARTS4.map(x=>x[0]);return PARTS4.map(x=>x[0]).filter(k=>on.every(c=>(pl[c.id]||[]).includes(k)))}
-// ((T)rustyShelf, issue 24) the check runs on in main while you're on other pages (AG.loading keeps it from starting twice);
+// (RustyShelf, issue 24) the check runs on in main while you're on other pages (AG.loading keeps it from starting twice);
 // covers:checking says which console it's on, shown here and on the page's row in the list
 let chkHooked=false;
 function chkHook(){if(chkHooked||!api.onCoversChecking)return;chkHooked=true;api.onCoversChecking(p=>{AG.chk=p&&!p.finished?p:null;if(isOpen)bump()})}
 const chkText=()=>{const c=AG.chk;return c?`${c.name} · console ${c.console} of ${c.consoles}`+(c.total?` · ${Math.min(c.done,c.total)} of ${c.total} games`:"")+(c.allDone?` · ${c.allDone.toLocaleString()} games checked in all`:""):""};
-// ((T)rustyShelf, issue 24) the whole download at once: games done of every console's games, from the progress main sends
+// (RustyShelf, issue 24) the whole download at once: games done of every console's games, from the progress main sends
 const agAll=()=>{let d=0,t=0;AG.ids.forEach(id=>{const p=AG.prog[id];if(p&&p.total){d+=Math.min(p.done||0,p.total);t+=p.total}});return {d,t}};
 // the sidebar's Get box art: how far the download is (or that the check runs), seen from any page of Settings
 const artBadge=()=>{if(AG.busy){const {d,t}=agAll();return t?Math.floor(d/t*100)+"%":"…"}return AG.chk||AG.loading?"Checking":""};
 function agLoad(){if(AG.loading||!api.artCoverage)return;chkHook();AG.loading=true;AG.chk=null;api.artCoverage().then(c=>{AG.cov=Array.isArray(c)?c:[]}).catch(()=>{AG.cov=[]}).finally(()=>{AG.loading=false;AG.chk=null;if(isOpen)bump()})}
 function artGetRows(){dlHook();
   if(AG.busy){const L=[H("Getting box art",{em:()=>took(AG.started)})];
-    {const {d,t}=agAll();if(t)L.push(infoRow("Every console",`${d.toLocaleString()} of ${t.toLocaleString()} games`,{text:`${Math.floor(d/t*100)}% · ${AG.ids.length} console${AG.ids.length===1?"":"s"}`},{info:"How far the whole download is, every console together."}))} // ((T)rustyShelf, issue 24)
+    {const {d,t}=agAll();if(t)L.push(infoRow("Every console",`${d.toLocaleString()} of ${t.toLocaleString()} games`,{text:`${Math.floor(d/t*100)}% · ${AG.ids.length} console${AG.ids.length===1?"":"s"}`},{info:"How far the whole download is, every console together."}))} // (RustyShelf, issue 24)
     if(!Object.keys(AG.prog).length)L.push(infoRow(AG.stage||"Starting…",""));
     AG.ids.forEach(id=>{const c=consoleList().find(x=>x.id===id)||{name:id},p=AG.prog[id],tot=p&&p.total||0,dn=p&&p.done||0,fin=!!tot&&dn>=tot;
       L.push(infoRow(c.name,p&&tot?`${dn} of ${tot}`:"",{text:p?(fin?"Finished":p.game?"Now: "+p.game:p.stage||""):"Waiting",cls:fin?"ok":""}))});
@@ -698,7 +698,7 @@ function artGetRows(){dlHook();
         const fix=miss&&api.artStudio?{run:()=>{AG.rep=null;route("artstudio",{systemId:x.id});if(studio){studio.filter="missing";studio.zone="grid"}play("open");render()},btn:(parts.length?parts.join(", ")+" · ":"")+"Fix in Art Studio"}:{};
         L.push(infoRow(x.name||x.id,parts.length?parts.join(", "):"Nothing new",miss?{text:`${miss} not found${kinds?` (${kinds})`:""}`,cls:"warn"}:{text:x.upgraded?`${x.upgraded} made sharper`:"Complete",cls:"ok"},{info:miss?"Not found anywhere: "+(x.missed||[]).slice(0,12).join(", ")+(miss>12?"…":"")+(fix.btn?". Open them in Art Studio to choose another version or use a picture of your own.":""):"",...fix}))});
       if(r.launchboxError)L.push(infoRow("LaunchBox couldn't be reached","",{text:"Only libretro covers were tried this time",cls:"warn"}));
-      /* ((T)rustyShelf, issue 24) a drive that filled up: nothing more was saved there */
+      /* (RustyShelf, issue 24) a drive that filled up: nothing more was saved there */
       (r.full||[]).forEach(d=>L.push(infoRow(`${String(d).replace(/[\\/]+$/,"")} is full`,"",{text:"No more art could be saved there. Free some space, then download again",cls:"warn"},{info:"The games on that drive were left as they were; the other drives carried on."})));}
     L.push(H(""),A("Back to the list","Back","Your consoles and what they still need.",()=>{AG.rep=null;AG.err=null;AG.cov=null;agLoad()},{ns:true}));return L}
   if(!AG.cov){agLoad();return [infoRow("Checking what you have…","",{text:chkText()||"Starting…"},{info:"Keeps going while you look at other pages; the list is here when you come back."})]}
@@ -730,7 +730,7 @@ function dlShown(id){return isOpen&&!!sub&&sub.id===id&&focus==="page"&&!edit&&!
 async function agStart(given){
   if(AG.busy||MG.busy||MC.busy){toast("A download is already running");return}
   const pl=given&&typeof given==="object"&&!given.type?given:agPlan(),ids=(AG.cov||[]).filter(c=>c.total&&(pl[c.id]||[]).length).map(c=>c.id);if(!ids.length)return;
-  // ((T)rustyShelf, issue 14) what this download is getting, kept until it finishes: one stopped part way (Cancel, an update,
+  // (RustyShelf, issue 14) what this download is getting, kept until it finishes: one stopped part way (Cancel, an update,
   // the app closed) is offered again as Resume box art download, with the same consoles and parts
   {const p={};ids.forEach(id=>{p[id]=pl[id]});cfg.ui.artResume={plan:p,at:Date.now()}}
   // (beta.10) busy at once, before the settings save: a quick second press used to start a second run
@@ -739,7 +739,7 @@ async function agStart(given){
   try{const p={};ids.forEach(id=>{p[id]=pl[id]});AG.rep=await api.downloadCovers(ids,p,gp("ui.artHD")!==false)}catch(e){AG.err=errMsg(e)}
   if(!AG.err&&!(AG.rep&&AG.rep.cancelled)){delete cfg.ui.artResume;scheduleSave()}
   AG.busy=false;AG.cov=null;needRescan=true;if(dlShown("art-get"))rowI=0;toast(AG.err?"Box art: "+AG.err:AG.rep&&AG.rep.cancelled?"Box art download cancelled · Resume picks it up again":"Box art download finished");if(isOpen)bump()}
-// ((T)rustyShelf, issue 14) one press: a download that stopped part way picks up again (same consoles and parts); otherwise
+// (RustyShelf, issue 14) one press: a download that stopped part way picks up again (same consoles and parts); otherwise
 // every console still missing a cover, back, spine or disc gets all four. What's already there is kept, as always
 const artResumeOf=()=>{const r=gp("ui.artResume");return r&&r.plan&&typeof r.plan==="object"&&Object.keys(r.plan).length?r:null};
 async function agOneClick(){
@@ -775,7 +775,7 @@ function manGetRows(){dlHook();
       L.push(H("All done",{em:()=>"took "+took(MG.started)}),infoRow(`${added} manual${added===1?"":"s"} added`,"",{text:miss?`${miss} game${miss===1?"":"s"} still without one`:"Every game you picked has one",cls:miss?"warn":"ok"},{info:"They show up when you close Settings."}));
       MG.rep.systems.forEach(x=>{const noPrint=["sw","sw2","ps4","ps5"].includes(x.id);L.push(infoRow(x.name,x.added.length?`${x.added.length} added`:"Nothing new",
         {text:[x.had?`${x.had} already had one`:"",x.unsure.length?`${x.unsure.length} unsure skipped`:"",x.none.length?`${x.none.length} ${noPrint?"with no printed manual":"not found"}`:"",x.failed.length?`${x.failed.length} failed`:""].filter(Boolean).join(" · ")||"Complete",cls:x.none.length||x.unsure.length||x.failed.length?"warn":"ok"},
-        {info:noPrint&&x.none.length?"These games keep their guide inside the game; (T)rustyShelf makes a booklet instead.":""}))})}
+        {info:noPrint&&x.none.length?"These games keep their guide inside the game; RustyShelf makes a booklet instead.":""}))})}
     L.push(H(""),A("Back to the list","Back","Your consoles and what they still need.",()=>{MG.rep=null;MG.err=null;MG.cov=null;mgLoad()},{ns:true}));return L}
   if(!MG.cov){mgLoad();return [infoRow("Checking what you have…","")]}
   const sys=MG.cov.filter(c=>c.total>0);if(!sys.length)return [infoRow("No games yet","",{text:"Add a games folder for a console first (Consoles)"})];
@@ -812,7 +812,7 @@ async function mgStart(){
   Object.assign(MG,{busy:true,prog:{},stage:"Starting…",phase:"search",rep:null,err:null,started:Date.now(),ids});rowI=0;play("open");bump();dlClock(); // (beta.10) busy before the save, like the manual check
   try{await save()}catch(e){MG.busy=false;toast("Manuals: "+errMsg(e));if(isOpen)bump();return}
   try{const found=await api.findManuals(ids)||[];
-    const min=window.TrustyShelfManMin||7,pick=[],unsure=[],none=[];
+    const min=window.RustyShelfManMin||7,pick=[],unsure=[],none=[];
     found.forEach(r=>{if(r.have)return;const c=(r.candidates||[])[0];if(!c){none.push(r);return}if(gp("ui.manualSure")!==false&&!(c.score>=min&&/^(eng|en|english|)$/i.test(c.language||""))){unsure.push(r);return}pick.push({r,c})});
     MG.phase="download";MG.stage=pick.length?`Downloading ${pick.length} manual${pick.length===1?"":"s"}…`:"Nothing to download";bump();
     const rep=pick.length?await api.downloadManuals(pick.map(({r,c})=>({systemId:r.systemId,file:r.file,id:c.id}))):[];
@@ -865,8 +865,8 @@ function covLoad(force){if(!api.pcCoverMissing||COV.loading||(COV.n!=null&&!forc
 function customRows(){if(!pcSt)setTimeout(pcStatus,0);cfg.pc=cfg.pc||{epic:true,quiver:true,quiverPath:"",custom:[]};const pc=cfg.pc;if(!Array.isArray(pc.custom))pc.custom=[];const rows=[];
   const again=()=>{pcSt=null;changed({rescan:true})};
   rows.push({t:"head",text:"Quiver Launcher"});
-  rows.push(T("Show Quiver's games","pc.quiver",true,"Every app Quiver Launcher has installed (recomps, PC ports) gets a case on the Custom shelf. (T)rustyShelf starts them from their own folders; updates stay in Quiver.",{rescan:true,keys:"quiver recomp recomps ports launcher"}));
-  rows.push(A("Quiver Launcher",()=>pcSt&&pcSt.quiver?"Found":"Find","(T)rustyShelf looks where Quiver usually keeps its library. A portable copy (unzipped anywhere) is found with Find, or choose its folder.",async()=>{
+  rows.push(T("Show Quiver's games","pc.quiver",true,"Every app Quiver Launcher has installed (recomps, PC ports) gets a case on the Custom shelf. RustyShelf starts them from their own folders; updates stay in Quiver.",{rescan:true,keys:"quiver recomp recomps ports launcher"}));
+  rows.push(A("Quiver Launcher",()=>pcSt&&pcSt.quiver?"Found":"Find","RustyShelf looks where Quiver usually keeps its library. A portable copy (unzipped anywhere) is found with Find, or choose its folder.",async()=>{
     toast("Looking for Quiver Launcher…");const d=await Promise.resolve(api.findQuiver&&api.findQuiver()).catch(()=>"");
     if(d){pc.quiverPath=d;again();toast("Found Quiver Launcher in "+folderName(d))}
     else{const p=await pick({kind:"folder",title:"Choose Quiver Launcher's folder (the one with QuiverLauncher.exe)"}),f=typeof p==="string"?p:p&&p.path;if(f){pc.quiverPath=f;again();toast("Quiver Launcher's folder set")}}},
@@ -891,7 +891,7 @@ function customRows(){if(!pcSt)setTimeout(pcStatus,0);cfg.pc=cfg.pc||{epic:true,
     if(!pg){const id="custom-game-"+String(c.id||c.title||c.exe).replace(/[^a-z0-9_-]/gi,"-").slice(0,60)+"-"+(++customPageN),ask="pcx:"+c.exe+"|"+(c.title||"");
       const name=X("Game name","","The name shown on its shelf.",{get:()=>c.title||"",set:v=>{c.title=String(v||"").slice(0,120);if(MORE[id])MORE[id].name=c.title||"Game";pg.row.label=c.title||"Game"},rescan:true,ns:true,keys:"rename custom game"});
       const args=X("Launch arguments","","Passed to the program when it starts, for example -dx12. Put quotes around anything with spaces.",{get:()=>c.args||"",set:v=>{c.args=String(v||"").slice(0,1000)},rescan:true,ns:true,mono:true,keys:"launch command arguments flags options dx12"});
-      const shelfR=C("Platform","",()=>[["custom","Custom"],["pc","PC"],...consoleList().map(x=>[x.id,x.name])],"custom","Which shelf it sits on: Custom (games you added), PC (with your Steam and store games) or a console's, beside its games. (T)rustyShelf starts the program itself either way: a console's shelf doesn't run it through the emulator.",{get:()=>c.shelf||"custom",set:v=>{if(v==="custom")delete c.shelf;else c.shelf=v;delete c.platform},rescan:true,ns:true,keys:"shelf move pc custom console platform assign"});
+      const shelfR=C("Platform","",()=>[["custom","Custom"],["pc","PC"],...consoleList().map(x=>[x.id,x.name])],"custom","Which shelf it sits on: Custom (games you added), PC (with your Steam and store games) or a console's, beside its games. RustyShelf starts the program itself either way: a console's shelf doesn't run it through the emulator.",{get:()=>c.shelf||"custom",set:v=>{if(v==="custom")delete c.shelf;else c.shelf=v;delete c.platform},rescan:true,ns:true,keys:"shelf move pc custom console platform assign"});
       const rem=A("Remove game","Remove","Takes it off its shelf. Nothing is deleted.",()=>twice(ask,()=>{const k=pc.custom.indexOf(c);if(k>=0)pc.custom.splice(k,1);changed({rescan:true});leaveSub();render();toast("Removed from its shelf (nothing was deleted)")},"Press again to remove it"),{ns:true,ask});
       pg={id,rows:[name,args,shelfR,rem]};pg.row=M(c.title||"Game",id,`${c.title||"This game"}: its name, launch arguments and platform (the shelf it sits on).`,(c.shellApp&&!c.exe?`Microsoft Store app: ${c.shellApp}`:(c.shellApp&&!c.exe?`Microsoft Store app: ${c.shellApp}`:`Program: ${c.exe}`)),pg.rows,{btn:"Edit",keys:"custom game name launch arguments platform shelf",sub:()=>({text:c.shelf==="pc"?"PC shelf":c.shelf?((consoleList().find(x=>x.id===c.shelf)||{}).name||c.shelf)+" shelf":folderName(c.exe)})});customNameRows.set(c,pg)}
     else MORE[pg.id]={id:pg.id,name:c.title||"Game",lead:(c.shellApp&&!c.exe?`Microsoft Store app: ${c.shellApp}`:(c.shellApp&&!c.exe?`Microsoft Store app: ${c.shellApp}`:`Program: ${c.exe}`)),rows:pg.rows}; // (a redraw: the page stays reachable)
@@ -904,12 +904,12 @@ function pcfLoad(force){if(pcfAsking||!api.pcFolderGames||(pcf&&!force))return;p
 const progText=p=>p.native?`${p.rel} · Linux`:onLinux()?`${p.rel} · Windows (Wine / Proton)`:p.rel;
 function pcFolderRows(){if(!api.pcFolderGames)return[];pcfLoad();cfg.pc=cfg.pc||{};const rows=[],again=()=>{pcf=null;pcfLoad(true)};
   rows.push(H("PC games folder"));
-  rows.push(F("PC games folder","pc.gamesDir","folder",`Every folder in it is a game, named after the folder. ${onLinux()?"(T)rustyShelf tells a Linux game (a start script, an AppRun, an AppImage, a Linux program) from a Windows one, which plays through Wine / Proton.":"(T)rustyShelf starts the game's own program from it."} Epic games installed there come with your Epic account instead.`,
+  rows.push(F("PC games folder","pc.gamesDir","folder",`Every folder in it is a game, named after the folder. ${onLinux()?"RustyShelf tells a Linux game (a start script, an AppRun, an AppImage, a Linux program) from a Windows one, which plays through Wine / Proton.":"RustyShelf starts the game's own program from it."} Epic games installed there come with your Epic account instead.`,
     {want:"dir",pickTitle:"Choose your PC games folder",rescan:true,live:again,keys:"pc games folder directory windows linux native wine exe",sub:()=>!cfg.pc.gamesDir?{text:"Not set"}:pcf==null?{text:"Looking…"}:{text:pcf.length?`${pcf.length} game${pcf.length===1?"":"s"}`:"No games found in it"}}));
   rows.push(F("Your own copies","pc.userGamesDir","folder","A folder of games for you alone (a game that keeps its saves in its own folder). A folder here with the same name as one in the PC games folder is used instead of the shared one.",
     {want:"dir",pickTitle:"Choose the folder of your own copies",rescan:true,live:again,when:()=>!!cfg.pc.gamesDir,keys:"own copies personal user games folder saves"}));
   const several=(pcf||[]).filter(g=>(g.programs||[]).length>1);
-  if(several.length)rows.push(M("Program for each game","pcprog","For a game folder with more than one program: which one Play starts.","(T)rustyShelf picks the game's own program by itself; choose another for a game here.",[{t:"dyn",fn:()=>(pcf||[]).filter(g=>(g.programs||[]).length>1).map(g=>({t:"choice",label:g.folder,
+  if(several.length)rows.push(M("Program for each game","pcprog","For a game folder with more than one program: which one Play starts.","RustyShelf picks the game's own program by itself; choose another for a game here.",[{t:"dyn",fn:()=>(pcf||[]).filter(g=>(g.programs||[]).length>1).map(g=>({t:"choice",label:g.folder,
       info:`Which program in ${g.folder} Play starts.${g.own?" (Your own copy.)":""}`,opts:()=>[["","Found by itself"],...g.programs.map(p=>[p.rel,progText(p)])],d:"",rescan:true,ns:true,keys:"program exe start "+g.folder,
       get:()=>(cfg.pc.programs||{})[g.folder]||"",set:v=>{const m={...(cfg.pc.programs||{})};if(v)m[g.folder]=v;else delete m[g.folder];cfg.pc.programs=m},sub:()=>({text:g.chosen})}))}],
     {when:()=>!!cfg.pc.gamesDir,keys:"program exe choose start game folder",sub:()=>({text:`${several.length} game${several.length===1?"":"s"} with a choice`})}));
@@ -920,8 +920,8 @@ const onLinux=()=>!!(window.bsPlatform&&bsPlatform.os==="linux");
 let lpc=null,lpcAsking=false,epicLib=null,epicLibAsking=false,epicSigning=false,lgGetting=false;
 function lpcLoad(force){if(lpcAsking||!api.pcLinux||(lpc&&!force))return;lpcAsking=true;Promise.resolve(api.pcLinux()).then(r=>{lpc=r||{}}).catch(()=>{lpc={}}).finally(()=>{lpcAsking=false;bump()})}
 function epicLibLoad(force){if(epicLibAsking||!api.epicLibrary||(epicLib&&!force))return;epicLibAsking=true;epicLib=null;bump();Promise.resolve(api.epicLibrary()).then(r=>{epicLib=r||{error:"Couldn't read the Epic library."}}).catch(e=>{epicLib={error:errMsg(e)}}).finally(()=>{epicLibAsking=false;bump()})}
-if(api.onEpicQueue)api.onEpicQueue(l=>{if(lpc)lpc.downloads=Array.isArray(l)?l:[];bump()}); // ((T)rustyShelf) the download manager's list
-// ((T)rustyShelf) Looks. A look is { name, set: { theme, uiScale, clock, … } }: the settings below, as they were when it was saved
+if(api.onEpicQueue)api.onEpicQueue(l=>{if(lpc)lpc.downloads=Array.isArray(l)?l:[];bump()}); // (RustyShelf) the download manager's list
+// (RustyShelf) Looks. A look is { name, set: { theme, uiScale, clock, … } }: the settings below, as they were when it was saved
 const LOOK_KEYS=["theme","background","uiScale","clock","clock24","homeLayout","sort","filter","soundTheme","music","musicLevel","museumLight","reduceMotion"];
 const looks=()=>{const l=gp("ui.looks");return Array.isArray(l)?l:[]};
 function lookNow(){const set={};for(const k of LOOK_KEYS){const v=gp("ui."+k);if(v!==undefined&&v!==null&&typeof v!=="object")set[k]=v}return set}
@@ -961,16 +961,16 @@ function linuxPcRows(){if(!onLinux()||!api.pcLinux)return[];lpcLoad();const L=lp
   rows.push(C("Run Windows games with","pc.runner",()=>[["","Best one found"],...(L.runners||[]).map(r=>[r.id,r.kind==="wine"?r.name+" (Wine)":r.name])],"",
     "Windows games (Epic's, the PC games folder's, the programs on the Custom shelf) run through this. Proton (GE-Proton, UMU-Proton) suits most games: it brings DXVK and VKD3D.",
     {rescan:false,keys:"wine proton runner ge-proton umu windows exe compatibility",sub:()=>lpc==null?{text:"Looking…"}:!(L.runners||[]).length?{text:"No Wine or Proton found · install Wine or GE-Proton",cls:"warn"}:{text:`${L.runners.length} found${L.umu?" · Proton runs through umu-run":" · umu-run not found: Proton runs on its own"}`}}));
-  rows.push(F("Wine prefixes folder","pc.prefixDir","folder","Each Windows game gets a Wine prefix of its own (its own little Windows: saves, settings), a folder named after the game, in this folder. Empty: (T)rustyShelf's own Prefixes folder.",{ph:L.prefixDir||"",want:"dir",pickTitle:"Choose a folder for Wine prefixes",keys:"wine prefix prefixes folder"}));
+  rows.push(F("Wine prefixes folder","pc.prefixDir","folder","Each Windows game gets a Wine prefix of its own (its own little Windows: saves, settings), a folder named after the game, in this folder. Empty: RustyShelf's own Prefixes folder.",{ph:L.prefixDir||"",want:"dir",pickTitle:"Choose a folder for Wine prefixes",keys:"wine prefix prefixes folder"}));
   rows.push(H("Linux games"));
   rows.push(F("Game data folder","pc.homeDir","folder","Linux games get this folder as their home: their saves and settings go there, kept apart from yours. Empty: your own home folder.",{want:"dir",pickTitle:"Choose a folder for Linux games' saves and settings",keys:"home saves settings data native linux games folder"}));
   rows.push(H("Epic Games"));
   if(lpc&&!L.legendary){
-    rows.push(A("Get legendary",()=>lgGetting?"Downloading…":"Get","Epic games need legendary, a small open-source Epic Games client. (T)rustyShelf downloads its official release from GitHub into its tools folder and checks it before using it.",
+    rows.push(A("Get legendary",()=>lgGetting?"Downloading…":"Get","Epic games need legendary, a small open-source Epic Games client. RustyShelf downloads its official release from GitHub into its tools folder and checks it before using it.",
       async()=>{if(lgGetting)return;lgGetting=true;bump();try{await api.getLegendary();toast("legendary is ready: sign in to Epic Games");lpcLoad(true)}catch(e){toast(errMsg(e))}finally{lgGetting=false;bump()}},{ns:true,keys:"legendary epic download get install",sub:()=>({text:"Not found",cls:"warn"})}));
     rows.push(F("Or choose legendary","pc.legendaryPath","file","A legendary program you have already.",{want:"file",pickTitle:"Choose the legendary program",live:()=>lpcLoad(true),keys:"legendary epic"}));}
   rows.push(A("Epic Games account",()=>epicSigning?"Signing in…":L.epicAccount?"Sign out":"Sign in",
-    "Sign in with Epic's own page. (T)rustyShelf keeps only legendary's sign-in; your password never reaches it.",
+    "Sign in with Epic's own page. RustyShelf keeps only legendary's sign-in; your password never reaches it.",
     async()=>{if(!L.legendary){toast("Get legendary first (just above)");return}if(epicSigning)return;
       if(L.epicAccount){twice("epicout",async()=>{await api.epicSignOut();toast("Signed out of Epic Games");epicLib=null;again()},"Press again to sign out of Epic Games");return}
       epicSigning=true;bump();toast("Opening Epic's sign-in page…");try{const r=await api.epicSignIn();if(r&&r.ok){toast("Signed in to Epic Games as "+r.name);epicLib=null;again()}else if(r&&r.error)toast(r.error)}catch(e){toast(errMsg(e))}finally{epicSigning=false;bump()}},
@@ -978,13 +978,13 @@ function linuxPcRows(){if(!onLinux()||!api.pcLinux)return[];lpcLoad();const L=lp
   const j=L.job;
   rows.push(M("Epic library","epiclib","Install, update and uninstall the games on your Epic account.","Every game on your Epic account. Installed games are on the PC shelf; installs and updates run in the background, one at a time.",[{t:"dyn",fn:epicLibRows}],
     {when:()=>!!L.epicAccount,keys:"epic library install update uninstall download games",sub:()=>j&&j.state==="installing"?{text:`${j.update?"Updating":"Installing"} ${j.title} · ${epicPct(j)}`}:{text:"Install, update and uninstall"}}));
-  // ((T)rustyShelf) the download manager: every install and update in the order they run
+  // (RustyShelf) the download manager: every install and update in the order they run
   rows.push(M("Downloads","epicdl","The Epic installs and updates, in order: pause, resume, move up or remove.","The Epic downloads, one at a time. Pause stops a download without losing what's done: Resume goes on from there. A game asked for while another downloads waits its turn.",[{t:"dyn",fn:epicDlRows}],
     {when:()=>!!L.epicAccount,keys:"epic downloads queue pause resume install update progress speed",sub:()=>{const q=epicQ().filter(i=>["queued","installing","paused"].includes(i.state)),r=q.find(i=>i.state==="installing");return q.length?{text:`${q.length} in the list${r?" · "+epicPct(r):""}`}:{text:"Nothing downloading"}}}));
-  rows.push(F("Epic install folder","pc.epicDir","folder","Where new Epic games are installed. Empty: the PC games folder when there's one, else (T)rustyShelf's own Epic Games folder.",{ph:L.epicDir||"",want:"dir",pickTitle:"Choose where Epic games install",when:()=>!!L.epicAccount,keys:"epic install folder path"}));
+  rows.push(F("Epic install folder","pc.epicDir","folder","Where new Epic games are installed. Empty: the PC games folder when there's one, else RustyShelf's own Epic Games folder.",{ph:L.epicDir||"",want:"dir",pickTitle:"Choose where Epic games install",when:()=>!!L.epicAccount,keys:"epic install folder path"}));
   if(window.Shelf&&Shelf.pcGallery)rows.push(A("PC game covers","Open","Every PC game's cover and where it comes from (your pick, Epic's box art, Steam's, or a made-up case). Pick a game to change it. Also in Box art & manuals.",()=>{close();Shelf.pcGallery()},{ns:true,keys:"pc covers box art front gallery"}));
   return rows}
-// ((T)rustyShelf) the installs are a queue (main/epicdl.js): a game asked for while another downloads waits its turn
+// (RustyShelf) the installs are a queue (main/epicdl.js): a game asked for while another downloads waits its turn
 const epicQ=()=>(lpc&&lpc.downloads)||[],epicMine=g=>epicQ().find(i=>i.appName===g.appName&&["queued","installing","paused"].includes(i.state));
 const epicState=i=>i.state==="installing"?epicPct(i):i.state==="queued"?"Waiting for its turn":i.state==="paused"?`Paused · ${(+i.pct||0).toFixed(1)}%`:i.state==="failed"?`Failed · ${i.error||"the install stopped"}`:i.state==="cancelled"?`Stopped · ${(+i.pct||0).toFixed(1)}%`:"Done";
 function epicDlRows(){const rows=[],Q=epicQ();
@@ -1038,7 +1038,7 @@ function sw2BuildRows(){sw2Want();const c=sysCfg("sw2"),fx=sw2Fixed(),L=sw2b||[]
   if(L.length)rows.push(A("Remove an emulator",()=>sw2Rm?"Done":"Choose…","Switches the list above to Remove: press an emulator twice to take it off the list. Nothing is deleted.",()=>{sw2Rm=!sw2Rm;play("tick",1);bump()},{ns:true,keys:"remove delete hide emulator fork"}));
   if(arr("buildHidden").length)rows.push(A(`Show removed emulators (${arr("buildHidden").length})`,"Show","Puts every emulator you removed back on the list.",()=>{c.buildHidden=[];changed(null);sw2Reload();toast("Removed emulators are back on the list")},{ns:true}));
   rows.push({t:"head",text:"Folders of emulators"});
-  rows.push(A("Add a folder of emulators","Browse…","A folder holding several emulators (your forks): every one inside it is listed. (T)rustyShelf looks four folders deep.",async()=>{const f=await pick({kind:"folder",title:"Choose a folder of Switch 2 emulators"}),d=typeof f==="string"?f:f&&f.path;if(!d)return;
+  rows.push(A("Add a folder of emulators","Browse…","A folder holding several emulators (your forks): every one inside it is listed. RustyShelf looks four folders deep.",async()=>{const f=await pick({kind:"folder",title:"Choose a folder of Switch 2 emulators"}),d=typeof f==="string"?f:f&&f.path;if(!d)return;
     if(has(arr("buildDirs"),d))return toast("That folder is already in the list");c.buildDirs=[...arr("buildDirs"),d].slice(0,20);changed(null);sw2Reload();toast("Looking for emulators in "+folderName(d))}));
   arr("buildDirs").forEach(d=>rows.push(A("Folder · "+folderName(d),"Remove",`Emulators in this folder are listed. Remove takes the folder off the list; nothing is deleted.\n${d}`,()=>twice("sw2d:"+d,()=>{c.buildDirs=arr("buildDirs").filter(y=>y!==d);changed(null);sw2Reload();toast("Folder removed from the list (nothing was deleted)")},"Press again to remove this folder"),{ns:true,ask:"sw2d:"+d})));
   return rows}
@@ -1155,7 +1155,7 @@ function play(k,d){if(window.Sound&&Sound.play&&gp("ui.sound")!==false)try{Sound
 let sndT=0;function soundSoon(k){clearTimeout(sndT);sndT=setTimeout(()=>shelf("sound",{preview:k}),260)}
 
 /* ---------- async bits: detection, services, system actions ---------- */
- // ((T)rustyShelf, asked for in Boxshelf's discussions) portable emulators kept anywhere: the folder you choose
+ // (RustyShelf, asked for in Boxshelf's discussions) portable emulators kept anywhere: the folder you choose
 async function runFolderDetect(){if(detecting||!api.emulatorsIn)return;const p=await pick({kind:"folder",title:"Choose the folder your emulators are in"}),dir=typeof p==="string"?p:p&&p.path;if(!dir)return;
   detecting=true;bump();const my=openId;
   try{const r=await api.emulatorsIn(dir);if(my!==openId||!isOpen){detecting=false;return}
@@ -1166,8 +1166,8 @@ async function runFolderDetect(){if(detecting||!api.emulatorsIn)return;const p=a
     toast(!found.length?`No emulators found in ${folderName(dir)}`:set.length?`Set up ${list(set)}${had.length?` (${had.length} already had one)`:""}`:`Found emulators for ${list(had)}, which already have one set`);
     if(set.length)changed({rescan:true})}
   catch(e){toast(e&&e.message||"Couldn't look through that folder")}finally{detecting=false;bump()}}
-// ((T)rustyShelf) Export / Import everything (main/dataexport.js); each step is said as it goes
-// ((T)rustyShelf issue 6) its size before a folder is chosen, its progress (bytes, files, time left) on the row, Pause / Cancel
+// (RustyShelf) Export / Import everything (main/dataexport.js); each step is said as it goes
+// (RustyShelf issue 6) its size before a folder is chosen, its progress (bytes, files, time left) on the row, Pause / Cancel
 let dataBusy="",dataProg=null,dataSz=null,dataSzBusy=false;if(api.onDataProgress)api.onDataProgress(s=>{if(!s)return;if(s.bytes!=null){dataProg=s;bump()}});
 const dataSize=b=>b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.max(1,Math.round(b/1048576))+" MB";
 const dataEta=t=>t==null?"":t<90?"about a minute left":t<5400?`about ${Math.round(t/60)} min left`:`about ${(t/3600).toFixed(1)} h left`;
@@ -1182,9 +1182,9 @@ async function exportEverything(){if(dataBusy||!api.exportData)return;const p=aw
   await save();dataBusy="export";dataProg=null;bump();toast("Exporting… (a big collection takes a while)");
   try{const r=await api.exportData(dir);toast(r.updated?`Updated ${folderName(r.dir)}: ${Number(r.copied||0).toLocaleString()} new or changed files (${dataSize(r.copiedBytes||0)}), ${Number(r.unchanged||0).toLocaleString()} already there`:`Exported ${dataSize(r.bytes)} (${r.files.toLocaleString()} files) to ${folderName(r.dir)}`)}
   catch(e){toast(/cancelled/i.test(errMsg(e)||"")?"Export cancelled. What was copied stays in the folder: export there again to carry on.":errMsg(e)||"The export didn't finish")}finally{dataBusy="";dataProg=null;dataSz=null;bump()}}
-function importEverything(){if(dataBusy||!api.importData)return;twice("dataimport",async()=>{const p=await pick({kind:"folder",title:"Choose the (T)rustyShelf export folder"}),dir=typeof p==="string"?p:p&&p.path;if(!dir)return;
+function importEverything(){if(dataBusy||!api.importData)return;twice("dataimport",async()=>{const p=await pick({kind:"folder",title:"Choose the RustyShelf export folder"}),dir=typeof p==="string"?p:p&&p.path;if(!dir)return;
   dataBusy="import";dataProg=null;bump();toast("Importing…");
-  try{const r=await api.importData(dir);toast(`Imported${r.skipped&&r.skipped.length?` (${r.skipped.length} art folder${r.skipped.length===1?"":"s"} had nowhere to go: see the log)`:""}. (T)rustyShelf starts again in a moment…`)}catch(e){toast(errMsg(e)||"The import didn't finish");dataBusy="";bump()}},"Press again: the export's settings and downloads replace these")}
+  try{const r=await api.importData(dir);toast(`Imported${r.skipped&&r.skipped.length?` (${r.skipped.length} art folder${r.skipped.length===1?"":"s"} had nowhere to go: see the log)`:""}. RustyShelf starts again in a moment…`)}catch(e){toast(errMsg(e)||"The import didn't finish");dataBusy="";bump()}},"Press again: the export's settings and downloads replace these")}
 async function runDetect(){if(detecting||!api.detect)return;detecting=true;bump();const my=openId;
   try{const d0=await api.detect();
     // Settings closed (or reopened) while it searched: its config was already saved, so filling it in now would save a stale copy over newer changes
@@ -1202,13 +1202,13 @@ async function testSvc(s){await save();svcBusy[s]=true;bump();
     else status[s]={state:"fail",msg:"Testing isn't available here",at:Date.now()}}
   catch(e){status[s]={state:"fail",msg:errMsg(e),at:Date.now()}}
   svcBusy[s]=false;const st=svcState(s);toast(st.state==="ok"?(s==="ra"?"RetroAchievements connected":`${SVC_N[s]||s} works`+(st.left!=null?` · ${st.left} lookups left today`:"")):st.state==="none"?"Fill in the account first":"That didn't work: "+(st.msg||""));if(s==="ra")raChanged=true;bump()}
-async function setAutostart(v){try{const r=await api.setAutostart(v);autostart={enabled:!!(r&&r.enabled!==undefined?r.enabled:v),how:r&&r.how};toast(v?"(T)rustyShelf starts with Windows":"Removed from startup")}catch(e){toast(errMsg(e))}bump()}
+async function setAutostart(v){try{const r=await api.setAutostart(v);autostart={enabled:!!(r&&r.enabled!==undefined?r.enabled:v),how:r&&r.how};toast(v?"RustyShelf starts with Windows":"Removed from startup")}catch(e){toast(errMsg(e))}bump()}
 // (1.82) the public beta page: newest release (asked once when the row first shows, if checks are on) and the bug form
 let upd=null,updAsked=false;
 function updBtn(){if(!upd&&!updAsked&&gp("ui.updateCheck")!==false&&api.updateCheck){updAsked=true;Promise.resolve(api.updateCheck(false)).then(r=>{upd=r;if(isOpen)renderPage()}).catch(()=>{})}
   return upd&&upd.newer?"Get "+upd.latest:upd&&!upd.error&&upd.latest?"Up to date":"Check now"}
 async function checkUpdates(){if(upd&&upd.newer){openLink(upd.url);return}toast("Checking for a newer version…");
-  try{upd=await api.updateCheck(true);toast(upd.error?"Couldn't reach GitHub. Try again later":upd.newer?`(T)rustyShelf ${upd.latest} is out: press again to get it`:upd.latest?"You have the newest beta":"No betas published yet");if(isOpen)renderPage()}catch(e){toast(errMsg(e))}}
+  try{upd=await api.updateCheck(true);toast(upd.error?"Couldn't reach GitHub. Try again later":upd.newer?`RustyShelf ${upd.latest} is out: press again to get it`:upd.latest?"You have the newest beta":"No betas published yet");if(isOpen)renderPage()}catch(e){toast(errMsg(e))}}
 async function reportOnline(){try{const r=await api.updateCheck(false);openLink(r&&r.links&&r.links.issues)}catch(e){toast(errMsg(e))}}
 async function backup(){await save();try{const r=await api.backupSettings();if(r&&r.ok)toast("Saved: "+String(r.file||"").split(/[\\/]/).pop());else if(r&&r.error)toast(r.error)}catch(e){toast(errMsg(e))}}
 async function restoreBackup(){await save();try{const r=await api.restoreSettings();if(r&&r.ok){const fresh=await api.getConfig();info=fresh;cfg=clone(fresh.config);pending=false;colRowsBy.clear();ADD.rows=null;clearTimeout(saveT);{const ci2=shelf("config");if(ci2&&typeof ci2==="object")ci2.config=clone(fresh.config)}listSig="";ensureCfg();build();needRescan=true;raChanged=true;applyTint();fit();document.body.classList.toggle("bss-reduce",gp("ui.reduceMotion")===true);{const u=cfg.ui;applyUi({safeArea:u.safeArea,clock:u.clock,clock24:u.clock24,reduceMotion:u.reduceMotion,confirmButton:u.confirmButton,scrollSpeed:u.scrollSpeed,audioOut:u.audioOut,dimMinutes:u.dimMinutes,attractMinutes:u.attractMinutes});
@@ -1220,10 +1220,10 @@ async function customize(id){await close();const S=window.Shelf;
   if(S&&S.openCustomize){let ok=false;try{ok=S.openCustomize(id)}catch{}if(ok===false&&S.toast)S.toast("Customize opens from that console's shelf");return}
   try{dispatchEvent(new KeyboardEvent("keydown",{key:"t",bubbles:true}))}catch{}}
 let readWhere=null,readOld=null,readCopy=null;
-// the full path shown under each folder row: the folder you picked (saved or not yet), else where (T)rustyShelf keeps them
+// the full path shown under each folder row: the folder you picked (saved or not yet), else where RustyShelf keeps them
 function readFolder(k){const v=gp("ui.readingLibrary");if(v)return String(v).replace(/[\\/]+$/,"")+"\\"+k;if(readWhere)return k==="Magazines"?readWhere.magazines:readWhere.guides;return info&&info.appRoot?info.appRoot+"\\"+k:k}
-// magazines left in an earlier (T)rustyShelf folder (the owner moved his install): one row per folder, copy only
-function readingOldRows(){if(!readOld||!readOld.length)return [];return [H("From an earlier (T)rustyShelf folder"),...readOld.slice(0,3).map(o=>A(`Bring them over from ${o.root}`,readCopy&&readCopy.root===o.root?(readCopy.total?`${readCopy.done} / ${readCopy.total} · Stop`:"Copying… · Stop"):"Copy",`${o.magazines.files} magazine file${o.magazines.files===1?"":"s"} and ${o.guides.files} guide file${o.guides.files===1?"":"s"} (${Math.round(o.bytes/1048576)} MB) are in that folder. They're copied into your current Magazines and Guides folders; the old ones stay where they are, and nothing you already have is overwritten.`,()=>readingImport(o),{keys:"old install move migrate copy previous bring over"}))]}
+// magazines left in an earlier RustyShelf folder (the owner moved his install): one row per folder, copy only
+function readingOldRows(){if(!readOld||!readOld.length)return [];return [H("From an earlier RustyShelf folder"),...readOld.slice(0,3).map(o=>A(`Bring them over from ${o.root}`,readCopy&&readCopy.root===o.root?(readCopy.total?`${readCopy.done} / ${readCopy.total} · Stop`:"Copying… · Stop"):"Copy",`${o.magazines.files} magazine file${o.magazines.files===1?"":"s"} and ${o.guides.files} guide file${o.guides.files===1?"":"s"} (${Math.round(o.bytes/1048576)} MB) are in that folder. They're copied into your current Magazines and Guides folders; the old ones stay where they are, and nothing you already have is overwritten.`,()=>readingImport(o),{keys:"old install move migrate copy previous bring over"}))]}
 // pressed again while it copies: stop (main finishes the file in hand; what was copied stays)
 async function readingImport(o){if(readCopy){if(readCopy.root===o.root&&api.readingImportStop&&!readCopy.stop){readCopy.stop=true;toast("Stopping the copy…");try{await api.readingImportStop()}catch{}}return}if(!api.readingImport)return;readCopy={root:o.root,done:0,total:0};bump();
   try{const r=await api.readingImport(o.root)||{};toast(`${r.cancelled?"Stopped · c":"C"}opied ${r.copied||0} file${r.copied===1?"":"s"}${r.skipped?`, ${r.skipped} already there`:""}${r.failed?`, ${r.failed} couldn't be copied`:""}`);try{readOld=await api.readingOld()}catch{}}
@@ -1259,7 +1259,7 @@ async function renameSave(v){const s=renameState;if(!s||!api.renameGame)return;v
   try{await api.renameGame({...s.ref,title:back?"":v});s.renamed=!back;s.name=back?s.file:v;s.saved=s.name;play("tick",1);toast(back?"Back to its file name":`Renamed to ${v}`);shelf("refresh",true)} /* (true: the shelf stays on this game) */catch(e){if(s.saved!=null)s.name=s.saved;toast(errMsg(e));play("error")}bump()} // (beta.10) a failed rename shows the name it still has
 // (beta.5) the cover picker's Search by name: a name typed here (keyboard, or the on-screen one on a controller); Enter
 // closes Settings and the picker opens again with SteamGridDB's covers for that name
-// ((T)rustyShelf issue #2) Art match: the box art databases' games whose names hold the words typed; Use keeps one with the game
+// (RustyShelf issue #2) Art match: the box art databases' games whose names hold the words typed; Use keeps one with the game
 // (main.js art:matchSet), and its art is fetched again under that name
 let artMatch=null;
 const amWhat=m=>m.source==="launchbox"?`LaunchBox · ${m.pictures} picture${m.pictures===1?"":"s"}`:"libretro · front cover";
@@ -1330,7 +1330,7 @@ function addRows(){if(ADD.rows)return ADD.rows;const R=[],win=!window.bsPlatform
   R.push(A("Add several programs","Choose…","Pick many games' programs at once (hold Ctrl or Shift in the file window). You check their names before they're added.",addSeveral,{ns:true,keys:"add several many bulk multiple games programs exe"}),
     A("Scan a folder","Choose folder…","Point at the folder your games are in (like D:\\Games). Each game folder in it becomes one game, its main program picked for you; you tick which ones to add.",addScan,{ns:true,keys:"scan folder games bulk find"}));
   if(api.playnitePlan&&win)R.push(A("Import from Playnite (experimental)",()=>ADD.pnFound?"Import…":ADD.pnFound===false?"Find…":"…",
-    "Brings your Playnite library over in one go: games you added there by hand, with their covers, onto the Custom shelf, and your emulated games' folders onto their console's shelf. Steam, Epic, GOG Galaxy and other store games are left out: (T)rustyShelf reads those stores itself. Experimental: it couldn't be tried with every Playnite version, so tell us if something's missing.",
+    "Brings your Playnite library over in one go: games you added there by hand, with their covers, onto the Custom shelf, and your emulated games' folders onto their console's shelf. Steam, Epic, GOG Galaxy and other store games are left out: RustyShelf reads those stores itself. Experimental: it couldn't be tried with every Playnite version, so tell us if something's missing.",
     async()=>{if(ADD.pnFound)return addPlaynite();const p=await pick({kind:"folder",title:"Choose Playnite's folder (the one with Playnite.DesktopApp.exe)"}),d=typeof p==="string"?p:p&&p.path;if(d)addPlaynite(d)},
     {ns:true,keys:"playnite import library experimental",sub:()=>ADD.pnFound?{text:"Found in "+folderName(ADD.pnFound.app)}:ADD.pnFound===false?{text:"Not found · choose its folder"}:{text:"Looking for Playnite…"}}));
   // (beta discussion 39) a Microsoft Store app Windows doesn't list as a game (an older one like Minecraft for Windows 10 is
@@ -1345,14 +1345,14 @@ function addRows(){if(ADD.rows)return ADD.rows;const R=[],win=!window.bsPlatform
     L.forEach(x=>R.push({t:"toggle",label:x.title,info:x.exe||x.shellApp,ns:true,nosave:true,get:()=>x.on&&!x.have,set:v=>{if(!x.have)x.on=!!v},sub:()=>({text:x.have?"Already on the Custom shelf":(x.group?x.group+" · ":"")+x.exe.split(/[\\/]/).pop()})}));
     R.push(A("Add the ticked games",()=>{const n=L.filter(x=>x.on&&!x.have).length;return n?`Add ${n}`:"Add"},"Puts the ticked games on the Custom shelf. Covers are found for them like for any PC game, and each can be renamed or given another cover from its Details.",addCommit,{ns:true}),
       A("Clear this list","Clear","Forgets this list without adding anything.",()=>{ADD.list=null;addReset()},{ns:true}))}
-  // ((T)rustyShelf, issue 4) the folders the scan left out, and why (an installer not run yet, an archive), so nothing goes missing silently
+  // (RustyShelf, issue 4) the folders the scan left out, and why (an installer not run yet, an archive), so nothing goes missing silently
   if(ADD.skipped&&ADD.skipped.length&&!ADD.busy){const S=ADD.skipped;R.push(H(`Left out: ${S.length} folder${S.length===1?"":"s"}`,{em:()=>"no game to start in them"}));
     S.slice(0,200).forEach(x=>R.push(infoRow(x.title,"",{text:x.why},{info:x.folder})));
     R.push(A("Clear this list","Clear","Forgets the folders left out.",()=>{ADD.skipped=null;addReset()},{ns:true}))}
   if(ADD.pn){const P=ADD.pn,name=id=>((consoleList().find(c=>c.id===id)||{}).name||id);R.push(H("From Playnite",{em:()=>`${P.total} games in Playnite`}));
     R.push({t:"toggle",label:"PC games",info:"Games you added to Playnite by hand: each gets a case on the Custom shelf with its program, launch options and cover.",ns:true,nosave:true,get:()=>!!ADD.pnOn.pc,set:v=>{ADD.pnOn.pc=!!v;addReset()},sub:()=>({text:`${P.pc.length} game${P.pc.length===1?"":"s"}`})});
     for(const [sys,c] of Object.entries(P.consoles||{}))R.push({t:"toggle",label:`${name(sys)} games`,info:`Adds ${c.dirs.join(", ")} as ${name(sys)} games folders${c.emulatorDir?`, and Playnite's emulator if ${name(sys)} has none yet`:""}.`,ns:true,nosave:true,get:()=>!!ADD.pnOn[sys],set:v=>{ADD.pnOn[sys]=!!v},sub:()=>({text:`${c.count} game${c.count===1?"":"s"} · ${c.dirs.length} folder${c.dirs.length===1?"":"s"}`})});
-    const s=P.skipped||{},left=[s.store?`${s.store} store game${s.store===1?"":"s"} ((T)rustyShelf reads those stores itself)`:"",s.hidden?`${s.hidden} hidden`:"",s.link?`${s.link} started by a link`:"",s.nothing?`${s.nothing} with nothing to start`:""].filter(Boolean);
+    const s=P.skipped||{},left=[s.store?`${s.store} store game${s.store===1?"":"s"} (RustyShelf reads those stores itself)`:"",s.hidden?`${s.hidden} hidden`:"",s.link?`${s.link} started by a link`:"",s.nothing?`${s.nothing} with nothing to start`:""].filter(Boolean);
     if(left.length)R.push(infoRow("Left out","",{text:left.join(" · ")}));
     R.push(A("Import",()=>`Import`,"Adds what's ticked above. Remove what was imported (below) takes it all away again.",pnImport,{ns:true}));
     if(ADD.pnOn.pc&&P.pc.length){R.push(H("Its PC games"));P.pc.forEach(g=>R.push({t:"toggle",label:g.title,info:g.exe,ns:true,nosave:true,get:()=>ADD.pnPick.has(g.key),set:v=>{v?ADD.pnPick.add(g.key):ADD.pnPick.delete(g.key)},sub:()=>({text:g.there===false?"Its program isn't on this PC":g.exe.split(/[\\/]/).pop(),cls:g.there===false?"warn":""})}))}}
@@ -1365,12 +1365,12 @@ const wnFor=v=>wnList().find(e=>window.bsPlatform&&bsPlatform.os==="android"?e.a
 function wnPlain(md){return String(md||"").split(/\r?\n/).map(l=>/^\s*[-*•]\s+(.+)$/.exec(l)).filter(Boolean).map(m=>m[1].replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*|__|`/g,"").replace(/<[^>]*>/g,"").trim()).filter(Boolean)}
 let wnRowsKept=null,wnSig="";
 function wnRows(){updBtn();const sig=(upd&&upd.latest||"")+"|"+(info.version||"");if(wnRowsKept&&wnSig===sig)return wnRowsKept;wnSig=sig;const R=[],android=window.bsPlatform&&bsPlatform.os==="android";
-  if(upd&&upd.newer&&upd.latest){R.push(H(`New: (T)rustyShelf ${upd.latest}`,{em:()=>"not installed yet"}));
+  if(upd&&upd.newer&&upd.latest){R.push(H(`New: RustyShelf ${upd.latest}`,{em:()=>"not installed yet"}));
     const items=wnPlain(upd.notes);items.slice(0,12).forEach(s=>R.push(infoRow(s.length>70?s.slice(0,67)+"…":s,"",{text:""},{info:s})));
-    R.push(A("Get (T)rustyShelf "+upd.latest,"Download","Opens its download page. Unzip it over this folder: your settings are kept.",checkUpdates,{ns:true}))}
+    R.push(A("Get RustyShelf "+upd.latest,"Download","Opens its download page. Unzip it over this folder: your settings are kept.",checkUpdates,{ns:true}))}
   const cur=info.version||"";let shown=0;
   for(const e of wnList()){const v=android?e.android:e.version;if(!v)continue;if(shown>=4)break;shown++;
-    R.push(H(`${v===cur?"This version":"(T)rustyShelf"} ${v}`,{em:()=>e.date||""}));
+    R.push(H(`${v===cur?"This version":"RustyShelf"} ${v}`,{em:()=>e.date||""}));
     for(const sec of e.sections||[])for(const [h,more] of sec.items||[])R.push(infoRow(h,"",{text:sec.h},{info:more||h}))}
   if(!R.length)R.push(infoRow("No notes yet","",{text:""}));
   return wnRowsKept=R}
@@ -1389,21 +1389,21 @@ async function clipGet(){if(CLIP.pct!=null)return;CLIP.pct=0;CLIP.err=false;bump
   toast(ok?"Console trailers are ready: rest on a console game to see its trailer":"Couldn't get the trailer helper. Check the internet connection and try again.")}
 function clipRows(){if(gp("ui.previews")==="off"||gp("ui.previewClips")===false||!clipOk())return [];const s=CLIP.s;
   if(!s.helper)return [A(CLIP.pct!=null?`Getting the trailer helper… ${CLIP.pct}%`:"Get the trailer helper (needed)",CLIP.pct!=null?"":"Get",
-    "Console trailers don't play until you get this. It's a free helper, yt-dlp (about 25 MB), that finds each trailer's video. It's fetched once from yt-dlp's own GitHub page, checked, and kept in (T)rustyShelf's data folder; it updates itself when YouTube changes.",
+    "Console trailers don't play until you get this. It's a free helper, yt-dlp (about 25 MB), that finds each trailer's video. It's fetched once from yt-dlp's own GitHub page, checked, and kept in RustyShelf's data folder; it updates itself when YouTube changes.",
     ()=>clipGet(),{ns:true,keys:"yt-dlp helper console trailers download",sub:()=>CLIP.err?{text:"Couldn't get it last time: try again",warn:true}:{text:"Not installed yet: console trailers are waiting for it",warn:true}})];
   return [A("Console trailer clips","Clear",`The trailer helper is ready. ${s.n?`${s.n} clip${s.n===1?"":"s"} kept (${mb(s.bytes||0)} MB).`:"No clips kept yet: rest on a console game."} Cleared clips are made again when you next rest on a game.`,
     async()=>{await api.clipClear();clipLoad(true);toast("Console trailer clips cleared")},{ns:true,keys:"console trailers clips clear",sub:()=>({text:s.n?`${s.n} clip${s.n===1?"":"s"} · ${mb(s.bytes||0)} MB`:"Ready"})})]}
-// (beta.8) Linux / Steam Deck: Add (T)rustyShelf to Steam (main/steamdeck.js), so it starts from Steam and Game Mode and its
+// (beta.8) Linux / Steam Deck: Add RustyShelf to Steam (main/steamdeck.js), so it starts from Steam and Game Mode and its
 // games get the controller as a gamepad. Shown where it can work: the AppImage, outside Game Mode (it's in Steam there)
 const DECK={d:null,loading:false,busy:false};
 function deckLoad(force){if(!api.deckInfo||DECK.loading||(DECK.d&&!force))return;DECK.loading=true;
   Promise.resolve(api.deckInfo()).then(d=>{DECK.d=d||{}}).catch(()=>{DECK.d={}}).finally(()=>{DECK.loading=false;bump()})}
 function deckRows(){deckLoad();const d=DECK.d;if(!d||!d.canAdd||d.gameMode)return [];
-  return [A(DECK.busy?"Adding (T)rustyShelf to Steam…":"Add (T)rustyShelf to Steam",DECK.busy?"":d.inSteam?"Update":"Add",
-    "Adds (T)rustyShelf to Steam's Library as a non-Steam game, so you can start it from Steam and Game Mode. Started from Steam, the controller works as a gamepad in your games (outside Steam on a Steam Deck, B is the Esc key, and most emulators quit their game on it). Steam closes and opens again while it's added; its old list is backed up first.",
+  return [A(DECK.busy?"Adding RustyShelf to Steam…":"Add RustyShelf to Steam",DECK.busy?"":d.inSteam?"Update":"Add",
+    "Adds RustyShelf to Steam's Library as a non-Steam game, so you can start it from Steam and Game Mode. Started from Steam, the controller works as a gamepad in your games (outside Steam on a Steam Deck, B is the Esc key, and most emulators quit their game on it). Steam closes and opens again while it's added; its old list is backed up first.",
     async()=>{if(DECK.busy)return;DECK.busy=true;bump();let r=null;try{r=await api.addToSteam(true)}catch{}DECK.busy=false;deckLoad(true);
-      const why={"no-steam":"Steam hasn't been set up here yet","not-appimage":"(T)rustyShelf isn't running from its AppImage","steam-would-not-close":"Steam didn't close: close it yourself and try again","write-failed":"Steam's list couldn't be written"};
-      toast(r&&r.ok?"(T)rustyShelf is in Steam: start it from your Library (Non-Steam), in Game Mode on a Steam Deck":"Couldn't add (T)rustyShelf to Steam"+(r&&why[r.why]?": "+why[r.why]:""))},
+      const why={"no-steam":"Steam hasn't been set up here yet","not-appimage":"RustyShelf isn't running from its AppImage","steam-would-not-close":"Steam didn't close: close it yourself and try again","write-failed":"Steam's list couldn't be written"};
+      toast(r&&r.ok?"RustyShelf is in Steam: start it from your Library (Non-Steam), in Game Mode on a Steam Deck":"Couldn't add RustyShelf to Steam"+(r&&why[r.why]?": "+why[r.why]:""))},
     {ns:true,keys:"steam deck game mode non-steam shortcut add to steam library controller",sub:()=>({text:d.inSteam?"In Steam already":d.deck?"Recommended on a Steam Deck":"Not in Steam yet"})})]}const PVS={c:null,loading:false,rows:null};
 function pvLoad(force){if(force){PVS.c=null;PVS.rows=null}if(PVS.c||PVS.loading||!api.previewCount)return;PVS.loading=true;
   Promise.resolve(api.previewCount()).then(c=>{PVS.c=c||{total:0,systems:[]}}).catch(()=>{PVS.c={total:0,systems:[]}}).finally(()=>{PVS.loading=false;PVS.rows=null;bump()})}
@@ -1427,7 +1427,7 @@ function pvRows(){pvLoad();if(PVS.rows)return PVS.rows;const c=PVS.c,R=[];if(!c)
 const ES_NAME={controller:"Controller",hotkeys:"Home menu hotkeys",bios:"BIOS folder",graphics:"Graphics",quit:"No quit questions",resume:"Resume where you left off"};
 const ES_INFO={controller:"Maps your controller as player 1, when the emulator is still on keyboard-only controls. A mapping you made yourself is kept.",
   hotkeys:"Puts save, load, pause and screenshot on the keys the Home menu presses, so its Save and Load work in your games.",
-  bios:"Points the emulator at one shared BIOS folder (TrustyShelf\\BIOS), only when its own BIOS folder is empty.",
+  bios:"Points the emulator at one shared BIOS folder (RustyShelf\\BIOS), only when its own BIOS folder is empty.",
   graphics:"Sets the resolution to the Graphics preset below.",quit:"No \"are you sure?\" question when a game is closed.",
   resume:"RetroArch saves when you quit a game and carries on from there next time."};
 const ES_DEF={controller:true,hotkeys:true,bios:true,graphics:true,quit:true,resume:false};
@@ -1443,7 +1443,7 @@ function esSub(id){const s=esS[id],st=s&&s.st;if(!st)return {text:"Checking…"}
   return st.done?{text:"✓ Set up"}:!st.ready?{text:st.pending?"Sets up after you play once":`Open ${st.name} once first`,cls:"warn"}:{text:"Not set up yet"}}
 function emuSetupRows(id){const s=esGet(id);if(s.rows)return s.rows;const st=s.st,R=[];
   if(!st)return [infoRow("Checking the emulator…","")]; // (not kept: replaced when the answer comes)
-  if(!st.supported){R.push(infoRow(st.none?"Choose this console's emulator first":"(T)rustyShelf can't set this emulator up yet","",{text:st.why||"RetroArch, Dolphin, DuckStation, PCSX2 and PPSSPP for now."}));return s.rows=R}
+  if(!st.supported){R.push(infoRow(st.none?"Choose this console's emulator first":"RustyShelf can't set this emulator up yet","",{text:st.why||"RetroArch, Dolphin, DuckStation, PCSX2 and PPSSPP for now."}));return s.rows=R}
   R.push(infoRow(!st.ready?`Open ${st.name} once first`:st.done?`${st.name} is set up`:st.used?`You've set ${st.name} up yourself`:`${st.name} isn't set up yet`,"",
     {text:!st.ready?(st.pending?"It's set up the next time you play.":`${st.name} makes its settings file the first time it runs; set it up after that.`)
       :st.done?`Since ${new Date(st.done.at).toLocaleDateString()}: ${st.done.groups.map(g=>ES_NAME[g]||g).join(", ")}.`
@@ -1458,7 +1458,7 @@ function emuSetupRows(id){const s=esGet(id);if(s.rows)return s.rows;const st=s.s
         toast(r&&r.ok?((r.applied||[]).length?`${st.name} set up: ${r.applied.map(g=>ES_NAME[g]||g).join(", ")}`:`${st.name} already matches`):`Couldn't set up ${st.name}: ${(r&&r.why)||"unknown problem"}`)}
       catch(e){toast(errMsg(e))}finally{s.busy=false;esReset(id);bump()}},{when:()=>!!st.ready,ns:true}),
     A("Show what will change","Show","Lists every setting it would write, file by file, before you set anything up.",async()=>{try{s.plan=await api.emuSetupPlan(id)}catch(e){toast(errMsg(e));return}s.rows=null;bump()},{when:()=>!!st.ready&&!s.plan,ns:true}),
-    A("Undo","Undo",`Puts ${st.name}'s settings back exactly as they were before (T)rustyShelf set it up.`,()=>twice("esundo:"+id,async()=>{try{const r=await api.emuSetupUndo(id);toast(r&&r.restored&&r.restored.length?`${st.name}'s settings are back as they were`:"Nothing to undo")}catch(e){toast(errMsg(e))}esReset(id);bump()},"Press again to undo"),{when:()=>!!st.done,ns:true,ask:"esundo:"+id}));
+    A("Undo","Undo",`Puts ${st.name}'s settings back exactly as they were before RustyShelf set it up.`,()=>twice("esundo:"+id,async()=>{try{const r=await api.emuSetupUndo(id);toast(r&&r.restored&&r.restored.length?`${st.name}'s settings are back as they were`:"Nothing to undo")}catch(e){toast(errMsg(e))}esReset(id);bump()},"Press again to undo"),{when:()=>!!st.done,ns:true,ask:"esundo:"+id}));
   // (beta.7) RetroArch's core for this console: there or not, Get it (it's also fetched by itself the first time you play)
   if(st.core)R.push(H("RetroArch core"),A(`${st.core.name} core`,st.core.installed?"":"Get it",
     st.core.installed?`RetroArch has the ${st.core.name} core it uses for this console.`:`Downloads the ${st.core.name} core from libretro, the same place RetroArch's Online Updater uses. It's also fetched by itself the first time you play.`,
@@ -1506,7 +1506,7 @@ function route(page,o){if(!page)return;o=o||{};
   if(page==="collections"&&o.id!=null){colState={gid:String(o.id),title:String(o.title||"This game"),newName:""};
     MORE.collections={id:"collections",name:`Collections: ${colState.title}`.slice(0,60),lead:"Put this game on shelves of your own. Each collection is a shelf beside Home.",rows:[{t:"dyn",fn:colRows}]};
     goSecId("shelf");focus="page";rowI=0;openSub({kind:"more",id:"collections"});return}
-  // ((T)rustyShelf issue #2) Details → Art match: search the box art databases by name for the game this one's art comes from
+  // (RustyShelf issue #2) Details → Art match: search the box art databases by name for the game this one's art comes from
   if(page==="artmatch"&&o.id){artMatch={id:String(o.id),title:String(o.title||""),term:String(o.term||o.title||""),current:String(o.current||""),list:null,busy:false,index:"",q:""};
     MORE.artmatch={id:"artmatch",name:"Art match",lead:`Which game ${artMatch.title}'s box art comes from. For a ROM hack, a translation or a mod whose file name or serial isn't the original game's: search its original name and pick it. It's remembered for this game.`,rows:[{t:"dyn",fn:artMatchRows}]};
     goSecId("art");focus="page";rowI=0;openSub({kind:"more",id:"artmatch"});artMatchGo(artMatch.term);return}
@@ -1582,7 +1582,7 @@ const REGS=[["usa","USA"],["eur","Europe"],["jpn","Japan"]],REG_S={usa:"USA",eur
 const PRESETS=[["authentic","Authentic","Real scans of the original box and disc for every game"],["hd","Sharpest HD","The highest-resolution art for every game, clean and crisp"],["region","Region","Every game in one region's version"],["special","Special editions","Collector's and limited cases where a game had one, else authentic"],["sets","Complete sets","Front, back, spine and disc from one release, where a game has them"],["mix","Your mix","Choose a look per part below, or per game"]];
 const SREGS=[["usa","USA"],["eur","Europe"],["jpn","Japan"],["hd","HD"]],SET_I=()=>PRESETS.findIndex(p=>p[0]==="sets"); // the Complete sets card's choices
 const PP_LOOKS=["authentic","hd","region:usa","region:eur","region:jpn","special"];
-const SRC_N={made:"(T)rustyShelf, from the cover",launchbox:"LaunchBox",libretro:"libretro",gametdb:"GameTDB",steam:"Steam",steamgriddb:"SteamGridDB",screenscraper:"ScreenScraper",current:"your current file",earlier:"an earlier pick"},KIND_N={scan:"scan",clean:"clean",hd:"HQ"};
+const SRC_N={made:"RustyShelf, from the cover",launchbox:"LaunchBox",libretro:"libretro",gametdb:"GameTDB",steam:"Steam",steamgriddb:"SteamGridDB",screenscraper:"ScreenScraper",current:"your current file",earlier:"an earlier pick"},KIND_N={scan:"scan",clean:"clean",hd:"HQ"};
 const FILTERS=[["all","All"],["nocover","No cover"],["missing","Missing a part"],["low","Low-res"],["locked","Your picks"]];
 // (1.80) a part as a little picture of itself (cover, back, spine, disc or cartridge) with a mark for its state, so the grid
 // reads without letters or colour alone: ✓ have it · ! low-res · × missing · • your pick
@@ -1627,7 +1627,7 @@ function loadStudio(){if(!api.artStudio||sInfoBusy)return;sInfoBusy=true;
 // (beta.3) a first load always redraws (a quiet re-read started by a finished download used to leave "Loading…" up), gives
 // up after 20 s with a message, and an error is shown (it used to leave an empty grid); the page asks again 5 s later
 function loadGames(sys,quiet){let e=sGames[sys];if(e&&e.busy)return e.busy;if(!e)e=sGames[sys]={list:null};const first=!e.list;if(first)quiet=false;
-  const late=new Promise((_,no)=>setTimeout(()=>no(new Error("(T)rustyShelf took too long to list them")),20000));
+  const late=new Promise((_,no)=>setTimeout(()=>no(new Error("RustyShelf took too long to list them")),20000));
   e.busy=Promise.race([Promise.resolve(api.artGames({systemId:sys})),late]).then(l=>{e.list=Array.isArray(l)?l:[];e.err=null;e.errAt=0;e.stale=false;e.ver=(e.ver||0)+1}).catch(x=>{e.err=errMsg(x);e.errAt=Date.now();if(!first)e.list=e.list||[];else setTimeout(()=>{if(isOpen&&studio&&studio.sys===sys&&sGames[sys]===e&&!e.list)loadGames(sys)},5000)})
     // a quiet re-read (after a change, a finished job) patches what's on screen in place: the games grid swaps only the
     // tiles that changed (gamesFill) and the mix / pick views read the list live; nothing is rebuilt, nothing re-animates
@@ -2011,7 +2011,7 @@ const PK_MAN=PARTS.length,PK_LOCK=()=>PARTS.length+(api.manualStudio?1:0);
 const ACT_L={own:"My picture…",cut:"Cut from a full box…",undo:"Undo",retry:"Try again",index:"Build the LaunchBox index",clearf:"Clear filters",undoset:"Undo set",sgdb:"Add SteamGridDB",sgdbfix:"Fix your SteamGridDB key"};
 const ACT_S={own:"A picture of your own · copied, never moved",cut:"The box opened flat: back, spine and front",undo:"The picture before this one",retry:"Look for versions again",index:"One-time download, about 110 MB",clearf:"Show every version again",undoset:"All four parts as they were before the set",sgdb:"More front posters, many in HD · free key",sgdbfix:"The key wasn't accepted · no posters until it's fixed"};
 // (beta.9) an empty "add an account" slot on the Front: SteamGridDB posters show only with the player's own key (Windows only;
-// Android has its own studio). "" = nothing to suggest. ScreenScraper waits for (T)rustyShelf's developer registration
+// Android has its own studio). "" = nothing to suggest. ScreenScraper waits for RustyShelf's developer registration
 const ACCT_KEY_SVG='<svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></svg>';
 const sgAsk=()=>window.bsPlatform&&bsPlatform.os==="android"?"":!svcSet("steamgriddb")?"sgdb":svcState("steamgriddb").state==="fail"?"sgdbfix":"";
 function pkList(st,c){
@@ -2302,7 +2302,7 @@ function mgInput(a,rep){const st=studio,L=mgList(st),gg=L.length?gGeo():null;
   else if(a==="a"){if(g){studioOpen({v:"mpick",sys:st.sys,file:g.file,title:g.title});return}}
   else if(a==="y"){if(g){mgLock(st.sys,g.file,!g.locked);return}}
   render()}
-/* the console's choice: one card per option, A uses it (a background job re-picks what (T)rustyShelf fetched itself) */
+/* the console's choice: one card per option, A uses it (a background job re-picks what RustyShelf fetched itself) */
 function mprefBuild(st){const P=(mInfo&&mInfo.prefs)||[];if(st.i==null||st.zone==null){st.zone="pre";st.i=Math.max(0,P.findIndex(p=>p.id===((mCon(st.sys)||{}).pref||"best")))}
   E.bsa.innerHTML=`<div class="bsa-presets bsm-prefs">${P.map((p,j)=>`<div class="bsa-pre" data-j="${j}"><div class="use">IN USE</div><div class="im"><div class="bsm-flag">${esc(M_FLAG[p.id]||p.id)}</div></div><b>${esc(p.label)}</b><span>${esc(p.sub||"")}</span></div>`).join("")}</div>
     <p class="bsm-note">Automatic downloads follow this for every ${esc(mName(st.sys))} game that isn't locked. Changing it swaps the manual of every unlocked game for one that fits, your picks and PDFs of your own too (the old one is kept, and Undo or Earlier brings it back); locked games and built-in manuals stay as they are. No copy that fits: the best English one.</p>`;
@@ -2395,7 +2395,7 @@ function mpInput(a,rep){const st=studio,c=mCands[mk(st.sys,st.file)],L=msList(c)
 /* the header, the hints, input: the same frame as the art views */
 function msRender(st){const nm=mName(st.sys),c=mCon(st.sys),g=st.file?mgGame(st.sys,st.file):null,full=g?g.title:st.title||"",e=mGames[st.sys];
   const H0={mgames:[`Box art & manuals  ›  ${nm} manuals`,`${nm} manuals`,()=>{const L=e&&e.list||[],n=L.length||(c?c.total:0),have=e&&e.list?L.filter(x=>x.status!=="missing").length:c?c.have:0,lk=e&&e.list?L.filter(x=>x.locked).length:c?c.locked:0;return `${have} of ${n} game${n===1?"":"s"} have a manual · ${prefName(c&&c.pref)}${lk?` · ${lk} locked`:""}`}],
-    mpref:[`Box art & manuals  ›  ${nm} manuals  ›  Choice`,`Which manuals for ${nm}?`,()=>"One tap. (T)rustyShelf's automatic downloads follow it, now and for new games."],
+    mpref:[`Box art & manuals  ›  ${nm} manuals  ›  Choice`,`Which manuals for ${nm}?`,()=>"One tap. RustyShelf's automatic downloads follow it, now and for new games."],
     mpick:[`Box art & manuals  ›  ${nm}  ›  ${truncEnd(full,40)}  ›  Manual`,full,()=>{const cc=mCands[mk(st.sys,st.file)];return !cc||!cc.list?"Looking for every manual of this game…":cc.searching?"Every manual found for this game, side by side. Still looking online…":"A uses one as your pick and sets the old one aside (Undo brings it back)."}]}[st.v];
   if(E.crumb.textContent!==H0[0])E.crumb.textContent=H0[0];if(E.title.textContent!==H0[1])E.title.textContent=H0[1];const ld=H0[2]();if(E.lead.textContent!==ld)E.lead.textContent=ld;
   const sig=[st.v,st.sys,st.file||"",st.filter||"",e&&e.list?"L":"-",st.v==="mpref"&&mInfo?"P":"-"].join("|");
@@ -2525,7 +2525,7 @@ function renderSide(){
     let g="";sideNavs=SECTIONS.map((s,i)=>{if(s.g!==g){g=s.g;E.side.insertAdjacentHTML("beforeend",`<div class="bss-grp">${esc(g)}</div>`)}
       const n=document.createElement("div");n.className="bss-nav";n.innerHTML=svg(s.ic)+`<span>${esc(s.name)}</span><span class="badge"></span>`;
       n.onclick=()=>{if(edit)commitEdit();if(results){results=null;query="";closeOsk();preSearch=null}goSec(i);focus="page";rowI=0;render()};E.side.append(n);return n});
-    E.side.insertAdjacentHTML("beforeend",`<div class="bss-ver">(T)rustyShelf ${esc(info.version||"")}</div>`)}
+    E.side.insertAdjacentHTML("beforeend",`<div class="bss-ver">RustyShelf ${esc(info.version||"")}</div>`)}
   renderSearchBox();renderSubnav();
   SECTIONS.forEach((s,i)=>{const n=sideNavs[i];if(!n)return;n.classList.toggle("on",!results&&i===secI);n.classList.toggle("cur",focus==="side"&&!results&&i===secI);
     const b=n.lastChild,badge=s.badge?s.badge():"",dot=s.dot?s.dot():null;
@@ -2709,7 +2709,7 @@ let coverT=0;const cover=on=>{clearTimeout(coverT);if(!on){document.body.classLi
 function peek(kind){if(kind==="mus")musLook();if(kind!=="shelf"&&kind!=="mus")return;document.body.classList.add("bss-peek");E.stage.classList.add("peek");clearTimeout(peekT);
   peekT=setTimeout(()=>{E.stage.classList.remove("peek");document.body.classList.remove("bss-peek")},900)}
 const MOOD={gallery:"#6a4a2c",daylight:"#9a9c94",night:"#5a2e3e",neon:"#6a1f70",spotlit:"#3e2c18",lightsout:"#0c0c12"},WALL={plaster:"#2c2723",wood:"#4a2f1c",brick:"#5a2a20",wallpaper:"#3c3446",green:"#1f3a2c",burgundy:"#4a1622",navy:"#18233f"},FLOOR={stone:"#5a5650",wood:"#6a4426",carpet:"#5a1f26",checker:"#cfcfcf"};
-function musStyleNow(){return Object.assign({},MUS_DEF,(window.TrustyShelfMuseumRoom||{}).defaults||{},cfg.ui.museumStyle||{},{light:cfg.ui.museumLight||"gallery"})}
+function musStyleNow(){return Object.assign({},MUS_DEF,(window.RustyShelfMuseumRoom||{}).defaults||{},cfg.ui.museumStyle||{},{light:cfg.ui.museumLight||"gallery"})}
 function musLook(){const st=musStyleNow(),el=E.mus;el.style.setProperty("--mus0",`color-mix(in srgb,${MOOD[st.light]||MOOD.gallery} 60%,${WALL[st.wall]||WALL.plaster})`);el.style.setProperty("--musFloor",FLOOR[st.floor]||FLOOR.stone);
   const b=+st.bright||1,w=+st.warmth||0;el.style.filter=`brightness(${b}) sepia(${Math.max(0,w)*.4}) hue-rotate(${w<0?w*20:0}deg)`;
   // the Retro TV's stand, size and place, drawn in the preview so a change shows at once (the room itself is 3D only in the museum)
@@ -2819,7 +2819,7 @@ function padInput(a,rep){if(a==="p0")a=swapAB()?"b":"a";else if(a==="p1")a=swapA
   if(device!=="pad"){device="pad";oskSig="";if(focus==="edit"&&edit){const r=edit.row,v=(E.list.querySelector(".bss-edit")||{}).value;edit.value=v!=null?v:edit.value;focus="page";openOsk("edit")}}
   try{if(window.Shelf&&Shelf._wake)Shelf._wake()}catch{}input(a,rep)}
 
-// Built and drawn once, invisibly, while (T)rustyShelf is idle after starting: the first real open then has nothing left to
+// Built and drawn once, invisibly, while RustyShelf is idle after starting: the first real open then has nothing left to
 // prepare (building the page and drawing it the first time landed on the fade's first frame, a small hitch)
 let warmed=false;
 function prewarm(inf){if(warmed||isOpen||!inf||!inf.config)return;warmed=true;

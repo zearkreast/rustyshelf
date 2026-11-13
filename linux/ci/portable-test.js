@@ -1,4 +1,4 @@
-// (T)rustyShelf's portable emulators (asked for in Boxshelf's discussions). Run: node linux/ci/portable-test.js
+// RustyShelf's portable emulators (asked for in Boxshelf's discussions). Run: node linux/ci/portable-test.js
 //   - Find emulators in a folder (main/detect.js emulatorsIn): programs four folders deep in the folder picked are found,
 //     per console; deeper ones and other files aren't
 //   - RetroAchievements (main/raemu.js): DuckStation, RetroArch and Flycast are read from their portable folders (beside

@@ -1,4 +1,4 @@
-// (T)rustyShelf: the PS Vita shelf, played in Vita3K (asked for in the (T)rustyShelf discussions, #21).
+// RustyShelf: the PS Vita shelf, played in Vita3K (asked for in the RustyShelf discussions, #21).
 // Vita3K installs each game into its own folder, ux0\app\<title id> (eboot.bin and sce_sys\param.sfo inside, which the
 // scanner already reads as a PlayStation game folder), so the shelf lists those folders. An installed game is started with
 // `-r <title id>` (run the installed app) and -F (fullscreen); a .vpk that isn't installed yet is handed to Vita3K as it is,

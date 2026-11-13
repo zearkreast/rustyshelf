@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/songs.js apart from the app's name ((T)rustyShelf).
-// Your own songs for the Melody sound: MIDI files in <(T)rustyShelf folder>\Songs\ (sub-folders too).
+// main/songs.js apart from the app's name (RustyShelf).
+// Your own songs for the Melody sound: MIDI files in <RustyShelf folder>\Songs\ (sub-folders too).
 // The renderer reads each file's notes itself; this side only lists the folder and hands over the bytes.
 const path = require('path');
 const fs = require('fs');

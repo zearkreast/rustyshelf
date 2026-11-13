@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/ci/web-device-test.js apart from the app's name ((T)rustyShelf).
-// (T)rustyShelf fast device test (~1 min), run by the GitHub build on the exact files packed into the APK (android-app/www).
+// android-app/ci/web-device-test.js apart from the app's name (RustyShelf).
+// RustyShelf fast device test (~1 min), run by the GitHub build on the exact files packed into the APK (android-app/www).
 // Chromium (the engine Android's WebView is built on), Thor-like screen (1920x1080 at 2.25x, touch).
 //   Pass 1 "device start": Capacitor's real Android bridge script (native-bridge.js) + a stand-in for the native side.
 //          Must report "active · setup not done" and show the setup wizard, with no script errors.
@@ -34,7 +34,7 @@
 //   Pass 23 "addgames": Add games: several programs at once, a scanned folder, the Playnite import (experimental), the Add games tile (ci/addgames-pass.js).
 // Writes a table to the GitHub run's Summary and screenshots to out/device-test/. Exit code 1 = failed (APK not published).
 // Usage: node ci/web-device-test.js <www dir> <out dir> [--group=thor|thor2|thor3|screens|screens2|windows|windows2]
-//   (beta.7) --group runs a part of the passes, so they run at the same time (scripts/test-all.js, android.yml). ((T)rustyShelf:
+//   (beta.7) --group runs a part of the passes, so they run at the same time (scripts/test-all.js, android.yml). (RustyShelf:
 //   seven parts of about the same length, 2.5-3.5 minutes each, from the passes' own times, TS_PASS_TIMES=1): thor = passes 1-2
 //   (the real bridge, the Thor flow on the pretend device), thor2 = 3, 3m, 5 (smoothness), 4; thor3 = 5 (setup wizard) to 9;
 //   screens = 10-14, screens2 = 15-17; windows = 18-21, windows2 = 22-24. No group (or all) runs every pass, one after another.
@@ -63,12 +63,12 @@ const server = http.createServer((q, r) => { const u = decodeURIComponent(q.url.
 
 const checks = []; const check = (name, ok, detail) => { checks.push({ name, ok: !!ok, detail: detail == null ? '' : String(detail) }); };
 
-// the native side, as far as the page can tell: answers every TrustyShelfNative call like a fresh install would
+// the native side, as far as the page can tell: answers every RustyShelfNative call like a fresh install would
 const NATIVE_STANDIN = `window.androidBridge = { postMessage(s) { const m = JSON.parse(s);
   (window.__calls = window.__calls || []).push(m.pluginId + '.' + m.methodName);
   const data = { apps: { apps: [] }, readText: { text: null }, folderAccess: { uris: [] }, homeStatus: { isDefault: false, launchers: [] }, bottomStatus: { available: false, enabled: true, shown: false } }[m.methodName] || {};
   setTimeout(() => window.Capacitor && Capacitor.fromNative && Capacitor.fromNative({ callbackId: m.callbackId, pluginId: m.pluginId, methodName: m.methodName, success: true, data }), 5); } };`;
-const HEADERS = `;window.Capacitor.PluginHeaders = [{ name: 'TrustyShelfNative', methods: ['readText','writeText','apps','activities','folderAccess','pickFolder','listFiles','launch','chooseApp',
+const HEADERS = `;window.Capacitor.PluginHeaders = [{ name: 'RustyShelfNative', methods: ['readText','writeText','apps','activities','folderAccess','pickFolder','listFiles','launch','chooseApp',
   'homeStatus','openHomeSettings','openAndroidSettings','launchHome','closeApp','artIndex','artList','artThumb','fetchArt','discId','httpText','artCache','saveArt','pickImage','fetchFile','saveBytes','bottomStatus','bottomShow','bottomHide','bottomPost','listDirs','artExists','artForget','releaseFolder','openUrl','dropPdf'].map(n => ({ name: n, rtype: 'promise' })).concat([{ name: 'addListener', rtype: 'callback' }, { name: 'removeListener', rtype: 'promise' }]) }];`;
 
 async function newPage(browser, init) {
@@ -94,7 +94,7 @@ server.listen(0, async () => {
   try {
     { const p = await browser.newPage({ viewport: { width: 360, height: 512 } }); // four plain test covers (no network in the test)
       for (let i = 0; i < 4; i++) { await p.setContent(`<body style="margin:0;background:hsl(${i * 90 + 20},60%,38%);font:bold 54px sans-serif;color:#fff;display:grid;place-items:center;height:512px">TEST ART ${i}</body>`);
-        // ((T)rustyShelf) a screenshot can fail while many browsers start at once (scripts/test-all.js runs seven groups together): tried again
+        // (RustyShelf) a screenshot can fail while many browsers start at once (scripts/test-all.js runs seven groups together): tried again
         for (let t = 0; ; t++) { try { ART[`/__art/${i}.jpg`] = await p.screenshot({ type: 'jpeg', quality: 80 }); break; } catch (e) { if (t >= 4 || !/Unable to capture screenshot|Target closed/.test(String(e && e.message))) throw e; await new Promise(r => setTimeout(r, 1500 * (t + 1))); } } }
       await p.close(); }
     if (runs('thor')) { // ===== group thor: passes 1-2 (the real bridge, the whole Thor flow) =====
@@ -122,7 +122,7 @@ server.listen(0, async () => {
       const url = base + '?fakeNative=1';
       await page.goto(url); await page.waitForTimeout(5000);
       const setup = await page.evaluate(async () => {
-        const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+        const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
         const dirs = [await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' })];
         c.systems.gc.romDirs = [dirs[0]]; c.systems.gc.emulator = det.systems.gc.emulator;
         c.systems.psx.romDirs = [dirs[1]]; c.systems.psx.emulator = det.systems.psx.emulator;
@@ -132,7 +132,7 @@ server.listen(0, async () => {
           shelves: lib.map(s => ({ id: s.id, titles: s.games.map(g => g.title + ((g.discs || []).length > 1 ? ` [${g.discs.length} discs]` : '')) })) };
       });
       const shelf = id => (setup.shelves.find(s => s.id === id) || { titles: [] }).titles;
-      check('32 systems offered on Android', setup.consoles === 32, setup.consoles); // (beta.9: + Sega CD, 32X, Atari 2600, Lynx, WonderSwan, DOS; (T)rustyShelf: + PC, Neo Geo Pocket, Neo Geo Pocket Color)
+      check('32 systems offered on Android', setup.consoles === 32, setup.consoles); // (beta.9: + Sega CD, 32X, Atari 2600, Lynx, WonderSwan, DOS; RustyShelf: + PC, Neo Geo Pocket, Neo Geo Pocket Color)
       check('Emulators detected (Dolphin, DuckStation, RetroArch)', /dolphin/i.test(setup.emus[0]) && /duckstation/i.test(setup.emus[1]) && /retroarch/i.test(setup.emus[2]), setup.emus.join(', '));
       check('GameCube scan: clean titles', shelf('gc').includes('The Legend of Zelda - The Wind Waker') && shelf('gc').length === 3, shelf('gc').join(' | '));
       check('PlayStation scan: .bin hidden behind .cue, 2-disc game is one box', shelf('psx').length === 2 && shelf('psx').some(t => /\[2 discs\]/.test(t)), shelf('psx').join(' | '));
@@ -140,7 +140,7 @@ server.listen(0, async () => {
 
       // box art: the scan above starts the background fetch on its own
       const art = await page.evaluate(async () => {
-        const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms));
+        const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms));
         for (let i = 0; i < 60 && !(api.artProgress().total && !api.artProgress().running); i++) await wait(250);
         const lib = await api.cachedLibrary(), games = lib.filter(s => s.kind === 'console').flatMap(s => s.games.map(g => ({ sys: s.id, title: g.title, file: g.file, art: g.art || {} })));
         return { prog: api.artProgress(), games, fetch: __fakeArt.fetch, thumb: __fakeArt.thumb, dirs: __fakeArt.dirs, index: __fakeArt.index, ss: __fakeArt.ss.length };
@@ -153,13 +153,13 @@ server.listen(0, async () => {
         [pik.urls[0], zel.urls[0]].join(' , ').slice(0, 170));
       check('Full box art: GameTDB full cover kept as "-full", cut into back + spine', wrap.name === 'Pikmin (USA)-full' && /coverfullHQ\/US\/GPIE01/.test(wrap.urls[0] || '') && pikG.art.back && pikG.art.spine && !art.ss,
         `${wrap.name || 'no wrap'} · back ${!!pikG.art.back}, spine ${!!pikG.art.spine} · ScreenScraper calls without an account: ${art.ss}`);
-      check('"TrustyShelf Art" folder made inside the picked ROM folder', art.dirs.includes('primary:ROMs/gc/TrustyShelf Art') && art.dirs.includes('primary:ROMs/psx/TrustyShelf Art'), art.dirs.join(', '));
-      check('Art already in "TrustyShelf Art" (or the PC\'s "covers" folder) is re-used, not downloaded', art.thumb.includes('Super Metroid (Japan, USA)') && art.thumb.includes('Chrono Trigger (USA)') && !art.fetch.some(f => /^(Super Metroid|Chrono Trigger)/.test(f.name)), 're-used: ' + art.thumb.join(', '));
+      check('"RustyShelf Art" folder made inside the picked ROM folder', art.dirs.includes('primary:ROMs/gc/RustyShelf Art') && art.dirs.includes('primary:ROMs/psx/RustyShelf Art'), art.dirs.join(', '));
+      check('Art already in "RustyShelf Art" (or the PC\'s "covers" folder) is re-used, not downloaded', art.thumb.includes('Super Metroid (Japan, USA)') && art.thumb.includes('Chrono Trigger (USA)') && !art.fetch.some(f => /^(Super Metroid|Chrono Trigger)/.test(f.name)), 're-used: ' + art.thumb.join(', '));
 
       // a ScreenScraper account: backs, spines and discs for the other consoles, the sign-in only ever added natively
       const ss = await page.evaluate(async () => {
-        const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), c = (await api.getConfig()).config;
-        // (beta.10) an account but no developer login ((T)rustyShelf's own or the player's): the test says so, nothing is sent
+        const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), c = (await api.getConfig()).config;
+        // (beta.10) an account but no developer login (RustyShelf's own or the player's): the test says so, nothing is sent
         c.keys = Object.assign({}, c.keys, { ssUser: 'me', ssPass: 'secret' }); await api.saveConfig(c);
         const noDev = await api.testApi('screenscraper'), noDevCalls = __fakeArt.ss.length;
         c.keys = Object.assign({}, c.keys, { ssDevId: 'dev', ssDevPass: 'dp' }); await api.saveConfig(c);
@@ -176,7 +176,7 @@ server.listen(0, async () => {
       // (beta.10) review fixes: the demo's pretend features are gone, links really open (https only), the start-up check says
       // "unchanged", Rename works and is undone, a removed folder's permission is given back, a pick Android won't keep says so
       const fx = await page.evaluate(async () => {
-        const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
+        const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
         out.gone = ['updateCheck', 'checkManuals', 'onManualCheck', 'clipStatus', 'clipHelper', 'customThemes', 'customThemeCreate', 'customThemesOpen'].filter(k => k in api);
         out.open = await api.openExternal('https://example.com/help').then(() => 'ok', e => e.message);
         out.http = await api.openExternal('http://example.com/').then(() => 'opened', e => (/https/.test(e.message) ? 'refused' : e.message));
@@ -211,7 +211,7 @@ server.listen(0, async () => {
         out.real = imgs().length; out.loaded = imgs().filter(i => i.complete && i.naturalWidth > 0).length;
         await wait(2500); out.again = __fakeArt.fetch.length + __fakeArt.thumb.length; out.index = __fakeArt.index; // the start-up rescan found nothing missing
         // a picture arriving while the shelf is up: the cases swap their cover in place (same elements, nothing rebuilt)
-        const lib = await window.trustyshelf.cachedLibrary(), before = [...document.querySelectorAll('.slot')];
+        const lib = await window.rustyshelf.cachedLibrary(), before = [...document.querySelectorAll('.slot')];
         lib.filter(s => s.kind === 'console').forEach(s => s.games.forEach((g, i) => { __bsArtFound(g.id, 'front', `__art/${(i + 1) % 4}.jpg?swap`); __bsArtFound(g.id, 'spine', `__art/${i % 4}.jpg?spine`); }));
         const upd = Shelf.artUpdated; out.swapped = 0; Shelf.artUpdated = ids => (out.swapped += upd(ids)); // count what the adapter hands the shelf
         // (beta.7) covers swap in one per frame once decoded: on a slow or busy machine that takes longer than a fixed 2.5 s, so
@@ -228,17 +228,17 @@ server.listen(0, async () => {
       });
       check('Box art shows on the shelf (after a restart, nothing downloaded again)', shown.real >= 2 && shown.loaded === shown.real && shown.again === 0, `${shown.loaded}/${shown.real} covers loaded, ${shown.again} new downloads`);
       check('Second art run after a restart: 0 downloads, 0 libretro list fetches', shown.again === 0 && shown.index === 0, `${shown.again} downloads / re-reads, ${shown.index} list fetches`);
-      const studio = await page.evaluate(() => ({ on: ['artStudio', 'artCandidates', 'artUse', 'artOwn', 'artUndo', 'chooseArt'].filter(k => typeof window.trustyshelf[k] === 'function').length,
-        off: ['artRelease'].filter(k => typeof window.trustyshelf[k] === 'function') }));
+      const studio = await page.evaluate(() => ({ on: ['artStudio', 'artCandidates', 'artUse', 'artOwn', 'artUndo', 'chooseArt'].filter(k => typeof window.rustyshelf[k] === 'function').length,
+        off: ['artRelease'].filter(k => typeof window.rustyshelf[k] === 'function') }));
       check('Art Studio backed on Android (0.3.3: with the LaunchBox database and sets)', studio.on === 6 && !studio.off.length, `${studio.on}/6 · ${studio.off.join(', ')}`);
       // Art Studio on a game (as the quick menu's "Change art" opens it): its versions as cards; Enter, ← , Enter picks one
-      const pkG = await page.evaluate(async () => (await window.trustyshelf.cachedLibrary()).find(s => s.id === 'gc').games.find(g => /^Pikmin/.test(g.title)));
+      const pkG = await page.evaluate(async () => (await window.rustyshelf.cachedLibrary()).find(s => s.id === 'gc').games.find(g => /^Pikmin/.test(g.title)));
       await page.evaluate(g => Setup.open({ page: 'artgame', systemId: 'gc', file: g.file, title: g.title }), pkG); await page.waitForTimeout(3500);
       const sUi = await page.evaluate(() => ({ cards: document.querySelectorAll('.bsa-card').length, pics: [...document.querySelectorAll('.bsa-card img')].filter(i => i.complete && i.naturalWidth).length }));
       await page.screenshot({ path: path.join(OUT, '2-art-studio.png') });
       await page.keyboard.press('Enter'); await page.waitForTimeout(500); await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(400); await page.keyboard.press('Enter'); await page.waitForTimeout(1800);
-      const sPick = await page.evaluate(async id => { const g = (await window.trustyshelf.cachedLibrary()).find(s => s.id === 'gc').games.find(x => x.id === id); return { front: g.art.front, saved: __fakeArt.saved.map(x => x.name) }; }, pkG.id);
-      check('Art Studio opens on a game with every version, and saves a pick (TrustyShelf Art + shelf)', sUi.cards >= 3 && sUi.pics >= 3 && sPick.saved[0] === 'Pikmin (USA)' && /~/.test(sPick.front || ''),
+      const sPick = await page.evaluate(async id => { const g = (await window.rustyshelf.cachedLibrary()).find(s => s.id === 'gc').games.find(x => x.id === id); return { front: g.art.front, saved: __fakeArt.saved.map(x => x.name) }; }, pkG.id);
+      check('Art Studio opens on a game with every version, and saves a pick (RustyShelf Art + shelf)', sUi.cards >= 3 && sUi.pics >= 3 && sPick.saved[0] === 'Pikmin (USA)' && /~/.test(sPick.front || ''),
         `${sUi.cards} cards, ${sUi.pics} pictures · saved ${sPick.saved.join(', ') || 'nothing'}`);
       for (let i = 0; i < 6 && await page.evaluate(() => !!document.querySelector('#bss.on')); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(500); }
       check("New art swaps onto the cases in place (no shelf rebuild), spines too", shown.swapped > 0 && shown.same && shown.swapSrc === shown.swapped && shown.spines === shown.swapped, `${shown.swapped} cases swapped, ${shown.swapSrc} show it, ${shown.spines} new spines, elements kept: ${shown.same} ${shown.dbg||""}`);
@@ -293,7 +293,7 @@ server.listen(0, async () => {
       check('Bottom screen button closes an open quick menu first', bs.qmOpen === true && bs.qmAfter === false, `menu open ${bs.qmOpen} → ${bs.qmAfter}`);
       check('Bottom screen buttons drive the shelf (next / previous, details)', bs.moved !== bs.cur && bs.followed && bs.details === 'details' && bs.back === 'browse', `next → "${bs.moved}" (sent back ${bs.followed ? 'yes' : 'no'}), details ${bs.details} → ${bs.back}`);
       const run = await page.evaluate(async () => {
-        const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
+        const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
         const lib = await api.cachedLibrary(), first = id => (lib.find(s => s.id === id) || { games: [] }).games[0];
         out.launch = {};
         for (const id of ['gc', 'psx', 'snes']) { const g = first(id); if (!g) { out.launch[id] = 'no game'; continue; }
@@ -329,8 +329,8 @@ server.listen(0, async () => {
       await page.keyboard.press('s'); await page.waitForTimeout(2000); await page.keyboard.type('home'); await page.waitForTimeout(1200);
       const text = await page.evaluate(() => document.body.innerText);
       await page.screenshot({ path: path.join(OUT, '3-settings-home.png') });
-      check('Settings: "Use (T)rustyShelf as the Home screen" row', /Use \(T\)rustyShelf as the Home screen/.test(text));
-      check('Settings: Windows-only rows hidden', !/Start \(T\)rustyShelf with Windows/.test(text));
+      check('Settings: "Use RustyShelf as the Home screen" row', /Use RustyShelf as the Home screen/.test(text));
+      check('Settings: Windows-only rows hidden', !/Start RustyShelf with Windows/.test(text));
       for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
       await page.keyboard.type('art'); await page.waitForTimeout(1200);
       const artText = await page.evaluate(() => document.body.innerText);
@@ -435,7 +435,7 @@ server.listen(0, async () => {
         // new games arrive in the museum as a parcel first (the pretend game above counts): skip the unpacking, then wait
         // for the bottom screen's message about the wall
         await page.evaluate(async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); for (let i = 0; i < 6 && window.Museum && Museum._dv && Museum._dv(); i++) { Museum.skipDelivery(); await wait(800); }
-          for (let i = 0; i < 80; i++) { const l = [...(window.__fakeBottom || [])].reverse().find(m => m.type === 'museum'); if (l && l.row && l.row.sel >= 0) break; const r = window.Museum && Museum.bottomRow && Museum.bottomRow(); if (r && r.sel < 0 && r.boxes && r.boxes.length && i >= 10) Museum.pickCol(0); await wait(250); } }); // ((T)rustyShelf: up to 20 s, the museum takes longer to choose its case while other groups run alongside)
+          for (let i = 0; i < 80; i++) { const l = [...(window.__fakeBottom || [])].reverse().find(m => m.type === 'museum'); if (l && l.row && l.row.sel >= 0) break; const r = window.Museum && Museum.bottomRow && Museum.bottomRow(); if (r && r.sel < 0 && r.boxes && r.boxes.length && i >= 10) Museum.pickCol(0); await wait(250); } }); // (RustyShelf: up to 20 s, the museum takes longer to choose its case while other groups run alongside)
         await page.waitForTimeout(800);
         mus = await page.evaluate(() => { const msgs = window.__fakeBottom || [], last = [...msgs].reverse().find(m => m.type === 'museum'), r = window.Museum && Museum.bottomRow && Museum.bottomRow();
           return { mode: Shelf.getMode(), types: msgs.map(m => m.type[0]).join(''), msg: !!last, games: last ? last.games.length : 0, sel: last ? last.row.sel : null, n: r ? r.boxes.length : 0, title: last && last.game ? last.game.title : '' }; });
@@ -510,7 +510,7 @@ server.listen(0, async () => {
       // (0.3.3) the LaunchBox database on the device: Settings says the size first; building it reports the download and the
       // sort; the consoles on the shelves are indexed; Art Studio then offers LaunchBox's scans (every region, a spine cut from
       // the full box, fan art marked) and the automatic fetch uses them
-      const lbx = await page.evaluate(async () => { const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
+      const lbx = await page.evaluate(async () => { const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), out = {};
         out.before = (await api.artIndexInfo()).state;
         const row = window.BS_SETTINGS_PATCH([{ id: 'art', rows: [{ t: 'action', label: 'Fetch missing art now' }] }, { id: 'acct', rows: [] }], {})[0].rows.find(r => r.label === 'LaunchBox art database');
         out.btn = row && (typeof row.btn === 'function' ? row.btn() : row.btn); out.sub = row && row.sub().text;
@@ -567,7 +567,7 @@ server.listen(0, async () => {
     { const { ctx, page, errors } = await newPage(browser, "addEventListener('DOMContentLoaded',()=>{if(window.Inspect3D)window.Inspect3D.available=()=>false});");
       const url = base + '?fakeNative=1';
       await page.goto(url); await page.waitForTimeout(4000);
-      await page.evaluate(async () => { const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+      await page.evaluate(async () => { const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
         c.systems.gc.romDirs = [await api.pick({ kind: 'folder' })]; c.systems.gc.emulator = det.systems.gc.emulator; c.setupDone = true; await api.saveConfig(c); await api.scan(); });
       await page.goto(url); await page.waitForTimeout(6000);
       const cdp = await ctx.newCDPSession(page);
@@ -652,7 +652,7 @@ server.listen(0, async () => {
     { const { ctx, page, errors } = await newPage(browser, 'window.__musNoDraw = true;');
       const url = base + '?fakeNative=1&fakeMany=1'; // (three consoles, 30+ games each: rows long enough to drag along)
       await page.goto(url); await page.waitForTimeout(4000);
-      await page.evaluate(async () => { const api = window.trustyshelf, c = (await api.getConfig()).config, det = await api.detect();
+      await page.evaluate(async () => { const api = window.rustyshelf, c = (await api.getConfig()).config, det = await api.detect();
         const dirs = [await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' })];
         for (const [i, id] of ['gc', 'psx', 'snes'].entries()) { c.systems[id].romDirs = [dirs[i]]; c.systems[id].emulator = det.systems[id].emulator; }
         c.setupDone = true; await api.saveConfig(c); await api.scan(); });
@@ -715,7 +715,7 @@ server.listen(0, async () => {
         const R0 = window.requestAnimationFrame.bind(window); window.__rafBy = null;
         window.requestAnimationFrame = function (fn) { if (window.__rafBy) { const s = (new Error().stack || '').split('\\n').slice(1).find(l => !/requestAnimationFrame|perf-meter\\.js/.test(l)) || '', k = /^\\s*at poll \\(/.test(s) ? 'poll' : /themefx\\.js/.test(s) ? 'themefx' : 'other'; window.__rafBy[k] = (window.__rafBy[k] || 0) + 1; } return R0(fn); }; // (by the function that asked directly)
         const add = lib => { (lib || []).forEach(sh => (sh.games || []).forEach(g => { g.art = Object.assign({}, g.art, { front: '/__art/' + (n++ % 4) + '.jpg' }); })); window.__libs.push(lib); return lib; };
-        Object.defineProperty(window, 'trustyshelf', { configurable: true, get() { return v; }, set(x) { v = x; if (x && x.scan && !x.__t) { x.__t = 1; const s = x.scan.bind(x); x.scan = async (...a) => add(await s(...a));
+        Object.defineProperty(window, 'rustyshelf', { configurable: true, get() { return v; }, set(x) { v = x; if (x && x.scan && !x.__t) { x.__t = 1; const s = x.scan.bind(x); x.scan = async (...a) => add(await s(...a));
           if (x.cachedLibrary) { const c = x.cachedLibrary.bind(x); x.cachedLibrary = async (...a) => add(await c(...a)); } } } });
         // every cover put on a case face: when, in which frame, mid-slide or not, and whether that picture was decoded first
         window.__frame = 0; (function f() { window.__frame++; requestAnimationFrame(f); })();
@@ -840,14 +840,14 @@ server.listen(0, async () => {
         Perf.set('handheld'); await wait(600); window.BS_METER && BS_METER.input(); window.__rafBy = {}; const t0 = performance.now(), th0 = window.ThemeFx ? ThemeFx._state().t : 0;
         await wait(1500); out.themeRafPerSec = +((window.__rafBy.themefx || 0) / ((performance.now() - t0) / 1000)).toFixed(1); out.themeDrew = window.ThemeFx ? +(ThemeFx._state().t - th0).toFixed(2) : 0;
         out.themeId = window.ThemeFx ? ThemeFx._state().id : null; window.__rafBy = null; Perf.set('auto'); await wait(400);
-        // 5. a smaller shelf copy offered by the adapter (trustyshelf.thumbFor) is what an arriving cover is drawn from
-        window.trustyshelf.thumbFor = (u, px) => /__art\//.test(u) ? u + (u.includes('?') ? '&' : '?') + 'shelfpx=' + Math.round(px) : null;
+        // 5. a smaller shelf copy offered by the adapter (rustyshelf.thumbFor) is what an arriving cover is drawn from
+        window.rustyshelf.thumbFor = (u, px) => /__art\//.test(u) ? u + (u.includes('?') ? '&' : '?') + 'shelfpx=' + Math.round(px) : null;
         const ids = new Set(); (window.__libs || []).forEach(L => (L || []).forEach(sh => (sh.games || []).forEach((g, i) => { if (g.art) { g.art.front = '/__art/' + ((i + 2) % 4) + '.jpg?thumbtest'; ids.add(g.id); } })));
         out.thumbAccepted = Shelf.artUpdated([...ids]);
         for (let i = 0; i < 80; i++) { await wait(150); if ([...document.querySelectorAll('#track .slot .f-front img')].some(im => /thumbtest/.test(im.src))) { await wait(1200); break; } }
         const faces = [...document.querySelectorAll('#track .slot .f-front img')].filter(im => /thumbtest/.test(im.src));
         out.thumbFaces = faces.length; out.thumbSized = faces.filter(im => /shelfpx=\d+/.test(im.src)).length; out.thumbPx = faces.length ? +(/shelfpx=(\d+)/.exec(faces[0].src) || [])[1] : 0;
-        delete window.trustyshelf.thumbFor;
+        delete window.rustyshelf.thumbFor;
         return out;
       });
       check('Scroll: the controller held on the shelf is read on a timer (no frame asked for every vsync)', sc.mode === 'browse' && sc.padMoved && sc.pollRaf === 0, `${sc.mode}, moved ${sc.padMoved}, ${sc.pollRaf} frames asked for by the pad reader in 1.5 s`);
@@ -1081,7 +1081,7 @@ server.listen(0, async () => {
       await page.evaluate(() => { window.__fakePickNext = 'primary:ROMs'; });
       await tap('Pick your main ROMs folder'); await page.waitForTimeout(1500);
       const w2 = await W(); await shot5('5-wizard-found.png');
-      const names = await page.evaluate(() => { const f = trustyshelf.consoleForFolder, x = e => [{ ext: e }];
+      const names = await page.evaluate(() => { const f = rustyshelf.consoleForFolder, x = e => [{ ext: e }];
         const want = { GC: 'gc', gamecube: 'gc', 'Nintendo GameCube': 'gc', 'PS2 ROMs': 'ps2', ps1: 'psx', PlayStation: 'psx', 'Nintendo 64': 'n64', 'Mega-Drive': 'megadrive', genesis: 'megadrive', SFC: 'snes',
           FBNeo: 'arcade', tg16: 'pcengine', '3ds': 'n3ds', Switch: 'sw', 'Wii U': 'wiiu', wii: 'wii', nds: 'nds', gb: 'gb', gbc: 'gbc', gba: 'gba', dc: 'dreamcast', sms: 'mastersystem', gg: 'gamegear', psp: 'psp', neogeo: 'neogeo', Discs: null, xbox360: null };
         const bad = Object.entries(want).filter(([n, id]) => f(n) !== id).map(([n, id]) => `${n}→${f(n)} (want ${id})`);
@@ -1102,39 +1102,39 @@ server.listen(0, async () => {
       await tap('Next to my ROMs'); const w6m = await W(); await shot5('5-wizard-manuals.png');
       await tap('Yes, get manuals'); const w6 = await W(); await shot5('5-wizard-bottom.png');
       await tap('Yes, use it'); const w7 = await W(); await shot5('5-wizard-home.png');
-      await tap('Yes, choose (T)rustyShelf'); const w8 = await W();
-      check('Wizard: one question per page, in order', [w3, w4, w5, w6m, w6, w7].map(w => w.title).join(' / ') === 'Download box art automatically? / Full case art (backs and spines) too? / Where should art be saved? / Download game manuals too? / Use the bottom screen? / Use (T)rustyShelf as the Home screen?' && w8.title !== w7.title,
+      await tap('Yes, choose RustyShelf'); const w8 = await W();
+      check('Wizard: one question per page, in order', [w3, w4, w5, w6m, w6, w7].map(w => w.title).join(' / ') === 'Download box art automatically? / Full case art (backs and spines) too? / Where should art be saved? / Download game manuals too? / Use the bottom screen? / Use RustyShelf as the Home screen?' && w8.title !== w7.title,
         [w3, w4, w5, w6m, w6, w7, w8].map(w => w.title).join(' / '));
       check('Wizard: controller moves between the big choices and picks one', /^Yes, get/.test(padF[0]) && /^No thanks/.test(padF[1]) && /^Yes, get/.test(padF[2]) && w4.title === 'Full case art (backs and spines) too?', padF.join(' → ') + ' → A → ' + w4.title);
-      const ans = await page.evaluate(async () => { await new Promise(r => setTimeout(r, 800)); const c = (await trustyshelf.getConfig()).config;
+      const ans = await page.evaluate(async () => { await new Promise(r => setTimeout(r, 800)); const c = (await rustyshelf.getConfig()).config;
         return { ui: c.ui, root: c.romRoot, dirs: Object.fromEntries(Object.entries(c.systems).filter(([, v]) => v.romDirs.length).map(([k, v]) => [k, v.romDirs.join()])), calls: window.__fakeCalls || [], bottom: __fakeBottom !== undefined }; });
       check('Wizard: answers stored (autoCovers, fullArt, artWhere, manuals per console, bottom screen, Home chooser opened)', ans.ui.autoCovers === true && ans.ui.fullArt === true && ans.ui.artWhere === 'roms' && ans.ui.autoManuals === true && ans.ui.manual_gc === true && ans.ui.manual_psx === true && ans.ui.bottomScreen === 'on' && ans.calls.includes('openHomeSettings'), JSON.stringify(ans.ui) + ' ' + ans.calls.join());
       check('Main ROMs folder: each console gets its own sub folder (one pick)', ans.root === '/storage/emulated/0/ROMs' && ans.dirs.gc === '/storage/emulated/0/ROMs/gc' && ans.dirs.megadrive === '/storage/emulated/0/ROMs/Sega Genesis' && ans.dirs.gba === '/storage/emulated/0/ROMs/Handheld' && !ans.dirs.wii, JSON.stringify(ans.dirs).slice(0, 170));
       // finish: the done page scans; box art then comes on its own
       const fin = await page.evaluate(async () => { const f = [...document.querySelectorAll('#suNav .su-step')].find(e => /Finish/.test(e.textContent)); if (!f) return 'no Finish step'; f.click();
-        await new Promise(r => setTimeout(r, 400)); const o = [...document.querySelectorAll('#suFoot button')].find(e => /Open \(T\)rustyShelf/.test(e.textContent)); if (!o) return 'no Open button'; o.click(); return 'ok'; });
+        await new Promise(r => setTimeout(r, 400)); const o = [...document.querySelectorAll('#suFoot button')].find(e => /Open RustyShelf/.test(e.textContent)); if (!o) return 'no Open button'; o.click(); return 'ok'; });
       if (fin !== 'ok') check('Wizard: Finish reached', false, fin); await page.waitForTimeout(1000);
-      const artRun = () => page.evaluate(async () => { const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms));
+      const artRun = () => page.evaluate(async () => { const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms));
         for (let i = 0; i < 80 && !(api.artProgress().total && !api.artProgress().running); i++) await wait(250);
         await wait(300); const lib = await api.cachedLibrary() || [];
         const games = lib.filter(s => s.kind === 'console').flatMap(s => s.games.map(g => ({ sys: s.id, title: g.title, front: !!(g.art && g.art.front) })));
         let dirs = {}; try { dirs = JSON.parse(localStorage.getItem('fake:dirs') || '{}'); } catch {}
         return { games, fetch: __fakeArt.fetch.map(f => ({ name: f.name, tree: f.tree })), thumb: __fakeArt.thumb.slice(), index: __fakeArt.index, made: __fakeArt.dirs.slice(), dirs }; });
       const a1 = await artRun();
-      check('Main ROMs folder: games scanned from every found console, "TrustyShelf Art" made inside each console folder', a1.games.length === 10 && a1.games.every(g => g.front) && a1.made.includes('primary:ROMs/gc/TrustyShelf Art') && a1.made.includes('primary:ROMs/Handheld/TrustyShelf Art'),
+      check('Main ROMs folder: games scanned from every found console, "RustyShelf Art" made inside each console folder', a1.games.length === 10 && a1.games.every(g => g.front) && a1.made.includes('primary:ROMs/gc/RustyShelf Art') && a1.made.includes('primary:ROMs/Handheld/RustyShelf Art'),
         `${a1.games.filter(g => g.front).length}/${a1.games.length} covers; folders: ${a1.made.join(', ')}`);
       // manuals (the wizard said yes, for every console): Pikmin's 3 pages from the Internet Archive into the GameCube folder's
-      // "TrustyShelf Manuals"; Crash Bandicoot's pages copied over from the PC's covers folder are used as they are
-      const m1 = await page.evaluate(async () => { const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms));
+      // "RustyShelf Manuals"; Crash Bandicoot's pages copied over from the PC's covers folder are used as they are
+      const m1 = await page.evaluate(async () => { const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms));
         for (let i = 0; i < 160 && !(api.manualProgress().total && !api.manualProgress().running); i++) await wait(250);
         await wait(300); const lib = await api.cachedLibrary() || [], g = t => lib.flatMap(s => s.games || []).find(x => new RegExp(t).test(x.title)) || {};
         let dirs = {}; try { dirs = JSON.parse(localStorage.getItem('fake:dirs') || '{}'); } catch {}
         return { prog: api.manualProgress(), pik: ((g('^Pikmin').art || {}).manual || []).length, crash: ((g('^Crash').art || {}).manual || []).length, metroid: ((g('^Metroid').art || {}).manual || []).length,
           fetch: __fakeMan.fetch.filter(f => !f.pdf).map(f => f.name), pdfs: __fakeMan.fetch.filter(f => f.pdf).map(f => f.url), made: (__fakeMan.saved || []).map(s => s.name), gdb: (__fakeMan.gdb || []).length,
-          search: __fakeMan.search.length, lists: (__fakeMan.lists || []).length, saved: dirs['primary:ROMs/gc/TrustyShelf Manuals'] || [] }; });
+          search: __fakeMan.search.length, lists: (__fakeMan.lists || []).length, saved: dirs['primary:ROMs/gc/RustyShelf Manuals'] || [] }; });
       // (0.3.2: the item has no page count in its metadata, as most real ones: the count comes from its page list, and the
       // pages come down as pictures, not through the PDF)
-      check('Manuals: a console\'s manuals come down as pages into "TrustyShelf Manuals" (the booklet, not the strategy guide; page count from the scan\'s page list)', m1.pik === 3 && m1.saved.filter(n => /^Pikmin/.test(n)).length === 3 && m1.fetch.length === 3 && m1.fetch.every(n => /^Pikmin \(USA\)-manual-0[1-3]$/.test(n)) && m1.lists >= 1 && !m1.pdfs.some(u => /pikmin/i.test(u)),
+      check('Manuals: a console\'s manuals come down as pages into "RustyShelf Manuals" (the booklet, not the strategy guide; page count from the scan\'s page list)', m1.pik === 3 && m1.saved.filter(n => /^Pikmin/.test(n)).length === 3 && m1.fetch.length === 3 && m1.fetch.every(n => /^Pikmin \(USA\)-manual-0[1-3]$/.test(n)) && m1.lists >= 1 && !m1.pdfs.some(u => /pikmin/i.test(u)),
         JSON.stringify(m1).slice(0, 300));
       check('Manuals: a PDF-only manual (GamesDatabase) is turned into pages, saved beside the games', m1.metroid === 2 && m1.pdfs.length === 1 && /Metroid_Prime\.pdf$/.test(m1.pdfs[0]) && m1.made.length === 2 && m1.made.every((n, i) => n.startsWith('Metroid Prime') && n.endsWith('-manual-0' + (i + 1))) && m1.saved.filter(n => /^Metroid/.test(n)).length === 2,
         JSON.stringify({ metroid: m1.metroid, pdfs: m1.pdfs, made: m1.made, gdb: m1.gdb }));
@@ -1146,16 +1146,16 @@ server.listen(0, async () => {
       check('Manuals (0.3.5): the console on screen gets its manuals first', !!mNext.sys && mNext.next === 'c' && mNext.rest === 'a,b', JSON.stringify(mNext));
       // a reinstall: the app's own storage is emptied (settings, art.json, cached lists, display copies); the ROM folders stay
       const wipe = keep => page.evaluate(keep => { for (const k of Object.keys(localStorage)) if (k.startsWith('fake:') && !keep.includes(k)) localStorage.removeItem(k); }, keep);
-      const setupAgain = (where) => page.evaluate(async where => { const api = window.trustyshelf; window.__fakePickNext = 'primary:ROMs'; const r = await api.romRoot(), c = (await api.getConfig()).config;
+      const setupAgain = (where) => page.evaluate(async where => { const api = window.rustyshelf; window.__fakePickNext = 'primary:ROMs'; const r = await api.romRoot(), c = (await api.getConfig()).config;
         for (const f of r.found) c.systems[f.id].romDirs = [f.dir]; c.romRoot = r.path; c.setupDone = true; c.ui.artWhere = where; await api.saveConfig(c); await api.scan(); }, where);
       await wipe(['fake:dirs']); await page.goto(url); await page.waitForTimeout(3500); await setupAgain('roms');
       const a2 = await artRun();
-      check('Reinstall (empty app storage): all art comes back from "TrustyShelf Art", 0 downloads, 0 list fetches', a2.games.length === 10 && a2.games.every(g => g.front) && a2.fetch.length === 0 && a2.index === 0 && a2.thumb.length >= 10,
+      check('Reinstall (empty app storage): all art comes back from "RustyShelf Art", 0 downloads, 0 list fetches', a2.games.length === 10 && a2.games.every(g => g.front) && a2.fetch.length === 0 && a2.index === 0 && a2.thumb.length >= 10,
         `${a2.games.filter(g => g.front).length}/${a2.games.length} covers, ${a2.thumb.length} re-read, ${a2.fetch.length} downloads, ${a2.index} list fetches`);
-      const m2 = await page.evaluate(async () => { const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)); let pik = 0;
+      const m2 = await page.evaluate(async () => { const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)); let pik = 0;
         for (let i = 0; i < 100 && !pik; i++) { await wait(250); const lib = await api.cachedLibrary() || [], g = lib.flatMap(s => s.games || []).find(x => /^Pikmin/.test(x.title)); pik = g && g.art && g.art.manual ? g.art.manual.length : 0; }
         return { pik, fetch: __fakeMan.fetch.length, search: __fakeMan.search.length }; });
-      check('Manuals: after a reinstall they come back from "TrustyShelf Manuals" (0 downloads, 0 searches)', m2.pik === 3 && m2.fetch === 0 && m2.search === 0, JSON.stringify(m2));
+      check('Manuals: after a reinstall they come back from "RustyShelf Manuals" (0 downloads, 0 searches)', m2.pik === 3 && m2.fetch === 0 && m2.search === 0, JSON.stringify(m2));
       // a restart: nothing is looked up again
       await page.goto(url); await page.waitForTimeout(5000);
       const a3 = await page.evaluate(() => ({ fetch: __fakeArt.fetch.length, thumb: __fakeArt.thumb.length, index: __fakeArt.index }));
@@ -1166,7 +1166,7 @@ server.listen(0, async () => {
         for (const rec of Object.values(a.games)) for (const v of Object.values(rec)) if (v) delete v.h; localStorage.setItem('fake:art.json', JSON.stringify(a));
         localStorage.setItem('fake:history.json', JSON.stringify({ old1: { launches: 0, minutes: 95, last: 1761300000 } })); }); // (0.3.1's history shape)
       await page.goto(url);
-      const oldHist = await page.evaluate(async () => (await window.trustyshelf.history()).old1);
+      const oldHist = await page.evaluate(async () => (await window.rustyshelf.history()).old1);
       check('Play history from 0.3.1 (minutes, seconds) becomes the PC\'s shape', !!oldHist && oldHist.count === 1 && oldHist.ms === 95 * 60000 && oldHist.last === 1761300000000, JSON.stringify(oldHist));
       const sh = await page.evaluate(async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), get = () => JSON.parse(localStorage.getItem('fake:art.json') || '{}');
         for (let i = 0; i < 240 && get().dispH !== 1024; i++) await wait(250);
@@ -1174,7 +1174,7 @@ server.listen(0, async () => {
         return { dispH: a.dispH, recs: recs.length, sharp: recs.filter(v => v.h === 1024).length, hd: __fakeArt.thumb.filter(n => /~hd$/.test(n)).length, fetch: __fakeArt.fetch.length, trash: (a.trash || []).length }; });
       // (0.3.3) the shelf's smaller copies (576 px for a case, 128 px for the backdrop), made from the 1024 px one in quiet
       // moments; thumbFor hands the shelf the smallest big enough, the full copy above 600 px
-      const sm = await page.evaluate(async () => { const api = window.trustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), get = () => JSON.parse(localStorage.getItem('fake:art.json') || '{}');
+      const sm = await page.evaluate(async () => { const api = window.rustyshelf, wait = ms => new Promise(r => setTimeout(r, ms)), get = () => JSON.parse(localStorage.getItem('fake:art.json') || '{}');
         const all = () => Object.values(get().games || {}).flatMap(r => Object.values(r)).filter(v => v && v.d);
         for (let i = 0; i < 240 && !(all().length && all().every(v => v.s && v.s[576] && v.s[128])); i++) await wait(250);
         const lib = await api.cachedLibrary(), g = lib.flatMap(s => s.games || []).find(x => x.art && x.art.front) || {}, f = (g.art || {}).front;
@@ -1191,9 +1191,9 @@ server.listen(0, async () => {
       await page.goto(url); await page.waitForTimeout(3000);
       const a4 = await artRun();
       check('Missing display copies are re-made from the saved originals (0 downloads)', a4.games.every(g => g.front) && a4.thumb.length >= 10 && a4.fetch.length === 0, `${a4.thumb.length} re-made, ${a4.fetch.length} downloads, ${a4.games.filter(g => g.front).length}/${a4.games.length} covers`);
-      // "Inside (T)rustyShelf": a fresh device with an untouched ROM folder; new art never goes into the ROM tree
+      // "Inside RustyShelf": a fresh device with an untouched ROM folder; new art never goes into the ROM tree
       await wipe([]); await page.goto(url); await page.waitForTimeout(3500); await setupAgain('app');
-      const a5 = await artRun(), romWrites = Object.keys(a5.dirs).filter(d => d !== 'primary:ROMs/snes/TrustyShelf Art').concat((a5.dirs['primary:ROMs/snes/TrustyShelf Art'] || []).filter(n => !/^Super Metroid/.test(n)));
+      const a5 = await artRun(), romWrites = Object.keys(a5.dirs).filter(d => d !== 'primary:ROMs/snes/RustyShelf Art').concat((a5.dirs['primary:ROMs/snes/RustyShelf Art'] || []).filter(n => !/^Super Metroid/.test(n)));
       check('artWhere "app": art saved in the app only, nothing written into the ROM folders (existing art still re-used)', a5.fetch.length > 0 && a5.fetch.every(f => !f.tree) && !a5.made.length && !romWrites.length && a5.thumb.some(n => /^Super Metroid/.test(n)) && a5.games.every(g => g.front),
         `${a5.fetch.length} downloads (tree: ${[...new Set(a5.fetch.map(f => f.tree || 'none'))].join()}), new ROM-side files: ${romWrites.length}, re-used: ${a5.thumb.join(', ')}`);
       check('No script errors in the wizard / art passes', !errors.length, errors.slice(0, 3).join(' | '));
@@ -1217,7 +1217,7 @@ server.listen(0, async () => {
       const h0 = await hub();
       await page.screenshot({ path: path.join(OUT, '6-wizard-consoles.png') });
       check('Wizard: consoles found on the device first, the rest under More',
-        h0.title === 'Your consoles' && h0.big.join() === 'gc,wii,n3ds,psx' && /More consoles \(28\)/.test(h0.more) && h0.small === 0 && h0.fits && h0.nav >= 3, // (Android: the feature questions are steps of their own before Consoles; (T)rustyShelf: + the two Neo Geo Pockets)
+        h0.title === 'Your consoles' && h0.big.join() === 'gc,wii,n3ds,psx' && /More consoles \(28\)/.test(h0.more) && h0.small === 0 && h0.fits && h0.nav >= 3, // (Android: the feature questions are steps of their own before Consoles; RustyShelf: + the two Neo Geo Pockets)
         `${h0.title}: ${h0.big.join(', ')} · "${h0.more}" · ${h0.small} folded · fits ${h0.fits} · ${h0.nav} steps`);
       // controller: down onto the first card, A opens its page, B comes back; A on More shows every other console
       const pad = a => page.evaluate(a => window.Setup.pad(a), a);
@@ -1237,14 +1237,14 @@ server.listen(0, async () => {
       check('Wizard: back from a console in More lands on its card, still in view', back.id === last && back.seen && back.more === 28, `${last} → focus ${back.id}, in view ${back.seen}, ${back.more} folded open`);
       // set three consoles up (gc, psx, snes) and go to the shelf: RetroArch also gave a dozen consoles an emulator, but
       // only shelves with games get a tab
-      await page.evaluate(async () => { const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+      await page.evaluate(async () => { const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
         for (const id of ['gc', 'psx', 'snes']) { c.systems[id].romDirs = [await api.pick({ kind: 'folder' })]; c.systems[id].emulator = det.systems[id].emulator; }
         c.setupDone = true; await api.saveConfig(c); });
       await page.goto(url); await page.waitForTimeout(6000);
       const t3 = await page.evaluate(() => { const t = document.getElementById('tabs'); return { names: [...t.querySelectorAll('.tab')].map(b => b.textContent), x: t.classList.contains('tabs-x') }; });
       check('Console bar: only shelves with games (plus Home / Apps)', t3.x && t3.names.join() === 'GameCube,PS1,SNES,Apps', t3.names.join(', '));
       // 23 consoles with games: the bar keeps the current one in the middle, and a switch doesn't lay the bar out again
-      const big = await page.evaluate(async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), lib = JSON.parse(JSON.stringify(await window.trustyshelf.cachedLibrary()));
+      const big = await page.evaluate(async () => { const wait = ms => new Promise(r => setTimeout(r, ms)), lib = JSON.parse(JSON.stringify(await window.rustyshelf.cachedLibrary()));
         const gc = lib.find(s => s.id === 'gc'), out = BS_ANDROID.SYSTEMS.map(s => ({ ...JSON.parse(JSON.stringify(gc)), id: s.id, name: s.name, games: gc.games.map(g => ({ ...g, file: g.file + '#' + s.id })) }));
         await Shelf.refresh(false, out.concat(lib.filter(s => s.kind === 'apps'))); await wait(800);
         const t = document.getElementById('tabs'), r0 = t.getBoundingClientRect(), hud = document.querySelector('.hud-top .right').getBoundingClientRect();
@@ -1259,7 +1259,7 @@ server.listen(0, async () => {
       });
       await page.screenshot({ path: path.join(OUT, '6-console-bar-23.png'), clip: { x: 0, y: 0, width: 853, height: 80 } });
       check('Console bar with every console: current one centred, edges fade, bar never moves or re-measures',
-        big.n === 33 && Math.abs(big.off) <= 3 /* (every console's tab: (T)rustyShelf adds the two Neo Geo Pockets) */ && big.same && big.clear && /more-l/.test(big.edges) && /more-r/.test(big.edges) && big.reads === 0,
+        big.n === 33 && Math.abs(big.off) <= 3 /* (every console's tab: RustyShelf adds the two Neo Geo Pockets) */ && big.same && big.clear && /more-l/.test(big.edges) && /more-r/.test(big.edges) && big.reads === 0,
         `${big.n} tabs, ${big.off}px off centre, bar still ${big.same}, clear of the clock ${big.clear}, ${big.edges}, ${big.reads} layout reads`);
       // touch: drag the strip sideways, then a tap on a tab picks that shelf
       const cdp = await ctx.newCDPSession(page);
@@ -1311,7 +1311,7 @@ server.listen(0, async () => {
       const url = base + '?fakeNative=1';
       await page.goto(url); await page.waitForTimeout(4000);
       await page.evaluate(async () => {
-        const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+        const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
         const d0 = await api.pick({ kind: 'folder' }); c.systems.gc.romDirs = [d0]; c.systems.gc.emulator = det.systems.gc.emulator;
         c.setupDone = true; await api.saveConfig(c); await api.scan(); });
       await page.goto(url + '&bottomPreview=1'); await page.waitForTimeout(6500);
@@ -1378,7 +1378,7 @@ server.listen(0, async () => {
         await page.keyboard.press('ArrowDown'); await page.waitForTimeout(1600); const disc = await look();
         bot = { back, spine, disc, vers: bot.vers };
       }
-      const V_ = bot.vers || [], javaBs = (() => { try { return fs.readFileSync(path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'java', 'io', 'github', 'trustyshelf', 'BottomScreen.java'), 'utf8'); } catch { return ''; } })();
+      const V_ = bot.vers || [], javaBs = (() => { try { return fs.readFileSync(path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'java', 'io', 'github', 'rustyshelf', 'BottomScreen.java'), 'utf8'); } catch { return ''; } })();
       const fileResp = (javaBs.match(/private WebResourceResponse fileResponse[\s\S]*?\n    \}/) || [''])[0];
       check('Bottom screen during Art Studio: the 2nd and 3rd versions show on the case too (and the bottom screen may open the app cache they live in)',
         V_.length === 2 && V_.every(v => v.ok && v.sent && v.shown === v.sent) && V_[0].sent !== V_[1].sent && !!bot.back && V_[0].sent !== bot.back.m.back && /getCacheDir\(\)/.test(fileResp),
@@ -1443,14 +1443,14 @@ server.listen(0, async () => {
     { const { ctx, page, errors } = await newPage(browser, null);
       const url = base + '?fakeNative=1&fakeMany=1';
       await page.goto(url); await page.waitForTimeout(4000);
-      await page.evaluate(async () => { const api = window.trustyshelf, c = (await api.getConfig()).config, det = await api.detect();
+      await page.evaluate(async () => { const api = window.rustyshelf, c = (await api.getConfig()).config, det = await api.detect();
         const dirs = [await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' })];
         for (const [i, id] of ['gc', 'psx', 'snes'].entries()) { c.systems[id].romDirs = [dirs[i]]; c.systems[id].emulator = det.systems[id].emulator; }
         c.setupDone = true; await api.saveConfig(c); await api.scan();
         for (let i = 0; i < 600 && !(api.artProgress().total && !api.artProgress().running); i++) await new Promise(r => setTimeout(r, 100));
         // forget the art again (keep the setup): the next start fetches it all, with the shelf up
         for (const k of Object.keys(localStorage)) if (/^fake:(art\.json|dirs|displays|library\.json|lr-)/.test(k)) localStorage.removeItem(k);
-        localStorage.setItem('trustyshelf-ui', JSON.stringify({ sys: 'psx', sel: 6 })); }); // (the shelf opens on PlayStation, not the first console)
+        localStorage.setItem('rustyshelf-ui', JSON.stringify({ sys: 'psx', sel: 6 })); }); // (the shelf opens on PlayStation, not the first console)
       await page.addInitScript(() => { window.__artLat = 900; });
       await page.goto(url);
       await page.waitForFunction(() => window.__fakeArt && window.Shelf && Shelf.artFocus && Shelf.artFocus() && __fakeArt.fetch.length > 0, null, { timeout: 60000 });
@@ -1472,9 +1472,9 @@ server.listen(0, async () => {
         return { sys, was: after.slice(0, k), next: after.slice(k, k + 4), snesFirst: firstOther === -1 ? rest.length : firstOther, snesLater }; });
       check('Art queue: moving to another shelf puts its games next', b.sys === 'snes' && b.snesFirst >= 2 && !b.snesLater, `${b.sys}: ${b.was.length} already under way, then ${b.next.join(', ')}`);
       await page.evaluate(() => { __fakeArt.lat = 40; });
-      await page.waitForFunction(() => !window.trustyshelf.artProgress().running, null, { timeout: 120000, polling: 100 });
+      await page.waitForFunction(() => !window.rustyshelf.artProgress().running, null, { timeout: 120000, polling: 100 });
       const c = await page.evaluate(async () => { const el = document.querySelector('.bs-artcard'), done = { show: el.classList.contains('show'), text: el.innerText.replace(/\n/g, ' | ') };
-        await new Promise(r => setTimeout(r, 2800)); return { done, gone: !el.classList.contains('show'), peak: __fakeArt.peak, prog: window.trustyshelf.artProgress() }; });
+        await new Promise(r => setTimeout(r, 2800)); return { done, gone: !el.classList.contains('show'), peak: __fakeArt.peak, prog: window.rustyshelf.artProgress() }; });
       check('Art progress card: says what was added, then fades away', c.done.show && /Added art for \d+ games/.test(c.done.text) && c.gone, `${c.done.text} → ${c.gone ? 'hidden' : 'still shown'}`);
       check('Art downloads: 4 at once at most, libretro ≤ 3, GameTDB ≤ 2', c.peak.all <= 4 && c.peak.all >= 3 && (c.peak['thumbnails.libretro.com'] || 0) <= 3 && (c.peak['art.gametdb.com'] || 0) <= 2 && c.prog.done === c.prog.total,
         JSON.stringify(c.peak) + ` · ${c.prog.done}/${c.prog.total}`);
@@ -1494,7 +1494,7 @@ server.listen(0, async () => {
       page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text().slice(0, 200)); });
       const url = base + '?fakeNative=1';
       await page.goto(url); await page.waitForTimeout(4000);
-      await page.evaluate(async () => { const api = window.trustyshelf, c = (await api.getConfig()).config, det = await api.detect();
+      await page.evaluate(async () => { const api = window.rustyshelf, c = (await api.getConfig()).config, det = await api.detect();
         const d = [await api.pick({ kind: 'folder' }), await api.pick({ kind: 'folder' })];
         c.systems.gc.romDirs = [d[0]]; c.systems.gc.emulator = det.systems.gc.emulator; c.systems.psx.romDirs = [d[1]]; c.systems.psx.emulator = det.systems.psx.emulator;
         c.setupDone = true; await api.saveConfig(c); await api.scan(); });
@@ -1618,7 +1618,7 @@ server.listen(0, async () => {
   await browser.close(); server.close();
 
   const failed = checks.filter(c => !c.ok);
-  say(`### (T)rustyShelf device test${GROUP === 'all' ? '' : ' (' + GROUP + ')'}: ${failed.length ? 'FAILED' : 'PASSED'} (${checks.length - failed.length}/${checks.length})`);
+  say(`### RustyShelf device test${GROUP === 'all' ? '' : ' (' + GROUP + ')'}: ${failed.length ? 'FAILED' : 'PASSED'} (${checks.length - failed.length}/${checks.length})`);
   say(''); say('| | check | detail |'); say('|---|---|---|');
   for (const c of checks) say(`| ${c.ok ? '✅' : '❌'} | ${c.name} | ${c.detail.replace(/\|/g, '/').slice(0, 180)} |`);
   say(''); say(failed.length ? '**No APK is published for this run.** Screenshots are in the "device-test" artifact.' : '**The APK below passed and is safe to install.**');

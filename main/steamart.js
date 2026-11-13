@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/steamart.js apart from the app's name ((T)rustyShelf).
+// main/steamart.js apart from the app's name (RustyShelf).
 // Steam art and game info. Steam only keeps a portrait cover in its librarycache for games you've looked at in its
-// library grid (and some older games never get one), so (T)rustyShelf fills the gaps from Steam's own public store CDN —
+// library grid (and some older games never get one), so RustyShelf fills the gaps from Steam's own public store CDN —
 // no account or key. Release date, developer, publisher, genres, Metacritic score and screenshots come from the public
 // store API (store.steampowered.com/api/appdetails), cached for a month in data\steam-info.json.
 const fs = require('fs');
@@ -23,12 +23,12 @@ const asset = (id, name) => [
 ];
 const coverFile = id => path.join(dir, `${id}_cover.jpg`), heroFile = id => path.join(dir, `${id}_hero.jpg`), missFile = id => path.join(dir, `${id}.missing`);
 
-// Art (T)rustyShelf has already downloaded for this game (used when Steam's own cache has none)
+// Art RustyShelf has already downloaded for this game (used when Steam's own cache has none)
 function local(appid) { return { front: isFile(coverFile(appid)) ? coverFile(appid) : null, hero: isFile(heroFile(appid)) ? heroFile(appid) : null }; }
 
 // null = the CDN answered "not here" (404/403 or a stub); throws on network trouble / server errors
 async function fetchBuf(url, ms = 20000) {
-  const r = await net.fetch(url, { headers: { 'User-Agent': 'TrustyShelf' }, signal: AbortSignal.timeout(ms), cache: 'no-store' });
+  const r = await net.fetch(url, { headers: { 'User-Agent': 'RustyShelf' }, signal: AbortSignal.timeout(ms), cache: 'no-store' });
   if (r.status === 404 || r.status === 403) return null;
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const b = Buffer.from(await r.arrayBuffer()); return b.length > 2048 ? b : null;
@@ -50,7 +50,7 @@ function gameInfo(appid) {
 }
 async function fetchInfo(appid) {
   try {
-    const r = await net.fetch(`https://store.steampowered.com/api/appdetails?appids=${appid}&l=english`, { headers: { 'User-Agent': 'TrustyShelf' }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    const r = await net.fetch(`https://store.steampowered.com/api/appdetails?appids=${appid}&l=english`, { headers: { 'User-Agent': 'RustyShelf' }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = (await r.json())[appid];
     if (!j || !j.success || !j.data) { info[appid] = { ok: false, at: Date.now() }; return; }

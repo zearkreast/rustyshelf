@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/raemu.js; modified for (T)rustyShelf (DuckStation, RetroArch and Flycast, for any console).
+// main/raemu.js; modified for RustyShelf (DuckStation, RetroArch and Flycast, for any console).
 'use strict';
 // Per console: will RetroAchievements actually work in its emulator? Reads each emulator's own
 // settings (portable folder first, then the usual Windows places). Never returns tokens.
@@ -68,7 +68,7 @@ async function checkPcsx2(exe, env) {
   return { state: 'ok', user: a.username || '', detail: truthy(a.challengemode) ? 'Hardcore mode on' : '' };
 }
 
-// ((T)rustyShelf, asked for in Boxshelf's discussions: portable emulators) DuckStation, RetroArch and Flycast too, for any
+// (RustyShelf, asked for in Boxshelf's discussions: portable emulators) DuckStation, RetroArch and Flycast too, for any
 // console they're set up for, each read from its portable folder first (beside the program), then where an installed copy
 // keeps its settings (Windows, then Linux and its Flatpak)
 const homeOf = env => env.USERPROFILE || env.HOME || require('os').homedir();

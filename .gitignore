@@ -1,6 +1,6 @@
 # Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-# .gitignore; modified for (T)rustyShelf (its own start script is allowed).
-# (T)rustyShelf uses an ALLOWLIST: everything is ignored, then only the app's own source is added back.
+# .gitignore; modified for RustyShelf (its own start script is allowed).
+# RustyShelf uses an ALLOWLIST: everything is ignored, then only the app's own source is added back.
 # This keeps emulators, ROMs, BIOS, saves, art, manuals, magazines, music, console models, builds and
 # personal data out of the repo, even when new folders appear next to the app.
 
@@ -25,11 +25,10 @@
 !/release-extras/
 !/.github/
 !/README.md
-!/HANDOFF.md
 !/LICENSE
 !/THIRD-PARTY-NOTICES.md
 !/*.bat
-!/start-trustyshelf.sh
+!/starrustyshelf.sh
 !/Cargo.toml
 !/Cargo.lock
 !/crates/
@@ -52,8 +51,12 @@ dist/
 *.wua
 *.pkg
 *.bin
-*.trustyshelf-bak
+*.rustyshelf-bak
 .env
+CLAUDE.md
+CLAUDE.local.md
+HANDOFF.md
+.claude/
 *.key
 keys.txt
 prod.keys

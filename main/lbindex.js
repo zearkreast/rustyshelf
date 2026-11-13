@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/lbindex.js apart from the app's name ((T)rustyShelf) and native Rust indexer acceleration.
+// main/lbindex.js apart from the app's name (RustyShelf) and native Rust indexer acceleration.
 // LaunchBox index builder: reading the 500 MB XML in JavaScript holds a lot of memory and causes OOM crashes.
-// The native Rust binary 'trustyshelf-imgtools lbindex' parses the XML with streaming low memory and writes
+// The native Rust binary 'rustyshelf-imgtools lbindex' parses the XML with streaming low memory and writes
 // the index and shards in seconds. Worker threads and pure JS are kept as fallback.
 const fs = require('fs');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
@@ -16,7 +16,7 @@ function findBinary() {
   binChecked = true;
 
   const ext = process.platform === 'win32' ? '.exe' : '';
-  const binName = `trustyshelf-imgtools${ext}`;
+  const binName = `rustyshelf-imgtools${ext}`;
 
   // 1. Unpacked asar path (packaged app)
   const unpacked = path.join(__dirname, 'bin', binName).replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');

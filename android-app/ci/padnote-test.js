@@ -1,4 +1,4 @@
-// (T)rustyShelf: Settings → Controller says what to do when a PlayStation pad does nothing while Steam is open (Steam Input takes
+// RustyShelf: Settings → Controller says what to do when a PlayStation pad does nothing while Steam is open (Steam Input takes
 // it), asked on Boxshelf's issue 1. On the demo page. Run (after node copy-web.js): node ci/padnote-test.js www ../out/padnote
 //   - Windows: the row is there, its card explains it, How says the short version
 //   - Android: no such row (no Steam there)

@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/manualcoll.js apart from the app's name ((T)rustyShelf).
+// main/manualcoll.js apart from the app's name (RustyShelf).
 // Manual collections on the Internet Archive: single uploads holding hundreds of manuals for one console, scanned at
 // full resolution (GameCube, PS2, PSP, Wii) or Microsoft's own digital manuals (Xbox 360, named with the title id).
 // These are the sharpest manuals around, so they are used first, and they replace an existing manual when they are
@@ -212,14 +212,14 @@ async function fetchTo(col, ix, e, stage, base, opts) {
 
 const manualFiles = (dir, base, ls) => { const pre = (base + '-manual').toLowerCase(); return (ls || require('./dircache').fresh).names(dir).filter(f => M.isManualFile(f, pre)); }; // (not a .part)
 function moveFile(a, b) { try { fs.renameSync(a, b); } catch { fs.copyFileSync(a, b); fs.unlinkSync(a); } }
-// ((T)rustyShelf, issue 24) the same without holding the app up: the pages go from the temp folder to the library's drive,
+// (RustyShelf, issue 24) the same without holding the app up: the pages go from the temp folder to the library's drive,
 // another drive as often as not, where a rename can't do and every page was copied with the app frozen (4 to 8 s a manual)
 async function moveFileA(a, b) { try { await fs.promises.rename(a, b); } catch (e) { if (e && e.code === 'ENOSPC') throw e; await fs.promises.copyFile(a, b); await fs.promises.unlink(a); } }
 // (issue 24) a drive that ran out of space: no more manuals are put there this run (each one was downloaded, then failed)
 const fullDrives = new Set(), driveOf = d => path.parse(path.resolve(String(d || '.'))).root.toUpperCase();
 
 // systems: [{def, cfg}]. opts: { renderPdf(pdfPath) -> [dataURL], crop(file, side) -> Buffer, cancelled() }
-// a manual's pages as (T)rustyShelf sees them: how many are real pages, how sharp they are, whether some are junk
+// a manual's pages as RustyShelf sees them: how many are real pages, how sharp they are, whether some are junk
 function inspect(dir, base) {
   const files = manualFiles(dir, base).filter(f => !/\.pdf$/i.test(f));
   const w = files.map(f => (spreads.sizeOf(path.join(dir, f)) || [0])[0]);
@@ -238,7 +238,7 @@ async function sharperPdf(def, g, base, collCount, opts, collBytesPerScan) {
   const t = clean(g.title).title, tries = [...new Set([t, stripBrand(t)])];
   let hit = null; for (const x of tries) { try { hit = await M.searchGamesDatabase(def.id, x); } catch {} if (hit) break; }
   if (!hit) return null;
-  const stage = fs.mkdtempSync(path.join(require('os').tmpdir(), 'trustyshelf-manual-gdb-')), pdf = path.join(stage, base + '.pdf');
+  const stage = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rustyshelf-manual-gdb-')), pdf = path.join(stage, base + '.pdf');
   let keep = false;
   try {
     if (!await M.getFile(hit.id.slice(4), pdf, 0, { stall: 30000, deadline: 150000 })) return null;
@@ -259,7 +259,7 @@ async function sharperPdf(def, g, base, collCount, opts, collBytesPerScan) {
 async function one(def, cfg, g, hit, m, key, opts, changes) {
   const dir = artDirFor(cfg, g.file), base = artBase(g.file), old = inspect(dir, base), seen = m[key] || {};
   const ours = !!(seen.src && old.files.length); // the manual there is this module's earlier (half-resolution) copy
-  let stage = fs.mkdtempSync(path.join(require('os').tmpdir(), 'trustyshelf-manual-'));
+  let stage = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rustyshelf-manual-'));
   try {
     let n = await fetchTo(hit.col, hit.ix, hit.e, stage, base, opts);
     if (opts.crop && !hit.e.digital) await spreads.splitManual(stage, base, opts.crop, { scan: !hit.col.digital, discard: true }); // (beta.9: a digital manual's screens stay whole)
@@ -289,7 +289,7 @@ async function one(def, cfg, g, hit, m, key, opts, changes) {
     }
     const pages = fs.readdirSync(stage).filter(f => /-manual-\d+\.(jpe?g|png)$/i.test(f)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     // last look before anything in the library moves: a job given up on (tok.dead, past its deadline) must not touch it.
-    // ((T)rustyShelf, issue 24) the moves below are awaited (they froze the app), so a deadline landing meanwhile no longer
+    // (RustyShelf, issue 24) the moves below are awaited (they froze the app), so a deadline landing meanwhile no longer
     // stops them halfway: they always finish, or put everything back
     if (opts.cancelled && opts.cancelled()) throw new Error('stopped');
     await fs.promises.mkdir(dir, { recursive: true });

@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0). Written by Thanks2111
 // (https://github.com/Thanks2111) in their Boxshelf fork (branch portugues): the Brazilian Portuguese interface. Brought into
-// (T)rustyShelf as a language you choose (Settings → Display → Language), English by default.
+// RustyShelf as a language you choose (Settings → Display → Language), English by default.
 // Boxshelf em português: traduz a interface enquanto ela é desenhada.
 // Os textos em inglês continuam no código; este arquivo troca o que aparece na tela (texto, dicas, campos,
 // textos desenhados em canvas e caixas de alerta) usando o dicionário de i18n-pt-data.js.
@@ -9,7 +9,7 @@
   'use strict';
   if (window.__bsI18n) return;
   var DATA = window.__BS_PT;
-  // ((T)rustyShelf) only when Portuguese is chosen: Settings → Display → Language keeps the choice in localStorage "bs.lang"
+  // (RustyShelf) only when Portuguese is chosen: Settings → Display → Language keeps the choice in localStorage "bs.lang"
   var on = false;
   try { on = localStorage.getItem('bs.lang') === 'pt'; } catch (e) { /* no storage: English */ }
   if (!DATA || !on) return;

@@ -1,4 +1,4 @@
-// Boxshelf beta issue 34: (T)rustyShelf stayed "not responding" at launch, its log ending at "Steam: found it". The library
+// Boxshelf beta issue 34: RustyShelf stayed "not responding" at launch, its log ending at "Steam: found it". The library
 // build reads Steam's libraries without holding the app up, a library that doesn't answer is left out, and the stall watch
 // writes to the log while the main process is stuck. Run: node linux/ci/steam-async-test.js
 'use strict';

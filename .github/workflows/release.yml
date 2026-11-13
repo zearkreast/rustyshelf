@@ -1,4 +1,4 @@
-# (T)rustyShelf release: the builds (build.yml), then a GitHub release vA.B.C.0 with them, as the latest release. Called by
+# RustyShelf release: the builds (build.yml), then a GitHub release vA.B.C.0 with them, as the latest release. Called by
 # build-release-check.yml for a "For version A.B.C" commit.
 name: Release
 
@@ -52,4 +52,4 @@ jobs:
           TARGET: ${{ github.sha }}
         run: |
           printf '%s\n' "$NOTES" > notes.md
-          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$TARGET" --title "(T)rustyShelf $VERSION" --notes-file notes.md
+          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$TARGET" --title "RustyShelf $VERSION" --notes-file notes.md

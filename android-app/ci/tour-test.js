@@ -83,7 +83,7 @@ module.exports = async function tourPass({ browser, base, check, OUT }) {
   } catch (e) { check('Tour pass ran to the end', false, e && e.stack ? e.stack.split('\n').slice(0, 2).join(' ') : e); }
   await ctx.close();
 
-  // a new install: setup from Welcome to Open (T)rustyShelf (as ci/setup-test.js goes), then the tour starts on its own, once
+  // a new install: setup from Welcome to Open RustyShelf (as ci/setup-test.js goes), then the tour starts on its own, once
   const fctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   await fctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, 'getGamepads', { configurable: true, value: () => [null, null, null, null] }); } catch (e) {} });
   const fp = await fctx.newPage();
@@ -95,7 +95,7 @@ module.exports = async function tourPass({ browser, base, check, OUT }) {
     for (let i = 0; i < 3; i++) { await fp.getByRole('button', { name: 'Next' }).click(); await pause(900); }
     await fp.getByRole('button', { name: 'Skip for now' }).click(); await pause(2500);
     const owedInSetup = await fp.evaluate(() => localStorage.getItem('bs-tour-pending') === '1');
-    await fp.getByRole('button', { name: /Open (\(T\)rustyShelf|Boxshelf)/ }).click();
+    await fp.getByRole('button', { name: /Open (RustyShelf|Boxshelf)/ }).click();
     let on = false; for (let i = 0; i < 40 && !on; i++) { await pause(500); on = await fp.evaluate(() => !!(window.BS_TOUR && BS_TOUR.on())); }
     await pause(1500); const first = await fp.evaluate(() => BS_TOUR._step());
     await fp.screenshot({ path: path.join(OUT, 'tour-first-run.png') }).catch(() => {});
@@ -106,7 +106,7 @@ module.exports = async function tourPass({ browser, base, check, OUT }) {
   } catch (e) { check('Tour (new install) ran to the end', false, e && e.message); }
   await fctx.close();
 
-  // (T)rustyShelf closed straight after setup, before the tour came up: still owed (the page's own storage, which setup's save
+  // RustyShelf closed straight after setup, before the tour came up: still owed (the page's own storage, which setup's save
   // of the settings can't undo), so the next start brings it. (This test page keeps its settings in memory only, so the
   // next start is a page with setup done and the tour owed.) After it ends, a later start doesn't bring it back
   const octx = await browser.newContext({ viewport: { width: 1600, height: 900 } });

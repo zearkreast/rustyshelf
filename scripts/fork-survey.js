@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// (T)rustyShelf's fork survey: every change in the original repositories (sassiestrhihno's boxshelf-source and boxshelf-beta),
-// in their forks, in the forks of those forks (and in the forks of your own repository) that isn't in (T)rustyShelf yet. No
-// AI: it collects; an AI (or you) reads new.md, compares with t-rustyshelf and decides what to bring in (/trustyshelf-integrate).
+// RustyShelf's fork survey: every change in the original repositories (sassiestrhihno's boxshelf-source and boxshelf-beta),
+// in their forks, in the forks of those forks (and in the forks of your own repository) that isn't in RustyShelf yet. No
+// AI: it collects; an AI (or you) reads new.md, compares with rustyshelf and decides what to bring in (/rustyshelf-integrate).
 //
-//   node scripts/fork-survey.js [--out fork-survey] [--repos owner/repo,owner/repo] [--mine GGStonks/t-rustyshelf]
-//        [--branch t-rustyshelf] [--depth 10] [--jobs 4] [--all]
+//   node scripts/fork-survey.js [--out fork-survey] [--repos owner/repo,owner/repo] [--mine zearkreast/rustyshelf]
+//        [--branch rustyshelf] [--depth 10] [--jobs 4] [--all]
 //   node scripts/fork-survey.js --ack                       what new.json lists now counts as seen: the next run shows only newer
 //   node scripts/fork-survey.js --mark <commit link|sha> <integrated|skip|later|clear> [note]
 //   node scripts/fork-survey.js --credit <commit link|sha> …  how to credit a port of these commits (author line and trailers)
 //   node scripts/fork-survey.js --credits                   rewrites the list of people brought in, in README.md's Credits
-// --all shows every change not in (T)rustyShelf, seen or not. For tests: --offline (no GitHub API) with --forks owner/repo,…
+// --all shows every change not in RustyShelf, seen or not. For tests: --offline (no GitHub API) with --forks owner/repo,…
 // (extra repositories to survey) and --url-template '<path or URL with {owner} and {repo}>'; --root <your clone>.
 //
 // How:
@@ -17,11 +17,11 @@
 //     forks of your own repository; a fork never pushed to since it was made has nothing of its own and isn't fetched
 //   - fetches every branch and every pull request (refs/pull/N/head: kept by GitHub even when the fork is gone) of each one
 //     into a bare git mirror, next to your branch as it is in your clone (pushed or not)
-//   - a change is "not in (T)rustyShelf" when no commit of your branch is it or has the same patch (git's patch-id: a plain
+//   - a change is "not in RustyShelf" when no commit of your branch is it or has the same patch (git's patch-id: a plain
 //     cherry-pick counts as in) and no commit of yours names it (a `Ported-from: <commit link>` trailer or cherry-pick -x's
 //     "(cherry picked from commit …)"). Merge commits are left out (their changes are in the commits they merge).
 // What it writes (in --out, which git ignores):
-//   new.md, new.json     the changes not in (T)rustyShelf that weren't seen before (and those marked "later"), by repository,
+//   new.md, new.json     the changes not in RustyShelf that weren't seen before (and those marked "later"), by repository,
 //                        with who made each one, where it is (branches, pull request), its files and the lines that credit
 //                        its author in a port. Seen = listed in a survey that `--ack` confirmed: they aren't listed again.
 //   integrated.md/.json  the trace of what came in (found from your commits by itself, or marked): from where, by whom, in which
@@ -41,7 +41,7 @@ const ROOT = path.resolve(String(opt('root', path.join(__dirname, '..'))));
 const OUT = path.resolve(ROOT, String(opt('out', 'fork-survey'))), MIRROR = path.join(OUT, 'mirror.git');
 const list = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
 const REPOS = list(opt('repos', 'sassiestrhihno/boxshelf-source,sassiestrhihno/boxshelf-beta')), EXTRA = list(opt('forks', ''));
-const MINE = String(opt('mine', 'GGStonks/t-rustyshelf')), ME = MINE.split('/')[0], BRANCH = String(opt('branch', 't-rustyshelf'));
+const MINE = String(opt('mine', 'zearkreast/rustyshelf')), ME = MINE.split('/')[0], BRANCH = String(opt('branch', 'rustyshelf'));
 const DEPTH = +opt('depth', 10) || 10, JOBS = Math.max(1, +opt('jobs', 4) || 4), ALL = argv.includes('--all');
 const OFFLINE = argv.includes('--offline'), URL_T = String(opt('url-template', 'https://github.com/{owner}/{repo}.git'));
 const STATUSES = ['integrated', 'skip', 'later', 'clear'];
@@ -132,7 +132,7 @@ if (argv.includes('--credits')) { // README.md: the people whose work came in, m
   const me = credits.identity(ROOT, [ME, ...REPOS.map(r => r.split('/')[0])]); // (the originals' authors are credited at the top of the README)
   const who = credits.thanks(credits.log(ROOT, BRANCH), me, (c, p) => loginFor(cache, p, MINE, c.sha));
   const START = '<!-- fork-survey credits: made by `node scripts/fork-survey.js --credits` from the commit history; edits here are replaced -->', END = '<!-- /fork-survey credits -->';
-  const block = [START, '', 'Brought into (T)rustyShelf from other people\'s forks (they are the authors or co-authors of these commits):', '',
+  const block = [START, '', 'Brought into RustyShelf from other people\'s forks (they are the authors or co-authors of these commits):', '',
     ...who.map(({ person: p, items }) => `- ${p.login ? `[${p.login}](https://github.com/${p.login})` : esc(credits.displayName(p))}: ${items.map(i => esc(i.subject) + (i.sources[0] && i.sources[0].url ? ` ([original](${i.sources[0].url}))` : '')).join('; ')}`), '', END].join('\n');
   const f = path.join(ROOT, 'README.md'); let md = fs.readFileSync(f, 'utf8');
   const a = md.indexOf(START), b = md.indexOf(END);
@@ -249,9 +249,9 @@ if (argv.includes('--credits')) { // README.md: the people whose work came in, m
   if (!fs.existsSync(F('seen.json'))) writeJson(F('seen.json'), { at: '', commits: {} });
 
   const integrated = Object.entries(integ).filter(([, e]) => e.status === 'integrated'), later = Object.entries(integ).filter(([, e]) => e.status === 'later'), skip = Object.entries(integ).filter(([, e]) => e.status === 'skip');
-  const L = ['# Changes in other forks that (T)rustyShelf doesn\'t have', '',
+  const L = ['# Changes in other forks that RustyShelf doesn\'t have', '',
     `Made ${when(at)} UTC by scripts/fork-survey.js in ${Math.round((Date.now() - t0) / 1000)} s: ${repos.length} repositories (${toFetch.length} fetched), ${[...found.values()].filter(f => !f.same).length} changes not in ${BRANCH}, **${commits.length} listed here** (${ALL ? 'all of them: --all' : 'new since the last `--ack`, and those kept for later'}). Integrated so far: ${integrated.length} (integrated.md).`, '',
-    'For the AI (/trustyshelf-integrate): read each change (`show` gives the whole diff), check whether t-rustyshelf already does the same thing by other means, and sum up the bug fixes and features that are missing. Several commits can make one feature. After the user has chosen: `node scripts/fork-survey.js --ack`. A change ported by hand gets its credit lines (below, or `--credit <sha> …` for several commits): the original author stays the commit\'s author, and the trailers say where it comes from; then it shows up in integrated.md by itself on the next survey.', ''];
+    'For the AI (/rustyshelf-integrate): read each change (`show` gives the whole diff), check whether rustyshelf already does the same thing by other means, and sum up the bug fixes and features that are missing. Several commits can make one feature. After the user has chosen: `node scripts/fork-survey.js --ack`. A change ported by hand gets its credit lines (below, or `--credit <sha> …` for several commits): the original author stays the commit\'s author, and the trailers say where it comes from; then it shows up in integrated.md by itself on the next survey.', ''];
   if (!commits.length) L.push('Nothing new.', '');
   let cur = '';
   for (const c of commits) {
@@ -271,7 +271,7 @@ if (argv.includes('--credits')) { // README.md: the people whose work came in, m
 
   const row = ([sha, e]) => `- [\`${sha.slice(0, 9)}\`](${e.url || '#'}) ${esc(e.subject)} · by ${esc(e.author || '?')}${e.repo ? ` · from ${e.repo}` : ''}${e.mine ? ` · yours: \`${e.mine.slice(0, 9)}\` ${esc(e.mineSubject || '')}${e.parts && e.parts.length > 1 ? ` and ${e.parts.length - 1} more` : ''} (${e.release || 'not released yet'})` : ''}${e.how ? ` · ${e.how}` : ''}${e.note ? ` · ${esc(e.note)}` : ''}`;
   const by = (a, b) => String(b[1].at || '').localeCompare(String(a[1].at || ''));
-  const I = ['# What came into (T)rustyShelf from other forks', '', `Made ${when(at)} UTC by scripts/fork-survey.js: found from your commits (\`Ported-from:\` trailers, cherry-pick -x, the same patch) and from \`--mark\`.`, '',
+  const I = ['# What came into RustyShelf from other forks', '', `Made ${when(at)} UTC by scripts/fork-survey.js: found from your commits (\`Ported-from:\` trailers, cherry-pick -x, the same patch) and from \`--mark\`.`, '',
     `## Integrated (${integrated.length})`, '', ...integrated.sort(by).map(row), '', `## Kept for later (${later.length})`, '', ...later.sort(by).map(row), '', `## Decided against (${skip.length})`, '', ...skip.sort(by).map(row), ''];
   fs.writeFileSync(F('integrated.md'), I.join('\n') + '\n');
   console.log(`Done in ${Math.round((Date.now() - t0) / 1000)} s: ${commits.length} changes listed in ${F('new.md')} (${[...found.values()].filter(f => !f.same).length} not in ${BRANCH} in all); ${integrated.length} integrated so far (${F('integrated.md')}).`);

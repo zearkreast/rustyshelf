@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// renderer/img-tools.js; modified for (T)rustyShelf (rebrand: a console front made into a PC copy).
-// Hidden window: cuts a two-page scan into its left and right halves (off (T)rustyShelf's main thread, which a large
+// renderer/img-tools.js; modified for RustyShelf (rebrand: a console front made into a PC copy).
+// Hidden window: cuts a two-page scan into its left and right halves (off RustyShelf's main thread, which a large
 // scan used to freeze for up to a couple of seconds). The image arrives as bytes: a canvas holding a file:// image
 // is "tainted" and can't be exported.
 /* global wum */
@@ -192,7 +192,7 @@ function cart(bmp, job) {
   return c.toDataURL('image/png');
 }
 
-// ((T)rustyShelf, asked for in Boxshelf's discussions) a console release's front made into a PC (Steam) copy: the console's
+// (RustyShelf, asked for in Boxshelf's discussions) a console release's front made into a PC (Steam) copy: the console's
 // band across the top is found (its own colour, measured from the scan, until the artwork starts) and painted over with a
 // Steam band of the same height. job.plat: ps5 / xsx / ps4 / xone / sw (the usual band heights, when it can't be measured).
 const BAND_H = { ps5: 0.105, xsx: 0.1, ps4: 0.095, xone: 0.1, sw: 0.1 };

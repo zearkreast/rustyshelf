@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 18: Fortune's Eden, a Switch 2 build that opens .nup games, was greyed out at Play ("can't open .nup
+// RustyShelf issue 18: Fortune's Eden, a Switch 2 build that opens .nup games, was greyed out at Play ("can't open .nup
 // games"). The look inside a build also finds the text in UTF-16 and in the build's own libraries, and a build it isn't
 // sure about stays startable. Run: node linux/ci/nup-build-test.js
 'use strict';

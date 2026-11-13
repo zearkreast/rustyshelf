@@ -32,7 +32,7 @@ fs.mkdirSync(UP, { recursive: true }); g(UP, 'up', 'init', '-q', '-b', 'main');
 commit(UP, 'up', 'README.md', '# App\n\n## Credits\n\nBy Up.\n\n## Licence\n\nGPL\n', 'Base');
 commit(UP, 'up', 'a.txt', 'a\n', 'Start a');
 g(T, 'forker', 'clone', '-q', UP, FORK);
-g(T, 'me', 'clone', '-q', '-b', 'main', UP, MINE); g(MINE, 'me', 'checkout', '-q', '-b', 't-rustyshelf'); g(MINE, 'me', 'config', 'user.email', 'me@x.example');
+g(T, 'me', 'clone', '-q', '-b', 'main', UP, MINE); g(MINE, 'me', 'checkout', '-q', '-b', 'rustyshelf'); g(MINE, 'me', 'config', 'user.email', 'me@x.example');
 commit(MINE, 'me', 'mine.txt', 'mine\n', 'My own work'); g(MINE, 'me', 'tag', 'v1.0.0.0');
 const B = commit(UP, 'up', 'b.txt', 'fix\n', 'Fix b'), C = commit(UP, 'up', 'c.txt', 'feature\n', 'Feature c');
 const D = commit(FORK, 'forker', 'd.txt', 'd from the fork\n', 'Fork feature d'), E = commit(FORK, 'other', 'e.txt', 'e\n', 'Fork fix e');
@@ -46,7 +46,7 @@ const nw = () => JSON.parse(fs.readFileSync(path.join(OUT, 'new.json'), 'utf8'))
 const shas = () => nw().commits.map(c => c.sha).sort().join(','), want = (...s) => s.sort().join(',');
 try {
   run(...base);
-  check('First survey: what isn\'t in (T)rustyShelf (the fix b, the fork\'s fix e)', shas() === want(B, E), nw().commits.map(c => c.subject));
+  check('First survey: what isn\'t in RustyShelf (the fix b, the fork\'s fix e)', shas() === want(B, E), nw().commits.map(c => c.subject));
   check('The cherry-picked feature counts as integrated (same patch)', integ()[C] && integ()[C].status === 'integrated' && /same patch/.test(integ()[C].how), integ()[C]);
   const ME_D = g(MINE, 'me', 'rev-parse', 'HEAD');
   check('The port by hand counts as integrated (Ported-from), with your commit', integ()[D] && integ()[D].how === 'Ported-from' && integ()[D].mine === ME_D && integ()[D].release === '', integ()[D]);
@@ -63,7 +63,7 @@ try {
   const F2 = commit(FORK, 'forker', 'f.txt', 'f\n', 'Fork feature f'); run(...base);
   check('A new commit in a fork: only it is listed', shas() === want(F2));
   run(...base, '--all');
-  check('--all: everything not in (T)rustyShelf, seen or not', shas() === want(B, E, F2));
+  check('--all: everything not in RustyShelf, seen or not', shas() === want(B, E, F2));
   run('--root', MINE, '--out', OUT, '--mark', F2.slice(0, 9), 'later', 'after the next release'); run('--root', MINE, '--out', OUT, '--ack'); run(...base);
   check('"later" keeps showing after --ack', shas() === want(F2) && nw().commits[0].later === true);
   run('--root', MINE, '--out', OUT, '--mark', `https://github.com/forker/fork/commit/${F2}`, 'skip', 'not for us'); run(...base, '--all');

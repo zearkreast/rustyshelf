@@ -1,4 +1,4 @@
-// (T)rustyShelf's museum lighting and fog visibility test (issue 30). Run: node linux/ci/museum-lighting-test.js
+// RustyShelf's museum lighting and fog visibility test (issue 30). Run: node linux/ci/museum-lighting-test.js
 'use strict';
 const fs = require('fs');
 const path = require('path');

@@ -1,4 +1,4 @@
-// (T)rustyShelf's box art card on Android (Boxshelf's issue 9), in a browser on the adapter's pretend device (?fakeNative=1).
+// RustyShelf's box art card on Android (Boxshelf's issue 9), in a browser on the adapter's pretend device (?fakeNative=1).
 // Run (after node copy-web.js): node ci/android-artcard-test.js www ../out/android-artcard
 //   - a box art run shows Android's own progress card, and the quick menu gets the Box art download row (Pause / Resume /
 //     Cancel, as the art card has on Windows)
@@ -24,11 +24,11 @@ server.listen(0, async () => {
     const url = `http://localhost:${server.address().port}/index.html?fakeNative=1`;
     await page.goto(url); await page.waitForTimeout(4000);
     // three consoles with games, then the shelf
-    await page.evaluate(async () => { const api = window.trustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
+    await page.evaluate(async () => { const api = window.rustyshelf, info = await api.getConfig(), det = await api.detect(), c = info.config;
       for (const id of ['gc', 'psx', 'snes']) { c.systems[id].romDirs = [await api.pick({ kind: 'folder' })]; c.systems[id].emulator = det.systems[id].emulator; }
       c.setupDone = true; c.ui.autoCovers = false; await api.saveConfig(c); });
     await page.goto(url); await page.waitForTimeout(6000);
-    const r = await page.evaluate(async () => { const api = window.trustyshelf, wait = ms => new Promise(res => setTimeout(res, ms)), out = {};
+    const r = await page.evaluate(async () => { const api = window.rustyshelf, wait = ms => new Promise(res => setTimeout(res, ms)), out = {};
       const own = () => document.querySelector('.bs-artcard'), shown = () => !!document.querySelector('.bs-artcard.show');
       const done = () => +((/(\d+)\s*\/\s*\d+/.exec((own() || {}).textContent || '') || [0, -1])[1]); // (Android's own card: "12/73")
       window.__fakeArt.lat = 3000; // (slow pictures: the run lasts long enough to pause)

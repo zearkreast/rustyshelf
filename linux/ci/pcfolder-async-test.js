@@ -1,4 +1,4 @@
-// (T)rustyShelf, Boxshelf beta issue 34 (the app hung at launch, "not responding"): the PC games folder is read without
+// RustyShelf, Boxshelf beta issue 34 (the app hung at launch, "not responding"): the PC games folder is read without
 // holding the main process up, and each step of the PC library is named for the freeze watch. Made-up folders.
 // Run: node linux/ci/pcfolder-async-test.js
 'use strict';

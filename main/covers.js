@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/covers.js apart from the app's name ((T)rustyShelf).
+// main/covers.js apart from the app's name (RustyShelf).
 // Box art downloader.
 //  1. Front covers from the libretro thumbnail library (no account; names match No-Intro file names).
 //  2. Backs, spines (and fronts libretro missed) from the LaunchBox Games Database (no account).
@@ -23,14 +23,14 @@ const LAUNCHBOX = { gc: 'Nintendo GameCube', wii: 'Nintendo Wii', psp: 'Sony PSP
 const IDX_V = 8; // 8: full box wraps (Box - Full) indexed too, to cut spines from
 const LB_ZIP = 'https://gamesdb.launchbox-app.com/Metadata.zip';
 const LB_IMG = 'https://images.launchbox-app.com/';
-// ((T)rustyShelf, asked for in Boxshelf's discussions) PC games in their physical console box: the platforms a PC game's
+// (RustyShelf, asked for in Boxshelf's discussions) PC games in their physical console box: the platforms a PC game's
 // title is looked up in, newest first. Kept in the LaunchBox index too (a platform it doesn't have yet rebuilds it once)
 const PC_BOX_PLATS = [['ps5', 'Sony Playstation 5'], ['xsx', 'Microsoft Xbox Series X/S'], ['ps4', 'Sony Playstation 4'], ['xone', 'Microsoft Xbox One'], ['sw', 'Nintendo Switch']];
 const ALL_PLATS = () => [...new Set([...Object.values(LAUNCHBOX), ...PC_BOX_PLATS.map(p => p[1])])];
 const ART_EXT = ['png', 'jpg', 'jpeg', 'webp'];
 const IDX_DAYS = 60; // the XML is deleted once indexed, so a rebuild means the ~110 MB download again: don't do that every fortnight
 // one descriptive User-Agent for every request from here (GameTDB and the others like to know who's calling)
-const UA = `TrustyShelf/${(() => { try { return require('../package.json').version; } catch { return '0'; } })()}`;
+const UA = `RustyShelf/${(() => { try { return require('../package.json').version; } catch { return '0'; } })()}`;
 const REGION_PREF = ['North America', 'United States', 'World', '', 'Canada', 'Europe', 'United Kingdom', 'Japan'];
 
 // Settings → Box art region (cfg.ui.artRegion): 'usa' | 'eur' | 'jpn' puts that region's scans first wherever a game
@@ -107,7 +107,7 @@ async function gametdbSpine(sysId, file, dir, base, old, region) {
 const REPLACED = 'replaced';
 const artStamp = () => new Date().toISOString().slice(0, 23).replace(/[:T.]/g, '-');
 const samePath = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
-// every picture (T)rustyShelf puts in place is reported here (main/artstudio.js keeps the record): what (T)rustyShelf wrote vs a picture
+// every picture RustyShelf puts in place is reported here (main/artstudio.js keeps the record): what RustyShelf wrote vs a picture
 // the user put in the folder by hand, which nothing automatic may replace. origin: 'auto' (a cover download), 'studio',
 // 'own' (a picture the user chose), 'restored' (Undo / an earlier one)
 let onPlaced = null;
@@ -493,7 +493,7 @@ function matchTitle(list, title, art = () => 1, exactOnly = false) {
 }
 // Backs: North American boxes print English/French/Spanish side by side, so English-only regions come first for the back.
 const BACK_PREF = ['United Kingdom', 'Australia', 'North America', 'United States', 'World', '', 'Canada', 'Europe', 'Japan'];
-// ((T)rustyShelf) a PC game's physical console box: the front scan of the newest release LaunchBox has of that title, from
+// (RustyShelf) a PC game's physical console box: the front scan of the newest release LaunchBox has of that title, from
 // the index already built (never a download of the index for it): { plat, platform, name, url, back, spine } or null.
 // consoleBoxes returns all matching releases across platforms (newest first).
 function consoleBoxes(title, region) {
@@ -558,7 +558,7 @@ function libretroAll(names, game) {
   for (const t of lookupNames(game.title)) { const l = idx.get(norm(t)) || []; for (const n of l) if (!out.includes(n)) out.push(n); if (l.length) break; }
   return out;
 }
-// ((T)rustyShelf issue #2) Art match: the name a game's art is looked up under, picked by hand (Details → Art match) for a ROM
+// (RustyShelf issue #2) Art match: the name a game's art is looked up under, picked by hand (Details → Art match) for a ROM
 // hack, a translation or a mod whose file name or serial isn't the original game's. artNameFn(game) → that name or ''; every
 // lookup by title (box art downloads, the Art Studio's candidates, game info) goes through artGame()
 let artNameFn = null;
@@ -671,7 +671,7 @@ async function isLowA(file, key) { const z = await sizeOfAsync(file); return !!z
 // per console: how many games, and for each kind how many have it / how many of those are low-res (header reads only)
 // (beta.10) async: the art folders listed once (artLister) instead of up to 16 stats per game, header reads with
 // fs.promises, and a breath every 25 ms inside a console (a big library or a NAS held the main process up here)
-// ((T)rustyShelf, issue 24) opts.games(def): the console's games as the library last found them (null: read its folders
+// (RustyShelf, issue 24) opts.games(def): the console's games as the library last found them (null: read its folders
 // again, which takes ages for a big library on a NAS); opts.progress({ id, name, done, total }): how far the check is
 async function coverage(systems, opts = {}) {
   const out = [], ls = artLister(); let t0 = Date.now(), told = 0;
@@ -698,7 +698,7 @@ function pause(tag, on) { let n = 0; for (const t of live) if (!tag || t.tag ===
 // (beta.10) a run (tag 'auto': the background one) is paused right now: main's waiters resume it or don't wait on it
 function isPaused(tag) { for (const t of live) if ((!tag || t.tag === tag) && t.p && !t.c) return true; return false; }
 const held = async tok => { while (tok.p && !tok.c) await new Promise(r => setTimeout(r, 250)); };
-// ((T)rustyShelf, issue 24) a drive that ran out of space during a run: nothing more is tried there (thousands of
+// (RustyShelf, issue 24) a drive that ran out of space during a run: nothing more is tried there (thousands of
 // downloads used to go on failing, one after another, and the run looked frozen); the run's report names it
 const fullDrives = new Set();
 const driveOf = d => path.parse(path.resolve(String(d || '.'))).root.toUpperCase();
@@ -738,13 +738,13 @@ async function coversRun(systems, progress, plan, opts, tok) {
     if (!games.length) continue;
     progress({ system: def.name, systemId: def.id, stage: `Looking up ${def.name} art…`, done: 0, total: games.length });
     const names = want('front') ? await libretroIndex(def.id) : null;
-    if (!lb && !lbError && opts.indexReadyOnly) lb = lbOverride || readyIndex(); // ((T)rustyShelf: a single game fetched again after its art match: the index only if it's built)
+    if (!lb && !lbError && opts.indexReadyOnly) lb = lbOverride || readyIndex(); // (RustyShelf: a single game fetched again after its art match: the index only if it's built)
     if (!lb && !lbError && !opts.indexReadyOnly) { try { lb = lbOverride || await launchboxIndex(info => { if (!tok.c) progress(info); }, tok.ac.signal); } catch (e) { if (tok.c) break; lbError = e.message; log('LaunchBox ERROR', e.stack || e); } } // (beta.10: Cancel stops the wait for the index)
     await held(tok); if (tok.c) break; // (beta.10) paused while the index was built: wait here, not in the first games
     let done = 0;
     await pool(games, 4, async game0 => {
       if (tok.c) return; await held(tok); if (tok.c) return; // (beta.10) Pause: the next game waits
-      const game = artGame(game0); // ((T)rustyShelf: Details → Art match, looked up under the name picked)
+      const game = artGame(game0); // (RustyShelf: Details → Art match, looked up under the name picked)
       const dir = artDirFor(cfg, game.file), base = artBase(game.file);
       if (fullDrives.has(driveOf(dir))) { done++; progress({ system: def.name, systemId: def.id, stage: `${def.name}: ${driveOf(dir)} is full`, game: game.title, done, total: games.length, full: driveOf(dir) }); return; } // (issue 24)
       let touched = false, lg, lgDone = false; const missing = [];
@@ -781,7 +781,7 @@ async function coversRun(systems, progress, plan, opts, tok) {
           const sharp = hd || look === 'hd' || !!(style && style.sharper && look !== 'special' && !/^region:/.test(look || ''));
           const reg = look ? require('./artstudio').regionForLook(style, look, game) : region;
           const old = await artFileA(tok.ls, dir, base, suffix); // (beta.10: the run's folder listing, not up to 4 file checks)
-          // an HD upgrade replaces only a picture (T)rustyShelf may replace (opts.mayReplace: one it downloaded itself, never one the
+          // an HD upgrade replaces only a picture RustyShelf may replace (opts.mayReplace: one it downloaded itself, never one the
           // user put there by hand); a redo is the user's own request for that part
           const upgrade = !!old && !redo(key) && sharp && await isLowA(old, key) && (!opts.mayReplace || !!opts.mayReplace(old));
           // a SteamGridDB poster standing in for a front no source had: a real scan replaces it whenever one is found

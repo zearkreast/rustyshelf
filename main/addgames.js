@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/addgames.js apart from the app's name ((T)rustyShelf).
+// main/addgames.js apart from the app's name (RustyShelf).
 // (beta.7) Add games: many PC games at once (Settings → Custom games → Add games).
 //   scanFolder(root): a folder of games (D:\Games): one game per folder in it, its main program picked (the one named like
 //     its folder, else the biggest), helpers (uninstallers, redistributables, crash reporters) left out.
@@ -8,8 +8,8 @@
 //     holding Playnite.DesktopApp.exe and library\). read() copies the library's database files to a temp folder (Playnite
 //     may be running, and its files are never touched) and reads the copies with Playnite's own LiteDB.dll through
 //     PowerShell (paths passed in the environment, never spliced into the script); plan() turns the games into what
-//     (T)rustyShelf adds: PC games (a program to start) for the Custom shelf, emulated games as games folders for their
-//     console, with counts of what's left out (store games (T)rustyShelf reads itself, hidden ones, ones started by a link).
+//     RustyShelf adds: PC games (a program to start) for the Custom shelf, emulated games as games folders for their
+//     console, with counts of what's left out (store games RustyShelf reads itself, hidden ones, ones started by a link).
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -103,7 +103,7 @@ async function mainExeAsync(dir, depth = 3) {
   found.sort((a, b) => score(b) - score(a));
   return { exe: found[0].p, others: found.slice(1, 4).map(x => x.p) };
 }
-// ((T)rustyShelf, issue 4) A folder of category folders ("Games\Racing\Blur", "Games\2D games\Dangerous Dave"): each
+// (RustyShelf, issue 4) A folder of category folders ("Games\Racing\Blur", "Games\2D games\Dangerous Dave"): each
 // category used to count as one game (a program sits within three levels of it), so a whole genre came out as a single
 // entry. A folder is a category when it has no program of its own (at its top, or in a bin / x64 kind of folder) and at
 // least two of its folders do: the scan steps into it, up to three levels of categories. Folders that gave no game come
@@ -121,7 +121,7 @@ async function isCategory(dir, deeper = 2) { // (a category inside counts like a
   for (const e of ents) {
     if (!e.isDirectory() || GENERIC.test(e.name) || SKIP_DIR.test(e.name) || e.name.startsWith('.')) continue;
     await turn(); const d = path.join(dir, e.name);
-    // ((T)rustyShelf, issue 4 again) a game whose program sits a level down ("RPG\\Some Game\\Game\\game.exe") counts
+    // (RustyShelf, issue 4 again) a game whose program sits a level down ("RPG\\Some Game\\Game\\game.exe") counts
     // too: the genre folders of a big collection used to come out as one game each, their games never listed
     if ((await looksLikeGame(d) || !!(await mainExeAsync(d, 1)) || (deeper > 0 && await isCategory(d, deeper - 1))) && ++n >= 2) return true;
   }
@@ -201,7 +201,7 @@ function read(found) {
     });
   });
 }
-// Playnite's platform ids (SpecificationId) to (T)rustyShelf's consoles; a platform without one is matched by its name
+// Playnite's platform ids (SpecificationId) to RustyShelf's consoles; a platform without one is matched by its name
 const SPEC = { nintendo_gamecube: 'gc', nintendo_wii: 'wii', nintendo_wiiu: 'wiiu', nintendo_switch: 'sw', sony_psp: 'psp', sony_psvita: 'psvita', sony_ps_vita: 'psvita', sony_playstation_vita: 'psvita', sony_playstation: 'psx', sony_playstation2: 'ps2', sony_playstation3: 'ps3', sony_playstation4: 'ps4', sony_playstation5: 'ps5',
   xbox360: 'x360', nintendo_3ds: 'n3ds', nintendo_nes: 'nes', nintendo_super_nes: 'snes', nintendo_64: 'n64', nintendo_gameboy: 'gb', nintendo_gameboycolor: 'gbc', nintendo_gameboyadvance: 'gba', nintendo_ds: 'nds',
   sega_genesis: 'megadrive', sega_mastersystem: 'mastersystem', sega_gamegear: 'gamegear', sega_dreamcast: 'dreamcast', sega_saturn: 'saturn', nec_turbografx_16: 'pcengine', nec_pcengine: 'pcengine', snk_neogeo_aes: 'neogeo', snk_neogeo: 'neogeo',
@@ -231,7 +231,7 @@ function plan(lib, found) {
       continue;
     }
     if (file && file.Path) {
-      if (store) { out.skipped.store++; continue; } // (Steam, GOG Galaxy, Epic…: (T)rustyShelf reads those stores itself)
+      if (store) { out.skipped.store++; continue; } // (Steam, GOG Galaxy, Epic…: RustyShelf reads those stores itself)
       const exe = vars(file.Path, g), abs = path.win32.isAbsolute(exe) ? exe : path.win32.join(g.InstallDirectory || '', exe);
       out.pc.push({ key: String(g.Id || g._id || g.Name), title: String(g.Name).slice(0, 120), exe: abs, args: vars(file.Arguments, g).slice(0, 1000), cover: media(g.CoverImage), bg: media(g.BackgroundImage), favorite: !!g.Favorite, there: isFile(abs) });
       continue;

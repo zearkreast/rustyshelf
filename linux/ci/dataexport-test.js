@@ -1,4 +1,4 @@
-// (T)rustyShelf's Export everything / Import everything (main/dataexport.js; Boxshelf's issue 18). Run: node linux/ci/dataexport-test.js
+// RustyShelf's Export everything / Import everything (main/dataexport.js; Boxshelf's issue 18). Run: node linux/ci/dataexport-test.js
 //   - an export has the settings and downloads (not the browser engine's caches, logs or sign-ins), the app folder's
 //     Library / themes, and the art kept next to each console's games, with a manifest
 //   - (issue 6) its size up front, its progress, pause / resume / cancel, and a second export into the same place copying only
@@ -21,18 +21,18 @@ const has = p => fs.existsSync(path.join(tmp, p)), read = p => fs.readFileSync(p
     const romDir = path.join(tmp, 'Games', 'gc');
     const cfg = { systems: { gc: { romDirs: [romDir] }, psx: { romDirs: [path.join(tmp, 'Games', 'psx-gone')] } } };
     mk('A/data/config.json', JSON.stringify(cfg)); mk('A/data/boxart-cache/launchbox-Nintendo_GameCube.json', '{"big":1}'); mk('A/data/Local Storage/leveldb/000003.log', 'ui');
-    mk('A/data/Cache/Cache_Data/f_000001'); mk('A/data/Cookies'); mk('A/data/legendary/user.json', '{"token":"secret"}'); mk('A/data/trustyshelf.log'); mk('A/data/companion.json', '{"pair":"secret"}');
+    mk('A/data/Cache/Cache_Data/f_000001'); mk('A/data/Cookies'); mk('A/data/legendary/user.json', '{"token":"secret"}'); mk('A/data/rustyshelf.log'); mk('A/data/companion.json', '{"pair":"secret"}');
     mk('A/Library/Games/covers/Mario.png', 'cover'); mk('A/themes/gc/logo.png'); mk('Games/gc/Mario (USA).iso'); mk('Games/gc/covers/Mario (USA).png', 'beside'); mk('Games/gc/manuals/Mario (USA)/1.jpg', 'page');
     fs.mkdirSync(path.join(tmp, 'out'));
     const steps = [];
     const r = await dx.exportAll({ dest: path.join(tmp, 'out'), appRoot: path.join(tmp, 'A'), dataDir: path.join(tmp, 'A', 'data'), cfg, artDirsFor: paths.artDirsFor, artLib: '', version: '1.0.2.0', onStep: s => steps.push(s.label) });
     const ex = path.relative(tmp, r.dir), man = JSON.parse(read(path.join(ex, 'manifest.json')));
     check('Export: settings, the box art database and the UI\'s saved state are in it', has(`${ex}/data/config.json`) && has(`${ex}/data/boxart-cache/launchbox-Nintendo_GameCube.json`) && has(`${ex}/data/Local Storage/leveldb/000003.log`), ex);
-    check('Export: the browser engine\'s cache, cookies, the log, Epic\'s sign-in and the phone pairing are left out', !has(`${ex}/data/Cache`) && !has(`${ex}/data/Cookies`) && !has(`${ex}/data/trustyshelf.log`) && !has(`${ex}/data/legendary`) && !has(`${ex}/data/companion.json`));
+    check('Export: the browser engine\'s cache, cookies, the log, Epic\'s sign-in and the phone pairing are left out', !has(`${ex}/data/Cache`) && !has(`${ex}/data/Cookies`) && !has(`${ex}/data/rustyshelf.log`) && !has(`${ex}/data/legendary`) && !has(`${ex}/data/companion.json`));
     check('Export: the app folder\'s Library and themes, and the art and manuals next to the GameCube games', has(`${ex}/app/Library/Games/covers/Mario.png`) && has(`${ex}/app/themes/gc/logo.png`) && man.romArt.some(a => a.console === 'gc') && has(path.join(ex, man.romArt.find(a => a.console === 'gc' && /covers$/.test(a.path)).rel, 'Mario (USA).png')), JSON.stringify(man.romArt));
     check('Export: each step is said as it goes, and the size and file count come back', steps.length >= 4 && r.files >= 7 && r.bytes > 0, JSON.stringify({ steps, files: r.files }));
 
-    // ((T)rustyShelf issue 6) the size up front, the progress, a second export that copies only what changed, pause and cancel
+    // (RustyShelf issue 6) the size up front, the progress, a second export that copies only what changed, pause and cancel
     const base = { appRoot: path.join(tmp, 'A'), dataDir: path.join(tmp, 'A', 'data'), cfg, artDirsFor: paths.artDirsFor, artLib: '', version: '1.0.2.0' };
     const sz = await dx.exportSize(base);
     check('Size: how big the export will be is known before a folder is chosen (the same files the export copies)', sz.files === r.files - 1 && sz.bytes > 0, JSON.stringify({ sz, files: r.files })); // (the export also holds its manifest)
@@ -66,7 +66,7 @@ const has = p => fs.existsSync(path.join(tmp, p)), read = p => fs.readFileSync(p
     check('Import: nothing that was left out of the export appears (no sign-ins)', !has('B/data/legendary') && !has('B/data/companion.json'));
     // a folder that isn't an export
     let err = ''; try { await dx.importAll({ src: path.join(tmp, 'Games'), appRoot: path.join(tmp, 'B'), dataDir: path.join(tmp, 'B', 'data'), artDirsFor: paths.artDirsFor }); } catch (e) { err = e.message; }
-    check('Import: a folder that isn\'t an export is turned away with a message (nothing copied)', /isn't a \(T\)rustyShelf export/.test(err), err);
+    check('Import: a folder that isn\'t an export is turned away with a message (nothing copied)', /isn't a RustyShelf export/.test(err), err);
 
     // busy/locked file tolerance during import
     const origCopy = fs.promises.copyFile;

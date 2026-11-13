@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// android-app/ci/library-test.js; modified for (T)rustyShelf: the hidden shelf tiles check is by supalii
+// android-app/ci/library-test.js; modified for RustyShelf: the hidden shelf tiles check is by supalii
 // (https://github.com/supalii/boxshelf-source).
 // Device test pass "library" (beta.7), run by web-device-test.js: the demo page as Windows on a 1920x1080 TV.
 //   Details, redone in Settings' look: Close in the header, section labels, no empty fact rows, the hint bar shows what

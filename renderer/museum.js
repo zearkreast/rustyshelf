@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// renderer/museum.js; modified for (T)rustyShelf (see the git history). Looking left and right, and reaching the side displays
+// renderer/museum.js; modified for RustyShelf (see the git history). Looking left and right, and reaching the side displays
 // from the wide view, are by TrapEmAll (https://github.com/TrapEmAll), from boxshelf-source pull request #4.
 /* Museum: your whole collection as one tall shelving wall. One shelf row per system, every game as a real-sized
    case standing spine-out (real spine art when you have it), the console (your .glb or an original stand-in) at
@@ -137,7 +137,7 @@ window.Museum = (() => {
       const put = img => { if (t.userData.dead) { try { img && img.close && img.close(); } catch {} } else if (img) { t.image = img; t.needsUpdate = true; t.userData.onUp = () => settle(true); upQ.push(t); unsleep(); } else settle(false); done(); }; // released while loading: drop the image
       if (/^data:/.test(url)) { new THREE.TextureLoader().load(url, tx => put(tx.image), undefined, fail); continue; }
       try {
-        const opts = { imageOrientation: 'flipY', premultiplyAlpha: 'none', resizeQuality: 'high' }; if (kind === 'spine') opts.resizeHeight = 512; else if (kind === 'front') { if (ANDROID_512() && /_capacitor_file_|(TrustyShelf|Boxshelf)(%20| )Art/i.test(url)) opts.resizeHeight = 512; else opts.resizeWidth = 512; } // Android's art copies are tall (1024 px since 0.3.2): sized by height they come down to the museum's 512 (by width a tall cover came out taller than 512 for nothing)
+        const opts = { imageOrientation: 'flipY', premultiplyAlpha: 'none', resizeQuality: 'high' }; if (kind === 'spine') opts.resizeHeight = 512; else if (kind === 'front') { if (ANDROID_512() && /_capacitor_file_|(RustyShelf|Boxshelf)(%20| )Art/i.test(url)) opts.resizeHeight = 512; else opts.resizeWidth = 512; } // Android's art copies are tall (1024 px since 0.3.2): sized by height they come down to the museum's 512 (by width a tall cover came out taller than 512 for nothing)
         new THREE.ImageBitmapLoader().setOptions(opts).load(url, put, undefined,
           () => { new THREE.TextureLoader().load(url, tx => put(tx.image), undefined, fail); });
       } catch { fail(); }
@@ -145,7 +145,7 @@ window.Museum = (() => {
   }
   // keep the most recent covers' decoded images for a quick reopen; older ones are released completely
   function trimTex(keep) { const drop = tex.size - keep; if (drop <= 0) return; let i = 0; for (const [k, t] of tex) { if (i++ >= drop) break; t.userData.dead = true; try { if (t.image && t.image.close) t.image.close(); t.dispose(); } catch {} tex.delete(k); } } // dead: a load still in flight drops its picture instead of reviving it
-  // ask (T)rustyShelf's thumbnailer for a small copy instead of decoding full-size art (spines and fronts are drawn ≤ 512 px)
+  // ask RustyShelf's thumbnailer for a small copy instead of decoding full-size art (spines and fronts are drawn ≤ 512 px)
   // a back cover too (seen up close in your hands, so a bigger copy): a full-size scan was decoded and uploaded as it was (a
   // 3000×4000 scan is ~60 MB of graphics memory with its mipmaps) for every case you turned over
   const small = (url, kind) => /^bsfile:/.test(url) && !/[?&]t=/.test(url) && (kind === 'spine' || kind === 'front' || kind === 'back') ? url + (url.includes('?') ? '&' : '?') + 't=' + (kind === 'spine' ? 512 : kind === 'back' ? 1600 : 768) : url;
@@ -462,7 +462,7 @@ window.Museum = (() => {
       add(new THREE.BoxGeometry(pw, t, pd), wood, 0, -ph / 2 + t / 2, 0); add(new THREE.BoxGeometry(pw, ph, t), dark, 0, 0, -pd / 2 + t / 2);
       [-1, 1].forEach(sx => add(new THREE.BoxGeometry(t, ph, pd), wood, sx * (pw / 2 - t / 2), 0, 0)); add(new THREE.BoxGeometry(pw, ph, t), wood, 0, 0, pd / 2 - t / 2);
       lid = new THREE.Group(); lid.position.set(0, ph / 2, 0); g.add(lid); add(new THREE.BoxGeometry(pw + .02, t * 1.4, pd + .02), wood, 0, t * .7, 0, lid);
-      const sh = ph * .26, sten = canvasTex(512, 200, (x, W, Hh) => { x.clearRect(0, 0, W, Hh); x.fillStyle = 'rgba(30,20,10,.82)'; x.textAlign = 'center'; x.font = '900 86px Lexend, sans-serif'; x.fillText('(T)RUSTYSHELF', W / 2, 96); x.font = '800 30px Lexend, sans-serif'; x.fillText("COLLECTOR'S CRATE", W / 2, 150); x.font = '700 22px Lexend, sans-serif'; x.fillText('↑  THIS SIDE UP  ↑', W / 2, 186); });
+      const sh = ph * .26, sten = canvasTex(512, 200, (x, W, Hh) => { x.clearRect(0, 0, W, Hh); x.fillStyle = 'rgba(30,20,10,.82)'; x.textAlign = 'center'; x.font = '900 86px Lexend, sans-serif'; x.fillText('RUSTYSHELF', W / 2, 96); x.font = '800 30px Lexend, sans-serif'; x.fillText("COLLECTOR'S CRATE", W / 2, 150); x.font = '700 22px Lexend, sans-serif'; x.fillText('↑  THIS SIDE UP  ↑', W / 2, 186); });
       const stenM = new THREE.MeshStandardMaterial({ map: sten, transparent: true, roughness: .9 }); add(new THREE.PlaneGeometry(sh * 512 / 200, sh), stenM, -pw * .17, ph * .14, pd / 2 + .003);
       const lw = H * .36, listT = canvasTex(300, 360, (x, W, Hh) => { x.fillStyle = '#f4efe4'; x.fillRect(0, 0, W, Hh); x.strokeStyle = '#2a2018'; x.lineWidth = 3; x.strokeRect(6, 6, W - 12, Hh - 12); x.fillStyle = '#2a2018'; x.textAlign = 'center'; x.font = '800 24px Lexend, sans-serif'; x.fillText('PACKING LIST', W / 2, 44); x.fillRect(22, 58, W - 44, 2); x.textAlign = 'left';
           lines(x, W, 'CONTENTS', `${n} games`, 90); lines(x, W, 'SHELF', shelf, 140); lines(x, W, 'DELIVERED TO', owner || 'The Collection', 190); lines(x, W, 'CONDITION', 'Factory sealed', 240);
@@ -475,7 +475,7 @@ window.Museum = (() => {
       add(new THREE.BoxGeometry(pw, t, pd), card, 0, -ph / 2 + t / 2, 0); [-1, 1].forEach(sx => add(new THREE.BoxGeometry(t, ph, pd), card, sx * (pw / 2 - t / 2), 0, 0));
       add(new THREE.BoxGeometry(pw, ph, t), inner, 0, 0, -pd / 2 + t / 2); add(new THREE.BoxGeometry(pw, ph, t), card, 0, 0, pd / 2 - t / 2);
       const label = canvasTex(320, 420, (x, W, Hh) => { x.fillStyle = '#f4efe4'; x.fillRect(0, 0, W, Hh); x.strokeStyle = '#2a2018'; x.lineWidth = 4; x.strokeRect(8, 8, W - 16, Hh - 16);
-          x.font = '800 28px Lexend, sans-serif'; { const parts = [['(T)', '#2a2018'], ['RUSTY', '#8e2f12'], ['SHELF', '#2a2018']], tw = parts.reduce((t, [w]) => t + x.measureText(w).width, 0); let px = W / 2 - tw / 2; x.textAlign = 'left'; for (const [w, c] of parts) { x.fillStyle = c; x.fillText(w, px, 50); px += x.measureText(w).width; } x.textAlign = 'center'; x.fillStyle = '#2a2018'; } x.font = '700 13px Lexend, sans-serif'; x.fillText("COLLECTOR'S DELIVERY", W / 2, 70); x.fillRect(24, 84, W - 48, 3); x.textAlign = 'left';
+          x.font = '800 28px Lexend, sans-serif'; { const parts = [['RUSTY', '#8e2f12'], ['SHELF', '#2a2018']], tw = parts.reduce((t, [w]) => t + x.measureText(w).width, 0); let px = W / 2 - tw / 2; x.textAlign = 'left'; for (const [w, c] of parts) { x.fillStyle = c; x.fillText(w, px, 50); px += x.measureText(w).width; } x.textAlign = 'center'; x.fillStyle = '#2a2018'; } x.font = '700 13px Lexend, sans-serif'; x.fillText("COLLECTOR'S DELIVERY", W / 2, 70); x.fillRect(24, 84, W - 48, 3); x.textAlign = 'left';
           lines(x, W, 'DELIVERED TO', owner || 'The Collection', 108, 1); lines(x, W, 'SHELF', shelf, 152, 1);
           lines(x, W, n === 1 ? 'ITEM' : 'CONTENTS', n === 1 ? (rec.no ? 'No. ' + String(rec.no).padStart(4, '0') : 'New arrival') : `${n} games`, 196, 1); lines(x, W, 'CONDITION', 'Factory sealed', 240, 1);
           x.font = '500 12px Lexend, sans-serif'; x.fillStyle = '#6b5a44'; x.fillText('Arrived ' + date, 26, 290); x.fillStyle = '#2a2018'; for (let i = 0; i < 46; i++) x.fillRect(26 + i * 5.6, 300, 1 + (i * 7 % 3), 46);
@@ -684,7 +684,7 @@ window.Museum = (() => {
   }
 
   // Build the wall. rows: [{id,name,style,games:[{id,title,front,spine,year,hours,fav}],console:{model,opts},stats}]
-  // ((T)rustyShelf, issue 17) A console with a very big library made one shelf row hundreds of metres long: the wide view
+  // (RustyShelf, issue 17) A console with a very big library made one shelf row hundreds of metres long: the wide view
   // pulled back until all of it fitted (every case on screen at once, text unreadable) and the walk along it took ages.
   // A row of more than ROW_MAX games now continues on the shelves below it, split evenly; the console and its 3D model
   // stand at the end of the last one, and each plaque says which part it is ("PS2 · 2 of 3").
@@ -1423,7 +1423,7 @@ window.Museum = (() => {
   function tvPower(on) { if (!tv) return; if (on) { if (!tv.power) { tv.power = true; snd('lidClick'); } if (tv.mode === 'off') tvSet('static'); } else if (tv.power) { tv.power = false; tv.meta = null; tv.card = null; snd('seat'); } tvLed(); }
   function tvOff() { if (!tv) return; tvStopVideo(); tv.power = false; tv.pow = 0; tv.meta = null; tv.card = null; tvSet('off'); }
   function tvStatic() { if (!tv) return; tvStopVideo(); tvSet('static'); snd('tick'); }
-  // play an ad (a local file (T)rustyShelf fetched): static until it can play, then the picture; the app picks the next one when it ends
+  // play an ad (a local file RustyShelf fetched): static until it can play, then the picture; the app picks the next one when it ends
   function tvShow(url, meta, vol) {
     if (!tv || !tv.power) return false; tvStopVideo(); tvSet('static'); tv.meta = meta || null; tv.card = null; if (vol != null) tv.base = Math.max(0, Math.min(1, vol)); const THREE = T(), v = document.createElement('video'); tv.video = v;
     v.src = url; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous'; if (window.BS_SINK && typeof v.setSinkId === 'function') v.setSinkId(window.BS_SINK).catch(() => {}); /* Settings → Sound → Output device (gone: the default) */ v.volume = tv.base * tv.gain; v.muted = !(tv.base > 0);
@@ -2010,7 +2010,7 @@ window.Museum = (() => {
       if ((prepReady() && prep.drawn && waited > 700) || waited > 1900) { if (hooks.log) hooks.log(`museum: ready to show after ${Math.round(waited)} ms of preparation${waited > 1900 ? ' (timed out)' : ''}`); prep = null; unprime(); canvas.classList.add('on'); lastT = 0; hooks.onShown && hooks.onShown(); }
       return;
     }
-    // a frame that came late: note what the one before it did ((T)rustyShelf log), so a stutter can be traced on any PC
+    // a frame that came late: note what the one before it did (RustyShelf log), so a stutter can be traced on any PC
     if (lastT && now - lastT > 50 && !intro.on && !document.hidden && hitchN < 40 && now - hitchAt > 1000) { hitchAt = now; hitchN++; hooks.log && hooks.log(`museum hitch: ${Math.round(now - lastT)} ms between frames (${Math.round(now - rowNavAt) < 3000 ? 'shelf changed ' + Math.round(now - rowNavAt) + ' ms before; ' : ''}frame before: ${fst.jsMs} ms of work, ${fst.up} uploads, ${fst.fr} covers, ${fst.sp} spines${fst.sh ? ', shadows redrawn' : ''}${fst.row ? ', shadow lamp moved' : ''}, ${renderer.info.programs.length} shaders)`); }
     dynRes(now);
     const fT0 = performance.now(); fst.up = fst.fr = fst.sp = fst.sh = fst.row = 0;
@@ -2239,7 +2239,7 @@ window.Museum = (() => {
       l.position.set(s.position.x, s.position.y + y, s.position.z); l.target.position.set(s.target.position.x, s.target.position.y + y, s.target.position.z);
       l.intensity = s.visible === false ? 0 : s.intensity * POOL_LIFT; l.color.copy(s.color); l.angle = s.angle; l.penumbra = s.penumbra; l.distance = s.distance; l.decay = s.decay; });
   }
-  // ((T)rustyShelf, issue 17 again) Every case is a mesh of its own, drawn in four parts (cover, back, sides, spine) plus its
+  // (RustyShelf, issue 17 again) Every case is a mesh of its own, drawn in four parts (cover, back, sides, spine) plus its
   // shrink-wrap: a wall of thousands of games was tens of thousands of drawings a frame, and the frame rate fell through the
   // floor however far away the cases were. A row whose cases are small on screen (under LOD_PX tall) is drawn as one block
   // instead, a picture of its spines side by side painted on its front: one drawing for the whole row. Rows close by, the

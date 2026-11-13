@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0). Written by Thanks2111
 // (https://github.com/Thanks2111) in their Boxshelf fork (branch portugues): the Brazilian Portuguese interface. Brought into
-// (T)rustyShelf as a language you choose (Settings → Display → Language; the system windows follow it, set from main.js), English by default.
+// RustyShelf as a language you choose (Settings → Display → Language; the system windows follow it, set from main.js), English by default.
 // Boxshelf em português no processo principal: traduz as janelas do sistema (abrir arquivo, salvar,
 // perguntas e erros) com o mesmo dicionário da interface (shared/i18n-pt.json).
 'use strict';
@@ -39,7 +39,7 @@ function opts(o) {
   if (Array.isArray(c.filters)) c.filters = c.filters.map(f => (f && typeof f.name === 'string' ? { ...f, name: tr(f.name) } : f));
   return c;
 }
-// ((T)rustyShelf) installed once; translates only while Portuguese is the language chosen (setActive)
+// (RustyShelf) installed once; translates only while Portuguese is the language chosen (setActive)
 let active = false, installed = false;
 function setActive(on) { active = !!on; }
 function install(electron) {

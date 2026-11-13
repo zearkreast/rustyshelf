@@ -1,7 +1,7 @@
 1050|${ss.length} [[${ss.length===1?"":"S"}|TEMPORADA|TEMPORADAS]] · ${ss.reduce((a,n)=>a+m.seasons[n].length,0)} EPISÓDIOS
 1051|DA SUA BIBLIOTECA DO STREMIO
 1052|DISCO BLU-RAY
-1053|Encarte feito pelo (T)rustyShelf a partir dos dados do catálogo do título
+1053|Encarte feito pelo RustyShelf a partir dos dados do catálogo do título
 1054|ENCARTE DE COLECIONADOR · SÉRIE
 1055|ENCARTE DE COLECIONADOR
 1056|A história
@@ -230,7 +230,7 @@
 1296|Não conectado
 1297|· ${RA.profile.points.toLocaleString()} pts
 1298|${RA.profile.points.toLocaleString()} pontos
-1299|Entre uma vez e o (T)rustyShelf acompanha cada desbloqueio.
+1299|Entre uma vez e o RustyShelf acompanha cada desbloqueio.
 1300|Conectar o RetroAchievements ›
 1301|Ver as conquistas deste jogo ›
 1302|Museu
@@ -240,7 +240,7 @@
 1306|Pausar
 1307|Atualizações
 1308|Energia
-1309|Sair do (T)rustyShelf
+1309|Sair do RustyShelf
 1310|Suspender
 1311|Reiniciar o PC
 1312|Desligar
@@ -271,8 +271,8 @@
 1340|Não foi possível verificar · tente de novo
 1341|Procurar um beta mais novo
 1342|Abrindo a página de download da ${qsUpd.latest} no seu navegador
-1344|O (T)rustyShelf vai iniciar sem o logo
-1345|Aparece na próxima vez que o (T)rustyShelf iniciar
+1344|O RustyShelf vai iniciar sem o logo
+1345|Aparece na próxima vez que o RustyShelf iniciar
 1346|Capa nova para ${g.title}
 1347|Desligando…
 1348|Reiniciando…
@@ -283,11 +283,11 @@
 1353|Animações de abertura são para estantes de console
 1354|Logo definido para ${s.name}
 1355|Vídeo de abertura definido para ${s.name}
-1357|Adicionado por você em Configurações → Jogos personalizados. O (T)rustyShelf abre ele a partir da própria pasta.
+1357|Adicionado por você em Configurações → Jogos personalizados. O RustyShelf abre ele a partir da própria pasta.
 1358|Abre pelo app da EA, então o login e os saves na nuvem funcionam normalmente.
 1359|App da EA
 1360|Nada para embaralhar nesta estante
-1361|Não foi possível abrir o jogo pelo celular: o (T)rustyShelf estava ocupado
+1361|Não foi possível abrir o jogo pelo celular: o RustyShelf estava ocupado
 1362|Esse jogo
 1363|${c.p.title||"That game"} não está na estante agora
 1364|Dia
@@ -335,7 +335,7 @@
 1406|Jogados recentemente
 1407|Embaralhar tudo
 1408|Na TV, para cima e para baixo também trocam de canal. Embaralhar tudo mistura os outros três
-1409|Por cima do volume do próprio (T)rustyShelf
+1409|Por cima do volume do próprio RustyShelf
 1410|Mudo
 1411|Som só quando eu estiver olhando
 1412|Aumenta quando você vira para a TV ou chega perto, e diminui quando você se afasta

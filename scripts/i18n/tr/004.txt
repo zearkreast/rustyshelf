@@ -89,7 +89,7 @@
 1523|Nada passando ainda
 1524|Sintonizando…
 1525|do Internet Archive
-1526|Nenhum comercial encontrado ainda: o (T)rustyShelf continua procurando em segundo plano (a primeira vez demora um pouco)
+1526|Nenhum comercial encontrado ainda: o RustyShelf continua procurando em segundo plano (a primeira vez demora um pouco)
 1527|em ${v.shelf}
 1528|para a sua estante de ${v.shelf}
 1529|Novidades
@@ -170,7 +170,7 @@
 1612|Embaralhar tudo
 1613|Comerciais, trailers e o que você jogou por último, misturados
 1614|★ Favoritos
-1615|Nenhum comercial encontrado ainda. O (T)rustyShelf continua procurando em segundo plano (a primeira vez demora um pouco).
+1615|Nenhum comercial encontrado ainda. O RustyShelf continua procurando em segundo plano (a primeira vez demora um pouco).
 1616|Procurando comerciais…
 1617|Ainda sem trailers. Eles vêm com os detalhes do LaunchBox dos seus jogos.
 1618|Nada jogado ainda. Os jogos que você joga aparecem aqui.
@@ -279,7 +279,7 @@
 1749|Erro ${r.status}
 1750|O PIN tem 6 dígitos.
 1752|Pareado como ${r.name}
-1753|Ainda não há jogos. Configure os seus consoles nas Configurações do (T)rustyShelf na TV.
+1753|Ainda não há jogos. Configure os seus consoles nas Configurações do RustyShelf na TV.
 1754|Nada corresponde a "${query}".
 1755|Mostrando 600 de ${list.length}. Pesquise para achar o resto.
 1756|Classificação etária
@@ -308,7 +308,7 @@
 1779|Pesquisar
 1780|Limpar
 1781|Teclado
-1782|Parear com o (T)rustyShelf
+1782|Parear com o RustyShelf
 1783|Digite o PIN de 6 dígitos mostrado na TV em
 1784|Configurações → Celular como controle
 1785|Parear

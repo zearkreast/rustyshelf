@@ -1,9 +1,9 @@
-// (T)rustyShelf's PC game storage (Settings → PC games → Storage): every installed PC game that has a folder, with its size,
+// RustyShelf's PC game storage (Settings → PC games → Storage): every installed PC game that has a folder, with its size,
 // grouped by the drive it is on, with each drive's free space. Sizes are the ones already known (Steam's own, or the folder
 // size measured in the background by main/dirsize.js); nothing is walked here. Kept free of Electron, so
 // linux/ci/storage-test.js runs it on made-up folders.
 // The idea of a storage screen (every game with its size, source and folder, per drive) comes from the Playnite "Storage"
-// add-on (MIT) as the TyroShelf fork has it; this is written for (T)rustyShelf's own games and settings.
+// add-on (MIT) as the TyroShelf fork has it; this is written for RustyShelf's own games and settings.
 'use strict';
 const fs = require('fs');
 const path = require('path');

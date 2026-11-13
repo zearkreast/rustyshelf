@@ -1,4 +1,4 @@
-// (T)rustyShelf's own menu music, the folder side (main/music.js). Run: node linux/ci/music-test.js
+// RustyShelf's own menu music, the folder side (main/music.js). Run: node linux/ci/music-test.js
 //   audio files in the Music folder are listed (sub-folders too, natural order), other files and dotfiles are not, audio
 //   in the Songs folder counts as well, a file seen twice is listed once, and the list stops at the cap.
 'use strict';

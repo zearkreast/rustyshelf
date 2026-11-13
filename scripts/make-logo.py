@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""(T)rustyShelf's logo: the rusty stocked rack (icon) and the (T)RUSTYSHELF wordmark, as standalone SVG files.
+"""RustyShelf's logo: the rusty stocked rack (icon) and the RUSTYSHELF wordmark, as standalone SVG files.
 
 The wordmark's letters are outlines (Lexend ExtraBold, the app's own face, SIL OFL), so it looks the same wherever it's
 shown, fonts or not.   python3 -I scripts/make-logo.py renderer/fonts/lexend-latin-800-normal.woff2 renderer/brand
@@ -86,23 +86,23 @@ def word_paths(text, size, x0, base, track=0.03):
 
 
 def wordmark(size, x0, base, steel, rust):
-    letters, width = word_paths("(T)RUSTYSHELF", size, x0, base)
-    body = "".join(f'<path d="{d}" fill="{rust if 3 <= i <= 7 else steel}"/>' for i, (ch, d) in enumerate(letters))
+    letters, width = word_paths("RUSTYSHELF", size, x0, base)
+    body = "".join(f'<path d="{d}" fill="{rust if i <= 4 else steel}"/>' for i, (ch, d) in enumerate(letters))
     return body, width
 
 
 files = {}
-files["trustyshelf-icon.svg"] = svg(512, 512, rack(), "(T)rustyShelf")
-files["trustyshelf-icon-small.svg"] = svg(512, 512, rack(simple=True), "(T)rustyShelf")
+files["rustyshelf-icon.svg"] = svg(512, 512, rack(), "RustyShelf")
+files["rustyshelf-icon-small.svg"] = svg(512, 512, rack(simple=True), "RustyShelf")
 # Android's adaptive icon: the rack alone (the launcher draws the slate background and its own mask), inside the safe zone
 fg = rack().split("\n", 1)[1]
-files["trustyshelf-icon-foreground.svg"] = svg(512, 512, f'<g transform="translate(256 256) scale(.62) translate(-256 -256)">{fg}</g>', "(T)rustyShelf")
+files["rustyshelf-icon-foreground.svg"] = svg(512, 512, f'<g transform="translate(256 256) scale(.62) translate(-256 -256)">{fg}</g>', "RustyShelf")
 for theme, steel, rust in (("dark", "#dde4ea", "#d4522c"), ("light", "#34424f", "#a93c1b")):
     body, width = wordmark(96, 0, 96, steel, rust)
-    files[f"trustyshelf-wordmark-{theme}.svg"] = svg(int(width) + 2, 124, body, "(T)RUSTYSHELF")
+    files[f"rustyshelf-wordmark-{theme}.svg"] = svg(int(width) + 2, 124, body, "RUSTYSHELF")
     icon = f'<svg x="0" y="0" width="160" height="160" viewBox="0 0 512 512">{rack()}</svg>'
     body2, width2 = wordmark(78, 188, 108, steel, rust)
-    files[f"trustyshelf-logo-{theme}.svg"] = svg(int(188 + width2) + 4, 160, icon + body2, "(T)RUSTYSHELF")
+    files[f"rustyshelf-logo-{theme}.svg"] = svg(int(188 + width2) + 4, 160, icon + body2, "RUSTYSHELF")
 for name, text in files.items():
     open(os.path.join(OUT, name), "w").write(text)
     print(name, len(text))

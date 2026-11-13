@@ -1,4 +1,4 @@
-// (T)rustyShelf's PC shelf on Android, in a browser on the adapter's pretend device (?fakeNative=1&fakePc=1).
+// RustyShelf's PC shelf on Android, in a browser on the adapter's pretend device (?fakeNative=1&fakePc=1).
 // Run (after node copy-web.js): node ci/android-pc-test.js www ../out/android-pc
 //   - the PC folder's files (GameNative's Frontend sync format: <title>.steam / .epic …, the id inside; or [id] in the
 //     name) are the shelf's games; other files aren't
@@ -24,7 +24,7 @@ server.listen(0, async () => {
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`http://localhost:${server.address().port}/index.html?fakeNative=1&fakePc=1`); await page.waitForTimeout(5000);
     const r = await page.evaluate(async () => {
-      const api = window.trustyshelf, wait = ms => new Promise(res => setTimeout(res, ms)), info = await api.getConfig(), det = await api.detect(), c = info.config;
+      const api = window.rustyshelf, wait = ms => new Promise(res => setTimeout(res, ms)), info = await api.getConfig(), det = await api.detect(), c = info.config;
       const dir = await api.pick({ kind: 'folder' }); // (the PC folder: picked first on this pretend device)
       c.systems.pc = Object.assign(c.systems.pc || {}, { enabled: true, romDirs: [dir], emulator: det.systems.pc && det.systems.pc.emulator });
       c.setupDone = true; await api.saveConfig(c);

@@ -1,4 +1,4 @@
-// (T)rustyShelf: a Switch games folder lists the games, not the content archives a dump is split into (Boxshelf beta issue
+// RustyShelf: a Switch games folder lists the games, not the content archives a dump is split into (Boxshelf beta issue
 // 29: .nca files showed up as games of their own). Run: node linux/ci/switch-files-test.js
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');

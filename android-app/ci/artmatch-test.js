@@ -1,4 +1,4 @@
-// (T)rustyShelf's Art match (its issue #2), the page side: Details → Art match and Settings' Art match page, on the demo page as
+// RustyShelf's Art match (its issue #2), the page side: Details → Art match and Settings' Art match page, on the demo page as
 // Windows (a pretend box art database: renderer/mock.js). Run (after node copy-web.js): node ci/artmatch-test.js www ../out/artmatch
 //   - a console game's Details has "Art match: automatic"; it opens the page, which searches under the game's own name
 //   - searching another name lists the database's games (LaunchBox with its pictures, libretro); Use keeps it with the game and
@@ -46,13 +46,13 @@ server.listen(0, async () => {
     const b = await page.evaluate(async id => {
       Setup.open({ page: 'artmatch', id, title: 'Test', term: 'budokai tenkaichi', current: '' }); await __w(1800); const rows = __rows();
       const r = __row('Dragon Ball Z: Budokai Tenkaichi 3'); if (r) r.click(); await __w(1500);
-      return { rows, set: window.__amSet || [], saved: ((await trustyshelf.getConfig()).config.games || {})[id], open: !!(window.Settings && Settings.isOpen && Settings.isOpen()), toast: (document.getElementById('toast') || {}).textContent || '' }; }, a.id);
+      return { rows, set: window.__amSet || [], saved: ((await rustyshelf.getConfig()).config.games || {})[id], open: !!(window.Settings && Settings.isOpen && Settings.isOpen()), toast: (document.getElementById('toast') || {}).textContent || '' }; }, a.id);
     check('another name lists the database\'s games: LaunchBox ones with their pictures, and libretro\'s, not other games', b.rows.some(r => /^Dragon Ball Z: Budokai Tenkaichi 3LaunchBox · 12 pictures/.test(r)) && b.rows.some(r => /^Dragon Ball Z - Budokai Tenkaichi 3libretro/.test(r)) && !b.rows.some(r => /Budokai 3LaunchBox/.test(r)) && !b.rows.some(r => /Back to automatic/.test(r)), JSON.stringify(b.rows));
     check('Use keeps it with the game (in the settings), closes Settings and says so', b.set.length === 1 && b.set[0].name === 'Dragon Ball Z: Budokai Tenkaichi 3' && b.saved && b.saved.artName === 'Dragon Ball Z: Budokai Tenkaichi 3' && !b.open && /its art comes from "Dragon Ball Z: Budokai Tenkaichi 3"/.test(b.toast), JSON.stringify(b));
     const c = await page.evaluate(async id => {
       __key('Escape'); await __w(600); __key('Escape'); await __w(600); await __details(); const text = __btn() ? __btn().textContent : '';
       __btn().click(); await __w(1800); const rows = __rows(); const r = __row('Back to automatic'); if (r) r.click(); await __w(1500);
-      return { text, rows, set: window.__amSet || [], saved: ((await trustyshelf.getConfig()).config.games || {})[id] }; }, a.id);
+      return { text, rows, set: window.__amSet || [], saved: ((await rustyshelf.getConfig()).config.games || {})[id] }; }, a.id);
     check('the button then shows the game picked', /^Art match: Dragon Ball Z: Budokai Tenk…$/.test(c.text), c.text);
     check('Back to automatic is offered, and clears it', c.rows.some(r => /^Back to automatic/.test(r)) && c.set.length === 2 && c.set[1].name === '' && !(c.saved && c.saved.artName), JSON.stringify({ rows: c.rows.slice(0, 4), set: c.set, saved: c.saved }));
     const d = await page.evaluate(async () => {
@@ -67,10 +67,10 @@ server.listen(0, async () => {
     // Android: no Art match
     const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 720 } }), p2 = await ctx2.newPage(), errs2 = []; p2.on('pageerror', e => errs2.push(e.message));
     await p2.goto(base + '?fakeNative=1'); await p2.waitForTimeout(4000);
-    await p2.evaluate(async () => { const api = window.trustyshelf, c = (await api.getConfig()).config, det = await api.detect(); const d = await api.pick({ kind: 'folder' }); c.systems.gc.romDirs = [d]; c.systems.gc.emulator = det.systems.gc.emulator; c.setupDone = true; await api.saveConfig(c); await api.scan(); });
+    await p2.evaluate(async () => { const api = window.rustyshelf, c = (await api.getConfig()).config, det = await api.detect(); const d = await api.pick({ kind: 'folder' }); c.systems.gc.romDirs = [d]; c.systems.gc.emulator = det.systems.gc.emulator; c.setupDone = true; await api.saveConfig(c); await api.scan(); });
     await p2.goto(base + '?fakeNative=1'); await p2.waitForFunction(() => window.Shelf && Shelf._qs && Shelf._qs().g, null, { timeout: 90000, polling: 250 }); await p2.waitForTimeout(1500);
     await p2.evaluate(PAGE);
-    const e = await p2.evaluate(async () => { const g = await __toRom(); await __details(); return { rom: !!g && g.kind === 'rom', hidden: !__btn() || __btn().hidden, api: !!trustyshelf.artMatchSearch }; });
+    const e = await p2.evaluate(async () => { const g = await __toRom(); await __details(); return { rom: !!g && g.kind === 'rom', hidden: !__btn() || __btn().hidden, api: !!rustyshelf.artMatchSearch }; });
     check('Android: no Art match (the app there has none)', e.rom && e.hidden && !e.api, JSON.stringify(e));
     check('No script errors (Android)', !errs2.length, errs2.slice(0, 3).join(' | '));
     await ctx2.close();

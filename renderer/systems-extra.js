@@ -1,11 +1,11 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// renderer/systems-extra.js; modified for (T)rustyShelf (the original Xbox's shelf).
+// renderer/systems-extra.js; modified for RustyShelf (the original Xbox's shelf).
 // Extra shelves (retro and handheld systems people run on Android handhelds and through RetroArch).
 // app.js merges these into its STYLE / WORDMARKS / MEDIA tables, so a new system only needs an entry here.
 // Case looks: ratio = width / height of the real box, depth = thickness / width.
 (function () {
   const S = (id, o) => Object.assign({ id, rc: 0.03, re: 0.2, edge: 0.025, depth: 0.1, spineInk: '#ffffff' }, o);
-  const cardboard = { rc: 0.01, re: 0.08, edge: 0 };   // printed card boxes: sharp corners, the cover printed right to the edges ((T)rustyShelf, beta issue 40: a case-coloured frame was drawn round it)
+  const cardboard = { rc: 0.01, re: 0.08, edge: 0 };   // printed card boxes: sharp corners, the cover printed right to the edges (RustyShelf, beta issue 40: a case-coloured frame was drawn round it)
   const jewel = { rc: 0.012, re: 0.06, edge: 0.02, depth: 0.073 }; // CD jewel cases
   const clam = { rc: 0.04, re: 0.2, edge: 0.03, depth: 0.12 };     // Sega plastic clamshells
   window.BS_SYSTEMS_EXTRA = {
@@ -35,14 +35,14 @@
       atarilynx: S('atarilynx', { ...cardboard, hue: 28, ratio: 0.83, depth: 0.2, caseColor: '#16161a', caseSide: '#0c0c0f', band: { bg: '#f07c1b', fg: '#111114', label: 'ATARI LYNX' }, spineBand: { bg: '#111114', fg: '#f07c1b', label: 'LYNX' }, tint: ['#6b360a', '#180c02'], glow: '#ffc08a' }),
       wonderswan: S('wonderswan', { ...cardboard, hue: 190, ratio: 0.83, depth: 0.2, caseColor: '#eef1f4', caseSide: '#cfd5db', spineInk: '#1f3d4f', band: { bg: '#1f7fa8', fg: '#ffffff', label: 'WONDERSWAN' }, spineBand: { bg: '#1f7fa8', fg: '#ffffff', label: 'WS' }, tint: ['#14506b', '#04121a'], glow: '#8ad8ff' }),
       dos: S('dos', { ...cardboard, hue: 120, ratio: 0.78, depth: 0.26, caseColor: '#141614', caseSide: '#0a0b0a', band: { bg: '#0a0b0a', fg: '#7dff8a', label: 'MS-DOS' }, spineBand: { bg: '#0a0b0a', fg: '#7dff8a', label: 'DOS' }, tint: ['#1f5a24', '#071408'], glow: '#9dffa8' }),
-      // ((T)rustyShelf) the Neo Geo Pocket and Pocket Color: their small card boxes (dark blue; silver with the blue band)
+      // (RustyShelf) the Neo Geo Pocket and Pocket Color: their small card boxes (dark blue; silver with the blue band)
       ngp: S('ngp', { ...cardboard, hue: 225, ratio: 0.8, depth: 0.2, caseColor: '#171a2c', caseSide: '#0c0e19', band: { bg: '#1d2a6b', fg: '#ffffff', label: 'NEO GEO POCKET' }, spineBand: { bg: '#1d2a6b', fg: '#ffffff', label: 'NGP' }, tint: ['#1d2a6b', '#070a1a'], glow: '#8fa4ff' }),
       ngpc: S('ngpc', { ...cardboard, hue: 215, ratio: 0.8, depth: 0.2, caseColor: '#e9edf2', caseSide: '#c7cfd8', spineInk: '#1b2f63', band: { bg: '#1f4bb5', fg: '#ffffff', label: 'NEO GEO POCKET COLOR' }, spineBand: { bg: '#1f4bb5', fg: '#ffffff', label: 'NGPC' }, tint: ['#1f4bb5', '#06102b'], glow: '#9cb8ff' }),
-      // ((T)rustyShelf) Tiger's Game.com: its card box, deep blue with the yellow logo band (MAME)
+      // (RustyShelf) Tiger's Game.com: its card box, deep blue with the yellow logo band (MAME)
       gamecom: S('gamecom', { ...cardboard, hue: 250, ratio: 0.78, depth: 0.2, caseColor: '#1c1747', caseSide: '#100d2b', band: { bg: '#2a1f7a', fg: '#ffd400', label: 'GAME.COM' }, spineBand: { bg: '#2a1f7a', fg: '#ffd400', label: 'G.COM' }, tint: ['#2a1f7a', '#0a0720'], glow: '#ffe666' }),
-      // ((T)rustyShelf) the PS Vita: its small blue case (about 105 x 135 mm) with the PS Vita band (Vita3K)
+      // (RustyShelf) the PS Vita: its small blue case (about 105 x 135 mm) with the PS Vita band (Vita3K)
       psvita: S('psvita', { rc: 0.05, re: 0.22, edge: 0.03, depth: 0.11, hue: 218, ratio: 0.78, caseColor: '#2b5aa8', caseSide: '#1b3c76', band: { bg: '#0b3a8f', fg: '#ffffff', label: 'PS Vita' }, spineBand: { bg: '#0b3a8f', fg: '#ffffff', label: 'PS Vita' }, tint: ['#1f4fa8', '#060f24'], glow: '#9cc0ff' }),
-      // ((T)rustyShelf) the original Xbox: a black DVD-sized case with its green XBOX band (xemu)
+      // (RustyShelf) the original Xbox: a black DVD-sized case with its green XBOX band (xemu)
       xbox: S('xbox', { rc: 0.04, re: 0.22, edge: 0.03, depth: 0.104, hue: 95, ratio: 0.711, caseColor: '#161816', caseSide: '#0c0d0c', band: { bg: '#1b1b1b', fg: '#9bd23c', label: 'XBOX' }, spineBand: { bg: '#1b1b1b', fg: '#9bd23c', label: 'XBOX' }, tint: ['#2d5a12', '#081304'], glow: '#b6f06a' }),
     },
     wordmarks: {

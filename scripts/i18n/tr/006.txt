@@ -38,7 +38,7 @@
 2187|Pequena, média ou grande.
 2188|À esquerda ou à direita da sala, ou no meio entre as estantes e o cantinho de leitura (que se desloca para abrir espaço).
 2189|Volume da TV
-2190|Por cima do volume do próprio (T)rustyShelf.
+2190|Por cima do volume do próprio RustyShelf.
 2191|Deixar a TV muda
 2192|Só imagem.
 2193|O som aumenta quando você vira para a TV ou chega perto, e diminui quando você se afasta.
@@ -69,8 +69,8 @@
 2218|Em uso: ${n}
 2219|Nenhum controle em uso ainda
 2220|Atualizar
-2221|O controle que o (T)rustyShelf viu você apertar por último, e os botões que ele mostra para ele. Aperte um botão em outro para trocar.
-2222|Aperte um botão num controle e o (T)rustyShelf mostra aqui qual é.
+2221|O controle que o RustyShelf viu você apertar por último, e os botões que ele mostra para ele. Aperte um botão em outro para trocar.
+2222|Aperte um botão num controle e o RustyShelf mostra aqui qual é.
 2223|Avisos de botões
 2224|Igual ao meu controle
 2225|Xbox (A B X Y)
@@ -124,7 +124,7 @@
 2273|Baixar manuais de jogos novos
 2274|Encontra o manual do jogo (archive.org e GamesDatabase.org) e transforma em páginas que você lê em Inspecionar.
 2275|Só manuais em inglês garantidos
-2276|Pula os manuais de que o (T)rustyShelf não tem certeza quando você baixa abaixo. Desligado pega a melhor opção para cada jogo.
+2276|Pula os manuais de que o RustyShelf não tem certeza quando você baixa abaixo. Desligado pega a melhor opção para cada jogo.
 2277|Baixar manuais agora
 2278|Baixar manuais
 2279|Escolha os consoles e baixe os manuais deles com progresso e Cancelar.
@@ -159,7 +159,7 @@
 2308|Pesquise e baixe revistas clássicas e guias de estratégia. Só aparecem digitalizações que qualquer pessoa pode baixar.
 2309|Pasta de revistas e guias
 2310|Magazines\ e Guides\ ficam nesta pasta. Mudar não move nada que já foi baixado: copie as duas pastas você mesmo.
-2311|Ao lado do (T)rustyShelf
+2311|Ao lado do RustyShelf
 2312|Escolha uma pasta para as suas revistas e guias
 2313|Pasta de revistas
 2314|Pasta de guias
@@ -176,23 +176,23 @@
 2329|PIN novo
 2330|Cria um PIN e um código novos. Os celulares já pareados continuam pareados.
 2331|Porta
-2332|A porta de rede que a página do celular usa. Mude só se outro programa já usa esta (o (T)rustyShelf passa sozinho para a próxima livre e avisa acima).
+2332|A porta de rede que a página do celular usa. Mude só se outro programa já usa esta (o RustyShelf passa sozinho para a próxima livre e avisa acima).
 2333|Celulares pareados
 2334|${n} [[${n===1?"":"s"}|celular|celulares]]
 2335|Esquecer todos os celulares
 2336|Esquecer todos
-2337|Despareia todos os celulares. Cada um vai ter que ler o código de novo para usar o (T)rustyShelf.
+2337|Despareia todos os celulares. Cada um vai ter que ler o código de novo para usar o RustyShelf.
 2338|Aperte de novo para esquecer todos os celulares pareados
 2339|Inicialização, pastas e manutenção.
-2340|Iniciar o (T)rustyShelf com o Windows
+2340|Iniciar o RustyShelf com o Windows
 2341|Abre direto na estante quando você entra no Windows. Combine com Iniciar em tela cheia para um jeito de console.
-2342|Usar o (T)rustyShelf como tela inicial
+2342|Usar o RustyShelf como tela inicial
 2343|Ligado · mudar
 2344|Desligado · configurar
 2345|Sair para a tela inicial do aparelho
 2346|Abrir ${homeApp.previousLabel}
 2347|Sair
-2348|Abre o launcher que você usava antes do (T)rustyShelf. O (T)rustyShelf continua pronto em segundo plano.
+2348|Abre o launcher que você usava antes do RustyShelf. O RustyShelf continua pronto em segundo plano.
 2349|Procurar jogos de novo
 2350|Procurar de novo
 2351|Procura jogos novos em todas as pastas agora.
@@ -210,18 +210,18 @@
 2363|Relatar um bug online
 2364|Abre o formulário de bugs do beta no GitHub, no seu navegador. Anexe o arquivo que o Relatar um problema cria e conte o que você estava fazendo.
 2365|Sobre
-2366|(T)rustyShelf ${info.version||""}
-2367|(T)rustyShelf ${info.version||""}. Uma interface no estilo de console para os seus emuladores, Steam e apps de mídia.
+2366|RustyShelf ${info.version||""}
+2367|RustyShelf ${info.version||""}. Uma interface no estilo de console para os seus emuladores, Steam e apps de mídia.
 2368|Capas: LaunchBox Games Database, miniaturas do libretro, GameTDB, GamesDatabase.org. Manuais, revistas e comerciais: o Internet Archive. Conquistas: RetroAchievements.
 2369|Novidades
 2370|As mudanças de cada versão: a mais nova lançada e a que você tem.
-2371|O que mudou em cada versão do (T)rustyShelf. Selecione um item para ler mais sobre ele.
+2371|O que mudou em cada versão do RustyShelf. Selecione um item para ler mais sobre ele.
 2372|Saiu a ${upd.latest}
 2373|Notas da versão
 2374|Atualizações do beta
-2375|Procura na página do beta um (T)rustyShelf mais novo. Quando tem, abre a página de download: extraia por cima desta pasta e as suas configurações são mantidas.
+2375|Procura na página do beta um RustyShelf mais novo. Quando tem, abre a página de download: extraia por cima desta pasta e as suas configurações são mantidas.
 2376|Procurar betas novos
-2377|Uma vez cada vez que o (T)rustyShelf inicia, ele pergunta à página do beta no GitHub se saiu um beta mais novo, e avisa na estante. Nada é baixado sozinho.
+2377|Uma vez cada vez que o RustyShelf inicia, ele pergunta à página do beta no GitHub se saiu um beta mais novo, e avisa na estante. Nada é baixado sozinho.
 2378|Avançado
 2379|Abrir a configuração de novo, a pasta do app, apagar o histórico de jogo e restaurar as configurações dos emuladores.
 2380|Configuração, pastas e restaurações que você raramente precisa.
@@ -234,10 +234,10 @@
 2387|Aperte de novo para apagar o histórico de jogo
 2388|Restaurar configurações dos emuladores
 2389|Restaurar
-2390|Volta as configurações próprias do Eden, do PCSX2 e do RPCS3 para como eram antes de o (T)rustyShelf mudar pela primeira vez.
+2390|Volta as configurações próprias do Eden, do PCSX2 e do RPCS3 para como eram antes de o RustyShelf mudar pela primeira vez.
 2391|${r.length} [[${r.length>1?"s":""}|arquivo de configuração de emulador restaurado|arquivos de configuração de emulador restaurados]]
 2392|Nada para restaurar
-2393|Fecha o (T)rustyShelf completamente. Suspender, Reiniciar e Desligar ficam no menu Home.
+2393|Fecha o RustyShelf completamente. Suspender, Reiniciar e Desligar ficam no menu Home.
 2394|Emuladores:
 2395|Emuladores: ${t}
 2396|A sua conta do RetroAchievements, e o login dentro de cada emulador (as conquistas só desbloqueiam onde o emulador também está conectado).
@@ -260,12 +260,12 @@
 2413|A sua chave da API do SteamGridDB. Guardada criptografada.
 2414|Pegar uma chave gratuita
 2415|Entre em steamgriddb.com (login gratuito com a Steam), depois Preferences → API → copie a chave e cole acima.
-2416|Frentes, versos, artes completas (o (T)rustyShelf recorta a lombada delas) e arte de disco ou cartucho, por região, no Estúdio de capas. Opcional, e precisa de uma conta gratuita no ScreenScraper. O ScreenScraper só responde a apps registrados nele: até o registro do (T)rustyShelf ficar pronto, o teste diz "Ainda não disponível" e nenhuma conta consegue entrar (a não ser que você tenha o seu próprio login de desenvolvedor, abaixo). Enquanto isso, as capas continuam vindo do libretro, do LaunchBox e do SteamGridDB.
+2416|Frentes, versos, artes completas (o RustyShelf recorta a lombada delas) e arte de disco ou cartucho, por região, no Estúdio de capas. Opcional, e precisa de uma conta gratuita no ScreenScraper. O ScreenScraper só responde a apps registrados nele: até o registro do RustyShelf ficar pronto, o teste diz "Ainda não disponível" e nenhuma conta consegue entrar (a não ser que você tenha o seu próprio login de desenvolvedor, abaixo). Enquanto isso, as capas continuam vindo do libretro, do LaunchBox e do SteamGridDB.
 2417|O seu nome de usuário no screenscraper.fr. Guardado criptografado.
 2418|Senha
 2419|A sua senha do screenscraper.fr. Guardada criptografada, enviada só para o ScreenScraper.
 2420|ID de desenvolvedor
-2421|Só se o ScreenScraper deu a você um login de desenvolvedor próprio (devid). Caso contrário, o (T)rustyShelf usa o próprio registro, quando tiver um.
+2421|Só se o ScreenScraper deu a você um login de desenvolvedor próprio (devid). Caso contrário, o RustyShelf usa o próprio registro, quando tiver um.
 2422|Só se você tiver um
 2423|Senha de desenvolvedor
 2424|A senha de desenvolvedor (devpassword) que acompanha o seu ID de desenvolvedor. Guardada criptografada.
@@ -282,7 +282,7 @@
 2435|Nenhum celular pareado ainda
 2436|Ligue o celular como controle e leia o código com a câmera do seu celular.
 2437|Esquecer
-2438|Esquecer despareia este celular: ele vai ter que ler o código de novo para usar o (T)rustyShelf.
+2438|Esquecer despareia este celular: ele vai ter que ler o código de novo para usar o RustyShelf.
 2439|· usado por último ${when(p.seen)}
 2440|Pareado ${when(p.added)}${p.seen?` · last used ${when(p.seen)}`:""}
 2441|este celular
@@ -290,7 +290,7 @@
 2443|Leia com a câmera do celular, ou abra
 2444|e digite o PIN
 2445|O pareamento fica bloqueado por {} min depois de 5 PINs errados
-2446|Na primeira vez, o Windows pode perguntar se deixa o (T)rustyShelf usar a sua rede: escolha Redes privadas e depois Permitir.
+2446|Na primeira vez, o Windows pode perguntar se deixa o RustyShelf usar a sua rede: escolha Redes privadas e depois Permitir.
 2447|Verificado
 2448|o emulador
 2449|Conectado como ${e.user||gp("ra.user")||"you"}
@@ -305,11 +305,11 @@
 2458|Defina primeiro o emulador do ${conName(sys)}: Consoles → ${conName(sys)} → Emulador.
 2459|Tudo pronto: as conquistas que você ganhar no ${em} aparecem nos detalhes de cada jogo.
 2460|outra conta
-2461|, mas o (T)rustyShelf usa ${me}. Saia de lá primeiro e depois entre como ${me}.
+2461|, mas o RustyShelf usa ${me}. Saia de lá primeiro e depois entre como ${me}.
 2463|O ${em} ainda não salvou as configurações dele: abra uma vez e depois volte.
 2464|Entre no RetroAchievements nas configurações do ${em}.
 2465|Verificando o login de conquistas deste emulador.
-2466|As conquistas desbloqueiam neste emulador e aparecem no (T)rustyShelf.
+2466|As conquistas desbloqueiam neste emulador e aparecem no RustyShelf.
 2467|Este console ainda não tem conquistas.
 2468|As conquistas não vão desbloquear aqui até isso ser corrigido.
 2469|Abrindo ${e.emulator||"the emulator"}…

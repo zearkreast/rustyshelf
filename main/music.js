@@ -1,8 +1,8 @@
-// (T)rustyShelf: your own menu music. Audio files (mp3, ogg, oga, opus, wav, flac, m4a, aac, weba) in <(T)rustyShelf folder>\Music\
+// RustyShelf: your own menu music. Audio files (mp3, ogg, oga, opus, wav, flac, m4a, aac, weba) in <RustyShelf folder>\Music\
 // (sub-folders too); audio files in the Songs folder count as well, so ones dropped there are found. The shelf plays them,
 // shuffled, as its menu music (Settings → Sound → Menu music → Your music). This side only lists the folders: each file is
 // played by the page straight from disk, through the app's own file address (no file is copied or read here).
-// The idea of playing your own files as menu music comes from the TyroShelf fork; this is written for (T)rustyShelf's own code.
+// The idea of playing your own files as menu music comes from the TyroShelf fork; this is written for RustyShelf's own code.
 'use strict';
 const path = require('path');
 const fs = require('fs');

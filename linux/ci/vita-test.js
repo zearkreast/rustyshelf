@@ -1,5 +1,5 @@
-// (T)rustyShelf's PS Vita shelf (asked for in the (T)rustyShelf discussions, #21), on the real app on a virtual screen (xvfb-run), in
-// a made-up home folder. Run: node linux/ci/vita-test.js <TrustyShelf-…-linux.AppImage or the unpacked app>
+// RustyShelf's PS Vita shelf (asked for in the RustyShelf discussions, #21), on the real app on a virtual screen (xvfb-run), in
+// a made-up home folder. Run: node linux/ci/vita-test.js <RustyShelf-…-linux.AppImage or the unpacked app>
 // A pretend Vita3K (~/.local/bin/Vita3K: writes down the options it got, runs 4 s, closes), a game Vita3K has installed
 // (~/.local/share/Vita3K/Vita3K/ux0/app/PCSE00120 with eboot.bin and a real param.sfo) and a .vpk in ~/Emulation/roms/psvita.
 // Checks: detection finds Vita3K, its ux0/app folder and the roms folder; the PS Vita shelf names the installed game from its
@@ -27,7 +27,7 @@ const ux0 = path.join(HOME, '.local/share/Vita3K/Vita3K/ux0/app');
 const eboot = mk('.local/share/Vita3K/Vita3K/ux0/app/PCSE00120/eboot.bin', 'x'.repeat(2048));
 mk('.local/share/Vita3K/Vita3K/ux0/app/PCSE00120/sce_sys/param.sfo', sfo({ TITLE: 'Gravity Drift', TITLE_ID: 'PCSE00120', CATEGORY: 'gd' }));
 const vpk = mk('Emulation/roms/psvita/Moon Garden (Homebrew).vpk', 'PK'.repeat(1024));
-mk('TrustyShelf/data/config.json', JSON.stringify({ setupDone: true,
+mk('RustyShelf/data/config.json', JSON.stringify({ setupDone: true,
   ui: { bootIntro: 'off', sound: false, music: 'off', startFullscreen: true, openInto: 'last', autoCovers: false, lastSeenVersion: require('../../package.json').version.replace('+', '.') },
   steam: { enabled: false }, pc: { epic: false, quiver: false, custom: [] }, systems: {} }, null, 2));
 async function cdp(url) {
@@ -40,7 +40,7 @@ async function cdp(url) {
 }
 async function pageTarget(port) {
   for (let i = 0; i < 120; i++) { try { const l = await (await fetch('http://127.0.0.1:' + port + '/json')).json(); const t = l.find(x => x.type === 'page' && /index\.html/.test(x.url)); if (t) return t.webSocketDebuggerUrl; } catch {} await sleep(500); }
-  throw new Error('the (T)rustyShelf page never came up');
+  throw new Error('the RustyShelf page never came up');
 }
 const shot = async (p, name) => { try { const r = await p.send('Page.captureScreenshot', { format: 'png' }); if (r.result && r.result.data) fs.writeFileSync(path.join(OUT, name + '.png'), Buffer.from(r.result.data, 'base64')); } catch {} };
 
@@ -53,15 +53,15 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
   let p;
   try {
     p = await cdp(await pageTarget(9347)); await p.send('Runtime.enable'); await p.send('Page.enable');
-    for (let i = 0; i < 90; i++) { if (await p.ev('!!(window.Shelf && window.trustyshelf)').catch(() => false)) break; await sleep(500); }
+    for (let i = 0; i < 90; i++) { if (await p.ev('!!(window.Shelf && window.rustyshelf)').catch(() => false)) break; await sleep(500); }
     await sleep(1500);
-    const det = await p.ev('window.trustyshelf.detect()').catch(e => ({ error: e.message })), d = (det.systems || {}).psvita || {};
+    const det = await p.ev('window.rustyshelf.detect()').catch(e => ({ error: e.message })), d = (det.systems || {}).psvita || {};
     check('detection finds Vita3K, its installed games (ux0/app) and the psvita folder', d.emulator === vita && (d.romDirs || []).includes(ux0) && (d.romDirs || []).includes(path.dirname(vpk)), JSON.stringify(d));
-    await p.ev(`(async () => { const c = (await trustyshelf.getConfig()).config; c.systems.psvita = { ...(c.systems.psvita || {}), enabled: true, emulator: ${JSON.stringify(vita)}, romDirs: ${JSON.stringify([ux0, path.dirname(vpk)])} }; await trustyshelf.saveConfig(c); })()`);
-    const lib = await p.ev('window.trustyshelf.scan()'), sh = lib.find(s => s.id === 'psvita'), titles = sh ? sh.games.map(g => g.title) : [];
+    await p.ev(`(async () => { const c = (await rustyshelf.getConfig()).config; c.systems.psvita = { ...(c.systems.psvita || {}), enabled: true, emulator: ${JSON.stringify(vita)}, romDirs: ${JSON.stringify([ux0, path.dirname(vpk)])} }; await rustyshelf.saveConfig(c); })()`);
+    const lib = await p.ev('window.rustyshelf.scan()'), sh = lib.find(s => s.id === 'psvita'), titles = sh ? sh.games.map(g => g.title) : [];
     check('a PS Vita shelf, Vita3K as its emulator, the installed game named from its param.sfo and the .vpk', !!sh && sh.name === 'PS Vita' && /Vita3K/.test(sh.emulatorName || '') && titles.includes('Gravity Drift') && titles.some(t => /Moon Garden/.test(t)) && titles.length === 2, JSON.stringify(sh && { name: sh.name, emu: sh.emulatorName, titles }));
     await p.ev('window.Shelf && Shelf.refresh && Shelf.refresh(true)').catch(() => {}); await sleep(2500); await shot(p, 'vita-1-shelf');
-    const run = async file => { try { fs.rmSync(argsFile, { force: true }); } catch {} const r = await p.ev(`window.trustyshelf.launchGame('psvita', ${JSON.stringify(file)}).then(() => 'ok', e => e.message)`).catch(e => e.message);
+    const run = async file => { try { fs.rmSync(argsFile, { force: true }); } catch {} const r = await p.ev(`window.rustyshelf.launchGame('psvita', ${JSON.stringify(file)}).then(() => 'ok', e => e.message)`).catch(e => e.message);
       let a = null; for (let i = 0; i < 40 && !a; i++) { await sleep(500); try { a = fs.readFileSync(argsFile, 'utf8').split('\n').filter(Boolean); } catch {} } return { r, a }; };
     const one = await run(eboot);
     check('Play starts an installed game in Vita3K by its title id, fullscreen (-F -r PCSE00120)', !!one.a && one.a.join(' ') === '-F -r PCSE00120', JSON.stringify(one));
@@ -73,7 +73,7 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
     check('no script errors', !errs.length, errs.slice(0, 3).join(' | '));
   } catch (e) { check('the test ran to the end', false, e && e.stack || e); }
   finally {
-    try { fs.copyFileSync(path.join(HOME, 'TrustyShelf', 'data', 'trustyshelf.log'), path.join(OUT, 'trustyshelf-vita.log')); } catch {}
+    try { fs.copyFileSync(path.join(HOME, 'RustyShelf', 'data', 'rustyshelf.log'), path.join(OUT, 'rustyshelf-vita.log')); } catch {}
     fs.writeFileSync(path.join(OUT, 'app-output-vita.txt'), appOut);
     try { if (p) p.close(); } catch {} try { process.kill(app.pid, 'SIGTERM'); } catch {} await sleep(1500); try { process.kill(-app.pid, 'SIGKILL'); } catch {}
   }

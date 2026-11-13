@@ -1,4 +1,4 @@
-// (T)rustyShelf: more portable emulators with RetroAchievements built in (Boxshelf beta discussion 15): BizHawk (EmuHawk.exe) for
+// RustyShelf: more portable emulators with RetroAchievements built in (Boxshelf beta discussion 15): BizHawk (EmuHawk.exe) for
 // the shelves it covers, Gopher64 and RAProject64 (RAP64.exe) for the N64. Run: node linux/ci/raportable-test.js
 //   - Find emulators in a folder finds them (Windows' program names, a versioned Gopher64 build too), per console
 //   - RetroArch still comes first where both are there; BizHawk is looked for last

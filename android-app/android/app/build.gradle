@@ -1,15 +1,15 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// android-app/android/app/build.gradle apart from the app's name ((T)rustyShelf).
+// android-app/android/app/build.gradle apart from the app's name (RustyShelf).
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "io.github.trustyshelf"
+    namespace = "io.github.rustyshelf"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.github.trustyshelf"
+        applicationId "io.github.rustyshelf"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode((System.getenv("TRUSTYSHELF_VERSION_CODE") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()) // every GitHub build is newer than the last ((T)rustyShelf's releases: from A.B.C.DDDD, release.yml)
+        versionCode((System.getenv("RUSTYSHELF_VERSION_CODE") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()) // every GitHub build is newer than the last (RustyShelf's releases: from A.B.C.DDDD, release.yml)
         versionName new groovy.json.JsonSlurper().parse(file("../../package.json")).version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

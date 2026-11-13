@@ -1,11 +1,11 @@
 <!-- Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0). Written by supalii
-(https://github.com/supalii) in their Boxshelf fork (https://github.com/supalii/boxshelf-source); brought into (T)rustyShelf
+(https://github.com/supalii) in their Boxshelf fork (https://github.com/supalii/boxshelf-source); brought into RustyShelf
 with the app's name changed. -->
 # Localization
 
 ## Current status
 
-(T)rustyShelf does not currently have a runtime language selector or translation catalogs. English is the built-in UI
+RustyShelf does not currently have a runtime language selector or translation catalogs. English is the built-in UI
 language, and most labels, help text, dialogs, and notifications are written directly in the renderer and settings
 code. The `lang="en"` attribute in `renderer/index.html` describes the current page language; it does not enable
 language switching.

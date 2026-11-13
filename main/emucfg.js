@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/emucfg.js apart from the app's name ((T)rustyShelf).
+// main/emucfg.js apart from the app's name (RustyShelf).
 // Emulator settings: small, safe tweaks so the controller quit combo closes them without a dialog (only run right before
 // a launch: the emulator rewrites its config when it exits, keeping what we set), putting the user's own files back
 // (Settings → Restore emulator settings), the real Xenia exe behind Xenia Manager, and where each emulator keeps its
@@ -44,16 +44,18 @@ function readIni(f, label, readOnly) { // readOnly (beta.10): only looked at, ne
   if (src.charCodeAt(0) === 0xFEFF) { bom = '\uFEFF'; src = src.slice(1); } // kept aside so section matching sees "[UI]", put back on write
   return { src, bom, isNew: false };
 }
-// One-time backup of the user's own file (never refreshed, so it stays the pre-(T)rustyShelf version), then temp + rename:
+// .trustyshelf-bak: the same one-time backup, made under the app's old name
+const bakOf = f => fs.existsSync(f + '.trustyshelf-bak') ? f + '.trustyshelf-bak' : f + '.rustyshelf-bak';
+// One-time backup of the user's own file (never refreshed, so it stays the pre-RustyShelf version), then temp + rename:
 // never a half-written config. No backup -> no write.
 function writeIni(f, text, ini) {
-  if (!ini.isNew) { const bak = f + '.trustyshelf-bak'; if (!fs.existsSync(bak)) fs.copyFileSync(f, bak); }
+  if (!ini.isNew) { const bak = bakOf(f); if (!fs.existsSync(bak)) fs.copyFileSync(f, bak); }
   fs.mkdirSync(path.dirname(f), { recursive: true });
   const tmp = f + '.tmp'; try { fs.writeFileSync(tmp, ini.bom + text); fs.renameSync(tmp, f); } catch (e) { try { fs.unlinkSync(tmp); } catch {} throw e; }
 }
 
 const savedCitronGamedirs = new Map();
-const citronMarker = f => path.join(path.dirname(f), '.trustyshelf-citron-gamedirs.json');
+const citronMarker = f => path.join(path.dirname(f), '.rustyshelf-citron-gamedirs.json');
 
 function restoreCitronGamedirs(f) {
   if (!f) return false;
@@ -202,7 +204,7 @@ function setIni(f, section, want, label) {
 }
 // The user's Documents folder(s): the usual one, and the OneDrive one Windows moves it to when OneDrive backs it up.
 // env: for tests (raemu passes its own)
-// ((T)rustyShelf, beta issue 28) also where Windows really keeps it: Documents can be moved anywhere (its Location tab, a
+// (RustyShelf, beta issue 28) also where Windows really keeps it: Documents can be moved anywhere (its Location tab, a
 // D:\ drive), and OneDrive's backup puts it under a business "OneDrive - Name" folder, or a translated one (Documenti,
 // Dokumente…). Electron asks Windows for the real one; BS_DOCUMENTS in env stands in for it in tests.
 const DOC_NAMES = ['Documents', 'Documenti', 'Dokumente', 'Documentos', 'Documenten', 'Dokumenty', 'Mes documents'];
@@ -233,7 +235,7 @@ function pcsx2Inis(exe, env = process.env, every = false) {
   const dir = path.dirname(exe || ''), c = [];
   if (exe && ['portable.ini', 'portable.txt'].some(f => fs.existsSync(path.join(dir, f)))) { c.push(path.join(dir, 'inis', 'PCSX2.ini')); if (!every) return c; }
   for (const d of docsDirs(env)) c.push(path.join(d, 'PCSX2', 'inis', 'PCSX2.ini'));
-  // ((T)rustyShelf, beta issue 28) PCSX2 on Linux: ~/.config/PCSX2 (or $XDG_CONFIG_HOME), and the Flatpak's own folder
+  // (RustyShelf, beta issue 28) PCSX2 on Linux: ~/.config/PCSX2 (or $XDG_CONFIG_HOME), and the Flatpak's own folder
   if (process.platform === 'linux' || env.BS_LINUX) { const home = env.HOME || os.homedir(), xdg = env.XDG_CONFIG_HOME || path.join(home, '.config');
     c.push(path.join(xdg, 'PCSX2', 'inis', 'PCSX2.ini'), path.join(home, '.var', 'app', 'net.pcsx2.PCSX2', 'config', 'PCSX2', 'inis', 'PCSX2.ini')); }
   return c;
@@ -261,7 +263,7 @@ function rpcs3NoConfirm(exe) {
   } catch (e) { log('RPCS3 config tweak failed', e.message); return false; }
 }
 // Dolphin's Stop hotkey listens to one device (its "Hotkeys" controller, usually the Xbox pad). A Wii game played with
-// another controller (a Switch Pro for its gyro, set up as Wii Remote 1) then had no way back to the shelf: (T)rustyShelf's
+// another controller (a Switch Pro for its gyro, set up as Wii Remote 1) then had no way back to the shelf: RustyShelf's
 // own quit combo only hears Xbox-style (XInput) pads. So the quit combo is added to Dolphin's Stop for every other
 // controller its Wii Remote / GameCube settings use, as fully named inputs (`Device:Input`). Only ever added to.
 const DOLPHIN_COMBO = { 'l3+r3': ['Thumb L', 'Thumb R'], 'start+back': ['Start', 'Back'], 'lb+rb+start': ['Shoulder L', 'Shoulder R', 'Start'], 'back+b': ['Back', 'Button E'] };
@@ -279,14 +281,14 @@ function dolphinQuitPads(exe, combo) {
   const padOk = d => d && d !== hotDev && !/keyboard|mouse|^Android|^Bluetooth|^XInput2?\//i.test(d) && !d.includes('`');
   // Dolphin names the east face button per backend: SDL "Button E", XInput / Windows.Gaming.Input "Button B"
   const name = (d, i) => i === 'Button E' && !/^SDL\//i.test(d) ? 'Button B' : i;
-  // (beta.10) (T)rustyShelf's own terms ("(`<pad>:<input>`&…)": one such pad, exactly one quit combo's inputs) are rebuilt on every
+  // (beta.10) RustyShelf's own terms ("(`<pad>:<input>`&…)": one such pad, exactly one quit combo's inputs) are rebuilt on every
   // apply: a pad already there was skipped before, so a changed combo never reached it. The user's own terms stay as they are
   const terms = s => { const out = []; let d = 0, q = false, cur = ''; for (const ch of s) { if (ch === '`') q = !q; else if (!q && ch === '(') d++; else if (!q && ch === ')') d--; if (!q && !d && ch === '|') { out.push(cur.trim()); cur = ''; } else cur += ch; } if (cur.trim()) out.push(cur.trim()); return out.filter(Boolean); };
   const isOwn = t => { const m = /^\(((?:`[^`]+`&)*`[^`]+`)\)$/.exec(t); if (!m) return false; const ins = m[1].split('&').map(x => x.slice(1, -1)), at = ins[0].lastIndexOf(':'), dev = at > 0 ? ins[0].slice(0, at) : '';
     if (!padOk(dev) || !ins.every(x => x.startsWith(dev + ':'))) return false; const got = ins.map(x => x.slice(dev.length + 1)).join('&');
     return Object.values(DOLPHIN_COMBO).some(l => l.map(i => name(dev, i)).join('&') === got); };
   const wrapped = b => { if (b[0] !== '(') return false; let d = 0, q = false; for (let i = 0; i < b.length; i++) { const c = b[i]; if (c === '`') q = !q; else if (!q && c === '(') d++; else if (!q && c === ')' && --d === 0) return i === b.length - 1; } return false; };
-  // (beta.10) the main pad's term (T)rustyShelf writes when Stop was empty ("(`Back`&`Button B`)": no device, exactly one quit combo's
+  // (beta.10) the main pad's term RustyShelf writes when Stop was empty ("(`Back`&`Button B`)": no device, exactly one quit combo's
   // inputs as the Hotkeys device names them) is its own too when it's the only other term beside its pad terms: kept as the
   // user's, a changed combo never reached the main pad and the old one still stopped the game
   const isBase = t => { const m = /^\(((?:`[^`]+`&)*`[^`]+`)\)$/.exec(t); if (!m) return false; const ins = m[1].split('&').map(x => x.slice(1, -1)); if (ins.some(x => x.includes(':'))) return false;
@@ -325,7 +327,7 @@ const isDolphin = (systemId, exe) => (systemId === 'gc' || systemId === 'wii') &
 function launchArgs(systemId, exe) {
   return isDolphin(systemId, exe) ? ['-C', 'Dolphin.Interface.ConfirmStop=False', '-C', 'Graphics.Settings.BorderlessFullscreen=True'] : [];
 }
-// Put back every .trustyshelf-bak this module made (the user's file from before the first tweak) and drop the backup, so a
+// Put back every .rustyshelf-bak this module made (the user's file from before the first tweak) and drop the backup, so a
 // later tweak backs up the file as it is then. exeBySystem: { gc: exe, ps2: exe, ... } (or { gc: { emulator } }).
 // Looks in the same places the tweaks use; returns the files restored.
 function restoreBackups(exeBySystem) {
@@ -344,7 +346,7 @@ function restoreBackups(exeBySystem) {
   }
   const done = [];
   for (const f of files) {
-    const bak = f + '.trustyshelf-bak'; if (!fs.existsSync(bak)) continue;
+    const bak = bakOf(f); if (!fs.existsSync(bak)) continue;
     const tmp = f + '.tmp';
     try { fs.copyFileSync(bak, tmp); fs.renameSync(tmp, f); fs.unlinkSync(bak); done.push(f); log('Settings restored from', bak); }
     catch (e) { try { fs.unlinkSync(tmp); } catch {} log('Could not restore', f, e.message); }
@@ -352,4 +354,4 @@ function restoreBackups(exeBySystem) {
   return done;
 }
 
-module.exports = { init, beforeLaunch, afterExit, dolphinQuitPads, launchArgs, restoreBackups, quietEden, resolveExe, findXenia, setIni, pcsx2NoConfirm, rpcs3NoConfirm, dolphinUserDirs, pcsx2Inis, docsDirs };
+module.exports = { init, bakOf, beforeLaunch, afterExit, dolphinQuitPads, launchArgs, restoreBackups, quietEden, resolveExe, findXenia, setIni, pcsx2NoConfirm, rpcs3NoConfirm, dolphinUserDirs, pcsx2Inis, docsDirs };

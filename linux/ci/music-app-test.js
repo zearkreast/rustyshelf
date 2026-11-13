@@ -1,6 +1,6 @@
-// (T)rustyShelf's own menu music, on the real AppImage on a virtual screen (xvfb-run), in a made-up home folder.
-//   node linux/ci/music-app-test.js <TrustyShelf-…-linux.AppImage>
-// A WAV file in ~/TrustyShelf/Music: the app lists it, and with Menu music set to Your music the page plays it from disk through
+// RustyShelf's own menu music, on the real AppImage on a virtual screen (xvfb-run), in a made-up home folder.
+//   node linux/ci/music-app-test.js <RustyShelf-…-linux.AppImage>
+// A WAV file in ~/RustyShelf/Music: the app lists it, and with Menu music set to Your music the page plays it from disk through
 // the app's own file address (bsfile://), with the volume up. Off stops it. Screenshots go to linux-test-out/.
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), { spawn } = require('child_process');
@@ -15,9 +15,9 @@ const argsFile = path.join(HOME, 'xemu-args.txt');
 const xemu = mk('.local/bin/xemu', `#!/bin/sh\nfor a in "$@"; do echo "$a"; done > "${argsFile}"\nsleep 7\nexit 0\n`, true);
 const wav = (() => { const rate = 8000, n = rate * 6, b = Buffer.alloc(44 + n * 2); b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40);
   for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin(i / 8) * 2000), 44 + i * 2); return b; })();
-mk('TrustyShelf/Music/Test Tune.wav', wav);
+mk('RustyShelf/Music/Test Tune.wav', wav);
 const rom = mk('Emulation/roms/xbox/Halo - Combat Evolved (USA).iso', 'x');
-mk('TrustyShelf/data/config.json', JSON.stringify({ setupDone: true,
+mk('RustyShelf/data/config.json', JSON.stringify({ setupDone: true,
   ui: { bootIntro: 'off', sound: true, music: 'own', musicLevel: .6, startFullscreen: true, openInto: 'last', autoCovers: false, lastSeenVersion: require('../../package.json').version.replace('+', '.') },
   steam: { enabled: false }, pc: { epic: false, quiver: false, custom: [] },
   systems: { xbox: { enabled: true, emulator: xemu, romDirs: [path.dirname(rom)] } } }, null, 2));
@@ -32,7 +32,7 @@ async function cdp(url) {
 }
 async function pageTarget(port) {
   for (let i = 0; i < 120; i++) { try { const l = await (await fetch('http://127.0.0.1:' + port + '/json')).json(); const t = l.find(x => x.type === 'page' && /index\.html/.test(x.url)); if (t) return t.webSocketDebuggerUrl; } catch {} await sleep(500); }
-  throw new Error('the (T)rustyShelf page never came up');
+  throw new Error('the RustyShelf page never came up');
 }
 const shot = async (p, name) => { try { const r = await p.send('Page.captureScreenshot', { format: 'png' }); if (r.result && r.result.data) fs.writeFileSync(path.join(OUT, name + '.png'), Buffer.from(r.result.data, 'base64')); } catch {} };
 
@@ -45,7 +45,7 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
     p = await cdp(await pageTarget(9337)); await p.send('Runtime.enable'); await p.send('Page.enable');
     let ready = false; for (let i = 0; i < 90 && !ready; i++) { ready = await p.ev('!!(window.Shelf && Shelf._qs && Shelf._qs().g)').catch(() => false); if (!ready) await sleep(500); }
     await sleep(2000);
-    const list = await p.ev('window.trustyshelf.musicList()').catch(e => ({ error: e.message }));
+    const list = await p.ev('window.rustyshelf.musicList()').catch(e => ({ error: e.message }));
     check('the app lists the WAV in the Music folder as a file address', Array.isArray(list) && list.length === 1 && list[0].name === 'Test Tune' && /^bsfile:\/\/local\//.test(list[0].url), JSON.stringify(list));
     await p.ev('Shelf.sound({ enabled: true, music: "own", musicLevel: .6 })');
     let st = null; for (let i = 0; i < 40; i++) { await sleep(300); st = await p.ev('UserMusic.state()'); if (st && st.playing && st.volume > 0.05) break; }
@@ -58,7 +58,7 @@ const shot = async (p, name) => { try { const r = await p.send('Page.captureScre
     check('no script errors', !errs.length, errs.slice(0, 3).join(' | '));
   } catch (e) { check('the test ran to the end', false, e && e.stack || e); }
   finally {
-    try { fs.copyFileSync(path.join(HOME, 'TrustyShelf', 'data', 'trustyshelf.log'), path.join(OUT, 'trustyshelf-music.log')); } catch {}
+    try { fs.copyFileSync(path.join(HOME, 'RustyShelf', 'data', 'rustyshelf.log'), path.join(OUT, 'rustyshelf-music.log')); } catch {}
     fs.writeFileSync(path.join(OUT, 'app-output-music.txt'), appOut);
     try { if (p) p.close(); } catch {}
     try { process.kill(app.pid, 'SIGTERM'); } catch {} await sleep(1500); try { process.kill(-app.pid, 'SIGKILL'); } catch {}

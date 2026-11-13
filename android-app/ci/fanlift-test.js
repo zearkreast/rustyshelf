@@ -24,7 +24,7 @@ server.listen(0, async () => {
     await page.goto(base); await page.waitForTimeout(5000);
     // three issues of one magazine (a file box) and a one-off
     await page.evaluate(() => { const mag = (n, y) => ({ id: 'np-' + n, kind: 'magazine', type: 'file', title: `Nintendo Power Issue ${n} (${y})`, series: 'Nintendo Power', year: y });
-      window.trustyshelf.library = async () => [mag('001', 1988), mag('002', 1988), mag('003', 1989), { id: 'gp-1', kind: 'magazine', type: 'file', title: 'GamePro 1994-05', series: '', year: 1994 }]; });
+      window.rustyshelf.library = async () => [mag('001', 1988), mag('002', 1988), mag('003', 1989), { id: 'gp-1', kind: 'magazine', type: 'file', title: 'GamePro 1994-05', series: '', year: 1994 }]; });
     await page.keyboard.press('m'); await page.waitForTimeout(5000);
     await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); for (let i = 0; i < 6 && window.Museum && Museum._dv && Museum._dv(); i++) { Museum.skipDelivery(); await w(800); } if (Museum.isFilling && Museum.isFilling()) Museum.skipFill(); });
     const boxed = await page.waitForFunction(() => ((window.Museum && Museum._rack && Museum._rack()) || []).some(x => x.box && x.box.issues.length === 3), null, { timeout: 60000, polling: 200 }).then(() => true, () => false);

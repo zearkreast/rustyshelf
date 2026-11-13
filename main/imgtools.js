@@ -1,5 +1,5 @@
-// Native Rust image tools engine for (T)rustyShelf.
-// Replaces hidden Chromium BrowserWindow helpers with the high-performance native binary 'trustyshelf-imgtools'.
+// Native Rust image tools engine for RustyShelf.
+// Replaces hidden Chromium BrowserWindow helpers with the high-performance native binary 'rustyshelf-imgtools'.
 'use strict';
 const path = require('path');
 const fs = require('fs');
@@ -13,7 +13,7 @@ function findBinary() {
   binChecked = true;
 
   const ext = process.platform === 'win32' ? '.exe' : '';
-  const binName = `trustyshelf-imgtools${ext}`;
+  const binName = `rustyshelf-imgtools${ext}`;
 
   // 1. Unpacked asar path (packaged app)
   const unpacked = path.join(__dirname, 'bin', binName).replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');

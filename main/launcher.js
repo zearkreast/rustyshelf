@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/launcher.js; modified for (T)rustyShelf (see the git history).
+// main/launcher.js; modified for RustyShelf (see the git history).
 // Starts emulators, Steam games and media apps, and reports when they close.
 const { spawn } = require('child_process');
 const EventEmitter = require('events');
@@ -20,7 +20,7 @@ function buildArgs(template, rom) {
   return out.filter(a => a !== '');
 }
 
-// ((T)rustyShelf) a program whose manifest asks for administrator rights (requireAdministrator) can't be started by a normal
+// (RustyShelf) a program whose manifest asks for administrator rights (requireAdministrator) can't be started by a normal
 // process: Windows refuses it (spawn says UNKNOWN or EACCES). Only looked for after such a refusal: the program is then
 // started through PowerShell's Start-Process -Verb RunAs, which shows Windows' own prompt (HoYoPlay's games need it).
 function needsAdmin(exe) { try { if (fs.statSync(exe).size > 600e6) return false; return fs.readFileSync(exe).includes('requireAdministrator'); } catch { return false; } }
@@ -29,11 +29,11 @@ function elevatedScript(exe, args) {
   return `$p = Start-Process -FilePath ${psq(exe)} -WorkingDirectory ${psq(path.win32.dirname(exe))} -Verb RunAs ${args && args.length ? '-ArgumentList @(' + args.map(psq).join(',') + ') ' : ''}-PassThru; $p.WaitForExit()`;
 }
 
-function start(exe, args, onExit, env, cwd, logFile, elevate) { // elevate: a PC game or app, which may need administrator rights (the emulators never do) // env: the emulator's own environment (PS5: the KytyJets preset); else (T)rustyShelf's. cwd: else the program's folder
+function start(exe, args, onExit, env, cwd, logFile, elevate) { // elevate: a PC game or app, which may need administrator rights (the emulators never do) // env: the emulator's own environment (PS5: the KytyJets preset); else RustyShelf's. cwd: else the program's folder
   exe = exe && expand(String(exe).trim().replace(/^"(.*)"$/, '$1')); // same rules as the Settings check: %VAR%, {app}, pasted "quotes"
   if (!exe || !isFile(exe)) throw new Error(`Can't find ${exe || 'the program'}. Check its path in Settings.`);
   if (running) throw new Error(busyMessage());
-  // detached: on Windows a normal child sits in Node's kill-on-close job object, so a (T)rustyShelf crash or update restart
+  // detached: on Windows a normal child sits in Node's kill-on-close job object, so a RustyShelf crash or update restart
   // would take the emulator (and its unsaved game) with it. Not unref'd: the 'exit' event must still reach us.
   // logFile: the program's output goes there (Linux PC games), else nowhere
   let fd = null; if (logFile) { try { fd = require('fs').openSync(logFile, 'w'); } catch { fd = null; } }

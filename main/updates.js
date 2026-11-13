@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/updates.js apart from the app's name ((T)rustyShelf).
+// main/updates.js apart from the app's name (RustyShelf).
 // Beta update notice. Once per start (a little after the window is up), when Settings → About → "Check for new betas"
 // is on, asks the public beta page's Releases which version is newest and tells the shelf when it's newer than this
 // one. Nothing is downloaded or installed: the notice opens the download page. Offline, or with GitHub busy, it stays
@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const REPO = 'GGStonks/t-rustyshelf'; // (this fork's own releases: the official Boxshelf's would offer to replace it)
+const REPO = 'zearkreast/rustyshelf'; // (this fork's own releases: the official Boxshelf's would offer to replace it)
 const PAGE = `https://github.com/${REPO}`;
 const LINKS = { page: PAGE, releases: `${PAGE}/releases`, issues: `${PAGE}/issues/new/choose` };
 
@@ -16,7 +16,7 @@ let log = () => {}, last = null, inflight = null;
 function init(logger) { if (logger) log = logger; }
 
 // "1.82.0-beta.1" → { nums: [1, 82, 0, 0], pre: ['beta', 1] }; a release without a pre part is newer than its betas.
-// ((T)rustyShelf) a build number counts too: "2.12.4.284" (a release's tag) and "2.12.4+284" (the app's own version)
+// (RustyShelf) a build number counts too: "2.12.4.284" (a release's tag) and "2.12.4+284" (the app's own version)
 // → nums [2, 12, 4, 284]
 function parse(v) {
   const m = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[.+](\d+))?(?:-([0-9A-Za-z.-]+))?/.exec(String(v || '').trim());
@@ -44,7 +44,7 @@ function compare(a, b) {
 
 function getJson(url, version) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { 'User-Agent': `TrustyShelf/${version}`, Accept: 'application/vnd.github+json' } }, res => {
+    const req = https.get(url, { headers: { 'User-Agent': `RustyShelf/${version}`, Accept: 'application/vnd.github+json' } }, res => {
       if (res.statusCode !== 200) { res.resume(); return reject(new Error(`GitHub answered ${res.statusCode}`)); }
       let b = ''; res.setEncoding('utf8');
       res.on('data', c => { b += c; if (b.length > 2e6) req.destroy(new Error('answer too big')); });
@@ -81,7 +81,7 @@ async function check(current, force = false) {
 
 function downloadFile(url, dest, onProgress, hops = 0) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { 'User-Agent': 'TrustyShelf' } }, res => {
+    const req = https.get(url, { headers: { 'User-Agent': 'RustyShelf' } }, res => {
       if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && hops < 5) {
         res.resume();
         return resolve(downloadFile(new URL(res.headers.location, url).toString(), dest, onProgress, hops + 1));
@@ -139,7 +139,7 @@ async function applyUpdate(release, onProgress) {
   }
   fs.renameSync(tmpFile, target);
   try {
-    const generic = path.join(path.dirname(target), '(T)rustyShelf.AppImage');
+    const generic = path.join(path.dirname(target), 'RustyShelf.AppImage');
     if (generic !== target && fs.existsSync(generic)) {
       fs.copyFileSync(target, generic);
       fs.chmodSync(generic, 0o755);

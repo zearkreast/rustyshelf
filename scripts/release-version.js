@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// (T)rustyShelf's release builds (.github/workflows/build-release-check.yml): whether a push is built, and as which version A.B.C.DDDD
+// RustyShelf's release builds (.github/workflows/build-release-check.yml): whether a push is built, and as which version A.B.C.DDDD
 // (A.B.C the version, DDDD the build of it), from the pushed commit's message and the release tags already there (vA.B.C.DDDD).
 //
 //   "For version 2.4.15"           → 2.4.15.0, a new version (stops if v2.4.15.0 is already there)

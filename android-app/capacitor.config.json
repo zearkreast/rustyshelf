@@ -1,6 +1,6 @@
 {
-  "appId": "io.github.trustyshelf",
-  "appName": "(T)rustyShelf",
+  "appId": "io.github.rustyshelf",
+  "appName": "RustyShelf",
   "webDir": "www",
   "loggingBehavior": "none",
   "android": {

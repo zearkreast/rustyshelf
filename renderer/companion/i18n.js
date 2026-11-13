@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0). Written by Thanks2111
 // (https://github.com/Thanks2111) in their Boxshelf fork (branch portugues): the Brazilian Portuguese interface. Brought into
-// (T)rustyShelf as a language you choose (the app's Settings → Display → Language: the phone page gets the dictionary only then), English by default.
+// RustyShelf as a language you choose (the app's Settings → Display → Language: the phone page gets the dictionary only then), English by default.
 // Boxshelf em português: traduz a interface enquanto ela é desenhada.
 // Os textos em inglês continuam no código; este arquivo troca o que aparece na tela (texto, dicas, campos,
 // textos desenhados em canvas e caixas de alerta) usando o dicionário de i18n-pt-data.js.

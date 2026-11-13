@@ -1,19 +1,19 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main/systems.js; modified for (T)rustyShelf (see the git history).
+// main/systems.js; modified for RustyShelf (see the git history).
 // Definitions for every shelf the launcher knows about.
-// Paths may use %ENV% variables and {app} (the folder (T)rustyShelf lives in).
+// Paths may use %ENV% variables and {app} (the folder RustyShelf lives in).
 // Game launch options use {rom} for the game file; edit them later in Settings.
-// coverSeconds: the longest (T)rustyShelf's black loading screen stays on top while the emulator opens (it lifts as soon
+// coverSeconds: the longest RustyShelf's black loading screen stays on top while the emulator opens (it lifts as soon
 // as the game's window is fullscreen), hiding its window until then (0 = off).
 // Dolphin: -b closes Dolphin when the game stops, -C overrides a setting for this launch only.
 
-// ((T)rustyShelf, Boxshelf beta discussion 15) portable emulators with RetroAchievements built in: BizHawk (EmuHawk.exe, many
+// (RustyShelf, Boxshelf beta discussion 15) portable emulators with RetroAchievements built in: BizHawk (EmuHawk.exe, many
 // consoles), Gopher64 and RAProject64 (RAP64.exe) for the N64. They come after the usual emulator, so they're the ones used when
 // they're all there is (Find emulators in a folder), or picked from the console's found emulators in Settings
 const HAWK = ['EmuHawk.exe'], N64_RA = ['re:^gopher64[^\\\\]*\\.exe$', 'RAP64.exe', 'Project64.exe'];
 const HAWK_DIRS = ['{app}\\BizHawk', '{app}\\Emulators\\BizHawk'], N64_DIRS = ['{app}\\Gopher64', '{app}\\gopher64', '{app}\\RAProject64', '{app}\\RAP64', '%ProgramFiles%\\Project64 3.0', '%ProgramFiles(x86)%\\Project64 3.0'];
-const VBA = ['visualboyadvance-m.exe', 're:^visualboyadvance[^\\\\]*\\.exe$'], VBA_DIRS = ['{app}\\VisualBoyAdvance-M', '{app}\\visualboyadvance-m', '%ProgramFiles%\\VisualBoyAdvance-M']; // ((T)rustyShelf)
-// ((T)rustyShelf, its discussions #10) the RetroArch cores a console can run in, [core, its name]: the first is the shelf's
+const VBA = ['visualboyadvance-m.exe', 're:^visualboyadvance[^\\\\]*\\.exe$'], VBA_DIRS = ['{app}\\VisualBoyAdvance-M', '{app}\\visualboyadvance-m', '%ProgramFiles%\\VisualBoyAdvance-M']; // (RustyShelf)
+// (RustyShelf, its discussions #10) the RetroArch cores a console can run in, [core, its name]: the first is the shelf's
 // own (raCore above); Settings → the console → RetroArch core picks another (systems.<id>.raCore). Core names as on libretro's
 // buildbot (<core>_libretro.dll), so a missing one is downloaded the same way.
 const RA_CORES = {
@@ -76,7 +76,7 @@ const CONSOLES = [
     exeNames: ['eden.exe', 'Eden.exe', 'citron.exe', 'Citron.exe', 'Ryujinx.exe', 'ryujinx.exe'], // (beta.8: Citron and Ryujinx too; Ryujinx gets its own options at launch)
     emulatorFolders: ['{app}\\Eden', '%LOCALAPPDATA%\\Programs\\Eden', '%ProgramFiles%\\Eden', '%APPDATA%\\Eden', '{app}\\Citron', '%LOCALAPPDATA%\\Programs\\Citron', '{app}\\Ryujinx', '%LOCALAPPDATA%\\Programs\\Ryujinx'],
     romFolderNames: ['switch', 'nsw', 'ns'],
-    extensions: ['nsp', 'xci', 'nro'], // ((T)rustyShelf, beta issue 29: not .nca, the content archives a dump is split into, never a game on their own)
+    extensions: ['nsp', 'xci', 'nro'], // (RustyShelf, beta issue 29: not .nca, the content archives a dump is split into, never a game on their own)
     // Eden comes from the yuzu family: -f = fullscreen, -g = game file.
     gameArgs: '-f -g "{rom}"',
     emulatorArgs: '',
@@ -106,7 +106,7 @@ const CONSOLES = [
     coverSeconds: 2
   },
   {
-    // ((T)rustyShelf, asked for in its discussions, #21) the PS Vita, in Vita3K: the games Vita3K has installed
+    // (RustyShelf, asked for in its discussions, #21) the PS Vita, in Vita3K: the games Vita3K has installed
     // (ux0\app\<title id>, with eboot.bin and sce_sys\param.sfo; detection adds that folder), or .vpk files Vita3K installs
     // when they're played. main/vita3k.js turns a game into Vita3K's options: -F -r <title id> (an installed game)
     id: 'psvita', name: 'PS Vita', emulatorName: 'Vita3K',
@@ -178,7 +178,7 @@ const CONSOLES = [
     coverSeconds: 6
   },
   {
-    // ((T)rustyShelf 1.0.2, asked for in Boxshelf's discussions) the original Xbox, in xemu: its disc images (XISO .iso).
+    // (RustyShelf 1.0.2, asked for in Boxshelf's discussions) the original Xbox, in xemu: its disc images (XISO .iso).
     // xemu needs its own BIOS, MCPX boot ROM and hard disk image set up first (xemu → Machine → System)
     id: 'xbox', name: 'Xbox', emulatorName: 'xemu',
     exeNames: ['xemu.exe'],
@@ -195,7 +195,7 @@ const CONSOLES = [
     emulatorFolders: ['{app}\\Azahar', '{app}\\azahar', '%ProgramFiles%\\Azahar', '%LOCALAPPDATA%\\Programs\\Azahar', '%LOCALAPPDATA%\\Azahar', '%APPDATA%\\Azahar', '{app}\\Citra', '%LOCALAPPDATA%\\Citra\\nightly', '%LOCALAPPDATA%\\Citra\\canary', '{app}\\Lime3DS'],
     romFolderNames: ['3ds', 'n3ds', 'nintendo 3ds', 'azahar', 'citra'],
     // decrypted game images (.3ds/.cci/.cxi), homebrew (.3dsx), Azahar's compressed versions (.z*) and .cia installers
-    // ((T)rustyShelf installs a .cia into Azahar the first time it's played, then boots the installed game)
+    // (RustyShelf installs a .cia into Azahar the first time it's played, then boots the installed game)
     extensions: ['3ds', 'cci', 'cxi', '3dsx', 'zcci', 'zcxi', 'z3dsx', 'cia'],
     // Azahar (Citra's successor): -f fullscreen, the game file last
     gameArgs: '-f "{rom}"',
@@ -214,7 +214,7 @@ const CONSOLES = [
     ['snes', 'SNES', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['snes', 'sfc', 'super nintendo', 'super famicom'], ['sfc', 'smc', 'fig', 'swc', 'bs', 'zip', '7z'], '', 'snes9x'],
     ['n64', 'Nintendo 64', 'RetroArch', ['RMG.exe', ...N64_RA, ...HAWK], ['{app}\\RMG', '{app}\\Rosalie\'s Mupen GUI', '%LOCALAPPDATA%\\Programs\\RMG', ...N64_DIRS, ...HAWK_DIRS],
       ['n64', 'nintendo 64'], ['z64', 'n64', 'v64', 'zip', '7z'], '--fullscreen --quit-after-emulation --nogui "{rom}"', 'mupen64plus_next'],
-    // ((T)rustyShelf, Boxshelf's issue 17) VisualBoyAdvance-M for the Game Boys and DeSmuME for the DS are found too, and
+    // (RustyShelf, Boxshelf's issue 17) VisualBoyAdvance-M for the Game Boys and DeSmuME for the DS are found too, and
     // started with their own options (main.js); versioned program names ("DeSmuME_0.9.13_x64.exe") by pattern
     ['gb', 'Game Boy', 'RetroArch', ['mGBA.exe', ...VBA, ...HAWK], ['{app}\\mGBA', ...VBA_DIRS, ...HAWK_DIRS], ['gb', 'gameboy', 'game boy'], ['gb', 'zip', '7z'], '', 'gambatte'],
     ['gbc', 'Game Boy Color', 'RetroArch', ['mGBA.exe', ...VBA, ...HAWK], ['{app}\\mGBA', ...VBA_DIRS, ...HAWK_DIRS], ['gbc', 'gameboy color', 'game boy color'], ['gbc', 'zip', '7z'], '', 'gambatte'],
@@ -237,13 +237,13 @@ const CONSOLES = [
     ['atarilynx', 'Lynx', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['atarilynx', 'lynx', 'atari lynx'], ['lnx', 'zip', '7z'], '', 'handy'],
     ['wonderswan', 'WonderSwan', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['wonderswan', 'wonderswancolor', 'wonderswan color', 'wsc', 'ws'], ['ws', 'wsc', 'zip', '7z'], '', 'mednafen_wswan'],
     ['dos', 'DOS', 'RetroArch', [], [], ['dos', 'msdos', 'ms-dos', 'pc dos'], ['zip', 'dosz'], '', 'dosbox_pure'],
-    // ((T)rustyShelf, asked on Boxshelf's issue 11) the Neo Geo Pocket and the Neo Geo Pocket Color, two shelves (their box art is
+    // (RustyShelf, asked on Boxshelf's issue 11) the Neo Geo Pocket and the Neo Geo Pocket Color, two shelves (their box art is
     // kept apart by libretro and LaunchBox), both in RetroArch's Beetle NeoPop core (no BIOS needed). No-Intro's .ngp / .ngc
     ['ngp', 'Neo Geo Pocket', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['ngp', 'neogeopocket', 'neo geo pocket', 'neo-geo pocket'], ['ngp', 'zip', '7z'], '', 'mednafen_ngp'],
     ['ngpc', 'Neo Geo Pocket Color', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['ngpc', 'neogeopocketcolor', 'neo geo pocket color', 'neo-geo pocket color'], ['ngc', 'ngpc', 'npc', 'zip', '7z'], '', 'mednafen_ngp'],
   ]),
   {
-    // ((T)rustyShelf, asked on Boxshelf's issue 11) Tiger's Game.com, in MAME (the emulator that runs it): `mame gamecom -cart1 <game>`.
+    // (RustyShelf, asked on Boxshelf's issue 11) Tiger's Game.com, in MAME (the emulator that runs it): `mame gamecom -cart1 <game>`.
     // MAME needs the Game.com's own system file (gamecom.zip, from a MAME BIOS set) in its roms folder first; it's started from its
     // own folder (the launcher's way), where it finds that folder and mame.ini
     id: 'gamecom', name: 'Game.com', emulatorName: 'MAME',
@@ -324,7 +324,7 @@ const LINUX_EMU = {
   ps4: ['shadps4', 'net.shadps4.shadPS4', 're:^shadps4.*\\.appimage$'],
   ps5: [], x360: [], // (Kyty and Xenia: Windows only)
   xbox: ['xemu', 'app.xemu.xemu', 're:^xemu.*\\.appimage$'], // (xemu: its AppImage, Flatpak or package)
-  gamecom: ['mame', 'org.mamedev.MAME', 're:^mame.*\\.appimage$'], // ((T)rustyShelf: MAME, its package, Flatpak or AppImage)
+  gamecom: ['mame', 'org.mamedev.MAME', 're:^mame.*\\.appimage$'], // (RustyShelf: MAME, its package, Flatpak or AppImage)
   n3ds: ['azahar', 'org.azahar_emu.Azahar', 're:^azahar.*\\.appimage$', 'lime3ds', 'citra-qt'],
   psx: ['duckstation-qt', 'org.duckstation.DuckStation', 're:^duckstation.*\\.appimage$'],
   n64: ['RMG', 'com.github.Rosalie241.RMG', 're:^rmg.*\\.appimage$', 'gopher64', 'io.github.gopher64.gopher64', 're:^gopher64.*\\.appimage$'],

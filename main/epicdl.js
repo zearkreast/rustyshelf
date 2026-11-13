@@ -1,9 +1,9 @@
-// (T)rustyShelf's Epic download manager: a queue of `legendary install` runs, one at a time. Each item shows how far it is, its
+// RustyShelf's Epic download manager: a queue of `legendary install` runs, one at a time. Each item shows how far it is, its
 // speed and the time left; it can be paused (the process is stopped: legendary keeps what it downloaded and goes on from there
 // when it's resumed), stopped, moved up the queue or removed. The queue is kept in data/epic-downloads.json, so a restart finds
 // it as it was (an install that was running comes back paused).
 // The idea of a queue with pause / resume / stop comes from Playnite's Unified Download Manager add-on (MIT) and the TyroShelf
-// fork's download manager; this is written for (T)rustyShelf's own legendary code (main/linuxpc.js), and knows nothing of
+// fork's download manager; this is written for RustyShelf's own legendary code (main/linuxpc.js), and knows nothing of
 // Electron: legendary is run through what linuxpc.js hands in, so linux/ci/epicdl-test.js runs it with a pretend legendary.
 'use strict';
 const fs = require('fs');

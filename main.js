@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// main.js; modified for (T)rustyShelf (see the git history).
-// (T)rustyShelf — TV-style launcher for emulators, Steam and media apps.
+// main.js; modified for RustyShelf (see the git history).
+// RustyShelf — TV-style launcher for emulators, Steam and media apps.
 const { app, BrowserWindow, ipcMain, dialog, protocol, shell, net, nativeImage, session, safeStorage, screen, powerSaveBlocker } = require('electron');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
@@ -12,16 +12,16 @@ const paths = require('./main/paths');
 const stremio = require('./main/stremio');
 const commercials = require('./main/commercials');
 // Portable: the app's own folder holds Dolphin\, Eden\, PPSPP\, ROMS\ and themes\.
-// A portable exe unpacks itself into TEMP; PORTABLE_EXECUTABLE_DIR is where the real TrustyShelf.exe sits
+// A portable exe unpacks itself into TEMP; PORTABLE_EXECUTABLE_DIR is where the real RustyShelf.exe sits
 const linux = require('./main/linux'); // (Linux / Steam Deck only)
-const steamdeck = require('./main/steamdeck'); // (beta.8) Steam Deck: where (T)rustyShelf runs, Add (T)rustyShelf to Steam
+const steamdeck = require('./main/steamdeck'); // (beta.8) Steam Deck: where RustyShelf runs, Add RustyShelf to Steam
 const linuxpad = require('./main/linuxpad'); // (beta.9) Linux: hold Select + Start to close the game
 paths.setAppRoot(linux.isLinux ? linux.appRoot(app.isPackaged, __dirname) : app.isPackaged ? (process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath)) : __dirname);
 
 const config = require('./main/config');
 const windowmode = require('./main/windowmode'); // (a PC game's own window mode: Details → Window)
 const presence = require('./main/presence'); // (Discord Rich Presence while a game runs: Settings → Display)
-const i18nMain = require('./shared/i18n-main'); // ((T)rustyShelf) the system windows in Português (Brasil) when that's the language
+const i18nMain = require('./shared/i18n-main'); // (RustyShelf) the system windows in Português (Brasil) when that's the language
 i18nMain.install(require('electron'));
 const { CONSOLES, APPS } = require('./main/systems');
 const { detectAll, detectSystem, findSteam } = require('./main/detect');
@@ -36,9 +36,9 @@ function ownNames(def, gs) { const G = cfg && cfg.games; if (!G) return gs;
   return gs.map(g => { const o = G[def.id + ':' + g.file]; return o && o.title && o.title !== g.title ? { ...g, fileTitle: g.title, title: o.title } : g; });
 }
 const ownTitle = id => { const o = cfg && cfg.games && cfg.games[String(id)]; return o && o.title ? o.title : ''; }; // (PC games, by id)
-const artNameOf = id => { const o = cfg && cfg.games && cfg.games[String(id)]; return o && o.artName ? o.artName : ''; }; // ((T)rustyShelf issue #2) a console game's art match: the name its art is looked up under
+const artNameOf = id => { const o = cfg && cfg.games && cfg.games[String(id)]; return o && o.artName ? o.artName : ''; }; // (RustyShelf issue #2) a console game's art match: the name its art is looked up under
 const { scanSteamAsync, steamRoot, steamRootAsync, isMainSteamAsync } = require('./main/steam');
-const stallwatch = require('./main/stallwatch'); // ((T)rustyShelf, Boxshelf beta issue 34) a stall logged while it lasts
+const stallwatch = require('./main/stallwatch'); // (RustyShelf, Boxshelf beta issue 34) a stall logged while it lasts
 const steamart = require('./main/steamart');
 const pcgames = require('./main/pcgames'); // (beta.4) Epic, Quiver Launcher and games added by hand
 const linuxpc = require('./main/linuxpc'); // (Linux) Windows games through Wine / Proton, Epic Games through legendary
@@ -66,7 +66,7 @@ const addgames = require('./main/addgames'); // (beta.7) Add games: several at o
 const x360 = require('./main/x360');
 const n3ds = require('./main/n3ds');
 const kyty = require('./main/kyty');
-const vita3k = require('./main/vita3k'); // ((T)rustyShelf) PS Vita: Vita3K's installed games and its launch options // PS5: Kyty's launch settings and the KytyJets preset
+const vita3k = require('./main/vita3k'); // (RustyShelf) PS Vita: Vita3K's installed games and its launch options // PS5: Kyty's launch settings and the KytyJets preset
 const nx2 = require('./main/nx2');
 const emuName = require('./shared/emuname'); // "Lichii · K code AI": an emulator program's emulator and build, for labels // Switch 2: unpacked games and their newest update
 const wiimote = require('./main/wiimote'); // the Wii remote on the shelf (through a DolphinBar)
@@ -110,7 +110,7 @@ function openTrailer(url) {
   if (!id || !/^[\w-]{6,20}$/.test(id)) { shell.openExternal(url).catch(e => log('trailer open', e.message)); return { external: true }; }
   if (trailerWin) { try { trailerWin.close(); } catch {} }
   const b = win ? win.getBounds() : { x: 0, y: 0, width: 1280, height: 720 };
-  trailerWin = new BrowserWindow({ parent: win || undefined, modal: false, fullscreen: !!(win && win.isFullScreen()), x: b.x, y: b.y, width: b.width, height: b.height, backgroundColor: '#000000', autoHideMenuBar: true, title: 'Trailer', webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, partition: 'trailer' } }); // its own session: YouTube's page can't reach (T)rustyShelf's bsfile:// files
+  trailerWin = new BrowserWindow({ parent: win || undefined, modal: false, fullscreen: !!(win && win.isFullScreen()), x: b.x, y: b.y, width: b.width, height: b.height, backgroundColor: '#000000', autoHideMenuBar: true, title: 'Trailer', webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, partition: 'trailer' } }); // its own session: YouTube's page can't reach RustyShelf's bsfile:// files
   trailerWin.setMenuBarVisibility(false);
   ytLoad(trailerWin.webContents, id, { muted: false }).catch(e => log('trailer load', e.message)); // (beta.7: inside a page of its own; a bare embed no longer plays)
   trailerWin.webContents.on('before-input-event', (e, input) => { if (input.type === 'keyDown' && (input.key === 'Escape' || input.key === 'Backspace')) { e.preventDefault(); try { trailerWin.close(); } catch {} } });
@@ -119,7 +119,7 @@ function openTrailer(url) {
   const tw = trailerWin; tw.on('closed', () => { if (trailerWin === tw) trailerWin = null; if (alive() && trailerWin === null) win.focus(); if (trailerWin === null && cfg && cfg.ui.homeMenu === false && !launcher.isRunning()) padwatch.stop(); });
   // the trailer has the focus, so the shelf's own pad reading can't see the controller: the XInput helper closes it on B,
   // Back or Guide (with the Home menu off no helper runs on the shelf, so start one just for the trailer)
-  if (!padwatch.isRunning()) { if (cfg && cfg.ui.homeMenu !== false) watchShelf(); else padwatch.start('none', 900, () => {}, { home: true, backHome: false, cmdFile: path.join(app.getPath('temp'), `trustyshelf-pad-${process.pid}.txt`), onHome: () => closeTrailer(), onButton: (n, d) => { if (d && (n === 'b' || n === 'back')) closeTrailer(); } }); }
+  if (!padwatch.isRunning()) { if (cfg && cfg.ui.homeMenu !== false) watchShelf(); else padwatch.start('none', 900, () => {}, { home: true, backHome: false, cmdFile: path.join(app.getPath('temp'), `rustyshelf-pad-${process.pid}.txt`), onHome: () => closeTrailer(), onButton: (n, d) => { if (d && (n === 'b' || n === 'back')) closeTrailer(); } }); }
   return { external: false };
 }
 // (beta.7) YouTube only plays an embed that sits in a web page (a bare embed shows "Video player configuration error"):
@@ -135,7 +135,7 @@ function onYouTubeIframeAPIReady(){new YT.Player('p',{videoId:${JSON.stringify(i
 events:{onStateChange:function(e){if(e.data===1){document.getElementById('p').className='on';document.title='yt-playing'}},onError:function(){document.title='yt-error'}}})}
 setTimeout(function(){if(document.title==='yt')document.title='yt-error'},15000);</script>`;
 }
-const ytLoad = (wc, id, o) => wc.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(ytPage(id, o)), { baseURLForDataURL: 'https://player.trustyshelf.localhost/' });
+const ytLoad = (wc, id, o) => wc.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(ytPage(id, o)), { baseURLForDataURL: 'https://player.rustyshelf.localhost/' });
 // the Details preview: YouTube's player in a view of its own laid over the panel's video box (the renderer sends where);
 // its own session like the trailer window, never keeps the keyboard, hidden whenever Details isn't showing it
 let ytView = null, ytWant = null;
@@ -165,8 +165,8 @@ app.setPath('userData', path.join(paths.appRoot(), 'data'));
 // data\Crashpad (the newest 10 are kept), so a crash can be looked into afterwards
 try { app.setPath('crashDumps', path.join(paths.appRoot(), 'data', 'Crashpad')); require('electron').crashReporter.start({ uploadToServer: false, compress: true }); } catch {}
 
-// Write problems to data\\trustyshelf.log so they can be looked at later.
-const LOG = path.join(paths.appRoot(), 'data', 'trustyshelf.log');
+// Write problems to data\\rustyshelf.log so they can be looked at later.
+const LOG = path.join(paths.appRoot(), 'data', 'rustyshelf.log');
 // the user's home folder is written as ~ (logs get shared for help); the log is rotated at 2 MB (one older copy kept)
 const HOME_RE = (() => { const h = require('os').homedir(); return h ? new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null; })();
 // (beta.10) everything that could name the person, in every form a path takes: the home folder with \ / \\ (JSON) %5C %2F
@@ -200,13 +200,13 @@ function log(...a) {
 }
 process.on('uncaughtException', e => log('ERROR', e && e.stack || e));
 process.on('unhandledRejection', e => log('ERROR', e && e.stack || e));
-// ((T)rustyShelf) the version people see: a release build is A.B.C.DDDD (built as A.B.C+DDDD, the form npm accepts)
+// (RustyShelf) the version people see: a release build is A.B.C.DDDD (built as A.B.C+DDDD, the form npm accepts)
 function appVersion() { return app.getVersion().replace('+', '.'); }
-log('Starting (T)rustyShelf', appVersion());
-stallwatch.start(LOG); // ((T)rustyShelf, Boxshelf beta issue 34) a stall that never ends is logged while it lasts (main/stallwatch.js)
+log('Starting RustyShelf', appVersion());
+stallwatch.start(LOG); // (RustyShelf, Boxshelf beta issue 34) a stall that never ends is logged while it lasts (main/stallwatch.js)
 if (linux.isLinux) { steamdeck.init({ log }); linuxpad.init({ log }); const d = steamdeck.info(); log('Linux start:', d.deck ? 'Steam Deck' : 'PC', '| started by Steam:', d.steam, '| Game Mode:', d.gameMode, '| options:', d.flags.join(' ') || 'none'); }
 
-// Only one (T)rustyShelf at a time: a second launch brings the first one forward.
+// Only one RustyShelf at a time: a second launch brings the first one forward.
 const firstInstance = app.requestSingleInstanceLock();
 if (!firstInstance) { log('Already running, focusing the open window'); app.quit(); }
 // (beta.9) which page crashed (the shelf, the Home menu overlay, a helper page), the shelf's last steps (app.js uiCrumb: what
@@ -229,11 +229,11 @@ process.on('exit', code => log('Exiting with code', code));
 app.on('second-instance', () => { if (alive() && launcher.isRunning()) { padwatch.front(runKind === 'app'); return; } /* (a media app: leave the pad-driven pointer where it is) */ /* a game is on: keep it in front, don't half-show the shelf */ if (alive()) { if (win.isMinimized()) win.restore(); stepIn(); try { win.setOpacity(1); } catch {} win.show(); win.focus(); } });
 
 // bsfile:// serves local images and videos (covers, Steam art, logos, boot videos).
-// Chromium's web cache: downloads are saved by (T)rustyShelf itself, so a small cache is plenty (it had grown to 360 MB)
+// Chromium's web cache: downloads are saved by RustyShelf itself, so a small cache is plenty (it had grown to 360 MB)
 app.commandLine.appendSwitch('disk-cache-size', String(64 * 1024 * 1024));
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
-// Windows: Chromium stops drawing a window it believes is covered ("native window occlusion"). (T)rustyShelf sits invisible
+// Windows: Chromium stops drawing a window it believes is covered ("native window occlusion"). RustyShelf sits invisible
 // under the fullscreen game while one runs, and after quick open/close runs Chromium sometimes missed it being uncovered
 // again: the screen stayed black until a key was pressed. The shelf pauses its own loops while a game runs (run:aside:
 // controller polling, the theme layer, music), so it doesn't need Chromium's guess.
@@ -256,7 +256,7 @@ function computeRoots() {
   if (manualstudio.cacheDir()) roots.push(manualstudio.cacheDir()); // Manual Studio's first-page previews and PDFs (also read by the PDF helper by address)
   if (cfg.steam.path) roots.push(path.join(steamMain || steamRoot(cfg.steam.path) || cfg.steam.path, 'appcache', 'librarycache'), path.join(app.getPath('userData'), 'steam-art')); // Steam's art cache only, not its config files
   roots.push(path.join(app.getPath('userData'), 'steam-art'), path.join(app.getPath('userData'), 'pc-covers'), path.join(app.getPath('userData'), 'pc-cover-cache')); // (beta.5) Epic games' Steam art (even without Steam), chosen PC covers and the cover picker's thumbnails
-  // ((T)rustyShelf issue #1) the covers the app makes itself: PC games' console boxes (Settings → PC games → Console box art) and the
+  // (RustyShelf issue #1) the covers the app makes itself: PC games' console boxes (Settings → PC games → Console box art) and the
   // automatic posters (SteamGridDB, the stores' box art). They weren't here, so every one was refused and the shelf fell back to
   // the made-up cases
   roots.push(path.join(app.getPath('userData'), 'pc-console-covers'), path.join(app.getPath('userData'), 'pc-covers-auto'));
@@ -348,7 +348,7 @@ function createWindow() {
     backgroundColor: '#07070c',
     show: false, // shown once its first frame (the logo) is painted: no empty or half-drawn window while it starts
     autoHideMenuBar: true,
-    title: '(T)rustyShelf',
+    title: 'RustyShelf',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   win.once('ready-to-show', () => { if (alive() && !win.isVisible()) win.show(); });
@@ -375,14 +375,14 @@ function createWindow() {
     const w0 = win, again = () => { if (win !== w0 || !alive()) return; if (launcher.isRunning()) { setTimeout(again, 2000); return; } log('Reloading the screen after a crash'); win.reload(); };
     setTimeout(again, 600);
   });
-  win.on('closed', () => { log('Quit: the (T)rustyShelf window was closed'); win = null; app.quit(); }); // hidden helper windows (Home overlay, manual renderer) must not keep (T)rustyShelf alive
+  win.on('closed', () => { log('Quit: the RustyShelf window was closed'); win = null; app.quit(); }); // hidden helper windows (Home overlay, manual renderer) must not keep RustyShelf alive
   // (beta.6) the taskbar hidden for a game comes back the moment you leave the fullscreen shelf: another app, the Start
   // menu, minimized, windowed (see taskbarBack)
   for (const ev of ['blur', 'leave-full-screen', 'minimize', 'hide']) win.on(ev, () => taskbarLeave(ev));
   seamless.trackWindow(win); // (beta.12) Window mode remembers the window's place and size
-  selfHandle(); // ((T)rustyShelf, issue 25) known before the first game's taskbar hide
+  selfHandle(); // (RustyShelf, issue 25) known before the first game's taskbar hide
 }
-// (a blur that only went to one of (T)rustyShelf's own windows, a trailer, isn't leaving: that window is watched instead)
+// (a blur that only went to one of RustyShelf's own windows, a trailer, isn't leaving: that window is watched instead)
 function taskbarLeave(ev) {
   if (!tbHidden || launcher.isRunning() || launching) return;
   if (ev !== 'blur') { taskbarShow('left the shelf: ' + ev); return; }
@@ -394,18 +394,18 @@ function taskbarLeave(ev) {
   }, 60);
 }
 
-const alive = () => win && !win.isDestroyed(); // the window can be gone already when (T)rustyShelf quits while a game still runs
-// Quitting a game: put (T)rustyShelf's (black) screen in front *before* the emulator closes, so the Windows desktop never
+const alive = () => win && !win.isDestroyed(); // the window can be gone already when RustyShelf quits while a game still runs
+// Quitting a game: put RustyShelf's (black) screen in front *before* the emulator closes, so the Windows desktop never
 // shows in between; the shelf then fades in as usual once the emulator has exited (onExit → bringBack).
 function coverForQuit() {
   markEvent('coverForQuit'); quitAt = Date.now(); quitSeq++; seamless.mark('quit: cover up');
   if (!alive()) return;
-  // quit while the loading screen was still up: its pending lift must not step (T)rustyShelf aside in the middle of the quit
+  // quit while the loading screen was still up: its pending lift must not step RustyShelf aside in the middle of the quit
   if (coverTimer) { clearInterval(coverTimer.keep); clearTimeout(coverTimer); coverTimer = null; }
   try { win.webContents.send('run:quitting'); } catch {} // the shelf gets ready under a black cover while the game closes
   try {
     if (win.isMinimized()) win.restore();
-    // (T)rustyShelf never left the screen (see lift): it only turns opaque and comes to the front. No show() — Windows
+    // RustyShelf never left the screen (see lift): it only turns opaque and comes to the front. No show() — Windows
     // animates a window that is shown, and the closing game's windows showed through that animation
     try { win.setOpacity(1); } catch {}
     win.setAlwaysOnTop(true, 'screen-saver'); if (!win.isVisible()) win.showInactive(); win.moveTop();
@@ -417,7 +417,7 @@ function coverForQuit() {
     quitCover = setInterval(() => {
       try {
         // (1.82) a Quit that came after the game had already exited: nothing will call onExit now, so let go of
-        // always-on-top here too, or file pickers and browser windows open behind (T)rustyShelf until the next launch
+        // always-on-top here too, or file pickers and browser windows open behind RustyShelf until the next launch
         if (!alive() || !launcher.isRunning()) { clearQuitCover(); if (alive() && !launcher.isRunning()) { try { win.setAlwaysOnTop(false); } catch {} } return; }
         if (Date.now() - started > 11000) { // still running well past the force-close: give the game the screen back, controller included
           clearQuitCover(); log('Quit: the game is still running, returning to it'); pendingPower = null; quitAt = 0; /* its exit later isn't "N ms after Quit" */
@@ -428,7 +428,7 @@ function coverForQuit() {
     }, 100);
   } catch {}
 }
-let quitCover = null, quitAt = 0, quitSeq = 0; // quitSeq: a timer set before a Quit must not step (T)rustyShelf aside during it
+let quitCover = null, quitAt = 0, quitSeq = 0; // quitSeq: a timer set before a Quit must not step RustyShelf aside during it
 // (beta.6) Chromium shrinks a fullscreen window that isn't the active one by a pixel (2560x1439 on a 1440p screen, while
 // the emulator has the focus): the game showed through that row as a sliver at the bottom of the black cover, starting
 // and quitting. While the cover is up it's stretched back (only that 1-2 px shrink; the helper does it too, every pass).
@@ -437,22 +437,22 @@ function coverFullSize() {
     if ((b.width !== d.width || b.height !== d.height || b.x !== d.x || b.y !== d.y) && Math.abs(b.width - d.width) <= 2 && Math.abs(b.height - d.height) <= 2) win.setBounds(d); } catch {}
 }
 function clearQuitCover() { if (quitCover) { clearInterval(quitCover); quitCover = null; } goneCover = false; }
-// (beta.6) Nothing but (T)rustyShelf and the game on screen: the taskbar is hidden from just before an emulator starts until
+// (beta.6) Nothing but RustyShelf and the game on screen: the taskbar is hidden from just before an emulator starts until
 // the shelf is back (an emulator's window that wasn't fullscreen yet, or any more, made Windows raise it over the black
 // cover for a moment, starting and closing). A file marks it hidden: a watchdog process (padwatch.taskbarGuard) puts it
-// back if (T)rustyShelf crashes or is ended, and the next start does too. Settings → Display → Screen & motion turns it off.
+// back if RustyShelf crashes or is ended, and the next start does too. Settings → Display → Screen & motion turns it off.
 let tbHidden = false;
 const tbMark = () => path.join(app.getPath('userData'), 'taskbar-hidden');
 const tbWanted = () => process.platform === 'win32' && cfg.ui.hideTaskbar !== false && !seamless.windowMode(); // (beta.12: never in Seamless play's Window mode)
 async function taskbarHide() {
   if (!tbWanted() || tbHidden) return;
-  tbHidden = true; try { fs.writeFileSync(tbMark(), String(Date.now())); padwatch.taskbarGuard(process.pid, tbMark()); } catch {} // (the guard: back even if (T)rustyShelf crashes)
+  tbHidden = true; try { fs.writeFileSync(tbMark(), String(Date.now())); padwatch.taskbarGuard(process.pid, tbMark()); } catch {} // (the guard: back even if RustyShelf crashes)
   const t0 = Date.now(); const ok = await padwatch.taskbar(false); log('Taskbar hidden for the game', ok ? `(${Date.now() - t0} ms)` : '(no answer)');
 }
-// Back on the shelf after a game. Fullscreen and in front, (T)rustyShelf would have the taskbar hidden by Windows anyway, so
+// Back on the shelf after a game. Fullscreen and in front, RustyShelf would have the taskbar hidden by Windows anyway, so
 // it stays hidden until you leave the shelf (the window's blur / leave-full-screen / minimize / hide, set up with the
 // window). Showing it here instead left it over the fullscreen shelf until a mouse click: Windows only re-checks for a
-// fullscreen app when the active window changes, and (T)rustyShelf already was the active one. A windowed or unfocused shelf
+// fullscreen app when the active window changes, and RustyShelf already was the active one. A windowed or unfocused shelf
 // gets it back at once.
 function taskbarBack(focused) {
   if (!tbHidden || launcher.isRunning() || launching) return;
@@ -478,11 +478,11 @@ function onGameWindow(back) {
   log('Game window back: stepping aside again'); clearQuitCover(); quitAt = 0;
   try { win.setAlwaysOnTop(false); } catch {} padwatch.cover(false); stepAside(); padwatch.front();
 }
-// While a game runs (T)rustyShelf stays on screen, behind it, fully transparent: it can't be clicked or activated (so it
+// While a game runs RustyShelf stays on screen, behind it, fully transparent: it can't be clicked or activated (so it
 // never takes the focus from the game) and the page is told to stop drawing. Hiding the window instead meant Windows
 // played its show animation when we came back, and the closing game's windows were visible through it.
 function stepAside() {
-  // (Linux: a see-through window isn't possible there, so (T)rustyShelf hides while the game runs; bringBack shows it again)
+  // (Linux: a see-through window isn't possible there, so RustyShelf hides while the game runs; bringBack shows it again)
   if (linux.isLinux) { try { win.webContents.send('run:aside', true); } catch {} try { win.hide(); } catch {} return; }
   try { win.setOpacity(0); } catch {}
   try { win.setIgnoreMouseEvents(true); } catch {}
@@ -513,7 +513,7 @@ function bringBack() {
   win.focus();
   // Windows often won't let a background app take the focus back: ask the controller helper to hand it over
   try { const b = win.getNativeWindowHandle(); padwatch.focusWindow(b.length >= 8 ? b.readBigUInt64LE(0).toString() : String(b.readUInt32LE(0))); } catch (e) { log('focus handoff', e.message); }
-  // (beta.6) Stay on top until Windows has really given (T)rustyShelf the focus (the helper's handoff comes when the shelf's
+  // (beta.6) Stay on top until Windows has really given RustyShelf the focus (the helper's handoff comes when the shelf's
   // helper starts, ~1.5 s), at most 5 s. Letting go after 0.4 s left a gap: the closing game's focus went to the next
   // window in line (Discord, Explorer…), which then came up over the whole shelf. The taskbar returns after that.
   clearInterval(backKeep); const t0 = Date.now();
@@ -532,7 +532,7 @@ function bringBack() {
   paint(); setTimeout(paint, 300); setTimeout(paint, 1200);
 }
 
-// While an emulator boots, keep (T)rustyShelf's black loading screen above it so its
+// While an emulator boots, keep RustyShelf's black loading screen above it so its
 // windowed start-up never shows. Then step aside so the game is in front.
 let coverTimer = null;
 function coverWhileStarting(seconds) {
@@ -553,10 +553,10 @@ function coverWhileStarting(seconds) {
     if (!coverTimer) return; clearTimeout(coverTimer);
     coverTimer = null; clearInterval(keep);
     if (!alive()) return;
-    // (a windowed (T)rustyShelf stays fullscreen while hidden: switching back to a window here showed it popping up as a
+    // (a windowed RustyShelf stays fullscreen while hidden: switching back to a window here showed it popping up as a
     //  window for a moment before it hid. It goes back to a window when the game ends: see onExit)
     if (!launcher.isRunning()) { if (wasWindowed) { try { win.setFullScreen(false); } catch {} coverWindowed = false; } return; }
-    win.webContents.send('run:ready'); // the loading screen fades to black (.28 s), then (T)rustyShelf steps aside
+    win.webContents.send('run:ready'); // the loading screen fades to black (.28 s), then RustyShelf steps aside
     const qs = quitSeq; // Quit pressed in these 300 ms: the quit cover must stay opaque (stepAside made it see-through)
     setTimeout(() => {
     if (!alive() || !launcher.isRunning() || qs !== quitSeq) return;
@@ -578,19 +578,19 @@ function coverWhileStarting(seconds) {
   return seconds;
 }
 
-// the window's handle for the pad helper: it keeps the window below a running game, and ((T)rustyShelf, issue 25) the
+// the window's handle for the pad helper: it keeps the window below a running game, and (RustyShelf, issue 25) the
 // taskbar is hidden on that window's monitor only
 function selfHandle() { try { if (alive()) { const b = win.getNativeWindowHandle(); padwatch.setSelf(b.length >= 8 ? b.readBigUInt64LE(0).toString() : String(b.readUInt32LE(0))); } } catch {} }
 function watchPad(opts) {
   opts = opts || {}; lastPadOpts = opts;
-  // (the helper keeps (T)rustyShelf's see-through window below the running game: above it, the taskbar showed over the game)
+  // (the helper keeps RustyShelf's see-through window below the running game: above it, the taskbar showed over the game)
   selfHandle();
   const home = cfg.ui.homeMenu !== false && !!opts.home;
   if (cfg.ui.quitCombo === false && !(opts.mouse || opts.fullscreenKey || home)) return;
   // with the quit combo turned off, use a mask no pad can press so only the other duties remain
   const combo = cfg.ui.quitCombo === false ? null : (cfg.ui.quitComboKeys || 'l3+r3');
   padwatch.start(combo || 'none', 900, () => { log('Quit combo: closing', launcher.isRunning() ? 'emulator' : 'nothing'); if (launcher.isRunning()) coverForQuit(); closeGame(); },
-    { ...opts, home, nin: true, taskbarHidden: tbHidden, onWindow: opts.appPid ? onGameWindow : undefined, cmdFile: path.join(app.getPath('temp'), `trustyshelf-pad-${process.pid}.txt`), onHome: kind => { homemenu.setMeta({ glyphs: kind || shelfGlyphs }); /* the menu shows the buttons of the pad that opened it (an XInput pad: the shelf's last prompts) */ Promise.resolve(homemenu.open()).catch(e => log('home menu', e && e.message)); }, onButton: (b, d) => homemenu.button(b, d), isMenuOpen: () => homemenu.isOpen(), onFullscreen: opts.appPid ? liftCover : undefined,
+    { ...opts, home, nin: true, taskbarHidden: tbHidden, onWindow: opts.appPid ? onGameWindow : undefined, cmdFile: path.join(app.getPath('temp'), `rustyshelf-pad-${process.pid}.txt`), onHome: kind => { homemenu.setMeta({ glyphs: kind || shelfGlyphs }); /* the menu shows the buttons of the pad that opened it (an XInput pad: the shelf's last prompts) */ Promise.resolve(homemenu.open()).catch(e => log('home menu', e && e.message)); }, onButton: (b, d) => homemenu.button(b, d), isMenuOpen: () => homemenu.isOpen(), onFullscreen: opts.appPid ? liftCover : undefined,
       keepUp: () => launcher.isRunning() && !quitCover }); // (beta.10: a helper that dies mid-game is started again, not during a Quit)
 }
 function onExit(info) {
@@ -686,7 +686,7 @@ async function buildLibrary() {
     shelves.push({ id: def.id, kind: 'console', name: def.name, emulatorName: emuShown(def, emu), hasEmulator: !!emu && paths.isFile(emuPath(emu)) /* (1.82) an uninstalled one gets no Open tile */, emulator: emu, emulatorIcon: fileUrl(await iconQuick(emu)), gameArgs: sc.gameArgs, bootOnLaunch: sc.bootOnLaunch !== false, useIpl: def.id === 'gc' && !!sc.useIpl, insertAnim: sc.insertAnim !== false, games });
   }
   let pcShelf = [];
-  const boxOn = !!(cfg.pc && cfg.pc.consoleBox); // ((T)rustyShelf) Settings → PC games → Console box art: a PC game in its console box (pcConsoleBoxes)
+  const boxOn = !!(cfg.pc && cfg.pc.consoleBox); // (RustyShelf) Settings → PC games → Console box art: a PC game in its console box (pcConsoleBoxes)
   const boxParts = id => { if (!id) return {}; const b = pccovers.consoleCover(id, 'back'), sp = pccovers.consoleCover(id, 'spine'); return { ...(b ? { back: fileUrl(b) } : {}), ...(sp ? { spine: fileUrl(sp) } : {}) }; }; // (its console box's back and spine)
   // (beta.10) Steam was only looked for in the first-run setup: one installed later, moved, or not found then never showed.
   // While Steam is on and its folder is unset or wrong, look again (once per session) and keep what's found
@@ -696,12 +696,12 @@ async function buildLibrary() {
   // session too, so every drive's library, playtimes and covers come along
   const steamGiven = cfg.steam.enabled && await steamRootAsync(cfg.steam.path);
   if (steamGiven && !await isMainSteamAsync(steamGiven) && steamMain === undefined) { steamMain = null; try { const p = await findSteam(); const r = p && await steamRootAsync(p); if (r && await isMainSteamAsync(r)) { steamMain = p; log('Steam: the folder set is a library; using Steam\'s own folder for the list of libraries'); } } catch {} }
-  // ((T)rustyShelf, Boxshelf beta issue 34) each step of the PC library is named for the freeze watch, given a breath
+  // (RustyShelf, Boxshelf beta issue 34) each step of the PC library is named for the freeze watch, given a breath
   // before it, and logged when slow, so a start that hangs on a drive says which step it waited on
   const step = async name => { markEvent('scan ' + name); await new Promise(r => setImmediate(r)); return Date.now(); }, slow = (name, t0) => { const ms = Date.now() - t0; if (ms > 1500) log(`library: ${name} took ${ms} ms`); };
   let tS = await step('steam');
   if (cfg.steam.enabled && cfg.steam.path) {
-    // Steam's own cached art first, then anything (T)rustyShelf fetched from the Steam store for games Steam has no cover for
+    // Steam's own cached art first, then anything RustyShelf fetched from the Steam store for games Steam has no cover for
     pcShelf = (await scanSteamAsync(cfg.steam.path, { hideTools: cfg.steam.hideTools !== false, log, mainPath: steamMain || '' })).map(g => {
       const l = steamart.local(g.appid);
       const chosen = pccovers.cover(g.id), box = !chosen && boxOn && pccovers.consoleCover(g.id);
@@ -717,7 +717,7 @@ async function buildLibrary() {
   // (Linux: every game the Epic account owns; the ones not installed are greyed and Play offers to install them. They play
   // through Wine / Proton, main/linuxpc.js)
   tS = await step('epic'); if (pc.epic !== false) try { epic.push(...(linux.isLinux ? linuxpc.epicOwned() : pcgames.epicGames())); epicRefresh(); } catch (e) { log('Epic library', e.message); }
-  // ((T)rustyShelf) Details → Installation: an Epic game set by hand to installed / not installed (Play then starts it, or offers to install it)
+  // (RustyShelf) Details → Installation: an Epic game set by hand to installed / not installed (Play then starts it, or offers to install it)
   for (const g of epic) { if (g.source !== 'epic') continue; const o = ((cfg.games || {})[g.id] || {}).install; if (o === 'installed') g.installed = true; else if (o === 'notinstalled') g.installed = false; }
   // the PC games folder (Settings → PC games): every folder in it is a game, native or through Wine (main/pcfolder.js).
   // Epic's installs there are already on the shelf
@@ -738,7 +738,7 @@ async function buildLibrary() {
     const chosen = pccovers.cover(g.id), box = !chosen && boxOn && pccovers.consoleCover(g.id), auto = !chosen && !box && pccovers.autoCover(g.id);
     const fCover = (!chosen && !box && !auto && g.exe) ? pccovers.folderCover(g.exe) : null;
     const cPlat = (box || chosen) ? pccovers.consolePlat(g.id) : null;
-    const front = chosen || box || auto || fCover || l.front; // ((T)rustyShelf: box = its console box, Settings → PC games → Console box art)
+    const front = chosen || box || auto || fCover || l.front; // (RustyShelf: box = its console box, Settings → PC games → Console box art)
     // (its size: its folder as measured in the background, until then what Epic says it installed (a game can download
     // more itself, MTG Arena does); Steam's games bring their own)
     const sizeBytes = g.installed === false ? 0 : (SIZED_SRC.has(g.source) && g.dir ? dirsize.get(g.dir) : 0) || g.installSize || 0;
@@ -759,7 +759,7 @@ async function buildLibrary() {
   pcShelf.forEach(g => { if (!g.source && g.artFrom == null) { const chosen = pccovers.cover(g.id), box = !chosen && boxOn && pccovers.consoleCover(g.id), cPlat = (box || chosen) ? pccovers.consolePlat(g.id) : null; if (cPlat && !g.boxPlat) g.boxPlat = cPlat; g.artFrom = g.art && g.art.front ? (cPlat ? 'console' : chosen ? 'yours' : box ? 'console' : 'steam') : ''; } }); // (Steam's own games)
   if (pcShelf.length) shelves.push({ id: 'pc', kind: 'steam', name: 'PC', games: pcShelf });
   if (onCustom.length) shelves.push({ id: 'custom', kind: 'steam', name: 'Custom', games: onCustom.map(pcGame).sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' })) });
-  if (boxOn) pcConsoleBoxes(shelves.flatMap(x => x.games || []).filter(g => g.kind === 'steam')); // ((T)rustyShelf) the console boxes not made yet, in the background
+  if (boxOn) pcConsoleBoxes(shelves.flatMap(x => x.games || []).filter(g => g.kind === 'steam')); // (RustyShelf) the console boxes not made yet, in the background
   const apps = [];
   for (const a of APPS) { const c = cfg.apps[a.id]; if (!c || !c.enabled || !c.path) continue; apps.push({ kind: 'app', id: 'app-' + a.id, appId: a.id, title: a.name, path: c.path, art: { icon: fileUrl(await iconQuick(c.path)) } }); }
   if (apps.length) shelves.push({ id: 'media', kind: 'apps', name: 'Media', games: apps });
@@ -793,7 +793,7 @@ function emuShown(def, exe) { const k = exe ? emuName.knownName(emuPath(exe)) : 
 // ---------- IPC ----------
 ipcMain.on('renderer:log', (e, msg) => log('[ui]', msg));
 padwatch.init(log, app.getPath('userData'));
-// (beta.6) the last (T)rustyShelf ended with the taskbar hidden (a crash, a power cut, ended from Task Manager): put it back
+// (beta.6) the last RustyShelf ended with the taskbar hidden (a crash, a power cut, ended from Task Manager): put it back
 try { if (fs.existsSync(tbMark())) { fs.unlinkSync(tbMark()); padwatch.taskbar(true).then(() => log('Taskbar back (left hidden by the last session)')); } } catch {}
 customThemes.init({ root: path.join(paths.appRoot(), 'Custom themes'), cache: path.join(app.getPath('userData'), 'custom-theme-cache'), nativeImage, systems: CONSOLES.map(c => c.id).concat('home', 'media'), log });
 homemenu.init({ padwatch, log, getWin: () => (alive() ? win : null), getUi: () => cfg.ui, getSound: () => ({ enabled: cfg.ui.sound !== false, theme: cfg.ui.soundTheme || 'aero', volume: cfg.ui.volume == null ? .7 : cfg.ui.volume, boot: cfg.ui.bootSound || 'chime' }),
@@ -803,8 +803,8 @@ homemenu.init({ padwatch, log, getWin: () => (alive() ? win : null), getUi: () =
   onShelf: action => {
     // power actions: hand the shelf back first, so after waking (or a cancelled shutdown) it takes input again
     if (['sleep', 'restart', 'shutdown'].includes(action)) { if (alive()) win.webContents.send('shelf:menu', { open: false, action: 'resume' }); return powerAction(action); }
-    if (action === 'quitapp') { log('Quit: Exit (T)rustyShelf chosen in the Home menu'); return app.quit(); }
-    // (upstream beta.12, Seamless play) Go to desktop: (T)rustyShelf minimised (Guide or the taskbar brings it back, see openShelfMenu)
+    if (action === 'quitapp') { log('Quit: Exit RustyShelf chosen in the Home menu'); return app.quit(); }
+    // (upstream beta.12, Seamless play) Go to desktop: RustyShelf minimised (Guide or the taskbar brings it back, see openShelfMenu)
     if (action === 'desktop') { if (alive()) win.webContents.send('shelf:menu', { open: false, action }); if (!(alive() && seamless.goToDesktop(win))) bringBack(); return; }
     if (alive()) { win.webContents.send('shelf:menu', { open: false, action }); bringBack(); }
   } });
@@ -845,7 +845,7 @@ function powerAction(kind) {
   } catch (e) { log('Power failed', e.message); }
 }
 // On the shelf the XInput helper still runs (lightly) so Guide can open the Home menu even though Chromium never sees it
-// ((T)rustyShelf, Boxshelf beta issue 1) a PlayStation pad Chromium never lists (some DualSense pads over Bluetooth): the
+// (RustyShelf, Boxshelf beta issue 1) a PlayStation pad Chromium never lists (some DualSense pads over Bluetooth): the
 // shelf asks for its buttons (pad:feed) and they arrive here from the controller helper, pressed on the page as the keys
 // the shelf already knows (arrows, Enter, Escape, I for Details, H for favourite, G for Sort, Z / C between sections)
 const PAD_KEYS = { up: 'Up', down: 'Down', left: 'Left', right: 'Right', a: 'Enter', b: 'Escape', x: 'i', y: 'h', start: 'g', lb: 'z', rb: 'c' };
@@ -856,25 +856,25 @@ function padFeedKey(name, down) {
 handle('pad:feed', ({ on } = {}) => { if (process.platform !== 'win32') return false; const want = !!on; if (want !== padwatch.feeding()) log('PlayStation pad: ' + (want ? 'the shelf gets nothing from it, reading it directly' : 'the shelf sees it again, direct reading off')); padwatch.setFeed(want); return want; });
 function watchShelf() {
   if (cfg.ui.homeMenu === false || launcher.isRunning()) return;
-  padwatch.start('none', 900, () => {}, { home: true, backHome: false, taskbarHidden: tbHidden /* (beta.6: kept hidden until you leave the shelf) */, cmdFile: path.join(app.getPath('temp'), `trustyshelf-pad-${process.pid}.txt`),
+  padwatch.start('none', 900, () => {}, { home: true, backHome: false, taskbarHidden: tbHidden /* (beta.6: kept hidden until you leave the shelf) */, cmdFile: path.join(app.getPath('temp'), `rustyshelf-pad-${process.pid}.txt`),
     onHome: () => { if (!closeTrailer()) openShelfMenu(); }, onButton: (b, d) => { if (d && (b === 'b' || b === 'back') && !homemenu.isOpen() && closeTrailer()) return; homemenu.button(b, d); }, isMenuOpen: () => homemenu.isOpen(), onPad: padFeedKey });
 }
-// With the Home menu off no shelf helper follows the game's, and Windows won't let (T)rustyShelf take the focus back by
+// With the Home menu off no shelf helper follows the game's, and Windows won't let RustyShelf take the focus back by
 // itself: run a short-lived helper just to hand it over (bringBack's request is repeated by a new helper)
 let focusOnlyT = null;
 function focusOnlyHelper() {
   if (launcher.isRunning() || !padwatch.focusPending()) return;
-  padwatch.start('none', 900, () => {}, { cmdFile: path.join(app.getPath('temp'), `trustyshelf-pad-${process.pid}.txt`) });
+  padwatch.start('none', 900, () => {}, { cmdFile: path.join(app.getPath('temp'), `rustyshelf-pad-${process.pid}.txt`) });
   clearTimeout(focusOnlyT); focusOnlyT = setTimeout(() => { if (!launcher.isRunning() && cfg.ui.homeMenu === false) padwatch.stop(); }, 10000);
 }
-// from Guide: only when (T)rustyShelf itself is what you're looking at; from the shelf's Home key: always
+// from Guide: only when RustyShelf itself is what you're looking at; from the shelf's Home key: always
 function openShelfMenu(fromKey) {
   if (alive() && !launcher.isRunning() && seamless.backFromDesktop(win)) { log('Guide: back from the desktop'); bringBack(); return; } // (beta.12, Seamless play: after Go to desktop)
   if (!alive() || homemenu.isOpen() || launcher.isRunning() || (!fromKey && (!win.isFocused() || cfg.ui.homeMenu === false))) return;
   // Guide: ask the shelf first — it only accepts on the shelf or the details panel (not Inspect, museum, Settings, starting a game)
   if (!fromKey) { win.webContents.send('shelf:menuRequest'); return; }
   if (!padwatch.isRunning()) watchShelf(); // buttons inside the menu come from the helper
-  if (homemenu.openShelf({ ...(seamless.on() ? { actions: seamless.shelfActions() } : {}), title: 'Home', system: '(T)rustyShelf', subtitle: shelfSummary, accent: '#9d8cff', glyphs: shelfGlyphs, layout: cfg.ui.homeLayout === 'center' ? 'center' : 'side', confirmButton: shelfSwap ? 'b' : 'a', audioOut: typeof cfg.ui.audioOut === 'string' ? cfg.ui.audioOut : '' }))
+  if (homemenu.openShelf({ ...(seamless.on() ? { actions: seamless.shelfActions() } : {}), title: 'Home', system: 'RustyShelf', subtitle: shelfSummary, accent: '#9d8cff', glyphs: shelfGlyphs, layout: cfg.ui.homeLayout === 'center' ? 'center' : 'side', confirmButton: shelfSwap ? 'b' : 'a', audioOut: typeof cfg.ui.audioOut === 'string' ? cfg.ui.audioOut : '' }))
     win.webContents.send('shelf:menu', { open: true });
 }
 // ---------- the Wii remote on the shelf (Windows) ----------
@@ -888,7 +888,7 @@ function wmState(s) {
   if (!alive()) return;
   const B = wiimote.BTN, prevB = wm.b, now = Date.now(); wm.b = s.buttons;
   const press = k => (s.buttons & k) && !(prevB & k), lift = k => !(s.buttons & k) && (prevB & k);
-  // a game owns the screen: Home opens (T)rustyShelf's Home menu over it (the remote then drives the menu: Resume, Quit…).
+  // a game owns the screen: Home opens RustyShelf's Home menu over it (the remote then drives the menu: Resume, Quit…).
   // (Dolphin's games have the remote themselves: there it's a held Home, from wmWatch)
   if (launcher.isRunning() || launching) { wm.aMouse = false; if (homemenu.isOpen()) wmMenu(press, lift); else if (press(B.home) && !launching) Promise.resolve((homemenu.setMeta({ glyphs: 'nintendo' }), homemenu.open())).catch(e => log('home menu', e && e.message)); return; }
   // the pointer: a central part of the camera's view covers the screen (wmSpeed), smoothed, a little still zone
@@ -918,8 +918,8 @@ function wmMenu(press, lift) {
     if (press(B[k])) homemenu.button(name, true); else if (lift(B[k])) homemenu.button(name, false);
   }
 }
-// During a Dolphin game the remote is Dolphin's: (T)rustyShelf only listens (never sends it anything) for Home held about a
-// second, which opens (T)rustyShelf's Home menu (a tap stays the game's own Wii HOME menu); while that menu is open the
+// During a Dolphin game the remote is Dolphin's: RustyShelf only listens (never sends it anything) for Home held about a
+// second, which opens RustyShelf's Home menu (a tap stays the game's own Wii HOME menu); while that menu is open the
 // remote drives it. buttons: the remote's bits as the game's own reports carry them
 const wmW = { b: 0, homeAt: 0, fired: false };
 function wmWatch(buttons) {
@@ -953,7 +953,7 @@ ipcMain.on('home:meta', (e, m) => { if (!m || typeof m !== 'object') return; con
 emucfg.init(log);
 modelfind.init(log);
 app.on('will-quit', () => { try { config.flush(); } catch {} }); // (beta.9: settings still waiting to be written go to disk now)
-app.on('before-quit', () => { if (tbHidden) { tbHidden = false; padwatch.stop(); padwatch.taskbarSync(true); try { fs.unlinkSync(tbMark()); } catch {} log('Taskbar back ((T)rustyShelf quitting)'); } /* (beta.6) */ clearTimeout(scaleT); historyEnd(); companion.stop().catch(() => {}); /* the phone companion's server and its connections */ padwatch.stop(); wiimote.stop(); homemenu.end(); modelfind.stop(); clearQuitCover(); clearTimeout(focusOnlyT); if (coverTimer) { clearInterval(coverTimer.keep); clearTimeout(coverTimer); coverTimer = null; }
+app.on('before-quit', () => { if (tbHidden) { tbHidden = false; padwatch.stop(); padwatch.taskbarSync(true); try { fs.unlinkSync(tbMark()); } catch {} log('Taskbar back (RustyShelf quitting)'); } /* (beta.6) */ clearTimeout(scaleT); historyEnd(); companion.stop().catch(() => {}); /* the phone companion's server and its connections */ padwatch.stop(); wiimote.stop(); homemenu.end(); modelfind.stop(); clearQuitCover(); clearTimeout(focusOnlyT); if (coverTimer) { clearInterval(coverTimer.keep); clearTimeout(coverTimer); coverTimer = null; }
   romWatchers.forEach(w => { try { w.close(); } catch {} }); romWatchers = []; clearTimeout(romWatchT); clearTimeout(iconLateT); Object.values(retestT).forEach(clearTimeout); if (moving) clearTimeout(moving.t); });
 function handle(name, fn) {
   ipcMain.handle(name, async (e, ...args) => {
@@ -965,7 +965,7 @@ function handle(name, fn) {
 // pressed (the page itself may not read the clipboard). Never logged.
 handle('clipboard:text', () => { const { clipboard } = require('electron'); return String(clipboard.readText() || '').split(/\r?\n/)[0].trim().slice(0, 512); });
 
-// ((T)rustyShelf) the 3D PC model isn't in the public source (renderer/models/*.glb is left out): the page uses it only when a copy is here
+// (RustyShelf) the 3D PC model isn't in the public source (renderer/models/*.glb is left out): the page uses it only when a copy is here
 const builtinModels = (() => { try { return { pc: fs.existsSync(path.join(__dirname, 'renderer', 'models', 'pc.glb')) }; } catch { return {}; } })();
 handle('config:get', () => ({ config: cfg, consoles: CONSOLES, apps: APPS, appRoot: paths.appRoot(), version: appVersion(), hasInfo: covers.hasInfo(), settingsBlocked: config.blocked(), builtinModels }));
 // (1.82) Settings → About: the newest beta (force: ask GitHub now, not the answer from this start) and the page's links
@@ -983,8 +983,8 @@ function applyCfg(next) { const prev = cfg, hadMenu = cfg.ui.homeMenu !== false;
   try { seamless.applied(prev.ui, cfg.ui, alive() && !launcher.isRunning() ? win : null); } catch {} // (upstream beta.12: Seamless play turned off: the screen as before)
   return cfg; }
 handle('detect', () => detectAll());
-// ((T)rustyShelf) Settings → Consoles → Find emulators in a folder: the emulator programs in a folder the player picked
-// ((T)rustyShelf, its discussions #10) every copy of this console's emulators found (Settings lists them on the console's page)
+// (RustyShelf) Settings → Consoles → Find emulators in a folder: the emulator programs in a folder the player picked
+// (RustyShelf, its discussions #10) every copy of this console's emulators found (Settings lists them on the console's page)
 // (disc 10, again) a console that runs in RetroArch always lists the RetroArch set in Settings too: one kept outside the
 // usual folders was never found by the search, so the PlayStation (DuckStation first) had no way over to RetroArch
 handle('detect:emulators', ({ systemId } = {}) => { const s = CONSOLES.find(c => c.id === systemId); if (!s || s.standalone) return [];
@@ -1004,7 +1004,7 @@ function manualMiss(sysId, g) {
 function withCover(sysId, g, pages) { return sysId === 'wiiu' && pages.length && g.art.front && (wiiumanual.generated(g.title) || emanualPages(g)) && !manualstudio.chosen(sysId, g.file) /* a scanned manual picked in Manual Studio opens on its own cover */ ? [fileUrl(g.art.front), ...pages] : pages; }
 // (beta.9) pages made from a Wii U e-manual, known by their shape: exactly 688 px wide (or twice / three times that) and
 // tall. The marker generated() looks for lives in the data folder that made them, so the same games folder used from
-// another copy of (T)rustyShelf (the exe in another folder) opened on the e-manual's contents page instead of the box front.
+// another copy of RustyShelf (the exe in another folder) opened on the e-manual's contents page instead of the box front.
 function emanualPages(g) { try { const f = (g.art.manual || [])[0]; if (!f) return false; const z = require('./main/spreads').sizeOf(f); return !!z && z[0] % 688 === 0 && z[0] <= 2064 && z[1] > z[0] * 1.2; } catch { return false; } }
 // (beta.10) the same for the library scan, with fs.promises (a games folder on a NAS held the scan up, a read per Wii U
 // game), the answer kept by file + date + size
@@ -1216,7 +1216,7 @@ const EPUB_MEASURE = `(() => { const H = Math.max(document.documentElement.scrol
   return { H, keep }; })()`;
 function renderEpubManual(root, pages) {
   return new Promise(resolve => {
-    const ses = session.fromPartition('trustyshelf-emanual'); // one shared, in-memory session (a new one per run was never freed)
+    const ses = session.fromPartition('rustyshelf-emanual'); // one shared, in-memory session (a new one per run was never freed)
     ses.webRequest.onBeforeRequest(null);
     const allowed = path.resolve(root).toLowerCase();
     ses.webRequest.onBeforeRequest((d, cb) => {
@@ -1285,7 +1285,7 @@ async function steamFill(lib) {
 }
 let autoManualsDone = false, autoManualJob = null, manualSeen = null, manualAgain = false;
 /* After covers: look up manuals for games that have none and take only confident English matches. Once per session,
-   and again whenever games turn up that weren't there last time (added while (T)rustyShelf is open), just for those:
+   and again whenever games turn up that weren't there last time (added while RustyShelf is open), just for those:
    games already looked at are remembered by the collections / search memos, so a re-run only costs the new ones */
 const libGameIds = lib => { const ids = new Set(); (lib || []).forEach(s => (s.games || []).forEach(g => { if (g && (g.kind === 'rom' || !g.kind)) ids.add(s.id + '|' + (g.file || g.id)); })); return ids; };
 // ---- the art library (Settings → Box art, or at setup): one folder holding every console's box art and manuals ----
@@ -1489,12 +1489,12 @@ handle('dialog:pick', async ({ kind, title, defaultPath, filters, multi }) => {
     // (Linux: programs have no .exe, so a "Programs" filter would hide every emulator: there it shows all files)
     filters: kind === 'folder' ? undefined : linux.isLinux && (!filters || filters.some(f => f && Array.isArray(f.extensions) && f.extensions.includes('exe'))) ? undefined : (filters || [{ name: 'Programs', extensions: ['exe'] }])
   });
-  // ((T)rustyShelf, issue 4) the keys back on the page: after the file window closed, Page Up / Page Down and the arrows did
+  // (RustyShelf, issue 4) the keys back on the page: after the file window closed, Page Up / Page Down and the arrows did
   // nothing in the list it filled (only the mouse scrolled it) until the page was clicked
   try { if (alive()) { win.focus(); win.webContents.focus(); } } catch {}
   return r.canceled ? null : multi ? r.filePaths : r.filePaths[0];
 });
-// ---------- ((T)rustyShelf issue 7) the PC kept awake while a long job runs: a box art download, an export or import, a
+// ---------- (RustyShelf issue 7) the PC kept awake while a long job runs: a box art download, an export or import, a
 // games folder being read for Add games, the box art database being rebuilt. Electron's powerSaveBlocker
 // ('prevent-app-suspension': the PC doesn't go to sleep, the screen can still turn off), held while any job runs and let go
 // with the last one. Settings → System → "Keep the PC awake during long jobs" (ui.keepAwake, on unless turned off).
@@ -1598,7 +1598,7 @@ const sw2Added = k => { const v = (cfg.systems.sw2 || {})[k]; return Array.isArr
 function sw2Roots() {
   const r = [path.join(paths.appRoot(), 'Switch 2 emu'), ...sw2Added('buildDirs')], e = emuPath((cfg.systems.sw2 || {}).emulator || '');
   // (beta.3) from the shelf's build up to the TOP folder that looks like a builds folder ("Switch 2 emu" above
-  // "Selvet Forks\…\eglantine.exe"), six levels at most: three levels stopped one short, so a copy of (T)rustyShelf kept away from
+  // "Selvet Forks\…\eglantine.exe"), six levels at most: three levels stopped one short, so a copy of RustyShelf kept away from
   // its builds found only the shelf's own fork. The widest folders come first, so builds are named from the top.
   if (e) { let d = path.dirname(e), top = null; for (let i = 0; i < 6 && path.dirname(d) !== d; i++) { if (/switch ?2|eglantine|forks?/i.test(path.basename(d))) top = d; d = path.dirname(d); } if (top) r.push(top); }
   const u = [...new Set(r.map(p => path.resolve(p).toLowerCase()))].map(k => r.find(p => path.resolve(p).toLowerCase() === k));
@@ -1664,7 +1664,7 @@ handle('launch:game', async ({ systemId, file, emulator }) => {
 // (retroarch.cfg's libretro_directory; ":" there means RetroArch's own folder)
 const RA_CORE_NAME = { swanstation: 'SwanStation', mesen: 'Mesen', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus-Next', gambatte: 'Gambatte', mgba: 'mGBA', melondsds: 'melonDS DS', genesis_plus_gx: 'Genesis Plus GX', flycast: 'Flycast',
   mednafen_saturn: 'Beetle Saturn', mednafen_pce_fast: 'Beetle PCE Fast', fbneo: 'FinalBurn Neo', picodrive: 'PicoDrive', stella: 'Stella', handy: 'Handy', mednafen_wswan: 'Beetle Cygne', mednafen_ngp: 'Beetle NeoPop', dosbox_pure: 'DOSBox Pure' };
-// ((T)rustyShelf, its discussions #10) the core this console runs in: the one picked in Settings (systems.<id>.raCore, one
+// (RustyShelf, its discussions #10) the core this console runs in: the one picked in Settings (systems.<id>.raCore, one
 // of the console's known cores), else its own. Every name in those lists is a core's display name.
 for (const c of CONSOLES) for (const [id, nm] of c.raCores || []) if (!RA_CORE_NAME[id]) RA_CORE_NAME[id] = nm;
 const coreOf = (def, sc) => { const want = sc && sc.raCore; return want && (def.raCores || []).some(([id]) => id === want) ? want : def.raCore; };
@@ -1697,7 +1697,7 @@ async function launchGameNow(systemId, file, sc) {
   emucfg.beforeLaunch(systemId, sc.emulator, { quitCombo: cfg.ui.quitCombo === false ? null : (cfg.ui.quitComboKeys || 'l3+r3') }); extra.push(...emucfg.launchArgs(systemId, sc.emulator)); // Dolphin: borderless + no stop question for this run only
   // 3DS .cia: installed into Azahar the first time (the boot slide shows how far), then the installed copy is booted
   let rom = systemId === 'n3ds' ? await n3ds.bootFile(file, sc.emulator, t => { if (alive()) win.webContents.send('launch:status', String(t)); }) : file;
-  // ((T)rustyShelf) PS Vita: an installed game is started by its title id (-r), a .vpk is installed and run by Vita3K
+  // (RustyShelf) PS Vita: an installed game is started by its title id (-r), a .vpk is installed and run by Vita3K
   if (systemId === 'psvita') { const v = vita3k.launchSpec(file), d0 = CONSOLES.find(c => c.id === 'psvita'); rom = v.rom; if (!sc.gameArgs || sc.gameArgs === d0.gameArgs) sc = { ...sc, gameArgs: v.args }; log('PS Vita launch:', rom); }
   if (systemId === 'sw2') { rom = nx2.bootFile(file); log('Switch 2 launch:', path.basename(nx2.gameRoot(file)), rom !== file ? '(newest update)' : ''); } // (an unpacked game: its newest update's exefs\main)
   // PS5 (Kyty): the game's folder, with the Kyty launcher's settings, the game's patch file and the build's preset
@@ -1712,7 +1712,7 @@ async function launchGameNow(systemId, file, sc) {
   if (systemId === 'sw' && /ryujinx|ryubing/i.test(path.basename(sc.emulator || '')) && /^\s*-f\s+-g\s+"\{rom\}"\s*$/.test(sc.gameArgs || '')) { sc = { ...sc, gameArgs: '--fullscreen "{rom}"' }; log('Switch launch: Ryujinx options'); }
 // (beta.11) the standalone emulators a retro shelf can use, by program name, and the options each one takes (DeSmuME and
 // VisualBoyAdvance-M have no reliable fullscreen option: they open the game in their own window, fullscreen per their settings)
-// ((T)rustyShelf, beta discussion 15) BizHawk (EmuHawk: --fullscreen), Gopher64 (--fullscreen) and RAProject64 / Project64 (the
+// (RustyShelf, beta discussion 15) BizHawk (EmuHawk: --fullscreen), Gopher64 (--fullscreen) and RAProject64 / Project64 (the
 // game alone: fullscreen per their own settings)
 const ALT_ARGS = [[/desmume/i, '"{rom}"'], [/visualboyadvance|vbam/i, '"{rom}"'], [/mgba/i, '-f "{rom}"'], [/melonds/i, '-f "{rom}"'], [/duckstation/i, '-fullscreen -batch -nogui -- "{rom}"'],
   [/emuhawk/i, '--fullscreen "{rom}"'], [/gopher64/i, '--fullscreen "{rom}"'], [/^(rap64|project64)/i, '"{rom}"'], [/flycast/i, '"{rom}"']];
@@ -1736,7 +1736,7 @@ const ALT_ARGS = [[/desmume/i, '"{rom}"'], [/visualboyadvance|vbam/i, '"{rom}"']
   if (systemId === 'gc' || systemId === 'wii' || /dolphin/i.test(path.basename(sc.emulator || ''))) await wiimote.pause();
   await taskbarHide(); // (beta.6) gone before the emulator's first window can show
   let r; try { r = launcher.launchGame(sc, rom, onExit, extra, env); } catch (e) { wiimote.resume(); taskbarShow('the game did not start'); throw e; } runKind = 'game'; pendingPower = null; launcher.setRunningName(gameTitleOf(systemId, file)); if (linux.isLinux) linuxpad.begin(() => closeGame()); // (beta.9: hold Select + Start to close it)
-  // (Dolphin: once it has the remote, (T)rustyShelf listens alongside for a held Home; listening only, nothing is sent)
+  // (Dolphin: once it has the remote, RustyShelf listens alongside for a held Home; listening only, nothing is sent)
   if (systemId === 'gc' || systemId === 'wii' || /dolphin/i.test(path.basename(sc.emulator || ''))) setTimeout(() => { if (launcher.isRunning()) wiimote.watch(); }, 4000);
   lastLaunch = { systemId, at: Date.now(), exe: sc.emulator }; historyStart(systemId + ':' + file); // (exe: the build that ran, named if it closes right away)
   const def = CONSOLES.find(c => c.id === systemId);
@@ -1797,7 +1797,7 @@ const STORE_NAME = { epic: 'Epic Games', ubisoft: 'Ubisoft', ea: 'EA', xbox: 'Xb
 handle('launch:pc', async ({ id }) => {
   const g = pcgames.byId(id); if (!g) throw new Error("That game isn't on the shelf any more. The shelf is refreshing; try again in a moment.");
   if (g.installed === false) throw new Error(`${g.title} isn't installed. Install it first.`); // (the shelf offers that before asking)
-  // (Linux) Epic's games, the PC games folder's and Windows programs are started by (T)rustyShelf itself (Wine / Proton for Windows ones)
+  // (Linux) Epic's games, the PC games folder's and Windows programs are started by RustyShelf itself (Wine / Proton for Windows ones)
   if (linux.isLinux && (g.source === 'epic' || g.source === 'folder' || linuxpc.isWindowsProgram(g.exe))) return launchLinuxPc(g);
   // (upstream beta.12) Seamless play on (Windows): a store game (Epic, Ubisoft, EA, Xbox) is still started through its store, and watched
   if (seamless.on() && ((g.uri && /^(com\.epicgames\.launcher|uplay|origin2):\/\//i.test(g.uri)) || (g.shellApp && /^[\w.-]+_[a-z0-9]+![\w.-]+$/i.test(g.shellApp))))
@@ -1810,7 +1810,7 @@ handle('launch:pc', async ({ id }) => {
     const p = spawn('explorer.exe', ['shell:AppsFolder\\' + g.shellApp], { detached: true, stdio: 'ignore' }); p.on('error', e => log('Xbox launch', e.message)); p.unref(); return { external: true }; }
   if (!paths.isFile(g.exe)) throw new Error(`${g.title} isn't at ${g.exe} any more. ${g.source === 'quiver' ? 'Check it in Quiver Launcher.' : g.source === 'gog' ? 'Check it in GOG Galaxy.' : g.source === 'hoyoplay' ? 'Check it in HoYoPlay.' : g.source === 'folder' ? 'Check its folder in the PC games folder.' : 'Remove it in Settings → Custom games and add it again.'}`);
   busyCheck();
-  const winMode = windowmode.modeOf(cfg, g.id); // ((T)rustyShelf) '', 'borderless' or 'windowed' (Details → Window)
+  const winMode = windowmode.modeOf(cfg, g.id); // (RustyShelf) '', 'borderless' or 'windowed' (Details → Window)
   if (winMode !== 'windowed') { launching = true; try { await taskbarHide(); } finally { launching = false; } } // (beta.6; a game kept in a window keeps the taskbar)
   let r; try { r = launcher.launchApp(g.exe, onExit, launcher.buildArgs(g.args || '', '')); } catch (e) { taskbarShow('the game did not start'); throw e; } runKind = 'app'; pendingPower = null; launcher.setRunningName(g.title); log('PC launch:', g.source, g.title);
   const onCon = g.shelf && CONSOLES.find(c => c.id === g.shelf); // (supalii) put on a console's shelf: the Home menu names that console
@@ -1832,7 +1832,7 @@ handle('game:window', ({ id, window: mode }) => {
 });
 // the name the Home menu gives a PC game's source
 const PC_SYSTEM = { epic: 'Epic Games', folder: 'PC', quiver: 'Quiver', gog: 'GOG', hoyoplay: 'HoYoPlay' };
-// ((T)rustyShelf, asked for in Boxshelf's discussions) Settings → PC games → Console box art: each PC game shows the box of its
+// (RustyShelf, asked for in Boxshelf's discussions) Settings → PC games → Console box art: each PC game shows the box of its
 // newest console release LaunchBox has (PS5, Xbox Series X|S, PS4, Xbox One, Switch), its console's band at the top painted
 // over with a Steam band (renderer/img-tools.js rebrand). Made once per game, in the background, one at a time, never while a
 // game runs; only from the box art database already built (box art downloads build it). A cover you chose comes first.
@@ -1876,7 +1876,7 @@ async function pcAutoCovers(games) {
 // (Linux) a game's own output (umu-run, Proton, the game) goes to data/logs/last-pc-game.log, the last one only: a game that
 // shows nothing can then be looked into
 const pcGameLog = () => { try { const d = path.join(app.getPath('userData'), 'logs'); fs.mkdirSync(d, { recursive: true }); return path.join(d, 'last-pc-game.log'); } catch { return ''; } };
-// (Linux) a PC game (T)rustyShelf starts itself: an Epic game (legendary gives its program and Epic's sign-in arguments), one in
+// (Linux) a PC game RustyShelf starts itself: an Epic game (legendary gives its program and Epic's sign-in arguments), one in
 // the PC games folder, or a Windows program added by hand. A Linux program runs as it is, with the game data folder
 // (Settings → PC games) as its home; a Windows one through the Wine / Proton chosen in Settings, in a prefix of its own
 // named after the game
@@ -1932,7 +1932,7 @@ function epicLoginCode() {
   return new Promise(resolve => {
     const w = new BrowserWindow({ parent: alive() ? win : undefined, modal: alive(), width: 1000, height: 780, autoHideMenuBar: true, title: 'Sign in to Epic Games', backgroundColor: '#121212',
       webPreferences: { partition: 'epic-login', contextIsolation: true, nodeIntegration: false, sandbox: true } });
-    w.webContents.setUserAgent(w.webContents.getUserAgent().replace(/ (TrustyShelf|Electron)\/\S+/g, '')); // (Epic turns away a browser it doesn't know)
+    w.webContents.setUserAgent(w.webContents.getUserAgent().replace(/ (RustyShelf|Electron)\/\S+/g, '')); // (Epic turns away a browser it doesn't know)
     let done = false; const finish = code => { if (done) return; done = true; resolve(code); try { if (!w.isDestroyed()) w.close(); } catch {} };
     const check = async () => { if (done || w.isDestroyed()) return; const u = w.webContents.getURL(); if (!/^https:\/\/www\.epicgames\.com\/id\/api\/redirect/.test(u)) return;
       try { const j = JSON.parse(await w.webContents.executeJavaScript('document.body.innerText', true)); if (j && typeof j.authorizationCode === 'string' && j.authorizationCode) finish(j.authorizationCode); } catch {} };
@@ -1950,7 +1950,7 @@ handle('epic:signOut', async () => { const r = await linuxpc.epicSignOut(legenda
 handle('epic:library', () => linuxpc.epicLibrary(legendaryOf()));
 // installs and updates run one at a time in the background; the page hears how far along they are, the shelf refreshes after
 const epicTell = j => { if (!alive()) return; win.webContents.send('epic:job', j); if (j && j.state !== 'installing') win.webContents.send('library:changed', { epic: 1 }); };
-// ((T)rustyShelf) the download manager (main/epicdl.js): a queue; the page hears the whole list and the running install, and the shelf
+// (RustyShelf) the download manager (main/epicdl.js): a queue; the page hears the whole list and the running install, and the shelf
 // refreshes when an install finishes, stops or fails
 linuxpc.epicHooks({ bin: () => linuxpc.legendaryBin((cfg.pc || {}).legendaryPath),
   onChange: (list, job) => { if (!alive()) return; win.webContents.send('epic:queue', list); if (job) win.webContents.send('epic:job', job); },
@@ -1963,7 +1963,7 @@ handle('epic:remove', ({ id } = {}) => linuxpc.epicRemove(id));
 handle('epic:move', ({ id, delta } = {}) => linuxpc.epicMove(id, delta < 0 ? -1 : 1));
 handle('epic:clearDone', () => linuxpc.epicClearDone());
 // Details → Installation: '' (as the shelf finds it), 'installed' or 'notinstalled'; cfg.games[<game id>].install, for Epic games
-// ((T)rustyShelf issue #2) Details → Art match: a console game's art looked up under another game's name (a ROM hack, a
+// (RustyShelf issue #2) Details → Art match: a console game's art looked up under another game's name (a ROM hack, a
 // translation, a mod named after its serial). art:matchSearch lists the console's games in the box art databases whose names
 // hold the words typed; art:matchSet keeps the one picked with the game (cfg.games[id].artName; '' = automatic again) and
 // fetches the game's art again under it, in the background (pictures chosen in the Art Studio are left alone; the ones
@@ -2091,7 +2091,7 @@ handle('tv:scan', async () => { if (tvScanning) return false; tvScanning = true;
   catch (e) { log('TV ads scan', e.message); return false; } finally { tvScanning = false; } });
 handle('tv:list', () => commercials.list());
 handle('tv:adFor', ({ systemId, file }) => commercials.adFor(String(systemId || ''), String(file || '')));
-// only an ad (T)rustyShelf itself found (matched by its key), never an id / file the page made up
+// only an ad RustyShelf itself found (matched by its key), never an id / file the page made up
 handle('tv:local', async ({ ad }) => { const k = ad && typeof ad.key === 'string' ? ad.key : ''; const real = k && commercials.list().find(a => a.key === k); const f = real ? await commercials.local(real) : null; return f ? fileUrl(f) : null; });
 handle('library:pages', async ({ id }) => { const p = await library.pages(id); return p.type === 'pdf' ? { type: 'pdf', url: fileUrl(p.file) } : { type: 'images', urls: p.files.map(fileUrl) }; });
 handle('archive:search', ({ text, kind, page, plain }) => archive.search(text, kind === 'guide' ? 'guide' : 'magazine', page, !!plain));
@@ -2104,13 +2104,13 @@ handle('archive:download', async ({ id, kind, title, series }) => {
   return { existed: r.existed, name: path.basename(r.file), count: r.count || 0 };
 });
 handle('archive:cancel', ({ id }) => archive.cancel(String(id || ''))); // the download rejects with "Cancelled." and removes its half file
-// Settings → Magazines & guides: the full paths, and magazines left in an earlier (T)rustyShelf folder (copied, never moved)
+// Settings → Magazines & guides: the full paths, and magazines left in an earlier RustyShelf folder (copied, never moved)
 handle('reading:where', () => ({ root: paths.readingRoot(), custom: !!cfg.ui.readingLibrary, magazines: library.folder('magazine'), guides: library.folder('guide') }));
 const oldReading = () => paths.findOldReading({ current: paths.readingRoot(), logFile: LOG, known: (cfg.ui.installs || []).filter(x => typeof x === 'string'), home: require('os').homedir() });
 handle('reading:old', () => oldReading());
 let readingCopy = null;
 handle('reading:import', async ({ root }) => {
-  const offer = oldReading().find(o => o.root.toLowerCase() === String(root || '').toLowerCase()); // only a folder (T)rustyShelf itself offered
+  const offer = oldReading().find(o => o.root.toLowerCase() === String(root || '').toLowerCase()); // only a folder RustyShelf itself offered
   if (!offer) throw new Error('That folder has no magazines or guides to bring over.');
   if (readingCopy) throw new Error('Already copying.');
   readingCopy = { stop: false }; log('Reading: copying', offer.files, 'files from', offer.root, 'to', paths.readingRoot());
@@ -2131,7 +2131,7 @@ handle('themes:list', () => {
   const vurl = p => { const u = fileUrl(p); if (!u) return null; try { return u + '?v=' + Math.floor(fs.statSync(p).mtimeMs); } catch { return u; } };
   for (const [id, t] of Object.entries(raw)) {
     out[id] = { logoPrev: !!themes.prevLogo(id), logo: vurl(t.logo), boot: vurl(t.boot), console: vurl(t.console), model: vurl(t.model), modelOpts: t.modelOpts || null, controller: vurl(t.controller), media: vurl(t.media), mediaOpts: t.mediaOpts || null };
-    // a heavy 3D model is shown from its light copy once (T)rustyShelf has made one (see models:saveOptimized); until then the
+    // a heavy 3D model is shown from its light copy once RustyShelf has made one (see models:saveOptimized); until then the
     // original is used and the screen is told it's worth optimizing
     for (const k of ['model', 'controller', 'media']) { const p = t[k]; if (!p || !/\.glb$/i.test(p)) continue; let st; try { st = fs.statSync(p); } catch { continue; } if (st.size < MODEL_HEAVY) continue;
       const op = optimizedPath(p, st); if (fs.existsSync(op)) out[id][k] = vurl(op); else (out[id].heavy = out[id].heavy || []).push(k); }
@@ -2163,7 +2163,7 @@ handle('themes:set', ({ systemId, kind, file }) => { if (['model', 'controller',
 handle('themes:fit', ({ systemId, patch }) => themes.saveFit(systemId, patch));
 handle('themes:remove', ({ systemId, kind }) => { if (['model', 'controller', 'media'].includes(kind)) dropOptimized(systemId, kind); themes.remove(systemId, kind); return true; });
 // Customize → Logo → Find a logo (main/logofind.js: a hand-picked list of official logos on Wikimedia Commons, no account). The
-// console id must be one of (T)rustyShelf's own, the key one this console's own cached list offered (logofind.file looks it up); the
+// console id must be one of RustyShelf's own, the key one this console's own cached list offered (logofind.file looks it up); the
 // picture goes in through the same theme path and extension check as a logo you pick yourself, and the one it replaces is moved
 // aside (Restore brings it back). Errors come back as words for the screen: never a credential, never an address.
 const logoDir = () => path.join(app.getPath('userData'), 'logo-find');
@@ -2207,7 +2207,7 @@ handle('covers:download', async ({ systemIds, types, hd }) => {
       .map(def => ({ def, cfg: cfg.systems[def.id] }));
     if (!list.length) throw new Error('Add a games folder first.');
     log('Download covers for', list.map(x => x.def.id).join(','));
-    await artstudio.ready(); // the record of which pictures (T)rustyShelf wrote (first start of 1.68): an HD upgrade asks it
+    await artstudio.ready(); // the record of which pictures RustyShelf wrote (first start of 1.68): an HD upgrade asks it
     const rep = await covers.downloadCovers(list, info => { if (alive()) win.webContents.send('covers:progress', info); }, types, { hd: !!hd, region: cfg.ui.artRegion, ...artOpts(true) });
     const got = (rep.systems || []).reduce((a, r) => a + r.front + r.back + r.spine + r.disc + (r.upgraded || 0), 0);
     if (got && alive()) win.webContents.send('library:changed', { covers: 0 }); // the shelf picks the new pictures up
@@ -2218,17 +2218,17 @@ handle('covers:download', async ({ systemIds, types, hd }) => {
 let coversUserCancel = false;
 handle('covers:cancel', (a) => { if (a && a.auto) { const st = autoState; if (st) { st.stopped = true; st.paused = false; clearInterval(st.t); } covers.cancel('auto'); return true; } // (beta.10) the art card: only the background run
   coversUserCancel = true; covers.cancel(); return true; });
-// ((T)rustyShelf, issue 24) the check before a box art download takes each console's games from the library as last found
+// (RustyShelf, issue 24) the check before a box art download takes each console's games from the library as last found
 // (reading every games folder again took ages on a big library on a NAS), says which console it's on (covers:checking),
 // and runs on in the background while Settings shows other pages
 const shelfGames = () => { if (lastLib) return lastLib; try { return JSON.parse(fs.readFileSync(libCacheFile(), 'utf8')); } catch { return null; } };
 handle('covers:coverage', async () => { const out = [], list = sysList(CONSOLES.map(c => c.id)), lib = shelfGames(), shelves = Array.isArray(lib) ? lib : lib && Array.isArray(lib.shelves) ? lib.shelves : [];
   const games = def => { const sh = shelves.find(x => x && x.id === def.id && Array.isArray(x.games)); const l = sh ? sh.games.filter(g => g && typeof g.file === 'string' && g.file) : []; return l.length ? l : null; };
   const tell = p => { if (alive()) win.webContents.send('covers:checking', p); };
-  let before = 0; // ((T)rustyShelf, issue 24) the games of the consoles already checked: the whole check's count
+  let before = 0; // (RustyShelf, issue 24) the games of the consoles already checked: the whole check's count
   for (const [i, s] of list.entries()) { await yieldNow(); const got = await covers.coverage([s], { games, progress: p => tell({ ...p, console: i + 1, consoles: list.length, allDone: before + (+p.done || 0) }) }); out.push(...got); before += got.reduce((a, c) => a + (+c.total || 0), 0); }
   tell({ finished: true }); return out; }); // (beta.9: a console at a time, with a breath between: every console's pictures in one go froze Settings' Box art page; beta.10: coverage is async)
-// New games while (T)rustyShelf is open: watch the game folders, and once nothing has changed in them for 8 s (a big copy is
+// New games while RustyShelf is open: watch the game folders, and once nothing has changed in them for 8 s (a big copy is
 // finished) tell the shelf to look again. A new game then shows up on the shelf, and in the museum it arrives as a parcel.
 // Never during a game (it waits), and at most one rescan per quiet spell.
 let romWatchers = [], romWatchT = 0, romWatchKey = null, romMissing = new Set(), romRetryT = 0; // (beta.9: romMissing: games folders not there yet, a USB or network drive)
@@ -2296,7 +2296,7 @@ handle('manuals:find', async ({ systemIds }) => {
     finally { manualsBusy = false; }
   } finally { if (findToken === token) findToken = null; manualResumeSoon(); }
 });
-// ---------- ((T)rustyShelf, its discussions #22) a Steam game's achievements, from what Steam keeps on this PC (main/pcach.js) ----------
+// ---------- (RustyShelf, its discussions #22) a Steam game's achievements, from what Steam keeps on this PC (main/pcach.js) ----------
 handle('pc:achievements', ({ appid } = {}) => {
   if (!/^\d{1,10}$/.test(String(appid || '')) || !cfg.steam || !cfg.steam.path) return null;
   const root = steamMain || steamRoot(cfg.steam.path) || cfg.steam.path;
@@ -2313,7 +2313,7 @@ handle('history:get', () => loadHistory());
 handle('history:touch', ({ id }) => { const open = histOpen; historyStart(String(id)); histOpen = open; return true; }); // Steam / app launches: count the launch, no duration
 handle('trailer:open', ({ url }) => openTrailer(String(url || '')));
 // ---------- start with Windows ----------
-const STARTUP_LNK = () => path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'TrustyShelf.lnk');
+const STARTUP_LNK = () => path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'RustyShelf.lnk');
 function psRun(script) {
   return new Promise((resolve, reject) => {
     const enc = Buffer.from("$ProgressPreference = 'SilentlyContinue'\n" + script, 'utf16le').toString('base64');
@@ -2328,14 +2328,14 @@ handle('autostart:get', () => {
 });
 handle('autostart:set', async ({ enabled }) => {
   if (process.platform !== 'win32') throw new Error('Only on Windows.');
-  // the exe: Windows' own start-up entry; a shortcut left by the folder version is removed so only one (T)rustyShelf starts
+  // the exe: Windows' own start-up entry; a shortcut left by the folder version is removed so only one RustyShelf starts
   if (app.isPackaged) { try { fs.unlinkSync(STARTUP_LNK()); } catch {} app.setLoginItemSettings({ openAtLogin: !!enabled, ...loginItem() }); return { enabled: !!enabled, how: 'exe' }; }
   const lnk = STARTUP_LNK();
   if (!enabled) { try { fs.unlinkSync(lnk); } catch {} return { enabled: false, how: 'shortcut' }; }
-  const bat = path.join(paths.appRoot(), 'Start TrustyShelf.bat');
-  if (!fs.existsSync(bat)) throw new Error('Start TrustyShelf.bat was not found next to the app.');
+  const bat = path.join(paths.appRoot(), 'Start RustyShelf.bat');
+  if (!fs.existsSync(bat)) throw new Error('Start RustyShelf.bat was not found next to the app.');
   const q = v => `'${String(v).replace(/['‘’‚‛]/g, m => m + m)}'`; // (beta.8: PowerShell also ends a quoted string at curly quotes, as in a folder named with one; doubling makes any of them literal)
-  await psRun(`$s = (New-Object -ComObject WScript.Shell).CreateShortcut(${q(lnk)}); $s.TargetPath = ${q(bat)}; $s.WorkingDirectory = ${q(paths.appRoot())}; $s.WindowStyle = 7; $s.Description = 'TrustyShelf'; $s.Save()`);
+  await psRun(`$s = (New-Object -ComObject WScript.Shell).CreateShortcut(${q(lnk)}); $s.TargetPath = ${q(bat)}; $s.WorkingDirectory = ${q(paths.appRoot())}; $s.WindowStyle = 7; $s.Description = 'RustyShelf'; $s.Save()`);
   log('Autostart shortcut created', lnk);
   return { enabled: true, how: 'shortcut' };
 });
@@ -2344,13 +2344,13 @@ const songs = require('./main/songs');
 handle('songs:list', () => songs.list());
 handle('songs:read', ({ file }) => new Uint8Array(songs.read(file)));
 handle('songs:open', () => { fs.mkdirSync(songs.folder(), { recursive: true }); return shell.openPath(songs.folder()); });
-// ((T)rustyShelf) your own menu music (main/music.js): the files as addresses the page plays from, and the folder to open
+// (RustyShelf) your own menu music (main/music.js): the files as addresses the page plays from, and the folder to open
 const ownMusic = require('./main/music');
 handle('music:list', () => ownMusic.list().map(t => ({ name: t.name, url: fileUrl(t.file) })));
 handle('music:open', () => { fs.mkdirSync(ownMusic.folder(), { recursive: true }); return shell.openPath(ownMusic.folder()); });
 // links from the page (e.g. a cover's source page) open in the default browser: https only
 handle('app:openExternal', ({ url: u }) => { let x; try { x = new URL(String(u)); } catch { throw new Error('Bad link.'); } if (x.protocol !== 'https:') throw new Error('Only https links open.'); return shell.openExternal(x.toString()); });
-// put back the emulator settings files (T)rustyShelf changed (each was backed up once as <file>.trustyshelf-bak)
+// put back the emulator settings files RustyShelf changed (each was backed up once as <file>.rustyshelf-bak)
 // ---------- (beta.7) Video previews (main/previews.js) ----------
 // what a game's preview is: a video file you have, Steam's trailer (joined into a small clip, kept), or YouTube's
 // trailer (the LaunchBox link). Files found are let through bsfile one by one (previewOk), never whole folders.
@@ -2412,7 +2412,7 @@ async function previewWarm({ systemId, file, title, id, youtube }) {
 handle('ytclip:status', () => ytclips.status());
 handle('ytclip:helper', async () => { const ok = await ytclips.getHelper(p => { if (alive()) win.webContents.send('ytclip:progress', { pct: p }); }); if (alive()) win.webContents.send('ytclip:progress', { done: true, ok }); return ok; });
 handle('ytclip:clear', () => { ytclips.clear(); return true; });
-// (beta.8) Steam Deck: where (T)rustyShelf runs (the shelf's Desktop Mode card, Settings), and Add (T)rustyShelf to Steam
+// (beta.8) Steam Deck: where RustyShelf runs (the shelf's Desktop Mode card, Settings), and Add RustyShelf to Steam
 handle('deck:info', () => ({ ...steamdeck.info(), inSteam: linux.isLinux && process.env.APPIMAGE ? steamdeck.inSteam(process.env.APPIMAGE) : false }));
 handle('deck:addToSteam', ({ closeSteam } = {}) => steamdeck.addToSteam({ exe: process.env.APPIMAGE || '', iconSrc: path.join(__dirname, 'renderer', 'app-icon.png'), dataDir: app.getPath('userData'), closeSteam: !!closeSteam }));
 // (upstream beta.12) Details' box: the sound of the clip that's playing, by the clip's own address: { clip: false } for anything but
@@ -2499,7 +2499,7 @@ handle('bios:open', async ({ systemId }) => {
 });
 handle('emusetup:plan', async ({ systemId }) => {
   if (!setupOn()) return { ok: false, why: 'Windows only for now', changes: [] };
-  const exe = setupExe(systemId), k = emusetup.kindOf(exe); if (!k) return { ok: false, why: 'not one (T)rustyShelf can set up yet', changes: [] };
+  const exe = setupExe(systemId), k = emusetup.kindOf(exe); if (!k) return { ok: false, why: 'not one RustyShelf can set up yet', changes: [] };
   const p = emusetup.plan(k, exe, await setupOpts());
   return { ...p, changes: (p.changes || []).map(c => ({ group: c.group, file: c.file, key: (c.section ? `[${c.section}] ` : '') + c.key, value: c.value })) };
 });
@@ -2657,7 +2657,7 @@ function saveArt(art) { cfg = persistCfg(config.normalize({ ...cfg, art })); }
 // what every cover download hands covers.js: the console's style, and the parts locked per game
 // A console nobody has given a style keeps the old auto-fetch exactly (styleFor → null: the old Box art region / Prefer HD
 // order); its derived default style is only what the Studio shows and what its own Shelf-style picks use.
-// mayReplace: an HD upgrade replaces only a picture (T)rustyShelf wrote (explicit = "Download box art now", which may also upgrade
+// mayReplace: an HD upgrade replaces only a picture RustyShelf wrote (explicit = "Download box art now", which may also upgrade
 // pictures from before 1.68); a locked game or part is never touched (lockedFor)
 const artOpts = explicit => ({ styleFor: id => (cfg.art && cfg.art.styles && cfg.art.styles[id] ? artstudio.styleFor(cfg, id) : null), lockedFor: (id, file) => artstudio.lockedFor(id, file), serial: (id, file, fn) => artstudio.serial(id, file, fn), mayReplace: f => artstudio.mayReplace(f, !!explicit), isPoster: f => artstudio.isPoster(f) });
 let artChangedT = null;
@@ -2728,7 +2728,7 @@ handle('seamless:screenMode', ({ mode } = {}) => seamless.setScreenMode(alive() 
 handle('seamless:cancel', () => seamless.cancel(launcher));
 
 // The RetroAchievements key is kept encrypted for this Windows user (DPAPI via safeStorage), not as plain text in
-// config.json: a copied or shared (T)rustyShelf folder doesn't carry a usable key
+// config.json: a copied or shared RustyShelf folder doesn't carry a usable key
 // personal API keys (Settings → Connections) are kept encrypted too, the same way
 let sealWarned = false; // (beta.10: once a session, when keys can only be kept unencrypted (Linux with no keyring); the file is then owner-only)
 function sealKeys(c) { if (!c || !c.keys || !Object.values(c.keys).some(Boolean)) return c; try { if (!safeStorage.isEncryptionAvailable()) { if (!sealWarned) { sealWarned = true; log('API keys: no system keyring, so they are kept unencrypted in the settings file (readable by this user only)'); } return c; } const enc = {}; for (const [k, v] of Object.entries(c.keys)) enc[k] = v ? safeStorage.encryptString(String(v)).toString('base64') : ''; return { ...c, keys: Object.fromEntries(Object.keys(c.keys).map(k => [k, ''])), keysEnc: enc }; } catch (e) { log('API keys: encryption failed, kept as before', e.message); return c; } }
@@ -2833,18 +2833,18 @@ function freeName(dir, name, ext) { for (let i = 1; i < 100; i++) { const f = pa
 const BACKUP_V = 1;
 handle('settings:backup', async () => {
   let dir; try { dir = app.getPath('documents'); } catch { dir = require('os').homedir(); }
-  const r = await dialog.showSaveDialog(alive() ? win : undefined, { title: 'Back up (T)rustyShelf settings', defaultPath: freeName(dir, `(T)rustyShelf settings ${stamp()}`, '.json'), filters: [{ name: '(T)rustyShelf settings', extensions: ['json'] }] });
+  const r = await dialog.showSaveDialog(alive() ? win : undefined, { title: 'Back up RustyShelf settings', defaultPath: freeName(dir, `RustyShelf settings ${stamp()}`, '.json'), filters: [{ name: 'RustyShelf settings', extensions: ['json'] }] });
   if (!r || r.canceled || !r.filePath) return { ok: false, canceled: true };
   const h = loadHistory(), hist = {}; for (const [k, v] of Object.entries(h)) hist[k] = { count: v.count, ms: v.ms, last: v.last };
-  const data = { app: 'TrustyShelf', version: appVersion(), backup: BACKUP_V, at: new Date().toISOString(), config: stripSecrets(cfg), history: hist };
+  const data = { app: 'RustyShelf', version: appVersion(), backup: BACKUP_V, at: new Date().toISOString(), config: stripSecrets(cfg), history: hist };
   try { await fs.promises.writeFile(r.filePath + '.tmp', JSON.stringify(data, null, 1)); await fs.promises.rename(r.filePath + '.tmp', r.filePath); }
   catch (e) { try { await fs.promises.unlink(r.filePath + '.tmp'); } catch {} log('settings backup failed', e.message); return { ok: false, error: e.message }; }
   log('Settings backed up'); return { ok: true, file: r.filePath };
 });
 // checks a parsed backup; returns the reason it can't be used, or ''
 function badBackup(b) {
-  if (!isPlain(b) || (b.app !== 'TrustyShelf' && b.app !== 'Boxshelf')) return 'That isn\'t a (T)rustyShelf settings backup.';
-  if (typeof b.version !== 'string' || !/^\d+(\.\d+)*/.test(b.version)) return 'That backup has no (T)rustyShelf version.';
+  if (!isPlain(b) || !['RustyShelf', 'TrustyShelf', 'Boxshelf'].includes(b.app)) return 'That isn\'t a RustyShelf settings backup.';
+  if (typeof b.version !== 'string' || !/^\d+(\.\d+)*/.test(b.version)) return 'That backup has no RustyShelf version.';
   if (!isPlain(b.config) || !isPlain(b.config.ui) || !isPlain(b.config.systems)) return 'That backup has no settings in it.';
   if (b.history != null && !isPlain(b.history)) return 'The play history in that backup is damaged.';
   return '';
@@ -2864,7 +2864,7 @@ function mergeHistory(h, add) {
   return n;
 }
 handle('settings:restore', async () => {
-  const r = await dialog.showOpenDialog(alive() ? win : undefined, { title: 'Restore (T)rustyShelf settings', properties: ['openFile'], filters: [{ name: '(T)rustyShelf settings', extensions: ['json'] }] });
+  const r = await dialog.showOpenDialog(alive() ? win : undefined, { title: 'Restore RustyShelf settings', properties: ['openFile'], filters: [{ name: 'RustyShelf settings', extensions: ['json'] }] });
   if (!r || r.canceled || !r.filePaths || !r.filePaths[0]) return { ok: false, canceled: true };
   let b; try { const st = await fs.promises.stat(r.filePaths[0]); if (st.size > 32 * 1024 * 1024) return { ok: false, error: 'That file is too big to be a settings backup.' }; b = JSON.parse(await fs.promises.readFile(r.filePaths[0], 'utf8')); }
   catch (e) { return { ok: false, error: 'That file couldn\'t be read as a settings backup.' }; }
@@ -2892,15 +2892,15 @@ function zipFolder(src, dest) {
 function execFileQ(cmd, args, opts, cb) { try { require('child_process').execFile(cmd, args, { windowsHide: true, timeout: 60000, ...opts }, err => cb(!err)); } catch { cb(false); } }
 async function reportInfo() {
   const os = require('os'), L = [];
-  L.push(`(T)rustyShelf ${appVersion()}`, `Electron ${process.versions.electron}  Chrome ${process.versions.chrome}  Node ${process.versions.node}`);
+  L.push(`RustyShelf ${appVersion()}`, `Electron ${process.versions.electron}  Chrome ${process.versions.chrome}  Node ${process.versions.node}`);
   L.push(`OS: ${os.type()} ${os.release()} ${os.arch()}${typeof os.version === 'function' ? ' (' + os.version() + ')' : ''}`, `CPU: ${(os.cpus()[0] || {}).model || '?'} × ${os.cpus().length}`, `Memory: ${Math.round(os.totalmem() / 1073741824)} GB (${Math.round(os.freemem() / 1073741824)} GB free)`);
   L.push(`Packaged: ${app.isPackaged ? 'yes' : 'no'}  Windowed: ${WINDOWED ? 'yes' : 'no'}  Fullscreen now: ${alive() && win.isFullScreen() ? 'yes' : 'no'}`);
-  // (1.82) how much memory (T)rustyShelf itself uses, per process (the shelf, the GPU, helpers), to tell from a report whether
-  // (T)rustyShelf is what fills a PC's RAM
-  L.push('', '(T)rustyShelf memory (working set):');
+  // (1.82) how much memory RustyShelf itself uses, per process (the shelf, the GPU, helpers), to tell from a report whether
+  // RustyShelf is what fills a PC's RAM
+  L.push('', 'RustyShelf memory (working set):');
   try { let total = 0; for (const m of app.getAppMetrics()) { const mb = Math.round(((m.memory && m.memory.workingSetSize) || 0) / 1024); total += mb; L.push(`  ${m.type}${m.serviceName ? ' ' + m.serviceName : ''}: ${mb} MB`); }
     L.push(`  total: ${total} MB${launcher.isRunning() ? ' (a game is running)' : ''}`); } catch (e) { L.push('  ' + e.message); }
-  L.push('', 'Displays:'); try { for (const d of displaysList()) L.push(`  ${d.label}${d.current ? ' ← (T)rustyShelf' : ''}`); } catch {}
+  L.push('', 'Displays:'); try { for (const d of displaysList()) L.push(`  ${d.label}${d.current ? ' ← RustyShelf' : ''}`); } catch {}
   L.push('', 'Graphics:');
   try { let t; const gpu = await Promise.race([app.getGPUInfo('basic'), new Promise(r => { t = setTimeout(() => r(null), 5000); })]); clearTimeout(t);
     if (gpu) { for (const g of (gpu.gpuDevice || [])) L.push(`  ${g.active ? '* ' : '  '}vendor ${g.vendorId} device ${g.deviceId}${g.driverVersion ? ' driver ' + g.driverVersion : ''}${g.description ? ' ' + g.description : ''}`); if (gpu.auxAttributes) L.push('  ' + JSON.stringify(gpu.auxAttributes).slice(0, 2000)); } else L.push('  (no answer)'); } catch (e) { L.push('  ' + e.message); }
@@ -2909,11 +2909,11 @@ async function reportInfo() {
 }
 let reporting = null;
 handle('app:reportProblem', () => reporting || (reporting = makeReport().finally(() => { reporting = null; })));
-// ((T)rustyShelf, Boxshelf's issue 18) Settings → System → Export everything / Import everything (main/dataexport.js): the
+// (RustyShelf, Boxshelf's issue 18) Settings → System → Export everything / Import everything (main/dataexport.js): the
 // settings, the downloads (art, manuals, the box art database …) and the art kept next to the games, carried to another PC
-let dataMoving = null, dataCtl = null; // dataCtl: the running export / import's { paused, cancelled } ((T)rustyShelf issue 6)
+let dataMoving = null, dataCtl = null; // dataCtl: the running export / import's { paused, cancelled } (RustyShelf issue 6)
 const dataStep = (what) => s => { try { if (alive()) win.webContents.send('data:progress', { what, ...s }); } catch {} };
-// ((T)rustyShelf issue 6) the progress in bytes and files (main/dataexport.js onProgress), and whether the PC is kept awake
+// (RustyShelf issue 6) the progress in bytes and files (main/dataexport.js onProgress), and whether the PC is kept awake
 const dataProgress = s => { try { if (alive()) win.webContents.send('data:progress', { ...s, awake: awakeId != null }); } catch {} };
 const dataArgs = () => ({ appRoot: paths.appRoot(), dataDir: app.getPath('userData'), cfg, artDirsFor: paths.artDirsFor, artLib: paths.artLibrary() });
 handle('data:size', () => require('./main/dataexport').exportSize(dataArgs())); // how big an export would be, before a folder is chosen
@@ -2939,9 +2939,9 @@ handle('data:import', ({ src } = {}) => {
 });
 async function makeReport() {
   let desk; try { desk = app.getPath('desktop'); } catch {} if (!desk || !fs.existsSync(desk)) desk = require('os').homedir();
-  const name = `TrustyShelf problem report ${stamp()}`, tmp = await fs.promises.mkdtemp(path.join(require('os').tmpdir(), 'trustyshelf-report-'));
+  const name = `RustyShelf problem report ${stamp()}`, tmp = await fs.promises.mkdtemp(path.join(require('os').tmpdir(), 'rustyshelf-report-'));
   try {
-    for (const [f, n] of [[LOG, 'trustyshelf.log'], [LOG + '.old', 'trustyshelf.log.old']]) { try { await fs.promises.writeFile(path.join(tmp, n), scrubText(await fs.promises.readFile(f, 'utf8'))); } catch {} }
+    for (const [f, n] of [[LOG, 'rustyshelf.log'], [LOG + '.old', 'rustyshelf.log.old']]) { try { await fs.promises.writeFile(path.join(tmp, n), scrubText(await fs.promises.readFile(f, 'utf8'))); } catch {} }
     const c = stripSecrets(cfg); if (c.ra) delete c.ra.user; // the account name isn't needed to help
     await fs.promises.writeFile(path.join(tmp, 'config.json'), scrubText(JSON.stringify(c, null, 2)));
     await fs.promises.writeFile(path.join(tmp, 'info.txt'), scrubText(await reportInfo()));
@@ -2999,7 +2999,7 @@ handle('api:test', async ({ service } = {}) => { const s = String(service || '')
 // temp folders a crash or power cut left behind (manual downloads, e-book unpacking)
 function sweepTemp() {
   const tmp = require('os').tmpdir(), old = Date.now() - 864e5;
-  fs.promises.readdir(tmp).then(names => { for (const n of names) if (/^trustyshelf-(manual|emanual)/i.test(n)) { const f = path.join(tmp, n); fs.promises.stat(f).then(st => { if (st.mtimeMs < old) return fs.promises.rm(f, { recursive: true, force: true }); }).catch(() => {}); } }).catch(() => {});
+  fs.promises.readdir(tmp).then(names => { for (const n of names) if (/^rustyshelf-(manual|emanual)/i.test(n)) { const f = path.join(tmp, n); fs.promises.stat(f).then(st => { if (st.mtimeMs < old) return fs.promises.rm(f, { recursive: true, force: true }); }).catch(() => {}); } }).catch(() => {});
 }
 // data\thumbs: small copies of covers for the shelf. Old ones (covers since replaced, games removed) are cleared out:
 // anything not used for 60 days, and the oldest beyond 300 MB
@@ -3040,13 +3040,13 @@ handle('companion:state', () => companion.state());
 handle('companion:set', o => companion.set(o && typeof o === 'object' ? { enabled: o.enabled, port: o.port } : {}));
 handle('companion:forget', ({ id } = {}) => companion.forget(String(id || '')));
 handle('companion:pin', () => companion.renewPin());
-// No page (T)rustyShelf shows ever needs the camera, microphone, location, notifications…: refuse them all, everywhere
+// No page RustyShelf shows ever needs the camera, microphone, location, notifications…: refuse them all, everywhere
 function denyPermissions(ses) { try { ses.setPermissionRequestHandler((wc, perm, cb) => cb(perm === 'fullscreen')); ses.setPermissionCheckHandler((wc, perm) => perm === 'fullscreen'); } catch {} }
 app.on('session-created', denyPermissions);
 if (firstInstance) app.whenReady().then(() => { try { startUp(); } catch (e) {
-  // something on this PC stops (T)rustyShelf from starting (a read-only folder, a damaged file): say so, don't hang invisibly
+  // something on this PC stops RustyShelf from starting (a read-only folder, a damaged file): say so, don't hang invisibly
   log('ERROR starting', e && e.stack || e);
-  try { dialog.showErrorBox('(T)rustyShelf could not start', `${e && e.message || e}\n\nDetails are in data\\trustyshelf.log. (T)rustyShelf needs to be able to write to its own folder.`); } catch {}
+  try { dialog.showErrorBox('RustyShelf could not start', `${e && e.message || e}\n\nDetails are in data\\rustyshelf.log. RustyShelf needs to be able to write to its own folder.`); } catch {}
   try { app.exit(1); } catch { process.exit(1); }
 } });
 function startUp() {
@@ -3055,7 +3055,7 @@ function startUp() {
   arcadenames.init(app.getPath('userData'), log); // (beta.7) arcade game names, main/arcadenames.js
   emusetup.init({ log, dataDir: app.getPath('userData'), appRoot: paths.appRoot() }); racores.init({ log }); previews.init({ log, dataDir: app.getPath('userData'), appRoot: paths.appRoot() }); ytclips.init({ log, dataDir: app.getPath('userData') }); addgames.init({ log });
   cfg = unsealed(config.load()); i18nMain.setActive(cfg.ui.language === 'pt'); presence.configure({ enabled: cfg.ui.discordPresence, appId: cfg.ui.discordAppId, logger: log }); { const fx = fixXenia(cfg); if (fx !== cfg) { cfg = fx; try { persistCfg(cfg); } catch {} } } applyArtLibrary();
-  { const here = paths.appRoot(), L = Array.isArray(cfg.ui.installs) ? cfg.ui.installs.filter(x => typeof x === 'string') : []; if (!L.some(x => x.toLowerCase() === here.toLowerCase())) { cfg.ui.installs = [here, ...L].slice(0, 6); try { persistCfg(cfg); } catch {} } } // where (T)rustyShelf has run from: a later move can offer the magazines left here
+  { const here = paths.appRoot(), L = Array.isArray(cfg.ui.installs) ? cfg.ui.installs.filter(x => typeof x === 'string') : []; if (!L.some(x => x.toLowerCase() === here.toLowerCase())) { cfg.ui.installs = [here, ...L].slice(0, 6); try { persistCfg(cfg); } catch {} } } // where RustyShelf has run from: a later move can offer the magazines left here
   // consoles added in an update (PS5): found once, as setup would have (an emulator or games folder set by hand is kept)
   { const known = Array.isArray(cfg.ui.knownSystems) ? cfg.ui.knownSystems : [], add = ['ps5', 'sw2'].filter(id => !known.includes(id) && cfg.systems[id]);
     if (add.length) { for (const id of add) { const c = cfg.systems[id]; if (cfg.setupDone && !c.emulator && !(c.romDirs || []).length) { const d = detectSystem(id); if (d) { if (d.emulator) c.emulator = d.emulator; if (d.romDirs.length) c.romDirs = d.romDirs; log('New console', id, d.emulator ? 'emulator found' : 'no emulator', d.romDirs.length + ' games folder(s)'); } } }
@@ -3063,7 +3063,7 @@ function startUp() {
   // Switch 2: builds come and go (forks get swapped often); a shelf build that's gone points at the newest one there is
   { const e = cfg.systems.sw2 && cfg.systems.sw2.emulator; if (e && !paths.isFile(emuPath(e))) nx2.builds(sw2Roots()).then(l => { const b = l.sort((a, c) => c.date - a.date)[0]; if (b && cfg.systems.sw2 && !paths.isFile(emuPath(cfg.systems.sw2.emulator))) { log('Switch 2: shelf build gone, now', b.label); applyCfg({ ...cfg, systems: { ...cfg.systems, sw2: { ...cfg.systems.sw2, emulator: b.exe } } }); } }).catch(() => {}); }
   if (cfg.ra && cfg.ra.key) { try { const raw = JSON.parse(fs.readFileSync(config.file(), 'utf8')); if (raw && raw.ra && raw.ra.key) persistCfg(cfg); } catch {} } // an older plain-text key: encrypt it now
-  covers.init(app.getPath('userData'), log); covers.setArtName(g => artNameOf(g.id)); // ((T)rustyShelf issue #2: Details → Art match)
+  covers.init(app.getPath('userData'), log); covers.setArtName(g => artNameOf(g.id)); // (RustyShelf issue #2: Details → Art match)
   require('./main/steamgrid').init({ dataDir: app.getPath('userData'), log, key: () => (cfg && cfg.keys && cfg.keys.steamgriddb) || '' }); require('./main/screenscraper').init({ dataDir: app.getPath('userData'), log, creds: () => { const k = (cfg && cfg.keys) || {}; return { user: k.ssUser || '', pass: k.ssPass || '', devId: k.ssDevId || '', devPass: k.ssDevPass || '' }; } }); initArtStudio(); initManualStudio(); // (SteamGridDB: the Art Studio's optional poster source)
   commercials.init({ log, dir: path.join(app.getPath('userData'), 'commercials'), memoFile: path.join(app.getPath('userData'), 'commercials.json'), fetchBuf: async url => { const r = await net.fetch(url, { signal: AbortSignal.timeout(30000) }); /* (beta.10: a stalled answer gives up) */ if (r.status === 404) return null; if (!r.ok) throw new Error('archive.org answered ' + r.status); return Buffer.from(await r.arrayBuffer()); }, // (busy / down: a failure, so no game is noted as "no ad" for a month)
     // url → file, streamed; resolves to the bytes written (0: not found), rejects past max bytes

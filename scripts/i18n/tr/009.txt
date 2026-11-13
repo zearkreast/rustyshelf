@@ -110,7 +110,7 @@
 3270|· ${lk} travados
 3272|Capas e manuais › Manuais de ${nm} › Escolha
 3273|Quais manuais para ${nm}?
-3274|Um toque. Os downloads automáticos do (T)rustyShelf seguem isso, agora e para jogos novos.
+3274|Um toque. Os downloads automáticos do RustyShelf seguem isso, agora e para jogos novos.
 3275|Capas e manuais › ${nm} › ${truncEnd(full,40)} › Manual
 3276|Procurando todos os manuais deste jogo…
 3277|Todos os manuais encontrados para este jogo, lado a lado. Ainda procurando online…
@@ -153,7 +153,7 @@
 3316|Partes
 3317|Parar
 3321|Pesquisar nas configurações
-3322|(T)rustyShelf {}
+3322|RustyShelf {}
 3323|· ${st.points} pts
 3324|Conectado · ${st.user||gp("ra.user")}${st.points!=null?` · ${st.points} pts`:""}
 3325|Ainda não disponível
@@ -194,9 +194,9 @@
 3368|Terminar a configuração
 3369|Stremio e Nuvio
 3370|Concluir
-3371|Configuração do (T)rustyShelf
-3372|(T)rustyShelf ${info.version}
-3373|Todos os consoles que o (T)rustyShelf consegue rodar. Escolha um para definir o emulador e as pastas de jogos.
+3371|Configuração do RustyShelf
+3372|RustyShelf ${info.version}
+3373|Todos os consoles que o RustyShelf consegue rodar. Escolha um para definir o emulador e as pastas de jogos.
 3374|${(sc.romDirs||[]).length} [[${(sc.romDirs||[]).length===1?"":"s"}|pasta|pastas]] · pronto
 3375|Apontar para o emulador
 3377|${n} prontos
@@ -208,7 +208,7 @@
 3383|Mais consoles (${others})
 3384|O RetroArch consegue rodar estes
 3385|Nenhum app de emulador encontrado
-3386|Abrir o (T)rustyShelf
+3386|Abrir o RustyShelf
 3387|Procurar de novo
 3388|Pular por enquanto
 3389|‹ Todos os consoles
@@ -217,10 +217,10 @@
 3396|Biblioteca de capas
 3397|Onde as capas e os manuais ficam guardados. Escolha uma pasta e cada console ganha uma pasta própria dentro dela, com capas e manuais, fácil de fazer backup ou reaproveitar numa instalação nova. As capas que já estão ao lado dos jogos são copiadas para lá em segundo plano (nada é movido, apagado ou baixado de novo). Deixe vazio para manter as capas ao lado dos jogos de cada console.
 3398|Vamos conectar os seus emuladores e jogos
-3399|Boas-vindas ao (T)rustyShelf
+3399|Boas-vindas ao RustyShelf
 3400|Vamos encontrar os seus jogos
-3401|O (T)rustyShelf procura os seus emuladores, jogos, a biblioteca da Steam e os apps de streaming. Depois você escolhe quais consoles joga, e em um minuto está pronto.
-3402|Pasta do (T)rustyShelf
+3401|O RustyShelf procura os seus emuladores, jogos, a biblioteca da Steam e os apps de streaming. Depois você escolhe quais consoles joga, e em um minuto está pronto.
+3402|Pasta do RustyShelf
 3403|Encontrar meus emuladores e jogos
 3404|Encontrar automaticamente
 3405|Vou escolher eu mesmo
@@ -237,7 +237,7 @@
 3416|Xbox, PC e apps
 3417|Passo 1 de 3
 3418|Quais consoles você joga?
-3419|O (T)rustyShelf ainda não encontrou nenhum emulador. Marque os consoles que você joga e depois aponte para o emulador e os jogos deles.
+3419|O RustyShelf ainda não encontrou nenhum emulador. Marque os consoles que você joga e depois aponte para o emulador e os jogos deles.
 3420|Marque os consoles que você joga. Depois você aponta para o emulador e os jogos de cada um.
 3421|Mais consoles e apps (${rest.length})
 3422|O RetroArch está instalado, então ele consegue rodar qualquer um dos consoles retrô aqui. Marque só os que você joga.
@@ -272,13 +272,13 @@
 3452|As imagens de maior resolução, e pôsteres feitos por fãs onde não há digitalização da caixa.
 3453|Passo 3 de 3
 3454|Baixar as capas?
-3455|O (T)rustyShelf consegue encontrar online as capas, contracapas, lombadas, discos e manuais dos seus jogos. Para isso ele manda os títulos dos seus jogos (e os IDs de disco de GameCube / Wii) para o LaunchBox, libretro, GameTDB e a Super Mario Wiki. Nada mais sobre você ou o seu PC é enviado.
+3455|O RustyShelf consegue encontrar online as capas, contracapas, lombadas, discos e manuais dos seus jogos. Para isso ele manda os títulos dos seus jogos (e os IDs de disco de GameCube / Wii) para o LaunchBox, libretro, GameTDB e a Super Mario Wiki. Nada mais sobre você ou o seu PC é enviado.
 3456|Sim, baixar as capas
 3457|Você pode mudar isso a qualquer hora em Configurações → Capas e manuais.
 3458|Como as suas caixas devem ficar?
-3459|O (T)rustyShelf encontra online as capas, contracapas, lombadas e discos dos seus jogos.
+3459|O RustyShelf encontra online as capas, contracapas, lombadas e discos dos seus jogos.
 3460|Manda os títulos dos seus jogos (e os IDs de disco de GameCube / Wii) para o LaunchBox, libretro, GameTDB e a Super Mario Wiki para encontrar imagens (e para o SteamGridDB também, se você adicionar uma chave depois). Nada mais sobre você ou o seu PC é enviado.
-3462|Contracapas, lombadas e discos também. O (T)rustyShelf cria as que nenhuma fonte tem, e troca por uma digitalização de verdade quando aparecer uma.
+3462|Contracapas, lombadas e discos também. O RustyShelf cria as que nenhuma fonte tem, e troca por uma digitalização de verdade quando aparecer uma.
 3463|Manuais dos jogos, quando disponíveis, para ler a partir da caixa do jogo.
 3464|Mais opções
 3465|Onde guardar capas e manuais
@@ -295,7 +295,7 @@
 3476|Funcionando · ${st.left} consultas restantes hoje
 3477|Opcional
 3478|Conecte as suas contas
-3479|Logins gratuitos que acrescentam mais ao (T)rustyShelf. Preencha os que quiser ou pule esta página: todos ficam depois em Configurações → Contas e serviços.
+3479|Logins gratuitos que acrescentam mais ao RustyShelf. Preencha os que quiser ou pule esta página: todos ficam depois em Configurações → Contas e serviços.
 3480|Mais serviços
 3481|As chaves ficam guardadas criptografadas neste PC e só são enviadas para o próprio serviço.
 3482|Esconder o teclado
@@ -333,6 +333,6 @@
 3514|Segundos para esconder o emulador enquanto ele abre
 3515|Opções ao abrir o emulador sozinho
 3516|Esconder o emulador enquanto ele abre
-3517|A tela de carregamento do (T)rustyShelf fica na frente por esse tempo para você não ver a janela do ${def.emulatorName} antes de o jogo entrar em tela cheia. Aumente se ainda aparecer uma piscada; 0 desliga. Padrão: ${def.coverSeconds}.
+3517|A tela de carregamento do RustyShelf fica na frente por esse tempo para você não ver a janela do ${def.emulatorName} antes de o jogo entrar em tela cheia. Aumente se ainda aparecer uma piscada; 0 desliga. Padrão: ${def.coverSeconds}.
 3518|Teste: abrir o ${def.emulatorName}
 3519|Mostra os jogos da Steam instalados neste PC com as capas de verdade, e abre eles pela Steam.

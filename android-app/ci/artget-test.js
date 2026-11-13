@@ -1,4 +1,4 @@
-// (T)rustyShelf issue 24: the box art download one press from Settings' sidebar, with how far it is.
+// RustyShelf issue 24: the box art download one press from Settings' sidebar, with how far it is.
 // Windows 1280x720 on the demo page: the sidebar has Get box art right after Box art & manuals; it opens the download's
 // picker (the consoles, Start download); while it runs the sidebar shows its percentage from any page and the page has
 // an "Every console" row with the games done of all of them; when it ends the percentage goes.
@@ -26,7 +26,7 @@ server.listen(0, async () => {
     const n0 = await navs(), at = n0.findIndex(t => /^Box art & manuals/.test(t));
     check('the sidebar has Get box art right after Box art & manuals', at >= 0 && /^Get box art/.test(n0[at + 1] || ''), JSON.stringify(n0));
     // a download that takes its time, with progress for its first console
-    await page.evaluate(() => { window.trustyshelf.downloadCovers = ids => new Promise(res => { window.__endDl = () => res({ systems: ids.map(id => ({ id, name: id, total: 10, front: 3, back: 0, spine: 0, disc: 0, had: 0, missed: [] })) });
+    await page.evaluate(() => { window.rustyshelf.downloadCovers = ids => new Promise(res => { window.__endDl = () => res({ systems: ids.map(id => ({ id, name: id, total: 10, front: 3, back: 0, spine: 0, disc: 0, had: 0, missed: [] })) });
       setTimeout(() => (window.__mockCov || []).forEach(f => f({ systemId: ids[0], system: ids[0], done: 3, total: 10, stage: 'x', game: 'Example' })), 300); }); });
     await page.locator('#bss .bss-nav', { hasText: 'Get box art' }).first().click(); await page.waitForTimeout(2500); // (the check runs first)
     const txt = await page.evaluate(() => document.querySelector('#bss').innerText);

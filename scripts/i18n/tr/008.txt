@@ -22,7 +22,7 @@
 2823|Importar do Playnite (experimental)
 2824|Importar…
 2825|Procurar…
-2826|Traz a sua biblioteca do Playnite de uma vez: os jogos que você adicionou lá à mão, com as capas, para a estante Personalizados, e as pastas dos seus jogos emulados para a estante do console de cada um. Jogos da Steam, Epic, GOG Galaxy e de outras lojas ficam de fora: o (T)rustyShelf lê essas lojas sozinho. Experimental: não deu para testar com todas as versões do Playnite, então avise se faltar alguma coisa.
+2826|Traz a sua biblioteca do Playnite de uma vez: os jogos que você adicionou lá à mão, com as capas, para a estante Personalizados, e as pastas dos seus jogos emulados para a estante do console de cada um. Jogos da Steam, Epic, GOG Galaxy e de outras lojas ficam de fora: o RustyShelf lê essas lojas sozinho. Experimental: não deu para testar com todas as versões do Playnite, então avise se faltar alguma coisa.
 2827|Encontrado em
 2828|Encontrado em ${folderName(ADD.pnFound.app)}
 2829|Não encontrado · escolha a pasta dele
@@ -45,7 +45,7 @@
 2846|, e o emulador do Playnite se ${name(sys)} ainda não tiver um
 2847|Adiciona ${c.dirs.join(", ")} como pastas de jogos de ${name(sys)}${c.emulatorDir?`, and Playnite's emulator if ${name(sys)} has none yet`:""}.
 2848|${c.count} [[${c.count===1?"":"s"}|jogo|jogos]] · ${c.dirs.length} [[${c.dirs.length===1?"":"s"}|pasta|pastas]]
-2849|${s.store} [[${s.store===1?"":"s"}|jogo de loja|jogos de loja]] (o (T)rustyShelf lê essas lojas sozinho)
+2849|${s.store} [[${s.store===1?"":"s"}|jogo de loja|jogos de loja]] (o RustyShelf lê essas lojas sozinho)
 2850|${s.hidden} ocultos
 2851|${s.link} abertos por um link
 2852|${s.nothing} sem nada para abrir
@@ -57,10 +57,10 @@
 2858|Remover o que foi importado do Playnite
 2859|Tira das suas estantes os jogos e as pastas de jogos que a importação do Playnite adicionou (nada é apagado do seu PC).
 2860|Aperte de novo para remover
-2861|Novo: (T)rustyShelf ${upd.latest}
+2861|Novo: RustyShelf ${upd.latest}
 2862|ainda não instalado
-2863|Baixar o (T)rustyShelf
-2864|Baixar o (T)rustyShelf ${upd.latest}
+2863|Baixar o RustyShelf
+2864|Baixar o RustyShelf ${upd.latest}
 2865|Baixar
 2866|Abre a página de download. Extraia por cima desta pasta: as suas configurações são mantidas.
 2867|Esta versão
@@ -76,12 +76,12 @@
 2878|Trechos de trailers de console apagados
 2879|${s.n} [[${s.n===1?"":"s"}|trecho|trechos]] · ${mb(s.bytes||0)} MB
 2880|Pronto
-2881|Adicionando o (T)rustyShelf à Steam…
+2881|Adicionando o RustyShelf à Steam…
 2882|Atualizar
 2883|A Steam ainda não foi configurada aqui
 2884|A Steam não fechou: feche você mesmo e tente de novo
 2885|Não foi possível gravar a lista da Steam
-2886|O (T)rustyShelf está na Steam: abra pela sua Biblioteca (Não Steam), no Modo Jogo num Steam Deck
+2886|O RustyShelf está na Steam: abra pela sua Biblioteca (Não Steam), no Modo Jogo num Steam Deck
 2888|Já está na Steam
 2889|Recomendado num Steam Deck
 2890|Ainda não está na Steam
@@ -105,7 +105,7 @@
 2910|Trechos de trailers da Steam apagados
 2911|Configura o seu controle como jogador 1, quando o emulador ainda está só com controles de teclado. Um mapeamento que você mesmo fez é mantido.
 2912|Coloca salvar, carregar, pausar e captura de tela nas teclas que o menu Home aperta, para o Salvar e o Carregar dele funcionarem nos seus jogos.
-2913|Aponta o emulador para uma pasta de BIOS compartilhada ((T)rustyShelf\BIOS), só quando a pasta de BIOS dele está vazia.
+2913|Aponta o emulador para uma pasta de BIOS compartilhada (RustyShelf\BIOS), só quando a pasta de BIOS dele está vazia.
 2914|Define a resolução pelo perfil de Gráficos abaixo.
 2915|Sem a pergunta "tem certeza?" quando um jogo é fechado.
 2916|O RetroArch salva quando você sai de um jogo e continua dali na próxima vez.
@@ -116,7 +116,7 @@
 2921|Ainda não configurado
 2922|Verificando o emulador…
 2923|Escolha primeiro o emulador deste console
-2924|O (T)rustyShelf ainda não sabe configurar este emulador
+2924|O RustyShelf ainda não sabe configurar este emulador
 2925|RetroArch, Dolphin, DuckStation, PCSX2 e PPSSPP, por enquanto.
 2926|O ${st.name} está configurado
 2927|Você mesmo configurou o ${st.name}
@@ -139,7 +139,7 @@
 2946|Não foi possível configurar o ${st.name}: ${(r&&r.why)||"unknown problem"}
 2947|Mostrar o que vai mudar
 2948|Lista cada configuração que seria gravada, arquivo por arquivo, antes de você configurar qualquer coisa.
-2949|Volta as configurações do ${st.name} exatamente como eram antes de o (T)rustyShelf configurar.
+2949|Volta as configurações do ${st.name} exatamente como eram antes de o RustyShelf configurar.
 2952|As configurações do ${st.name} voltaram a ser como eram
 2953|Aperte de novo para desfazer
 2954|Núcleo do RetroArch
@@ -204,7 +204,7 @@
 3013|Frente, verso, lombada e disco de um mesmo lançamento, quando o jogo tem
 3014|Sua mistura
 3015|Escolha um visual por parte abaixo, ou por jogo
-3016|(T)rustyShelf, a partir da capa
+3016|RustyShelf, a partir da capa
 3017|o seu arquivo atual
 3018|uma escolha anterior
 3019|Sem capa

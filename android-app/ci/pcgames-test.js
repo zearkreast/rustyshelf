@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-// android-app/ci/pcgames-test.js; modified for (T)rustyShelf: the checks for custom games' own pages, platforms (shelves), the
+// android-app/ci/pcgames-test.js; modified for RustyShelf: the checks for custom games' own pages, platforms (shelves), the
 // Xbox One shelf and automatic PC posters are by supalii (https://github.com/supalii/boxshelf-source), adapted.
 // Device test pass "pcgames" (beta.4), run by web-device-test.js. Checks results, never speed.
 //   Node (main/pcgames.js on made-up folders): Epic's install list keeps installed games only (not the engine, plugins or
@@ -66,7 +66,7 @@ module.exports = async function pcGamesPass({ browser, base, check, newPage }) {
       g4.length === 1 && g4[0].title === 'Ship of Harkinian' && /soh\.exe$/.test(g4[0].exe), JSON.stringify(g4.map(g => ({ t: g.title, e: path.basename(g.exe) }))));
     // games added by hand: a missing program is left out; the config keeps clean entries only
     const c = await pcg.customGames([{ id: 'a', title: 'Mine', exe: path.join(q3, 'QuiverLauncher.exe'), shelf: 'ps2' }, { id: 'b', title: 'Gone', exe: path.join(tmp, 'gone.exe') }]);
-    // ((T)rustyShelf, issue 24) more than 500 games added by hand all reach the shelf (it stopped at 500)
+    // (RustyShelf, issue 24) more than 500 games added by hand all reach the shelf (it stopped at 500)
     { const many = []; for (let i = 0; i < 600; i++) { const e = path.join(tmp, 'many', `g${i}.exe`); mk(e, 'MZ'); many.push({ id: 'm' + i, title: 'Game ' + i, exe: e }); }
       const got = await pcg.customGames(many); check('PC games: 600 games added by hand are all on the shelf (it stopped at 500)', got.length === 600, got.length); }
     const config = require(path.join(root, 'main', 'config.js'));
@@ -142,7 +142,7 @@ module.exports = async function pcGamesPass({ browser, base, check, newPage }) {
     check('PC games (Windows): the Epic game on the PC shelf says it starts through Epic, Play hands it over by id, Back returns',
       play.epic.game === 'Ember Trail' && /Epic/.test(play.epic.how) && /Epic Games/.test(play.epic.chips) && play.epic.launched && play.epic.back === 'browse', JSON.stringify(play.epic));
     // (beta.7) the new stores on the PC shelf: each game names its store; Ubisoft's is handed to Ubisoft Connect (Back returns),
-    // GOG's is started by (T)rustyShelf like an app (the shelf comes back when it closes)
+    // GOG's is started by RustyShelf like an app (the shelf comes back when it closes)
     const st7 = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = {};
       const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       const go = async t => { for (let i = 0; i < 12 && Shelf._qs().g !== t; i++) { key('ArrowRight'); await w(350); } if (Shelf._qs().g !== t) for (let i = 0; i < 12 && Shelf._qs().g !== t; i++) { key('ArrowLeft'); await w(350); } return Shelf._qs().g === t; };
@@ -157,7 +157,7 @@ module.exports = async function pcGamesPass({ browser, base, check, newPage }) {
       return out; });
     check('PC stores (Windows): GOG, Ubisoft, EA and Xbox games are on the PC shelf, each naming its store in Details',
       ['GOG', 'Ubisoft', 'EA', 'Xbox'].every((s, i) => new RegExp(s).test(st7.chips[['Lantern Keep', 'Harbor Run', 'Dust Rally', 'Lumen Garden'][i]] || '')), JSON.stringify(st7.chips));
-    check('PC stores (Windows): a Ubisoft game is handed to Ubisoft Connect (Back returns); a GOG game is started by (T)rustyShelf and the shelf comes back',
+    check('PC stores (Windows): a Ubisoft game is handed to Ubisoft Connect (Back returns); a GOG game is started by RustyShelf and the shelf comes back',
       !!st7.ubi && st7.ubi.launched && /Ubisoft Connect/.test(st7.ubi.note) && st7.ubi.back === 'browse' && !!st7.gog && st7.gog.launched && st7.gog.mode === 'launch' && st7.gog.back === 'browse', JSON.stringify({ ubi: st7.ubi, gog: st7.gog }));
     check('PC games (Windows): Play on a Custom shelf game starts it by id (launch:pc) and the shelf comes back when it closes',
       /Custom/i.test(play.shelf) && play.game === 'Quarantine' && play.launched.includes('quiver-quarantine') && play.mode === 'launch' && play.back === 'browse', JSON.stringify(play));
@@ -166,7 +166,7 @@ module.exports = async function pcGamesPass({ browser, base, check, newPage }) {
     const st = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = {}, key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       const names = () => [...document.querySelectorAll('#bss .bss-row .nm')].map(e => e.textContent);
       const row = n => [...document.querySelectorAll('#bss .bss-row')].find(r => ((r.querySelector('.nm') || {}).textContent || '') === n);
-      const cfg = async () => (await window.trustyshelf.getConfig()).config.pc || {};
+      const cfg = async () => (await window.rustyshelf.getConfig()).config.pc || {};
       for (let i = 0; i < 40 && Shelf.getMode() !== 'browse'; i++) await w(250); // (Settings opens from the shelf only)
       Setup.open({ page: 'pc' }); for (let i = 0; i < 40 && !document.querySelector('#bss.on .bss-row'); i++) await w(150); await w(600);
       out.pcPage = names();
@@ -288,7 +288,7 @@ module.exports = async function pcGamesPass({ browser, base, check, newPage }) {
       key('Enter'); await w(400); // (the page opens on its Name row: Enter starts editing it)
       const inp = document.querySelector('#bss .bss-edit'); out.editing = !!inp; if (inp) { inp.value = 'Quarantine DOS'; inp.dispatchEvent(new Event('input', { bubbles: true })); }
       key('Enter'); await w(1200);
-      out.saved = ((await window.trustyshelf.getConfig()).config.games || {})['quiver-quarantine'];
+      out.saved = ((await window.rustyshelf.getConfig()).config.games || {})['quiver-quarantine'];
       out.resetRow = [...document.querySelectorAll('#bss .bss-row .nm')].some(e => e.textContent === "Use the file's name");
       if (window.Settings && Settings.isOpen && Settings.isOpen()) { await Settings.close(); await w(1500); }
       for (let i = 0; i < 20 && Shelf._qs().g !== 'Quarantine DOS'; i++) await w(250); out.after = Shelf._qs().g;
@@ -304,7 +304,7 @@ module.exports = async function pcGamesPass({ browser, base, check, newPage }) {
     const bt = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), out = {};
       const key = k => document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       for (let i = 0; i < 40 && Shelf.getMode() !== 'browse'; i++) await w(250);
-      window.__pcCovers = {}; const missing = await window.trustyshelf.pcCoverMissing(); out.n = missing.length; out.titles = [];
+      window.__pcCovers = {}; const missing = await window.rustyshelf.pcCoverMissing(); out.n = missing.length; out.titles = [];
       Shelf.pcCoverBatch();
       // (beta.11) the newest picker is judged (a closing one may still be fading out ahead of it), and on a miss the check
       // records what was on screen: GitHub's runner missed the title twice while A still picked the cover

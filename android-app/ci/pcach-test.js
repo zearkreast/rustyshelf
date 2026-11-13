@@ -1,4 +1,4 @@
-// (T)rustyShelf: a Steam game's achievements in its Details ((T)rustyShelf discussion 22), on the demo page as Windows.
+// RustyShelf: a Steam game's achievements in its Details (RustyShelf discussion 22), on the demo page as Windows.
 // Run (after node copy-web.js): node ci/pcach-test.js www ../out/pcach
 //   - Details of a Steam game Steam has achievements cached for shows the row: 2 of 4 unlocked, Steam
 //   - See all opens the list (Unlocked 2, Locked 2), with no points
@@ -20,7 +20,7 @@ server.listen(0, async () => {
     const base = `http://localhost:${server.address().port}/index.html?platform=windows&shelf=1`;
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } }), page = await ctx.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message)); await page.goto(base); await page.waitForTimeout(5000);
-    await page.evaluate(async () => { const c = (await trustyshelf.getConfig()).config; c.steam = { ...c.steam, enabled: true, path: 'C:\\Steam' }; await trustyshelf.saveConfig(c); await Shelf.refresh(true); });
+    await page.evaluate(async () => { const c = (await rustyshelf.getConfig()).config; c.steam = { ...c.steam, enabled: true, path: 'C:\\Steam' }; await rustyshelf.saveConfig(c); await Shelf.refresh(true); });
     await page.waitForTimeout(2500);
     const pick = title => page.evaluate(async title => { const w = ms => new Promise(r => setTimeout(r, ms));
       const tab = [...document.querySelectorAll('#tabs .tab')].find(t => t.textContent.trim() === 'PC'); if (!tab) return 'no PC tab'; tab.click(); await w(1500);

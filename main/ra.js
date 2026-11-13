@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is Boxshelf's
-// main/ra.js with the app's name ((T)rustyShelf) and its own consoles (Neo Geo Pocket) added.
+// main/ra.js with the app's name (RustyShelf) and its own consoles (Neo Geo Pocket) added.
 // RetroAchievements: progress and achievement lists for the shelves it covers (GameCube and Wii through Dolphin, PSP through
 // PPSSPP, PS2 through PCSX2, PlayStation through DuckStation, the retro consoles through RetroArch). Achievements are earned inside the emulator;
 // this just reads your account through the RA web API and matches games by title.
@@ -12,12 +12,12 @@ const https = require('https');
 // PS4/5 and Xbox 360 have no sets; DOS has none to speak of
 const CONSOLE_ID = { megadrive: 1, n64: 2, snes: 3, gb: 4, gba: 5, gbc: 6, nes: 7, pcengine: 8, mastersystem: 11, psx: 12, gamegear: 15, gc: 16, nds: 18,
   wii: 19, ps2: 21, arcade: 27, neogeo: 27, saturn: 39, dreamcast: 40, psp: 41, segacd: 9, sega32x: 10, atari2600: 25, atarilynx: 13, wonderswan: 53,
-  ngp: 14, ngpc: 14 }; // ((T)rustyShelf) its Neo Geo Pocket shelves, as on Android (android-ra.js): one RA list for both
+  ngp: 14, ngpc: 14 }; // (RustyShelf) its Neo Geo Pocket shelves, as on Android (android-ra.js): one RA list for both
 const API = 'https://retroachievements.org/API/';
 const MEDIA = 'https://media.retroachievements.org';
 let dir = null, log = () => {}, creds = { user: '', key: '' };
 const mem = new Map();
-const UA = `TrustyShelf/${(() => { try { return require('../package.json').version; } catch { return '0'; } })()}`;
+const UA = `RustyShelf/${(() => { try { return require('../package.json').version; } catch { return '0'; } })()}`;
 
 function init(dataDir, logger) { dir = path.join(dataDir, 'ra'); fs.mkdirSync(dir, { recursive: true }); if (logger) log = logger; }
 function setCredentials(user, key) { const next = { user: String(user || '').trim(), key: String(key || '').trim() }; if (next.user !== creds.user || next.key !== creds.key) failed.clear(); /* a fixed key is tried at once, not after the failure pause */ creds = next; }
@@ -31,7 +31,7 @@ function getJson(u) {
     const req = https.get(u, { headers: { 'User-Agent': UA } }, res => {
       if (res.statusCode === 429) { res.resume(); return reject(new Error('RetroAchievements is busy (too many requests). Try again in a minute.')); }
       if (res.statusCode !== 200) { res.resume(); return reject(new Error(res.statusCode === 401 || res.statusCode === 403 ? 'RetroAchievements didn\'t accept your web API key. Check it in Settings → Accounts.' : `RetroAchievements didn't answer (HTTP ${res.statusCode}). Try again in a moment.`)); } // never the URL: it carries the API key
-      let b = ''; res.setEncoding('utf8'); res.on('data', c => b += c); res.on('end', () => { try { resolve(JSON.parse(b)); } catch { reject(new Error('RetroAchievements sent an answer (T)rustyShelf couldn\'t read. Try again in a moment.')); } }); /* a maintenance or proxy page in HTML, not "Unexpected token <" */ res.on('error', reject);
+      let b = ''; res.setEncoding('utf8'); res.on('data', c => b += c); res.on('end', () => { try { resolve(JSON.parse(b)); } catch { reject(new Error('RetroAchievements sent an answer RustyShelf couldn\'t read. Try again in a moment.')); } }); /* a maintenance or proxy page in HTML, not "Unexpected token <" */ res.on('error', reject);
     });
     req.on('error', reject); req.setTimeout(20000, () => req.destroy(new Error('timed out')));
   });

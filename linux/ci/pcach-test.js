@@ -1,4 +1,4 @@
-// (T)rustyShelf: a Steam game's achievements, read from what Steam keeps on this PC ((T)rustyShelf discussion 22; main/pcach.js).
+// RustyShelf: a Steam game's achievements, read from what Steam keeps on this PC (RustyShelf discussion 22; main/pcach.js).
 // Run: node linux/ci/pcach-test.js
 //   - Valve's binary KeyValues are read (maps, strings, numbers)
 //   - the achievement list comes from UserGameStatsSchema_<appid>.bin (English names, hidden ones kept hidden until unlocked,

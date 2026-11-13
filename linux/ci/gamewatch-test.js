@@ -76,7 +76,7 @@ const LAUNCHER_PROCS = [{ pid: 10, name: 'steam.exe', exe: STEAM + '\\steam.exe'
 
     // ---------- close(): the game asked, then forced; Steam, Epic's launcher and the app itself never touched ----------
     { const W = fakeWorld(), g = gw.create(W.deps);
-      W.list = LAUNCHER_PROCS.concat([{ pid: 20, name: 'EpicGamesLauncher.exe', exe: GAME + '\\EpicGamesLauncher.exe' }, { pid: 999, name: 'TrustyShelf.exe', exe: GAME + '\\TrustyShelf.exe' }, { pid: 500, name: 'Cobalt.exe', exe: GAME + '\\Cobalt.exe' }, { pid: 502, name: 'CobaltHelper.exe', exe: GAME + '\\tools\\CobaltHelper.exe' }]);
+      W.list = LAUNCHER_PROCS.concat([{ pid: 20, name: 'EpicGamesLauncher.exe', exe: GAME + '\\EpicGamesLauncher.exe' }, { pid: 999, name: 'RustyShelf.exe', exe: GAME + '\\RustyShelf.exe' }, { pid: 500, name: 'Cobalt.exe', exe: GAME + '\\Cobalt.exe' }, { pid: 502, name: 'CobaltHelper.exe', exe: GAME + '\\tools\\CobaltHelper.exe' }]);
       const w = g.watch({ kind: 'steam', appid: '400000', dir: GAME }); const ev = []; w.on('ended', () => ev.push('ended'));
       await W.advance(2100); const forced = [];
       await g.close(8000, pids => forced.push(...pids)); await flush();
