@@ -1,6 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
 // main/systems.js; modified for RustyShelf (see the git history).
 // Definitions for every shelf the launcher knows about.
+// The Rust app reads a copy: after a change, run node scripts/export-systems.js.
 // Paths may use %ENV% variables and {app} (the folder RustyShelf lives in).
 // Game launch options use {rom} for the game file; edit them later in Settings.
 // coverSeconds: the longest RustyShelf's black loading screen stays on top while the emulator opens (it lifts as soon

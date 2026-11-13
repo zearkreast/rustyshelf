@@ -1,0 +1,12 @@
+[package]
+name = "rustyshelf"
+description = "RustyShelf: a TV-style 3D box-art launcher for emulators"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rustyshelf-core = { path = "../rustyshelf-core" }
+bevy = { version = "0.20.1", default-features = false, features = ["3d", "ui", "png", "jpeg", "webp", "x11", "wayland", "gamepad", "default_font", "tonemapping_luts"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }

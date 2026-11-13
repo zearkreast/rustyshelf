@@ -1,0 +1,424 @@
+[
+ {
+  "console": "gc",
+  "files": [
+   [
+    "Metroid Prime (USA).iso",
+    100
+   ],
+   [
+    "Metroid Prime (USA).rvz",
+    50
+   ],
+   [
+    "Tales of Symphonia (USA) (Disc 1).rvz",
+    10
+   ],
+   [
+    "Tales of Symphonia (USA) (Disc 2).rvz",
+    10
+   ],
+   [
+    "Tales of Symphonia (USA) (Disc 2).iso",
+    30
+   ],
+   [
+    "Pikmin 2 (Europe).rvz",
+    5
+   ],
+   [
+    "Pikmin 2 (USA).rvz",
+    5
+   ],
+   [
+    "RPG/Skies of Arcadia Legends (USA).gcz",
+    7
+   ],
+   [
+    "a/b/c/d/e/Too Deep (USA).iso",
+    1
+   ],
+   [
+    "a/b/c/d/Deep Enough (USA).iso",
+    1
+   ],
+   [
+    ".hidden/Hidden Game.iso",
+    1
+   ],
+   [
+    "updates/Patch.iso",
+    1
+   ],
+   [
+    "notes.txt",
+    1
+   ],
+   [
+    "Legend of Zelda, The - The Wind Waker (USA).rvz",
+    9
+   ]
+  ],
+  "art": [
+   "covers/Metroid Prime (USA).png",
+   "covers/Metroid Prime (USA)-back.jpg",
+   "covers/Metroid Prime (USA)-spinemade.png",
+   "covers/Tales of Symphonia.png",
+   "covers/Pikmin 2 (USA)-manual-02.jpg",
+   "covers/Pikmin 2 (USA)-manual-10.jpg",
+   "covers/Pikmin 2 (USA)-manual-1.jpg",
+   "media/covers/Skies of Arcadia Legends (USA)-manual.pdf",
+   "boxart/The Legend of Zelda - The Wind Waker-disc.webp"
+  ],
+  "games": [
+   {
+    "title": "Deep Enough",
+    "region": "USA",
+    "disc": 0,
+    "file": "a/b/c/d/Deep Enough (USA).iso",
+    "ext": "iso",
+    "sizeBytes": 1,
+    "discs": [
+     "a/b/c/d/Deep Enough (USA).iso"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Metroid Prime",
+    "region": "USA",
+    "disc": 0,
+    "file": "Metroid Prime (USA).iso",
+    "ext": "iso",
+    "sizeBytes": 100,
+    "discs": [
+     "Metroid Prime (USA).iso"
+    ],
+    "art": {
+     "front": "covers/Metroid Prime (USA).png",
+     "back": "covers/Metroid Prime (USA)-back.jpg",
+     "madeBack": false,
+     "spine": "covers/Metroid Prime (USA)-spinemade.png",
+     "madeSpine": true,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Pikmin 2",
+    "region": "Europe",
+    "disc": 0,
+    "file": "Pikmin 2 (Europe).rvz",
+    "ext": "rvz",
+    "sizeBytes": 5,
+    "discs": [
+     "Pikmin 2 (Europe).rvz"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Pikmin 2",
+    "region": "USA",
+    "disc": 0,
+    "file": "Pikmin 2 (USA).rvz",
+    "ext": "rvz",
+    "sizeBytes": 5,
+    "discs": [
+     "Pikmin 2 (USA).rvz"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [
+      "covers/Pikmin 2 (USA)-manual-1.jpg",
+      "covers/Pikmin 2 (USA)-manual-02.jpg",
+      "covers/Pikmin 2 (USA)-manual-10.jpg"
+     ],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Skies of Arcadia Legends",
+    "region": "USA",
+    "disc": 0,
+    "file": "RPG/Skies of Arcadia Legends (USA).gcz",
+    "ext": "gcz",
+    "sizeBytes": 7,
+    "discs": [
+     "RPG/Skies of Arcadia Legends (USA).gcz"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": "media/covers/Skies of Arcadia Legends (USA)-manual.pdf"
+    }
+   },
+   {
+    "title": "Tales of Symphonia",
+    "region": "USA",
+    "disc": 1,
+    "file": "Tales of Symphonia (USA) (Disc 1).rvz",
+    "ext": "rvz",
+    "sizeBytes": 10,
+    "discs": [
+     "Tales of Symphonia (USA) (Disc 1).rvz",
+     "Tales of Symphonia (USA) (Disc 2).iso"
+    ],
+    "art": {
+     "front": "covers/Tales of Symphonia.png",
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "The Legend of Zelda - The Wind Waker",
+    "region": "USA",
+    "disc": 0,
+    "file": "Legend of Zelda, The - The Wind Waker (USA).rvz",
+    "ext": "rvz",
+    "sizeBytes": 9,
+    "discs": [
+     "Legend of Zelda, The - The Wind Waker (USA).rvz"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": "boxart/The Legend of Zelda - The Wind Waker-disc.webp",
+     "manual": [],
+     "manualPdf": null
+    }
+   }
+  ]
+ },
+ {
+  "console": "sw",
+  "files": [
+   [
+    "Pokemon Sword [0100ABF008968000][v0].nsp",
+    20
+   ],
+   [
+    "Pokemon Sword [0100ABF008968800][v65536].nsp",
+    2
+   ],
+   [
+    "Zelda Update v1.6.0.nsp",
+    1
+   ],
+   [
+    "Hall Pass.xci",
+    3
+   ],
+   [
+    "Game [UPD].nsp",
+    1
+   ],
+   [
+    "DLC/Extra.nsp",
+    1
+   ]
+  ],
+  "art": [],
+  "games": [
+   {
+    "title": "Pokemon Sword",
+    "region": "",
+    "disc": 0,
+    "file": "Pokemon Sword [0100ABF008968000][v0].nsp",
+    "ext": "nsp",
+    "sizeBytes": 20,
+    "discs": [
+     "Pokemon Sword [0100ABF008968000][v0].nsp"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   }
+  ]
+ },
+ {
+  "console": "psx",
+  "files": [
+   [
+    "Final Fantasy VII (USA) (Disc 1).chd",
+    3
+   ],
+   [
+    "Final Fantasy VII (USA) (Disc 2).chd",
+    3
+   ],
+   [
+    "Final Fantasy VII (USA) (Disc 3).chd",
+    3
+   ],
+   [
+    "Ape Escape (USA).cue",
+    1
+   ],
+   [
+    "Mario 10.chd",
+    1
+   ],
+   [
+    "Mario 2.chd",
+    1
+   ],
+   [
+    "mario 1.chd",
+    1
+   ]
+  ],
+  "art": [],
+  "games": [
+   {
+    "title": "Ape Escape",
+    "region": "USA",
+    "disc": 0,
+    "file": "Ape Escape (USA).cue",
+    "ext": "cue",
+    "sizeBytes": 1,
+    "discs": [
+     "Ape Escape (USA).cue"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Final Fantasy VII",
+    "region": "USA",
+    "disc": 1,
+    "file": "Final Fantasy VII (USA) (Disc 1).chd",
+    "ext": "chd",
+    "sizeBytes": 3,
+    "discs": [
+     "Final Fantasy VII (USA) (Disc 1).chd",
+     "Final Fantasy VII (USA) (Disc 2).chd",
+     "Final Fantasy VII (USA) (Disc 3).chd"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "mario 1",
+    "region": "",
+    "disc": 0,
+    "file": "mario 1.chd",
+    "ext": "chd",
+    "sizeBytes": 1,
+    "discs": [
+     "mario 1.chd"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Mario 2",
+    "region": "",
+    "disc": 0,
+    "file": "Mario 2.chd",
+    "ext": "chd",
+    "sizeBytes": 1,
+    "discs": [
+     "Mario 2.chd"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   },
+   {
+    "title": "Mario 10",
+    "region": "",
+    "disc": 0,
+    "file": "Mario 10.chd",
+    "ext": "chd",
+    "sizeBytes": 1,
+    "discs": [
+     "Mario 10.chd"
+    ],
+    "art": {
+     "front": null,
+     "back": null,
+     "madeBack": false,
+     "spine": null,
+     "madeSpine": false,
+     "disc": null,
+     "manual": [],
+     "manualPdf": null
+    }
+   }
+  ]
+ }
+]

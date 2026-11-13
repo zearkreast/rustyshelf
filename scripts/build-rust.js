@@ -13,7 +13,7 @@ if (fs.existsSync(cargoUser)) {
 }
 
 console.log(`Building Rust tools using ${cargoCmd}...`);
-execFileSync(cargoCmd, ['build', '--release'], {
+execFileSync(cargoCmd, ['build', '--release', '-p', 'rustyshelf-imgtools'], {
   cwd: root,
   stdio: 'inherit',
   env: {

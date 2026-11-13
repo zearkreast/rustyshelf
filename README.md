@@ -18,6 +18,9 @@ Proton, your whole Epic Games library through legendary, and a PC games folder w
 game's size on the shelf and a held Exit button. Those are marked *(new in RustyShelf)* below; everything else is
 Boxshelf's work, by its author.
 
+RustyShelf is being rewritten as a native Rust app (see [The native Rust version](#the-native-rust-version)). Until it
+can do everything, the Electron app below is the one to use.
+
 > **This is RustyShelf's source code** (Windows: Electron; Linux: an Electron AppImage; Android: Capacitor, in
 > `android-app\`), released under the [GNU GPL v3.0](LICENSE). Ready-made builds (Windows, Linux, Android) are on
 > RustyShelf's [releases page](https://github.com/zearkreast/rustyshelf/releases) once one is out; or build it as below. **Looking for the official Boxshelf?** Its download is on the
@@ -378,6 +381,27 @@ Changes outside RustyShelf's folder:
 (Electron fuses): it only runs its own packed, integrity-checked app files, and it can't be started as a plain
 Node.js runtime or with a debugger attached. The exe isn't code-signed, so Windows may show a SmartScreen
 warning the first time; choose **More info → Run anyway**.
+
+## The native Rust version
+
+RustyShelf is being rewritten as a native Rust app, in `crates/` (a Cargo workspace, built with [Bevy](https://bevy.org/)).
+It isn't a replacement yet: the Electron app above is still the one to install and run.
+
+What it does so far: it reads the Electron app's settings (`data\config.json`, read only, so set things up in the Electron
+app), finds every console's games the same way (one box per game, discs together, updates and DLC left out), shows them
+with their box art on a 3D shelf, one console at a time, and starts a game in its emulator with its launch options.
+Not there yet: Settings and the setup wizard, downloading art, Steam and PC games, the open case and the museum, sounds and
+music, the phone companion, Android. The Xbox 360's packages, Switch 2's unpacked games, PS4 `.pkg` files and the arcade
+name list aren't read yet either.
+
+```bash
+cargo run -p rustyshelf --release -- --windowed
+```
+
+It uses the same folder as the Electron app (beside the program when there's a `data` folder there, else `~/RustyShelf`
+on Linux); `RUSTYSHELF_ROOT` points it at another. Keys: ← → choose a game, Q / E change console, Enter plays, Esc quits; on a
+pad the D-pad or left stick, LB / RB and A. `cargo test --workspace` runs its tests, which check its title and folder rules
+against the Electron app's own (`node scripts/rust-fixtures.js` makes those answers again).
 
 ## Credits
 
