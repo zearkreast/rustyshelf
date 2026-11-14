@@ -1,0 +1,164 @@
+// Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the table is
+// Boxshelf's (renderer/app.js STYLE and WORDMARKS, renderer/systems-extra.js), as RustyShelf has it.
+//! Each shelf's looks: the shape and colours of its games' cases, the backdrop's tint, its name on the shelf. The
+//! table is `data/looks.json`, written from the Electron app's own by scripts/export-systems.js.
+
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+use serde::Deserialize;
+
+use crate::scanner::{Game, Source};
+
+/// A colour: red, green, blue and how solid it is, each 0 to 1 (sRGB, as CSS writes them).
+pub type Rgba = [f32; 4];
+
+/// The strip a case carries its console's name on.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Band {
+    #[serde(deserialize_with = "css")]
+    pub bg: Rgba,
+    #[serde(deserialize_with = "css")]
+    pub fg: Rgba,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Look {
+    pub id: String,
+    /// a case's width for its height
+    pub ratio: f32,
+    /// its thickness for its width
+    pub depth: f32,
+    /// its height against a keep case's (a 3DS case is shorter)
+    #[serde(default)]
+    pub h: Option<f32>,
+    /// the border of case round the printed sheet, for the case's width
+    #[serde(default)]
+    pub edge: f32,
+    /// the sheet runs on round the spine: no border on that side
+    #[serde(default, deserialize_with = "flag")]
+    pub wrap: bool,
+    #[serde(deserialize_with = "css")]
+    pub case_color: Rgba,
+    #[serde(deserialize_with = "css")]
+    pub case_side: Rgba,
+    #[serde(deserialize_with = "css")]
+    pub spine_ink: Rgba,
+    #[serde(default)]
+    pub band: Option<Band>,
+    #[serde(default)]
+    pub spine_band: Option<Band>,
+    /// the backdrop behind the shelf, top and bottom
+    #[serde(deserialize_with = "pair")]
+    pub tint: [Rgba; 2],
+    #[serde(deserialize_with = "css")]
+    pub glow: Rgba,
+    #[serde(default)]
+    pub hue: f32,
+}
+
+impl Look {
+    /// A case's width, thickness and border, each for its height.
+    pub fn shape(&self) -> (f32, f32, f32) {
+        (self.ratio, self.ratio * self.depth, self.ratio * self.edge)
+    }
+}
+
+/// "#rrggbb", "#rgb" or "rgba(r, g, b, a)"; black for anything else.
+pub fn parse_css(text: &str) -> Rgba {
+    let t = text.trim();
+    if let Some(hex) = t.strip_prefix('#') {
+        let digit = |i: usize, n: usize| u8::from_str_radix(hex.get(i..i + n).unwrap_or("0"), 16).unwrap_or(0);
+        return match hex.len() {
+            3 => [digit(0, 1) * 17, digit(1, 1) * 17, digit(2, 1) * 17].map(|c| f32::from(c) / 255.0).into_iter().chain([1.0]).collect::<Vec<_>>().try_into().unwrap_or([0.0, 0.0, 0.0, 1.0]),
+            _ => [f32::from(digit(0, 2)) / 255.0, f32::from(digit(2, 2)) / 255.0, f32::from(digit(4, 2)) / 255.0, 1.0],
+        };
+    }
+    if let Some(inner) = t.strip_prefix("rgba(").or(t.strip_prefix("rgb(")).and_then(|x| x.strip_suffix(')')) {
+        let parts: Vec<f32> = inner.split(',').filter_map(|p| p.trim().parse().ok()).collect();
+        if parts.len() >= 3 {
+            return [parts[0] / 255.0, parts[1] / 255.0, parts[2] / 255.0, parts.get(3).copied().unwrap_or(1.0)];
+        }
+    }
+    [0.0, 0.0, 0.0, 1.0]
+}
+
+fn css<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Rgba, D::Error> {
+    Ok(parse_css(&String::deserialize(d)?))
+}
+
+fn pair<'de, D: serde::Deserializer<'de>>(d: D) -> Result<[Rgba; 2], D::Error> {
+    let [a, b] = <[String; 2]>::deserialize(d)?;
+    Ok([parse_css(&a), parse_css(&b)])
+}
+
+/// The table writes a switch as 1.
+fn flag<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+    let v = serde_json::Value::deserialize(d)?;
+    Ok(v.as_bool().unwrap_or_else(|| v.as_f64().is_some_and(|n| n != 0.0)))
+}
+
+#[derive(Deserialize)]
+struct Table {
+    style: HashMap<String, Look>,
+    wordmarks: HashMap<String, (String, String)>,
+}
+
+static TABLE: LazyLock<Table> = LazyLock::new(|| serde_json::from_str(include_str!("../data/looks.json")).expect("data/looks.json"));
+
+/// A shelf's looks; the Media shelf's for a shelf the table doesn't have (a collection takes Home's).
+pub fn look(shelf: &str) -> &'static Look {
+    let id = if shelf.starts_with("col-") { "home" } else { shelf };
+    TABLE.style.get(id).unwrap_or_else(|| &TABLE.style["media"])
+}
+
+/// A shelf's name as the shelf writes it large, and the line under it.
+pub fn wordmark(shelf: &str) -> Option<(&'static str, &'static str)> {
+    TABLE.wordmarks.get(shelf).map(|(a, b)| (a.as_str(), b.as_str()))
+}
+
+/// The case a game stands in on the shelf `shelf` (its own shelf, also when it's shown on Home): the shelf's, or
+/// its console release's for a PC game shown in a console box. A PC game's case has no border round its cover and
+/// carries the PC spine.
+pub fn look_for(shelf: &str, g: &Game) -> Look {
+    let boxed = g.box_plat.as_deref().and_then(|p| TABLE.style.get(p));
+    let base = boxed.unwrap_or_else(|| look(shelf));
+    let pc = matches!(g.source, Source::Steam { .. }) || shelf == "pc" || shelf == "custom";
+    if pc {
+        Look { edge: 0.0, spine_band: look("pc").spine_band.clone(), ..base.clone() }
+    } else {
+        base.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_the_table() {
+        let gc = look("gc");
+        assert_eq!((gc.ratio, gc.depth, gc.edge, gc.wrap, gc.h), (0.712, 0.105, 0.022, false, None));
+        assert_eq!(gc.case_color, [22.0 / 255.0, 22.0 / 255.0, 27.0 / 255.0, 1.0]);
+        assert_eq!(gc.band.as_ref().map(|b| b.label.as_str()), Some("GAMECUBE"));
+        let (w, d, e) = gc.shape();
+        assert!((w - 0.712).abs() < 1e-6 && (d - 0.07476).abs() < 1e-6 && (e - 0.015664).abs() < 1e-6);
+        // the Switch's clear case, a sheet that wraps, a shorter case
+        assert_eq!(look("sw").case_color, [1.0, 1.0, 1.0, 0.22]);
+        assert!(look("sw").wrap && look("x360").wrap && !look("ps2").wrap);
+        assert_eq!(look("n3ds").h, Some(0.64));
+        assert_eq!((look("nothing").id.as_str(), look("col-c1").id.as_str(), look("all").id.as_str()), ("media", "home", "home"));
+        assert_eq!(wordmark("gc"), Some(("GameCube", "Home console")));
+        assert_eq!(parse_css("#fff"), [1.0, 1.0, 1.0, 1.0]);
+
+        let steam = Game { source: Source::Steam { appid: "1".into(), minutes: 0, last_played: 0 }, ..Game::default() };
+        let on_pc = look_for("pc", &steam);
+        assert_eq!((on_pc.id.as_str(), on_pc.edge), ("pc", 0.0));
+        // a PC game in its console box: that console's case, without the border, with the PC spine
+        let boxed = look_for("pc", &Game { box_plat: Some("gc".into()), ..steam });
+        assert_eq!((boxed.id.as_str(), boxed.edge, boxed.spine_band.map(|b| b.label)), ("gc", 0.0, Some("PC".into())));
+        assert_eq!(look_for("gc", &Game::default()).edge, 0.022);
+    }
+}

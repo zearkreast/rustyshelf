@@ -273,7 +273,13 @@ pub fn navigate(
         cursor.game = n.saturating_sub(1);
     }
     if cursor.game != was {
+        cursor.flipped = false;
         sounds.play("tick", if cursor.game < was { -1 } else { 1 });
+    }
+    // the chosen case turns round to show its back, and round again
+    if keys.just_pressed(KeyCode::KeyF) && n > 0 {
+        cursor.flipped = !cursor.flipped;
+        sounds.play("flip", 1);
     }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);

@@ -68,7 +68,7 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
             (Line::Details, Text::default(), font(2.2), TextColor(DIM)),
             (
                 Node { margin: UiRect::top(vmin(2.0)), ..default() },
-                Text::new("◀ ▶  Game      Q / E · LB / RB  Console      Enter · A  Play      D · X  Details      M · Y  Menu      F1 · Start  Settings      Esc  Quit"),
+                Text::new("◀ ▶  Game      Q / E · LB / RB  Console      Enter · A  Play      F  Flip      D · X  Details      M · Y  Menu      F1 · Start  Settings      Esc  Quit"),
                 font(1.9),
                 TextColor(DIM),
             ),

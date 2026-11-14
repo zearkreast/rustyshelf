@@ -517,7 +517,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   That includes Xbox 360 games named by their title id (disc images, extracted games, Games on Demand and Arcade
   packages), unpacked Switch 2 games, PS4 `.pkg` packages shown as not installed, PS5 games, arcade sets named from the
   FinalBurn Neo list, and the names and pictures in a Batocera / RetroBat `gamelist.xml`.
-- Shows them with their box art on a 3D shelf, one console at a time.
+- Shows them with their box art on a 3D shelf, one console at a time, each game in its console's own case (the
+  Electron app's table of case shapes and colours: keep cases, jewel cases, card boxes, the shorter handheld ones)
+  against that console's backdrop. F turns the chosen case round to its back cover; its spine shows on its side.
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,
   else RetroArch with the console's core; with the options the emulator in use takes (a standalone retro emulator,
   Ryujinx, Dolphin's settings for the session, the GameCube startup), the real Xenia behind Xenia Manager, a PS Vita game
@@ -617,6 +619,7 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Choose a game | ← → | D-pad / left stick |
 | Change console | Q / E | LB / RB |
 | Play | Enter | A |
+| Turn the case round | F | |
 | Details | D | X |
 | Shelf menu | M | Y |
 | Settings | F1 | Start |

@@ -1,0 +1,1449 @@
+{
+ "style": {
+  "gc": {
+   "id": "gc",
+   "rc": 0.03,
+   "re": 0.2,
+   "hue": 258,
+   "ratio": 0.712,
+   "depth": 0.105,
+   "edge": 0.022,
+   "caseColor": "#16161b",
+   "caseSide": "#0b0b0e",
+   "spineInk": "#e8e8f0",
+   "band": {
+    "bg": "#26262e",
+    "fg": "#c3c3cf",
+    "label": "GAMECUBE"
+   },
+   "spineBand": {
+    "bg": "#2c2c35",
+    "fg": "#c3c3cf",
+    "label": "GCN"
+   },
+   "tint": [
+    "#3a2a86",
+    "#120d2c"
+   ],
+   "glow": "#9d8cff"
+  },
+  "wii": {
+   "id": "wii",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 205,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.03,
+   "caseColor": "#f2f3f5",
+   "caseSide": "#d9dbe0",
+   "spineInk": "#4a4f58",
+   "band": {
+    "bg": "#ffffff",
+    "fg": "#8e949e",
+    "label": "Wii"
+   },
+   "spineBand": {
+    "bg": "#ffffff",
+    "fg": "#8e949e",
+    "label": "Wii"
+   },
+   "tint": [
+    "#2f7bff",
+    "#0b2a7a"
+   ],
+   "glow": "#9fd0ff"
+  },
+  "wiiu": {
+   "id": "wiiu",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 194,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.03,
+   "caseColor": "#1d8fd1",
+   "caseSide": "#146ea6",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#1d8fd1",
+    "fg": "#ffffff",
+    "label": "Wii U"
+   },
+   "spineBand": {
+    "bg": "#ffffff",
+    "fg": "#1d8fd1",
+    "label": "Wii U"
+   },
+   "tint": [
+    "#0f6fb0",
+    "#04203a"
+   ],
+   "glow": "#6fd0ff"
+  },
+  "sw": {
+   "id": "sw",
+   "rc": 0.06,
+   "re": 0.28,
+   "hue": 355,
+   "ratio": 0.612,
+   "depth": 0.096,
+   "edge": 0.035,
+   "wrap": 1,
+   "caseColor": "rgba(255,255,255,0.22)",
+   "caseSide": "rgba(255,255,255,0.22)",
+   "spineInk": "#1f2024",
+   "band": {
+    "bg": "#d8101f",
+    "fg": "#ffffff",
+    "label": "SWITCH"
+   },
+   "spineBand": {
+    "bg": "#d8101f",
+    "fg": "#ffffff",
+    "label": "SW"
+   },
+   "tint": [
+    "#7a2bd6",
+    "#2a0b4e"
+   ],
+   "glow": "#ff6470"
+  },
+  "sw2": {
+   "id": "sw2",
+   "rc": 0.06,
+   "re": 0.28,
+   "hue": 352,
+   "ratio": 0.612,
+   "depth": 0.096,
+   "edge": 0.035,
+   "wrap": 1,
+   "caseColor": "#e60012",
+   "caseSide": "#ad000d",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#e60012",
+    "fg": "#ffffff",
+    "label": "SWITCH 2"
+   },
+   "spineBand": {
+    "bg": "#e60012",
+    "fg": "#ffffff",
+    "label": "SW2"
+   },
+   "tint": [
+    "#16608f",
+    "#071a2e"
+   ],
+   "glow": "#ff5a66"
+  },
+  "ps4": {
+   "id": "ps4",
+   "rc": 0.065,
+   "re": 0.26,
+   "hue": 216,
+   "ratio": 0.787,
+   "depth": 0.089,
+   "edge": 0.03,
+   "caseColor": "#1d4ed8",
+   "caseSide": "#153a9e",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#1d4ed8",
+    "fg": "#ffffff",
+    "label": "PS4"
+   },
+   "spineBand": {
+    "bg": "#1d4ed8",
+    "fg": "#ffffff",
+    "label": "PS4"
+   },
+   "tint": [
+    "#1e3a8a",
+    "#0b1533"
+   ],
+   "glow": "#6aa6ff"
+  },
+  "ps5": {
+   "id": "ps5",
+   "rc": 0.065,
+   "re": 0.26,
+   "hue": 220,
+   "ratio": 0.787,
+   "depth": 0.089,
+   "edge": 0.03,
+   "caseColor": "#2b62d9",
+   "caseSide": "#1f4cb3",
+   "spineInk": "#111318",
+   "band": {
+    "bg": "#ffffff",
+    "fg": "#111318",
+    "label": "PS5"
+   },
+   "spineBand": {
+    "bg": "#ffffff",
+    "fg": "#111318",
+    "label": "PS5"
+   },
+   "tint": [
+    "#24345e",
+    "#0a0f1f"
+   ],
+   "glow": "#9ec2ff"
+  },
+  "ps3": {
+   "id": "ps3",
+   "rc": 0.065,
+   "re": 0.26,
+   "hue": 221,
+   "ratio": 0.787,
+   "depth": 0.1,
+   "edge": 0.03,
+   "caseColor": "#203553",
+   "caseSide": "#16263f",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#0c0d10",
+    "fg": "#ffffff",
+    "label": "PS3"
+   },
+   "spineBand": {
+    "bg": "#0c0d10",
+    "fg": "#ffffff",
+    "label": "PS3"
+   },
+   "tint": [
+    "#24406e",
+    "#090f1e"
+   ],
+   "glow": "#7ab4ff"
+  },
+  "ps2": {
+   "id": "ps2",
+   "rc": 0.035,
+   "re": 0.2,
+   "hue": 226,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.03,
+   "caseColor": "#0f1d55",
+   "caseSide": "#0a1440",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#0f1d55",
+    "fg": "#dfe6ff",
+    "label": "PS2"
+   },
+   "spineBand": {
+    "bg": "#0f1d55",
+    "fg": "#dfe6ff",
+    "label": "PS2"
+   },
+   "tint": [
+    "#1b2a7a",
+    "#070b24"
+   ],
+   "glow": "#8fa6ff"
+  },
+  "x360": {
+   "id": "x360",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 115,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.018,
+   "wrap": 1,
+   "caseColor": "#1a7f1a",
+   "caseSide": "#0f5a12",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX 360"
+   },
+   "spineBand": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "X360"
+   },
+   "tint": [
+    "#145a16",
+    "#061a07"
+   ],
+   "glow": "#7ee87e"
+  },
+  "xboxone": {
+   "id": "xboxone",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 118,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.03,
+   "caseColor": "#107c10",
+   "caseSide": "#0b580b",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX ONE"
+   },
+   "spineBand": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX ONE"
+   },
+   "tint": [
+    "#145a16",
+    "#061a07"
+   ],
+   "glow": "#7ee87e"
+  },
+  "psp": {
+   "id": "psp",
+   "rc": 0.055,
+   "re": 0.24,
+   "hue": 235,
+   "ratio": 0.589,
+   "depth": 0.14,
+   "edge": 0.03,
+   "caseColor": "#101014",
+   "caseSide": "#07070a",
+   "spineInk": "#e8e8f0",
+   "band": {
+    "bg": "#0a0a0d",
+    "fg": "#ffffff",
+    "label": "PSP"
+   },
+   "spineBand": {
+    "bg": "#0a0a0d",
+    "fg": "#ffffff",
+    "label": "PSP"
+   },
+   "tint": [
+    "#4a4f63",
+    "#0b0c12"
+   ],
+   "glow": "#cfd6ff"
+  },
+  "n3ds": {
+   "id": "n3ds",
+   "rc": 0.05,
+   "re": 0.24,
+   "hue": 352,
+   "ratio": 1.127,
+   "depth": 0.1,
+   "h": 0.64,
+   "edge": 0.03,
+   "caseColor": "#f4f4f6",
+   "caseSide": "#dcdde2",
+   "spineInk": "#3a3d45",
+   "band": {
+    "bg": "#ffffff",
+    "fg": "#d40f2a",
+    "label": "NINTENDO 3DS"
+   },
+   "spineBand": {
+    "bg": "#ffffff",
+    "fg": "#d40f2a",
+    "label": "3DS"
+   },
+   "tint": [
+    "#c0182e",
+    "#3a0710"
+   ],
+   "glow": "#ff7a8a"
+  },
+  "pc": {
+   "id": "pc",
+   "rc": 0.02,
+   "re": 0.16,
+   "hue": 207,
+   "ratio": 0.667,
+   "depth": 0.07,
+   "edge": 0,
+   "caseColor": "#1b1f27",
+   "caseSide": "#11141a",
+   "spineInk": "#dfe8f3",
+   "band": null,
+   "spineBand": {
+    "bg": "#11141a",
+    "fg": "#8fb4d9",
+    "label": "PC"
+   },
+   "tint": [
+    "#1d4a6e",
+    "#0a121c"
+   ],
+   "glow": "#8fc3ff"
+  },
+  "custom": {
+   "id": "custom",
+   "rc": 0.02,
+   "re": 0.16,
+   "hue": 28,
+   "ratio": 0.667,
+   "depth": 0.07,
+   "edge": 0,
+   "caseColor": "#211b17",
+   "caseSide": "#15110e",
+   "spineInk": "#f3e6da",
+   "band": null,
+   "spineBand": {
+    "bg": "#15110e",
+    "fg": "#e0a878",
+    "label": "PC"
+   },
+   "tint": [
+    "#6e3f1d",
+    "#1c120a"
+   ],
+   "glow": "#ffbf8a"
+  },
+  "home": {
+   "id": "home",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 268,
+   "ratio": 0.71,
+   "depth": 0.09,
+   "edge": 0.025,
+   "caseColor": "#1b1d27",
+   "caseSide": "#101218",
+   "spineInk": "#e8e8f0",
+   "band": {
+    "bg": "#1b1d27",
+    "fg": "#c9cfe0",
+    "label": "HOME"
+   },
+   "spineBand": {
+    "bg": "#2a2d3a",
+    "fg": "#c9cfe0",
+    "label": "HOME"
+   },
+   "tint": [
+    "#3b2f6e",
+    "#0a0b16"
+   ],
+   "glow": "#c9b8ff"
+  },
+  "media": {
+   "id": "media",
+   "rc": 0.03,
+   "re": 0.18,
+   "hue": 285,
+   "ratio": 0.71,
+   "depth": 0.06,
+   "edge": 0.02,
+   "caseColor": "#1a1c24",
+   "caseSide": "#0e0f14",
+   "spineInk": "#e8e8f0",
+   "band": {
+    "bg": "#1a1c24",
+    "fg": "#9aa3b8",
+    "label": "APP"
+   },
+   "spineBand": {
+    "bg": "#2a2d38",
+    "fg": "#c8cede",
+    "label": "APP"
+   },
+   "tint": [
+    "#2a3550",
+    "#0a0d16"
+   ],
+   "glow": "#b9a6ff"
+  },
+  "xsx": {
+   "id": "xboxone",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 118,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.03,
+   "caseColor": "#107c10",
+   "caseSide": "#0b580b",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX ONE"
+   },
+   "spineBand": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX ONE"
+   },
+   "tint": [
+    "#145a16",
+    "#061a07"
+   ],
+   "glow": "#7ee87e"
+  },
+  "xone": {
+   "id": "xboxone",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 118,
+   "ratio": 0.711,
+   "depth": 0.104,
+   "edge": 0.03,
+   "caseColor": "#107c10",
+   "caseSide": "#0b580b",
+   "spineInk": "#ffffff",
+   "band": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX ONE"
+   },
+   "spineBand": {
+    "bg": "#107c10",
+    "fg": "#ffffff",
+    "label": "XBOX ONE"
+   },
+   "tint": [
+    "#145a16",
+    "#061a07"
+   ],
+   "glow": "#7ee87e"
+  },
+  "all": {
+   "id": "home",
+   "rc": 0.04,
+   "re": 0.22,
+   "hue": 268,
+   "ratio": 0.71,
+   "depth": 0.09,
+   "edge": 0.025,
+   "caseColor": "#1b1d27",
+   "caseSide": "#101218",
+   "spineInk": "#e8e8f0",
+   "band": {
+    "bg": "#1b1d27",
+    "fg": "#c9cfe0",
+    "label": "HOME"
+   },
+   "spineBand": {
+    "bg": "#2a2d3a",
+    "fg": "#c9cfe0",
+    "label": "HOME"
+   },
+   "tint": [
+    "#3b2f6e",
+    "#0a0b16"
+   ],
+   "glow": "#c9b8ff"
+  },
+  "nes": {
+   "id": "nes",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#ffffff",
+   "hue": 0,
+   "ratio": 0.71,
+   "caseColor": "#16161a",
+   "caseSide": "#0c0c0f",
+   "band": {
+    "bg": "#111114",
+    "fg": "#e8e8ec",
+    "label": "NES"
+   },
+   "spineBand": {
+    "bg": "#111114",
+    "fg": "#e8e8ec",
+    "label": "NES"
+   },
+   "tint": [
+    "#6b1d1d",
+    "#140606"
+   ],
+   "glow": "#ff8a8a"
+  },
+  "snes": {
+   "id": "snes",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#3c3c46",
+   "hue": 270,
+   "ratio": 1.38,
+   "h": 0.7,
+   "caseColor": "#d9d9de",
+   "caseSide": "#b9b9c1",
+   "band": {
+    "bg": "#4b3f8f",
+    "fg": "#ffffff",
+    "label": "SUPER NINTENDO"
+   },
+   "spineBand": {
+    "bg": "#4b3f8f",
+    "fg": "#ffffff",
+    "label": "SNES"
+   },
+   "tint": [
+    "#4b3f8f",
+    "#120f26"
+   ],
+   "glow": "#b8a8ff"
+  },
+  "n64": {
+   "id": "n64",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#ffffff",
+   "hue": 210,
+   "ratio": 1.38,
+   "h": 0.7,
+   "caseColor": "#141418",
+   "caseSide": "#0a0a0d",
+   "band": {
+    "bg": "#0d0d10",
+    "fg": "#ffffff",
+    "label": "NINTENDO 64"
+   },
+   "spineBand": {
+    "bg": "#0d0d10",
+    "fg": "#ffffff",
+    "label": "N64"
+   },
+   "tint": [
+    "#1d4fa3",
+    "#07142c"
+   ],
+   "glow": "#7fb0ff"
+  },
+  "gb": {
+   "id": "gb",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.22,
+   "spineInk": "#2f3326",
+   "hue": 75,
+   "ratio": 0.83,
+   "caseColor": "#cfd0c4",
+   "caseSide": "#aeb0a2",
+   "band": {
+    "bg": "#8b8c7e",
+    "fg": "#ffffff",
+    "label": "GAME BOY"
+   },
+   "spineBand": {
+    "bg": "#8b8c7e",
+    "fg": "#ffffff",
+    "label": "GB"
+   },
+   "tint": [
+    "#4f6b2a",
+    "#121a08"
+   ],
+   "glow": "#c8e889"
+  },
+  "gbc": {
+   "id": "gbc",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.22,
+   "spineInk": "#3b2f52",
+   "hue": 290,
+   "ratio": 0.83,
+   "caseColor": "#e9e4f2",
+   "caseSide": "#c9c2d8",
+   "band": {
+    "bg": "#6d3fa8",
+    "fg": "#ffffff",
+    "label": "GAME BOY COLOR"
+   },
+   "spineBand": {
+    "bg": "#6d3fa8",
+    "fg": "#ffffff",
+    "label": "GBC"
+   },
+   "tint": [
+    "#6d3fa8",
+    "#180c2a"
+   ],
+   "glow": "#d6b3ff"
+  },
+  "gba": {
+   "id": "gba",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.22,
+   "spineInk": "#2b2f6b",
+   "hue": 245,
+   "ratio": 0.83,
+   "caseColor": "#ecedf3",
+   "caseSide": "#cdcfd9",
+   "band": {
+    "bg": "#2b2f8f",
+    "fg": "#ffffff",
+    "label": "GAME BOY ADVANCE"
+   },
+   "spineBand": {
+    "bg": "#2b2f8f",
+    "fg": "#ffffff",
+    "label": "GBA"
+   },
+   "tint": [
+    "#2b2f8f",
+    "#0a0b26"
+   ],
+   "glow": "#a8adff"
+  },
+  "nds": {
+   "id": "nds",
+   "rc": 0.05,
+   "re": 0.24,
+   "edge": 0.03,
+   "depth": 0.1,
+   "spineInk": "#3a3d45",
+   "hue": 0,
+   "ratio": 1.1,
+   "h": 0.64,
+   "caseColor": "#f4f4f6",
+   "caseSide": "#dcdde2",
+   "band": {
+    "bg": "#ffffff",
+    "fg": "#3a3d45",
+    "label": "NINTENDO DS"
+   },
+   "spineBand": {
+    "bg": "#ffffff",
+    "fg": "#3a3d45",
+    "label": "DS"
+   },
+   "tint": [
+    "#5a5f6e",
+    "#15161b"
+   ],
+   "glow": "#d9dde8"
+  },
+  "psx": {
+   "id": "psx",
+   "rc": 0.012,
+   "re": 0.06,
+   "edge": 0.02,
+   "depth": 0.073,
+   "spineInk": "#ffffff",
+   "hue": 220,
+   "ratio": 1.136,
+   "h": 0.7,
+   "caseColor": "#121216",
+   "caseSide": "#08080a",
+   "band": null,
+   "spineBand": {
+    "bg": "#0a0a0c",
+    "fg": "#ffffff",
+    "label": "PlayStation"
+   },
+   "tint": [
+    "#3b3f4f",
+    "#0c0d12"
+   ],
+   "glow": "#c7cde0"
+  },
+  "dreamcast": {
+   "id": "dreamcast",
+   "rc": 0.012,
+   "re": 0.06,
+   "edge": 0.02,
+   "depth": 0.073,
+   "spineInk": "#444",
+   "hue": 22,
+   "ratio": 1.136,
+   "h": 0.7,
+   "caseColor": "#f4f4f4",
+   "caseSide": "#d6d6d6",
+   "band": null,
+   "spineBand": {
+    "bg": "#ffffff",
+    "fg": "#f37021",
+    "label": "DREAMCAST"
+   },
+   "tint": [
+    "#f37021",
+    "#2b1203"
+   ],
+   "glow": "#ffb07a"
+  },
+  "saturn": {
+   "id": "saturn",
+   "rc": 0.012,
+   "re": 0.06,
+   "edge": 0.02,
+   "depth": 0.09,
+   "spineInk": "#ffffff",
+   "hue": 230,
+   "ratio": 0.712,
+   "caseColor": "#141418",
+   "caseSide": "#0b0b0e",
+   "band": {
+    "bg": "#0b0b0e",
+    "fg": "#c9ccd8",
+    "label": "SEGA SATURN"
+   },
+   "spineBand": {
+    "bg": "#0b0b0e",
+    "fg": "#c9ccd8",
+    "label": "SATURN"
+   },
+   "tint": [
+    "#2a2f6b",
+    "#0a0b1c"
+   ],
+   "glow": "#9ea6ff"
+  },
+  "megadrive": {
+   "id": "megadrive",
+   "rc": 0.04,
+   "re": 0.2,
+   "edge": 0.03,
+   "depth": 0.12,
+   "spineInk": "#ffffff",
+   "hue": 0,
+   "ratio": 0.72,
+   "caseColor": "#16161a",
+   "caseSide": "#0c0c0f",
+   "band": {
+    "bg": "#c8102e",
+    "fg": "#ffffff",
+    "label": "SEGA GENESIS"
+   },
+   "spineBand": {
+    "bg": "#111114",
+    "fg": "#ffffff",
+    "label": "GENESIS"
+   },
+   "tint": [
+    "#7a0b1c",
+    "#1a0306"
+   ],
+   "glow": "#ff7d8f"
+  },
+  "mastersystem": {
+   "id": "mastersystem",
+   "rc": 0.04,
+   "re": 0.2,
+   "edge": 0.03,
+   "depth": 0.12,
+   "spineInk": "#222",
+   "hue": 0,
+   "ratio": 0.72,
+   "caseColor": "#f2f2f2",
+   "caseSide": "#d4d4d4",
+   "band": {
+    "bg": "#111114",
+    "fg": "#ffffff",
+    "label": "MASTER SYSTEM"
+   },
+   "spineBand": {
+    "bg": "#e2001a",
+    "fg": "#ffffff",
+    "label": "SMS"
+   },
+   "tint": [
+    "#6a1018",
+    "#160406"
+   ],
+   "glow": "#ff9aa3"
+  },
+  "gamegear": {
+   "id": "gamegear",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.22,
+   "spineInk": "#ffffff",
+   "hue": 210,
+   "ratio": 0.83,
+   "caseColor": "#1a1b20",
+   "caseSide": "#0f1013",
+   "band": {
+    "bg": "#0b62b8",
+    "fg": "#ffffff",
+    "label": "GAME GEAR"
+   },
+   "spineBand": {
+    "bg": "#0b62b8",
+    "fg": "#ffffff",
+    "label": "GG"
+   },
+   "tint": [
+    "#0b4c8a",
+    "#04121f"
+   ],
+   "glow": "#7fc0ff"
+  },
+  "pcengine": {
+   "id": "pcengine",
+   "rc": 0.012,
+   "re": 0.06,
+   "edge": 0.02,
+   "depth": 0.073,
+   "spineInk": "#ffffff",
+   "hue": 30,
+   "ratio": 1,
+   "h": 0.72,
+   "caseColor": "#18181c",
+   "caseSide": "#0d0d10",
+   "band": {
+    "bg": "#ff8a00",
+    "fg": "#141414",
+    "label": "TURBOGRAFX-16"
+   },
+   "spineBand": {
+    "bg": "#141414",
+    "fg": "#ff8a00",
+    "label": "TG-16"
+   },
+   "tint": [
+    "#7a4100",
+    "#1c0f00"
+   ],
+   "glow": "#ffc27a"
+  },
+  "neogeo": {
+   "id": "neogeo",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.18,
+   "spineInk": "#ffffff",
+   "hue": 45,
+   "ratio": 0.71,
+   "caseColor": "#121214",
+   "caseSide": "#09090b",
+   "band": {
+    "bg": "#0b0b0d",
+    "fg": "#e8c14a",
+    "label": "NEO GEO"
+   },
+   "spineBand": {
+    "bg": "#0b0b0d",
+    "fg": "#e8c14a",
+    "label": "NEO GEO"
+   },
+   "tint": [
+    "#5a4810",
+    "#161104"
+   ],
+   "glow": "#ffe08a"
+  },
+  "arcade": {
+   "id": "arcade",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.16,
+   "spineInk": "#ffffff",
+   "hue": 300,
+   "ratio": 0.71,
+   "caseColor": "#16131d",
+   "caseSide": "#0c0a10",
+   "band": {
+    "bg": "#1a1424",
+    "fg": "#ff5ad1",
+    "label": "ARCADE"
+   },
+   "spineBand": {
+    "bg": "#1a1424",
+    "fg": "#ff5ad1",
+    "label": "ARCADE"
+   },
+   "tint": [
+    "#5c1a5a",
+    "#150616"
+   ],
+   "glow": "#ff9ae6"
+  },
+  "segacd": {
+   "id": "segacd",
+   "rc": 0.04,
+   "re": 0.2,
+   "edge": 0.03,
+   "depth": 0.12,
+   "spineInk": "#ffffff",
+   "hue": 210,
+   "ratio": 0.72,
+   "caseColor": "#141418",
+   "caseSide": "#0a0a0d",
+   "band": {
+    "bg": "#0a0a0d",
+    "fg": "#ffffff",
+    "label": "SEGA CD"
+   },
+   "spineBand": {
+    "bg": "#0a0a0d",
+    "fg": "#4aa3ff",
+    "label": "SEGA CD"
+   },
+   "tint": [
+    "#123a6b",
+    "#050e1c"
+   ],
+   "glow": "#8cc4ff"
+  },
+  "sega32x": {
+   "id": "sega32x",
+   "rc": 0.04,
+   "re": 0.2,
+   "edge": 0.03,
+   "depth": 0.12,
+   "spineInk": "#ffffff",
+   "hue": 50,
+   "ratio": 0.72,
+   "caseColor": "#16161a",
+   "caseSide": "#0c0c0f",
+   "band": {
+    "bg": "#f2c200",
+    "fg": "#111114",
+    "label": "SEGA 32X"
+   },
+   "spineBand": {
+    "bg": "#111114",
+    "fg": "#f2c200",
+    "label": "32X"
+   },
+   "tint": [
+    "#6b5400",
+    "#191300"
+   ],
+   "glow": "#ffe27a"
+  },
+  "atari2600": {
+   "id": "atari2600",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#ffffff",
+   "hue": 15,
+   "ratio": 0.72,
+   "caseColor": "#1b1b1d",
+   "caseSide": "#0e0e10",
+   "band": {
+    "bg": "#c8331a",
+    "fg": "#ffffff",
+    "label": "ATARI 2600"
+   },
+   "spineBand": {
+    "bg": "#c8331a",
+    "fg": "#ffffff",
+    "label": "ATARI"
+   },
+   "tint": [
+    "#6b1a0c",
+    "#180604"
+   ],
+   "glow": "#ff9a7a"
+  },
+  "atarilynx": {
+   "id": "atarilynx",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#ffffff",
+   "hue": 28,
+   "ratio": 0.83,
+   "caseColor": "#16161a",
+   "caseSide": "#0c0c0f",
+   "band": {
+    "bg": "#f07c1b",
+    "fg": "#111114",
+    "label": "ATARI LYNX"
+   },
+   "spineBand": {
+    "bg": "#111114",
+    "fg": "#f07c1b",
+    "label": "LYNX"
+   },
+   "tint": [
+    "#6b360a",
+    "#180c02"
+   ],
+   "glow": "#ffc08a"
+  },
+  "wonderswan": {
+   "id": "wonderswan",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#1f3d4f",
+   "hue": 190,
+   "ratio": 0.83,
+   "caseColor": "#eef1f4",
+   "caseSide": "#cfd5db",
+   "band": {
+    "bg": "#1f7fa8",
+    "fg": "#ffffff",
+    "label": "WONDERSWAN"
+   },
+   "spineBand": {
+    "bg": "#1f7fa8",
+    "fg": "#ffffff",
+    "label": "WS"
+   },
+   "tint": [
+    "#14506b",
+    "#04121a"
+   ],
+   "glow": "#8ad8ff"
+  },
+  "dos": {
+   "id": "dos",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.26,
+   "spineInk": "#ffffff",
+   "hue": 120,
+   "ratio": 0.78,
+   "caseColor": "#141614",
+   "caseSide": "#0a0b0a",
+   "band": {
+    "bg": "#0a0b0a",
+    "fg": "#7dff8a",
+    "label": "MS-DOS"
+   },
+   "spineBand": {
+    "bg": "#0a0b0a",
+    "fg": "#7dff8a",
+    "label": "DOS"
+   },
+   "tint": [
+    "#1f5a24",
+    "#071408"
+   ],
+   "glow": "#9dffa8"
+  },
+  "ngp": {
+   "id": "ngp",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#ffffff",
+   "hue": 225,
+   "ratio": 0.8,
+   "caseColor": "#171a2c",
+   "caseSide": "#0c0e19",
+   "band": {
+    "bg": "#1d2a6b",
+    "fg": "#ffffff",
+    "label": "NEO GEO POCKET"
+   },
+   "spineBand": {
+    "bg": "#1d2a6b",
+    "fg": "#ffffff",
+    "label": "NGP"
+   },
+   "tint": [
+    "#1d2a6b",
+    "#070a1a"
+   ],
+   "glow": "#8fa4ff"
+  },
+  "ngpc": {
+   "id": "ngpc",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#1b2f63",
+   "hue": 215,
+   "ratio": 0.8,
+   "caseColor": "#e9edf2",
+   "caseSide": "#c7cfd8",
+   "band": {
+    "bg": "#1f4bb5",
+    "fg": "#ffffff",
+    "label": "NEO GEO POCKET COLOR"
+   },
+   "spineBand": {
+    "bg": "#1f4bb5",
+    "fg": "#ffffff",
+    "label": "NGPC"
+   },
+   "tint": [
+    "#1f4bb5",
+    "#06102b"
+   ],
+   "glow": "#9cb8ff"
+  },
+  "gamecom": {
+   "id": "gamecom",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.2,
+   "spineInk": "#ffffff",
+   "hue": 250,
+   "ratio": 0.78,
+   "caseColor": "#1c1747",
+   "caseSide": "#100d2b",
+   "band": {
+    "bg": "#2a1f7a",
+    "fg": "#ffd400",
+    "label": "GAME.COM"
+   },
+   "spineBand": {
+    "bg": "#2a1f7a",
+    "fg": "#ffd400",
+    "label": "G.COM"
+   },
+   "tint": [
+    "#2a1f7a",
+    "#0a0720"
+   ],
+   "glow": "#ffe666"
+  },
+  "psvita": {
+   "id": "psvita",
+   "rc": 0.05,
+   "re": 0.22,
+   "edge": 0.03,
+   "depth": 0.11,
+   "spineInk": "#ffffff",
+   "hue": 218,
+   "ratio": 0.78,
+   "caseColor": "#2b5aa8",
+   "caseSide": "#1b3c76",
+   "band": {
+    "bg": "#0b3a8f",
+    "fg": "#ffffff",
+    "label": "PS Vita"
+   },
+   "spineBand": {
+    "bg": "#0b3a8f",
+    "fg": "#ffffff",
+    "label": "PS Vita"
+   },
+   "tint": [
+    "#1f4fa8",
+    "#060f24"
+   ],
+   "glow": "#9cc0ff"
+  },
+  "xbox": {
+   "id": "xbox",
+   "rc": 0.04,
+   "re": 0.22,
+   "edge": 0.03,
+   "depth": 0.104,
+   "spineInk": "#ffffff",
+   "hue": 95,
+   "ratio": 0.711,
+   "caseColor": "#161816",
+   "caseSide": "#0c0d0c",
+   "band": {
+    "bg": "#1b1b1b",
+    "fg": "#9bd23c",
+    "label": "XBOX"
+   },
+   "spineBand": {
+    "bg": "#1b1b1b",
+    "fg": "#9bd23c",
+    "label": "XBOX"
+   },
+   "tint": [
+    "#2d5a12",
+    "#081304"
+   ],
+   "glow": "#b6f06a"
+  }
+ },
+ "wordmarks": {
+  "home": [
+   "Home",
+   "Continue & favorites"
+  ],
+  "gc": [
+   "GameCube",
+   "Home console"
+  ],
+  "wii": [
+   "Wii",
+   "Motion console"
+  ],
+  "wiiu": [
+   "Wii U",
+   "Home console"
+  ],
+  "sw": [
+   "Switch",
+   "Hybrid console"
+  ],
+  "sw2": [
+   "Switch 2",
+   "Hybrid console"
+  ],
+  "psp": [
+   "PSP",
+   "Handheld"
+  ],
+  "ps3": [
+   "PS3",
+   "Home console"
+  ],
+  "ps4": [
+   "PS4",
+   "Home console"
+  ],
+  "ps5": [
+   "PS5",
+   "Home console"
+  ],
+  "x360": [
+   "Xbox 360",
+   "Home console"
+  ],
+  "xboxone": [
+   "Xbox One",
+   "Standalone games"
+  ],
+  "n3ds": [
+   "3DS",
+   "Handheld"
+  ],
+  "ps2": [
+   "PS2",
+   "Home console"
+  ],
+  "pc": [
+   "PC",
+   "Steam, Epic & more"
+  ],
+  "custom": [
+   "Custom",
+   "PC ports & recomps"
+  ],
+  "media": [
+   "Media",
+   "Streaming"
+  ],
+  "all": [
+   "All Games",
+   "Whole library"
+  ],
+  "nes": [
+   "NES",
+   "Home console"
+  ],
+  "snes": [
+   "SNES",
+   "Home console"
+  ],
+  "n64": [
+   "N64",
+   "Home console"
+  ],
+  "gb": [
+   "Game Boy",
+   "Handheld"
+  ],
+  "gbc": [
+   "Game Boy Color",
+   "Handheld"
+  ],
+  "gba": [
+   "Game Boy Advance",
+   "Handheld"
+  ],
+  "nds": [
+   "DS",
+   "Handheld"
+  ],
+  "psx": [
+   "PlayStation",
+   "Home console"
+  ],
+  "dreamcast": [
+   "Dreamcast",
+   "Home console"
+  ],
+  "saturn": [
+   "Saturn",
+   "Home console"
+  ],
+  "megadrive": [
+   "Genesis",
+   "Home console"
+  ],
+  "mastersystem": [
+   "Master System",
+   "Home console"
+  ],
+  "gamegear": [
+   "Game Gear",
+   "Handheld"
+  ],
+  "pcengine": [
+   "TurboGrafx-16",
+   "Home console"
+  ],
+  "neogeo": [
+   "Neo Geo",
+   "Arcade"
+  ],
+  "arcade": [
+   "Arcade",
+   "Coin-op"
+  ],
+  "segacd": [
+   "Sega CD",
+   "Home console"
+  ],
+  "sega32x": [
+   "32X",
+   "Home console"
+  ],
+  "atari2600": [
+   "Atari 2600",
+   "Home console"
+  ],
+  "atarilynx": [
+   "Lynx",
+   "Handheld"
+  ],
+  "wonderswan": [
+   "WonderSwan",
+   "Handheld"
+  ],
+  "dos": [
+   "DOS",
+   "PC classics"
+  ],
+  "xbox": [
+   "Xbox",
+   "Home console"
+  ],
+  "ngp": [
+   "Neo Geo Pocket",
+   "Handheld"
+  ],
+  "ngpc": [
+   "Neo Geo Pocket Color",
+   "Handheld"
+  ],
+  "gamecom": [
+   "Game.com",
+   "Handheld"
+  ],
+  "psvita": [
+   "PS Vita",
+   "Handheld"
+  ]
+ }
+}
