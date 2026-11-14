@@ -111,8 +111,9 @@ fn scans_match_the_js_scanner() {
         let list = scan(console, &sc, &dirs, &ScanData::load(&data_dir));
         assert!(list.windows(2).all(|w| collate::compare(&w[0].title, &w[1].title) != Ordering::Greater), "{id}: not in title order");
 
-        // readdir order varies by file system and decides equal titles' order, disc order and which dump a single-disc
-        // game's `discs` names: those are compared order-free
+        // the fixtures are made on Linux, where folders are walked in name order. On Windows it's the order the file system
+        // keeps, which decides equal titles' order, disc order and which dump a single-disc game's `discs` names: there
+        // those are compared order-free
         let mut got: Vec<Value> = list
             .iter()
             .map(|g| {
@@ -120,7 +121,7 @@ fn scans_match_the_js_scanner() {
                 serde_json::json!({
                     "title": g.title, "region": g.region, "disc": g.disc, "file": rel(&games, Some(&g.file)), "ext": g.ext,
                     "sizeBytes": g.size_bytes,
-                    "discs": discs(g.discs.iter().map(|d| rel(&games, Some(d))).collect()),
+                    "discs": g.discs.iter().map(|d| rel(&games, Some(d))).collect::<Vec<_>>(),
                     "titleId": g.title_id, "notInstalled": g.not_installed, "compat": g.compat,
                     "art": {
                         "front": rel(&games, a.front.as_deref()), "back": rel(&games, a.back.as_deref()), "madeBack": a.made_back,
@@ -132,11 +133,13 @@ fn scans_match_the_js_scanner() {
             })
             .collect();
         let mut want: Vec<Value> = case["games"].as_array().unwrap().clone();
-        for g in &mut want {
-            g["discs"] = discs(g["discs"].as_array().unwrap().clone());
+        if cfg!(windows) {
+            for g in got.iter_mut().chain(want.iter_mut()) {
+                g["discs"] = discs(g["discs"].as_array().unwrap().clone());
+            }
+            got.sort_by_key(key);
+            want.sort_by_key(key);
         }
-        got.sort_by_key(key);
-        want.sort_by_key(key);
         assert_eq!(serde_json::to_string_pretty(&got).unwrap(), serde_json::to_string_pretty(&want).unwrap(), "{id}");
     }
 }

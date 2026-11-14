@@ -89,7 +89,7 @@ fn real(p: &str, dir: &Path) -> Option<PathBuf> {
         return None;
     }
     let sep = std::path::MAIN_SEPARATOR_STR;
-    let drive = s.len() >= 3 && s.as_bytes()[0].is_ascii_alphabetic() && &s[1..2] == ":" && matches!(&s[2..3], "\\" | "/");
+    let drive = matches!(s.as_bytes(), [l, b':', b'\\' | b'/', ..] if l.is_ascii_alphabetic());
     let p = if let Some(rest) = s.strip_prefix("~/").or_else(|| s.strip_prefix("~\\")) {
         home().join(rest.replace(['/', '\\'], sep))
     } else if Path::new(&s).is_absolute() || drive {
@@ -203,5 +203,6 @@ mod tests {
         assert_eq!(e.back, None);
         assert_eq!(e.released, "19910101");
         assert!(g.lookup(&d.join("B.zip"), &[]).is_none());
+        assert_eq!(real("Sébastien.iso", d), Some(d.join("Sébastien.iso")));
     }
 }

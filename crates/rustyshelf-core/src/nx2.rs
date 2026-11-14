@@ -22,8 +22,8 @@ fn name_of(p: &Path) -> String {
 }
 
 fn dirs(d: &Path) -> Vec<String> {
-    let Ok(rd) = fs::read_dir(d) else { return Vec::new() };
-    rd.filter_map(Result::ok)
+    crate::scanner::read_dir_sorted(d)
+        .into_iter()
         .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .collect()

@@ -120,9 +120,19 @@ fn is_file(p: &Path) -> bool {
     p.metadata().map(|m| m.is_file()).unwrap_or(false)
 }
 
+/// A folder's entries in the order node's readdir gives them: by name on Unix (libuv sorts them), as stored on Windows.
+/// Which disc comes first and which of two equal dumps stays depend on it.
+pub(crate) fn read_dir_sorted(dir: &Path) -> Vec<fs::DirEntry> {
+    let Ok(rd) = fs::read_dir(dir) else { return Vec::new() };
+    #[allow(unused_mut)]
+    let mut ents: Vec<_> = rd.filter_map(Result::ok).collect();
+    #[cfg(unix)]
+    ents.sort_by_key(|e| e.file_name());
+    ents
+}
+
 fn walk(dir: &Path, exts: &[String], depth: u32, out: &mut Vec<PathBuf>, game_file: Option<&str>) {
-    let Ok(rd) = fs::read_dir(dir) else { return };
-    let ents: Vec<_> = rd.filter_map(Result::ok).collect();
+    let ents = read_dir_sorted(dir);
     let dir_name = name_of(dir);
     // a PS4 / PS5 game's folder: its eboot.bin is the game, and its data folders hold no other
     if game_file == Some("eboot.bin") && !dir_name.eq_ignore_ascii_case("usrdir") {
@@ -233,7 +243,7 @@ fn ps3_game(file: &Path) -> Option<FolderGame> {
     let folder = if is_disc { base.parent()? } else { base };
     let mut title = sfo.as_ref().and_then(|s| sfo::text(s, "TITLE")).map(clean).unwrap_or_default();
     if title.is_empty() {
-        title = clean(&name_of(folder));
+        title = TM.replace_all(&name_of(folder), "").trim().to_string();
     }
     let title_id = sfo
         .as_ref()
