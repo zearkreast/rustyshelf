@@ -73,6 +73,18 @@ pub struct Playing {
     shown: Option<(String, String)>,
     /// a game Steam or a store started, watched until it ends
     watched: Option<Watched>,
+    /// keeps a PC game's window borderless while it runs
+    borderless: Option<Helper>,
+}
+
+/// A helper program that runs beside the game and goes when the game does.
+struct Helper(Child);
+
+impl Drop for Helper {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 /// A game RustyShelf didn't start itself, watched on a thread of its own.
@@ -284,6 +296,10 @@ pub fn navigate(
                 plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
                 playing.combo = combo;
+                if settings.window_mode(&g.id) == "borderless" {
+                    let dir = if pc.dir.is_empty() { rustyshelf_core::js::dirname(&pc.exe) } else { pc.dir.clone() };
+                    playing.borderless = rustyshelf_core::windowmode::borderless(child.id(), &dir).map(Helper);
+                }
                 playing.running(child);
             }
             Ok(None) if l.config.seamless() => {

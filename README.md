@@ -571,6 +571,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Follows a Steam, Epic, Ubisoft, EA or Xbox game while it runs (Seamless play, on Windows, as the Electron app does):
   the game's own process is found in its install folder, its playtime is kept, the quit combo closes it (never
   Steam or a store's launcher), and the shelf knows when it has ended. Settings → Display turns it off.
+- Keeps a PC game's window the way Details → Window says (for Quiver's, GOG's and HoYoPlay's games, the PC games
+  folder's and programs added by hand): borderless takes its frame off and stretches it over its screen while it
+  runs, with the Electron app's own helper.
 - Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
@@ -585,8 +588,8 @@ Art Studio and the art sources behind it (sharper scans over low-res pictures, s
 GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu over a
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
-yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window mode
-and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
+yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
+while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

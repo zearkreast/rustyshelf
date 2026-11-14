@@ -659,6 +659,20 @@ fn pictures_go_in_place_as_in_the_js() {
 }
 
 #[test]
+fn window_mode_matches_the_js() {
+    use rustyshelf_core::windowmode::{mode_of, ps_script};
+    let fx = fixture("windowmode.json");
+    for s in fx["scripts"].as_array().unwrap() {
+        let got = ps_script(s["pid"].as_u64().unwrap() as u32, s["dir"].as_str().unwrap(), s["seconds"].as_u64().unwrap() as u32);
+        assert_eq!(got, s["script"].as_str().unwrap());
+    }
+    let cfg = Config::from_value(&serde_json::json!({ "games": fx["games"] })).unwrap();
+    for m in fx["modes"].as_array().unwrap() {
+        assert_eq!(mode_of(&cfg, m[0].as_str().unwrap()), m[1].as_str().unwrap(), "{}", m[0]);
+    }
+}
+
+#[test]
 fn game_info_matches_the_js_lookup() {
     use rustyshelf_core::info::InfoCache;
     let fx = fixture("info.json");

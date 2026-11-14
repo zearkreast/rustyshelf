@@ -45,4 +45,5 @@ pub mod systems;
 pub mod titles;
 pub mod vdf;
 pub mod vita3k;
+pub mod windowmode;
 pub mod x360;

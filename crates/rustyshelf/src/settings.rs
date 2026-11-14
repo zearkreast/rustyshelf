@@ -233,6 +233,12 @@ impl Settings {
     }
 
     /// Saves the settings as they are now.
+    /// A PC game's window mode (Details → Window): "", "borderless" or "windowed".
+    pub fn window_mode(&self, id: &str) -> &'static str {
+        let mode = self.text(&["games", id, "window"]);
+        rustyshelf_core::windowmode::MODES.into_iter().find(|m| *m == mode).unwrap_or("")
+    }
+
     /// Whether what's played is shown on Discord, and the application id it's shown under.
     pub fn discord(&self) -> (bool, String) {
         (self.flag(&["ui", "discordPresence"], false), self.text(&["ui", "discordAppId"]))
@@ -254,7 +260,7 @@ impl Settings {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
-        } else if path[0] != "emuSetup" {
+        } else if path[0] != "emuSetup" && !matches!(path, ["games", _, "window"]) {
             self.changed = true;
         }
         self.save();
@@ -970,6 +976,32 @@ impl Settings {
                         ..Row::default()
                     },
                 ];
+                if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
+                    let (mode, id) = (self.window_mode(&g.id), g.id.clone());
+                    let turn = move |s: &mut Settings, d: i32| {
+                        let modes = rustyshelf_core::windowmode::MODES;
+                        let at = modes.iter().position(|m| *m == mode).unwrap_or(0) as i32;
+                        s.set(&["games", &id, "window"], json!(modes[(at + d).rem_euclid(modes.len() as i32) as usize]));
+                    };
+                    let turn2 = turn.clone();
+                    rows.push(Row {
+                        label: "Window".into(),
+                        value: match mode {
+                            "borderless" => "Borderless",
+                            "windowed" => "Windowed",
+                            _ => "The game's own",
+                        }
+                        .into(),
+                        hint: match mode {
+                            "borderless" => "Its frame comes off and it fills the screen when it starts",
+                            "windowed" => "It stays a window, with the taskbar kept",
+                            _ => "The game decides how its window is shown",
+                        }
+                        .into(),
+                        press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+                        step: Some(Box::new(turn2)),
+                    });
+                }
                 rows.extend(facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }));
                 let about = g.info.as_ref().and_then(|i| i.overview.clone()).unwrap_or_default();
                 let about: String = if about.chars().count() > 420 { format!("{}…", about.chars().take(419).collect::<String>()) } else { about };

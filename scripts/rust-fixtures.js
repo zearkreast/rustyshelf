@@ -598,6 +598,15 @@ fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'info.json'), JSON.stringify(infoFixtures(), null, 1) + '\n');
+
+// a PC game's window mode: the helper's command for made-up games, and the mode read from the settings
+function windowFixtures() {
+  const wm = require('../main/windowmode');
+  const scripts = [[4242, 'D:\\Games\\Made Up Port', 28800], [7, "C:\\It's Here", 60]].map(([pid, dir, seconds]) => ({ pid, dir, seconds, script: wm.psScript(pid, dir, seconds) }));
+  const games = { a: { window: 'borderless' }, b: { window: 'windowed' }, c: { window: 'tiny' }, d: { title: 'No Mode' } };
+  return { scripts, modes: ['a', 'b', 'c', 'd', 'e'].map(id => [id, wm.modeOf({ games }, id)]), games };
+}
+fs.writeFileSync(path.join(OUT, 'windowmode.json'), JSON.stringify(windowFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'art.json'), JSON.stringify(artFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
