@@ -542,11 +542,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Dolphin's Stop hotkey takes the quit combo from every controller, a 3DS `.cia` is installed into Azahar the first
   time it's played, and on Windows a RetroArch core that's missing is downloaded.
 - Fetches what the shelves need by itself, behind the shelf: the Xbox 360 title list (again after a week), the arcade
-  names (once), and the size of unpacked Switch 2 games and of PC games' folders. The shelf shows them as soon as
-  they're in.
-
-The Steam covers Steam itself doesn't keep, and which Steam game a store game's name belongs to, still come from the
-Electron app's `data` folder. Until the Electron app has fetched them, such a game has no cover.
+  names (once), the size of unpacked Switch 2 games and of PC games' folders, and, unless box art downloads are off,
+  the covers and store info Steam's own cache doesn't have. With box art downloads on, the other stores' games get
+  the art of the Steam game with the same name. The shelf shows all of it as soon as it's in.
 
 **Not yet:** Settings and the setup wizard, art downloads, the open case and the museum, sounds and music, the Home menu
 over a running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't

@@ -293,7 +293,37 @@ pub fn upkeep(lib: &Library) -> bool {
             }
         }
     }
-    changed | crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs)
+    changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
+    changed | steam_fill(lib, &data_dir)
+}
+
+/// Covers, heroes and store info for the PC shelf's games that have none, from Steam's store: its own games, and
+/// with box art downloads on the other stores' games by the Steam app of the same name (their titles go to Steam's
+/// store search). True when something new came in.
+fn steam_fill(lib: &Library, data_dir: &Path) -> bool {
+    use crate::steamart::Wanted;
+    if lib.config.auto_covers() == Some(false) {
+        return false;
+    }
+    let Some(pc) = lib.shelves.iter().find(|s| s.id == "pc") else { return false };
+    let has = |g: &Game| (g.art.front.is_some(), g.hero.is_some());
+    let mut games: Vec<Wanted> = Vec::new();
+    let mut others: Vec<&Game> = Vec::new();
+    for g in &pc.games {
+        match &g.source {
+            Source::Steam { appid, .. } => games.push(Wanted { appid: appid.clone(), has_front: has(g).0, has_hero: has(g).1 }),
+            Source::Pc(p) if matches!(p.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder") => others.push(g),
+            _ => {}
+        }
+    }
+    let mut matched = 0;
+    if !others.is_empty() && lib.config.auto_covers() == Some(true) {
+        matched = pcgames::match_steam(data_dir, &others.iter().map(|g| g.title.clone()).collect::<Vec<_>>());
+        let ids = pcgames::steam_ids(data_dir);
+        games.extend(others.iter().filter_map(|g| Some(Wanted { appid: ids.get(&g.title.to_lowercase())?.clone(), has_front: has(g).0, has_hero: has(g).1 })));
+    }
+    let (covers, other) = if games.is_empty() { (0, 0) } else { crate::steamart::fill(data_dir, &games) };
+    covers + other + matched > 0
 }
 
 #[cfg(test)]

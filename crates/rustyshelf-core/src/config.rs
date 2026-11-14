@@ -138,6 +138,11 @@ impl Config {
         self.raw.get("pc").and_then(|p| p.get("consoleBox")).and_then(Value::as_bool).unwrap_or(false)
     }
 
+    /// Settings → Box art → download box art: Some(true) on, Some(false) off, None for a value that's neither.
+    pub fn auto_covers(&self) -> Option<bool> {
+        self.raw.get("ui").and_then(|u| u.get("autoCovers")).and_then(Value::as_bool)
+    }
+
     /// The controller's quit combo (Settings → Controller), None when it's off.
     pub fn quit_combo(&self) -> Option<String> {
         let ui = self.raw.get("ui");

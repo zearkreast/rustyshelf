@@ -1104,10 +1104,62 @@ pub fn custom_from(list: &[&Value]) -> Vec<PcGame> {
 }
 
 /// The Steam app a store game's title was matched to, for its art: `data/pc-steam.json`
-/// (`{ "<lower title>": { id: 1234 | 0, at } }`), which the Electron app fills in.
+/// (`{ "<lower title>": { id: 1234 | 0, at } }`), filled in by `match_steam`.
 pub fn steam_ids(data_dir: &Path) -> HashMap<String, String> {
     let Some(Value::Object(m)) = read_json(&data_dir.join("pc-steam.json")) else { return HashMap::new() };
     m.iter().filter(|(_, e)| js::truthy(e.get("id"))).map(|(k, e)| (k.clone(), js::string(e.get("id")))).collect()
+}
+
+/// A title as it's compared with a Steam app's name: marks off, "&" as "and", letters and digits only.
+fn norm(s: &str) -> String {
+    static OTHER: LazyLock<Regex> = LazyLock::new(|| Regex::new("[^a-z0-9]+").unwrap());
+    let l = s.to_lowercase().replace(['™', '®', '©'], "").replace('&', "and");
+    js::trim(&OTHER.replace_all(&l, " ")).to_string()
+}
+
+/// The Steam app with this name among the store's answers: the very same name, else one that goes on after it or
+/// stops before its end.
+fn steam_hit(items: &[Value], title: &str) -> Option<f64> {
+    let want = norm(title);
+    let name = |x: &Value| norm(&js::text(x.get("name")));
+    let hit = items.iter().find(|x| name(x) == want).or_else(|| items.iter().find(|x| name(x).starts_with(&format!("{want} ")) || want.starts_with(&format!("{} ", name(x)))))?;
+    Some(js::number(hit.get("id")))
+}
+
+/// Asks Steam's store for the titles not matched yet (at most 40 a run, a pause between), and keeps the answers in
+/// `data/pc-steam.json`; a miss is tried again after a week. Returns how many were matched.
+pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {
+    const WEEK: f64 = 7.0 * 86_400_000.0;
+    let file = data_dir.join("pc-steam.json");
+    let mut map = match read_json(&file) {
+        Some(Value::Object(m)) => m,
+        _ => Map::new(),
+    };
+    let (mut matched, mut asked, mut seen) = (0, 0, HashSet::new());
+    for t in titles.iter().filter(|t| !t.is_empty() && seen.insert(t.as_str())) {
+        let k = t.to_lowercase();
+        if map.get(&k).is_some_and(|e| js::truthy(e.get("id")) || (now_ms() as f64 - js::number(e.get("at"))) < WEEK) {
+            continue;
+        }
+        asked += 1;
+        if asked > 40 {
+            break;
+        }
+        let url = format!("https://store.steampowered.com/api/storesearch/?term={}&l=english&cc=US", js::encode_uri_component(t));
+        // offline or rate-limited: tried again next time
+        let Ok(r) = crate::net::get_json(&url, Duration::from_secs(12)) else { break };
+        let hit = steam_hit(r.get("items").and_then(Value::as_array).map_or(&[][..], Vec::as_slice), t);
+        map.insert(k, serde_json::json!({ "id": js::num(hit.unwrap_or(0.0)), "at": now_ms() }));
+        matched += u32::from(hit.is_some());
+        std::thread::sleep(Duration::from_millis(400));
+    }
+    if asked > 0 {
+        let tmp = data_dir.join("pc-steam.json.tmp");
+        if std::fs::create_dir_all(data_dir).and_then(|()| std::fs::write(&tmp, Value::Object(map).to_string())).is_ok() {
+            let _ = std::fs::rename(&tmp, &file);
+        }
+    }
+    matched
 }
 
 #[cfg(test)]
@@ -1121,6 +1173,9 @@ mod tests {
         assert_eq!(title_from_exe("C:/x/Zeta-Run_of.Games.exe"), "Zeta Run of Games");
         assert_eq!((q_key("Star-Ship 2"), q_bare("Starship-v1.0.2"), q_bare("Zeta 64")), ("starship2".into(), "starship".into(), "zeta64".into()));
         assert!(is_shell_app("Made.Up_8abcdefgh12345!App") && !is_shell_app("C:\\x.exe"));
+        let items = serde_json::json!([{ "id": 5, "name": "Zeta Run 2" }, { "id": 7, "name": "Zeta® Run & Gun™" }, { "id": 9, "name": "Zeta" }]);
+        let hit = |t: &str| steam_hit(items.as_array().unwrap(), t);
+        assert_eq!((hit("zeta run and gun"), hit("Zeta Run"), hit("Zeta: Origins"), hit("Omega")), (Some(7.0), Some(5.0), Some(9.0), None));
         assert_eq!(split_cmd("\"C:\\a b\\x.exe\" -y 1"), ("C:\\a b\\x.exe".into(), "-y 1".into()));
     }
 

@@ -30,6 +30,7 @@ pub mod scanner;
 pub mod settings;
 pub mod sfo;
 pub mod steam;
+pub mod steamart;
 pub mod systems;
 pub mod titles;
 pub mod vdf;
