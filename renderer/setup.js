@@ -243,7 +243,7 @@ const OFFICIAL={gc:[["Dolphin","https://dolphin-emu.org/download/"]],wii:[["Dolp
   // (beta.6) the retro shelves: RetroArch (one download for all of them; cores from its Online Updater) and each one's best standalone
   ...(()=>{const RA=["RetroArch","https://www.retroarch.com/?page=platforms"],o={psx:[["DuckStation","https://github.com/stenzek/duckstation/releases"],RA],nds:[["melonDS","https://melonds.kuribo64.net/downloads.php"],RA],
     gba:[RA,["mGBA","https://mgba.io/downloads.html"]],n64:[RA,["RMG","https://github.com/Rosalie241/RMG/releases"]],megadrive:[RA,["BlastEm","https://www.retrodev.com/blastem/downloads.html"]],dreamcast:[RA,["Flycast","https://github.com/flyinghead/flycast/releases"]],saturn:[RA],pcengine:[RA],neogeo:[RA],arcade:[RA],segacd:[RA],sega32x:[RA],atari2600:[RA],atarilynx:[RA],wonderswan:[RA],dos:[RA]};
-    for(const id of ["nes","snes","gb","gbc","mastersystem","gamegear"])o[id]=[RA];return o})(),steam:[["Steam","https://store.steampowered.com/about/"]],
+    for(const id of ["nes","fds","snes","gb","gbc","mastersystem","gamegear"])o[id]=[RA];return o})(),steam:[["Steam","https://store.steampowered.com/about/"]],
   stremio:[["Stremio","https://www.stremio.com/downloads"]],nuvio:[["Nuvio","https://github.com/NuvioMedia/NuvioDesktop"]]};
 function siteLinks(id){const l=OFFICIAL[id];if(!l)return null;return el("div",{class:"row su-links"},el("span",{class:"hint-text",text:"Official site:"}),...l.map(([n,u])=>el("button",{type:"button",class:"btn small ghost",title:u,onclick:()=>openLink(u)},`Get ${n} ↗`)))}
 function head(b,kicker,title,lead){b.append(el("div",{class:"su-kicker",text:kicker}),el("div",{class:"su-title",id:"suTitle",text:title}));if(lead)b.append(el("p",{class:"su-lead",text:lead}))}
@@ -393,7 +393,7 @@ function pickCard(x,big){
     el("span",{class:"wz2-tick","aria-hidden":"true"}),winWizard()?wzTileKids(x):[el("span",{class:"wz2-name",text:x.name}),el("span",{class:"wz2-st"+(x.found()?" ok":""),text:x.status()})]);
 }
 // (beta.7) the folded "More consoles" list: small tick chips grouped by maker, so 30-odd consoles stay a tidy page
-const PICK_FAMILIES=[["Nintendo",["nes","snes","n64","gc","wii","wiiu","sw","sw2","gb","gbc","gba","nds","n3ds"]],["PlayStation",["psx","ps2","ps3","ps4","ps5","psp"]],
+const PICK_FAMILIES=[["Nintendo",["nes","fds","snes","n64","gc","wii","wiiu","sw","sw2","gb","gbc","gba","nds","n3ds"]],["PlayStation",["psx","ps2","ps3","ps4","ps5","psp"]],
   ["Sega",["mastersystem","megadrive","segacd","sega32x","saturn","dreamcast","gamegear"]],["Retro & arcade",[]],["Xbox, PC & apps",["x360","steam"]]];
 function pickFamily(id){if(/^app:/.test(id))return "Xbox, PC & apps";for(const[f,ids]of PICK_FAMILIES)if(ids.includes(id))return f;return "Retro & arcade"}
 function pickChip(x){const on=x.on();

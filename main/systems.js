@@ -156,7 +156,8 @@ const CONSOLES = [
     // duckstation*.exe is found; DeSmuME (DS) and VisualBoyAdvance-M (GB, GBC, GBA) are found too (main.js ALT_ARGS)
     ['psx', 'PlayStation', 'DuckStation', ['duckstation-qt-x64-ReleaseLTCG.exe', 'duckstation-qt-x64-ReleaseLTCG-SSE2.exe', 'duckstation-qt.exe', 're:^duckstation[^\\\\]*\\.exe$'], ['{app}\\DuckStation', '{app}\\duckstation', '{app}\\duckstation-windows-x64-release', '%LOCALAPPDATA%\\Programs\\DuckStation', '%ProgramFiles%\\DuckStation'],
       ['psx', 'ps1', 'playstation', 'playstation 1'], ['cue', 'chd', 'm3u', 'pbp', 'iso', 'ecm', 'mds', 'img', 'ccd'], '-fullscreen -batch -nogui -- "{rom}"', 'swanstation', true],
-    ['nes', 'NES', 'RetroArch', [], [], ['nes', 'famicom', 'nintendo entertainment system'], ['nes', 'fds', 'unf', 'unif', 'zip', '7z'], '', 'mesen'],
+    ['nes', 'NES', 'RetroArch', [], [], ['nes', 'famicom', 'nintendo entertainment system'], ['nes', 'unf', 'unif', 'zip', '7z'], '', 'mesen'],
+    ['fds', 'Famicom Disk System', 'RetroArch', [], [], ['fds', 'famicom disk system', 'famicom-disk-system', 'famicomdisksystem'], ['fds', 'qd', 'bin', 'zip', '7z'], '', 'mesen'],
     ['snes', 'SNES', 'RetroArch', [], [], ['snes', 'sfc', 'super nintendo', 'super famicom'], ['sfc', 'smc', 'fig', 'swc', 'bs', 'zip', '7z'], '', 'snes9x'],
     ['n64', 'Nintendo 64', 'RetroArch', ['RMG.exe'], ['{app}\\RMG', '{app}\\Rosalie\'s Mupen GUI', '%LOCALAPPDATA%\\Programs\\RMG'],
       ['n64', 'nintendo 64'], ['z64', 'n64', 'v64', 'zip', '7z'], '--fullscreen --quit-after-emulation --nogui "{rom}"', 'mupen64plus_next'],

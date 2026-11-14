@@ -70,6 +70,7 @@ function get(exe, core, onPct) {
 // ---------- BIOS ----------
 // need: 'one' = any one of these (regions), 'req' = this file, 'opt' = better with it. md5 from libretro's System.dat.
 const BIOS = {
+  fds: { need: 'req', note: 'FDS games need disksys.rom in RetroArch system folder', files: [['disksys.rom', 'Japan', 'ca30b50f880eb660a32069583cb65f9d']] },
   psx: { need: 'one', files: [['scph5501.bin', 'USA', '490f666e1afb15b7362b406ed1cea246'], ['scph5500.bin', 'Japan', '8dd7d5296a650fac7319bce665a6a53c'], ['scph5502.bin', 'Europe', '32736f17079d0b2b7024407c39bd3050']] },
   saturn: { need: 'one', files: [['mpr-17933.bin', 'USA & Europe', '3240872c70984b6cbfda1586cab68dbe'], ['sega_101.bin', 'Japan', '85ec9ca47d8f6807718151cbcca8b964']] },
   segacd: { need: 'one', files: [['bios_CD_U.bin', 'USA', '2efd74e3232ff260e371b99f84024f7f'], ['bios_CD_E.bin', 'Europe', 'e66fa1dc5820d254611fdcdba0662372'], ['bios_CD_J.bin', 'Japan', '278a9397d192149e84e820ac621a8edd']] },

@@ -1790,7 +1790,7 @@ window.BS_QUIET = () => ({ running: !!running, artPaused: !!art.paused, hidden: 
   const RM_SLUGS = { gc: ['ngc', 'gamecube', 'gc', 'gcn', 'nintendo-gamecube'], wii: ['wii'], wiiu: ['wiiu', 'wii-u'], sw: ['switch', 'nintendo-switch', 'nsw'],
     sw2: ['switch-2', 'switch2', 'nintendo-switch-2'], psp: ['psp', 'playstation-portable'], ps2: ['ps2', 'playstation-2'], ps3: ['ps3', 'playstation-3'],
     ps4: ['ps4', 'ps4--1', 'playstation-4'], ps5: ['ps5', 'playstation-5'], x360: ['xbox360', 'xbox-360', 'x360'], n3ds: ['3ds', 'n3ds', 'nintendo-3ds', 'new-nintendo-3ds'],
-    psx: ['ps', 'psx', 'ps1', 'playstation', 'playstation-1'], nes: ['nes', 'famicom', 'fds', 'famicom-disk-system'], snes: ['snes', 'sfam', 'super-famicom', 'super-nintendo'],
+    psx: ['ps', 'psx', 'ps1', 'playstation', 'playstation-1'], nes: ['nes', 'famicom'], fds: ['fds', 'famicom-disk-system'], snes: ['snes', 'sfam', 'super-famicom', 'super-nintendo'],
     n64: ['n64', 'nintendo-64'], gb: ['gb', 'gameboy', 'game-boy'], gbc: ['gbc', 'gameboy-color', 'game-boy-color'], gba: ['gba', 'gameboy-advance', 'game-boy-advance'],
     nds: ['nds', 'nintendo-ds', 'nintendo-dsi', 'dsi'], megadrive: ['genesis-slash-megadrive', 'genesis', 'megadrive', 'mega-drive', 'md', 'sega-genesis'],
     mastersystem: ['sms', 'mastersystem', 'master-system', 'sega-master-system'], gamegear: ['gamegear', 'game-gear', 'gg', 'sega-game-gear'], dreamcast: ['dc', 'dreamcast', 'sega-dreamcast'],

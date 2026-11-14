@@ -8,7 +8,7 @@ const https = require('https');
 // RA console ids (rcheevos' rc_consoles.h). (beta.11) every shelf RetroAchievements covers, the same list as Android's
 // (android-ra.js): it was GameCube, Wii, PSP and PS2 only. Neo Geo sets are in RA's Arcade list. Switch, Wii U, 3DS, PS3,
 // PS4/5 and Xbox 360 have no sets; DOS has none to speak of
-const CONSOLE_ID = { megadrive: 1, n64: 2, snes: 3, gb: 4, gba: 5, gbc: 6, nes: 7, pcengine: 8, mastersystem: 11, psx: 12, gamegear: 15, gc: 16, nds: 18,
+const CONSOLE_ID = { megadrive: 1, n64: 2, snes: 3, gb: 4, gba: 5, gbc: 6, nes: 7, fds: 7, pcengine: 8, mastersystem: 11, psx: 12, gamegear: 15, gc: 16, nds: 18,
   wii: 19, ps2: 21, arcade: 27, neogeo: 27, saturn: 39, dreamcast: 40, psp: 41, segacd: 9, sega32x: 10, atari2600: 25, atarilynx: 13, wonderswan: 53 };
 const API = 'https://retroachievements.org/API/';
 const MEDIA = 'https://media.retroachievements.org';

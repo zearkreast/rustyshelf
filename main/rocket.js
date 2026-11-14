@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path');
 // HyperSpin's usual system names for Boxshelf's consoles (then matched against RocketLauncher's own folder names, which
 // win: a setup can name a system its own way). Several names: the first is the usual one.
 const NAMES = {
-  nes: ['Nintendo Entertainment System'], snes: ['Super Nintendo Entertainment System'], n64: ['Nintendo 64'],
+  nes: ['Nintendo Entertainment System'], fds: ['Nintendo Famicom Disk System', 'Famicom Disk System'], snes: ['Super Nintendo Entertainment System'], n64: ['Nintendo 64'],
   gb: ['Nintendo Game Boy'], gbc: ['Nintendo Game Boy Color'], gba: ['Nintendo Game Boy Advance'], nds: ['Nintendo DS'],
   n3ds: ['Nintendo 3DS'], gc: ['Nintendo GameCube'], wii: ['Nintendo Wii'], wiiu: ['Nintendo Wii U'], sw: ['Nintendo Switch'],
   psx: ['Sony PlayStation'], ps2: ['Sony PlayStation 2'], ps3: ['Sony PlayStation 3'], psp: ['Sony PSP'],

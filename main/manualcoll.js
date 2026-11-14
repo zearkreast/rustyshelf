@@ -24,6 +24,7 @@ const COLLECTIONS = {
   x360: [{ id: 'xbox-360-marketplace-game-manuals', digital: true }, { id: 'xbox-360-manuals' }],
   psx: [{ id: 'SonyPlaystationManuals' }],
   nes: [{ id: 'NESManuals' }],
+  fds: [{ id: 'NESManuals' }],
   snes: [{ id: 'SNESManuals' }],
   n64: [{ id: 'Nintendo64Manuals_201812' }, { id: HIRES, folder: 'Nintendo 64 Games/', names: 'loose' }],
   gb: [{ id: 'NintendoGameBoyManuals' }],

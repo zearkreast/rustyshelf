@@ -9,6 +9,7 @@
   window.BS_SYSTEMS_EXTRA = {
     style: {
       nes: S('nes', { ...cardboard, hue: 0, ratio: 0.71, depth: 0.2, caseColor: '#16161a', caseSide: '#0c0c0f', band: { bg: '#111114', fg: '#e8e8ec', label: 'NES' }, spineBand: { bg: '#111114', fg: '#e8e8ec', label: 'NES' }, tint: ['#6b1d1d', '#140606'], glow: '#ff8a8a' }),
+      fds: S('fds', { ...cardboard, hue: 45, ratio: 0.71, depth: 0.18, caseColor: '#8a1820', caseSide: '#680e14', spineInk: '#fbf5df', band: { bg: '#8a1820', fg: '#fbf5df', label: 'FAMICOM DISK' }, spineBand: { bg: '#8a1820', fg: '#fbf5df', label: 'FDS' }, tint: ['#8a1820', '#1c0305'], glow: '#ff737b' }),
       snes: S('snes', { ...cardboard, hue: 270, ratio: 1.38, h: 0.7, depth: 0.2, caseColor: '#d9d9de', caseSide: '#b9b9c1', spineInk: '#3c3c46', band: { bg: '#4b3f8f', fg: '#ffffff', label: 'SUPER NINTENDO' }, spineBand: { bg: '#4b3f8f', fg: '#ffffff', label: 'SNES' }, tint: ['#4b3f8f', '#120f26'], glow: '#b8a8ff' }),
       n64: S('n64', { ...cardboard, hue: 210, ratio: 1.38, h: 0.7, depth: 0.2, caseColor: '#141418', caseSide: '#0a0a0d', band: { bg: '#0d0d10', fg: '#ffffff', label: 'NINTENDO 64' }, spineBand: { bg: '#0d0d10', fg: '#ffffff', label: 'N64' }, tint: ['#1d4fa3', '#07142c'], glow: '#7fb0ff' }),
       gb: S('gb', { ...cardboard, hue: 75, ratio: 0.83, depth: 0.22, caseColor: '#cfd0c4', caseSide: '#aeb0a2', spineInk: '#2f3326', band: { bg: '#8b8c7e', fg: '#ffffff', label: 'GAME BOY' }, spineBand: { bg: '#8b8c7e', fg: '#ffffff', label: 'GB' }, tint: ['#4f6b2a', '#121a08'], glow: '#c8e889' }),
@@ -33,7 +34,7 @@
       dos: S('dos', { ...cardboard, hue: 120, ratio: 0.78, depth: 0.26, caseColor: '#141614', caseSide: '#0a0b0a', band: { bg: '#0a0b0a', fg: '#7dff8a', label: 'MS-DOS' }, spineBand: { bg: '#0a0b0a', fg: '#7dff8a', label: 'DOS' }, tint: ['#1f5a24', '#071408'], glow: '#9dffa8' })
     },
     wordmarks: {
-      nes: ['NES', 'Home console'], snes: ['SNES', 'Home console'], n64: ['N64', 'Home console'],
+      nes: ['NES', 'Home console'], fds: ['Famicom Disk System', 'Disk system'], snes: ['SNES', 'Home console'], n64: ['N64', 'Home console'],
       gb: ['Game Boy', 'Handheld'], gbc: ['Game Boy Color', 'Handheld'], gba: ['Game Boy Advance', 'Handheld'], nds: ['DS', 'Handheld'],
       psx: ['PlayStation', 'Home console'], dreamcast: ['Dreamcast', 'Home console'], saturn: ['Saturn', 'Home console'],
       megadrive: ['Genesis', 'Home console'], mastersystem: ['Master System', 'Home console'], gamegear: ['Game Gear', 'Handheld'],
@@ -42,7 +43,7 @@
       wonderswan: ['WonderSwan', 'Handheld'], dos: ['DOS', 'PC classics']
     },
     media: {
-      nes: { kind: 'cart', size: 0.5, drive: 'slot' }, snes: { kind: 'cart', size: 0.5, drive: 'slot' }, n64: { kind: 'cart', size: 0.5, drive: 'slot' },
+      nes: { kind: 'cart', size: 0.5, drive: 'slot' }, fds: { kind: 'cart', form: 'floppy', size: 0.5, drive: 'slot' }, snes: { kind: 'cart', size: 0.5, drive: 'slot' }, n64: { kind: 'cart', size: 0.5, drive: 'slot' },
       gb: { kind: 'cart', size: 0.45, drive: 'slot' }, gbc: { kind: 'cart', size: 0.45, drive: 'slot' }, gba: { kind: 'cart', size: 0.42, drive: 'slot' },
       nds: { kind: 'cart', size: 0.42, drive: 'slot' }, megadrive: { kind: 'cart', size: 0.5, drive: 'slot' }, mastersystem: { kind: 'cart', size: 0.5, drive: 'slot' },
       gamegear: { kind: 'cart', size: 0.45, drive: 'slot' }, pcengine: { kind: 'cart', size: 0.4, drive: 'slot' }, neogeo: { kind: 'cart', size: 0.55, drive: 'slot' },
