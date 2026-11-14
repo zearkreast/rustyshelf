@@ -77,8 +77,13 @@ pub fn navigate(
     mut playing: ResMut<Playing>,
     mut plays: ResMut<Plays>,
     mut toast: ResMut<Toast>,
+    settings: Res<crate::settings::Settings>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    // Settings has the keys while it's open
+    if settings.open || settings.just_closed {
+        return;
+    }
     if keys.just_pressed(KeyCode::Escape) {
         exit.write(AppExit::Success);
     }

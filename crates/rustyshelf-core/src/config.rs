@@ -89,6 +89,19 @@ impl Config {
         }
     }
 
+    /// Settings as a screen hands them back: the same shape rules as a loaded file. None when it isn't an object.
+    pub fn from_value(v: &Value) -> Option<Config> {
+        match crate::settings::normalize(v)? {
+            Value::Object(raw) => Some(Config { raw }),
+            _ => None,
+        }
+    }
+
+    /// Writes the settings to `data/config.json`.
+    pub fn save(&self, data_dir: &Path) -> io::Result<()> {
+        crate::settings::write(&data_dir.join("config.json"), &Value::Object(self.raw.clone()))
+    }
+
     pub fn raw(&self) -> &Map<String, Value> {
         &self.raw
     }

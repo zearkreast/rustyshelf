@@ -5,6 +5,7 @@
 mod hud;
 mod loading;
 mod play;
+mod settings;
 mod shelf;
 
 use bevy::prelude::*;
@@ -48,17 +49,20 @@ fn main() {
         .init_resource::<play::Plays>()
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
+        .init_resource::<settings::Settings>()
         .add_systems(Startup, (shelf::setup, hud::setup))
         .add_systems(
             Update,
             (
                 loading::poll_library,
                 play::watch_game,
+                settings::input,
                 play::navigate,
                 shelf::build_shelf,
                 shelf::apply_covers,
                 shelf::arrange,
                 hud::update,
+                settings::draw,
             )
                 .chain(),
         )

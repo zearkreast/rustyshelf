@@ -512,7 +512,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 **What works so far:**
 
-- Reads the Electron app's settings from `data\config.json`, read-only, so set things up in the Electron app.
+- Reads the same settings as the Electron app (`data\config.json`), so a setup made in either works in both.
 - Finds every console's games the same way the Electron app does: one box per game, discs grouped, updates and DLC left out.
   That includes Xbox 360 games named by their title id (disc images, extracted games, Games on Demand and Arcade
   packages), unpacked Switch 2 games, PS4 `.pkg` packages shown as not installed, PS5 games, arcade sets named from the
@@ -549,12 +549,19 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
   downloaded and built once). Each game is looked at once a week at most; a picture that's there is never replaced.
 
-**Not yet:** Settings and the setup wizard, the Art Studio and the art sources behind it (sharper scans over low-res
-pictures, spines cut from a full box wrap, GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu
-over a running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't
-started yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window
-mode and Seamless play are Electron-only too. Finding emulators and games folders, "Set up for me" and the settings
-file's rules are ported and tested, but nothing in the app uses them until Settings is there.
+- Sets itself up on the first run: it looks for your emulators, games folders, Steam and the streaming apps, shows the
+  consoles it found switched on, and lets you change each one's emulator and games folders before the shelf opens.
+- Has Settings (F1, or Start on the pad): each console's shelf, emulator and games folders, RetroArch, Steam and the
+  other stores, the PC games folder, box art downloads and their region, the art library, fullscreen, the quit combo,
+  searching again and restoring the emulators' own settings. Everything is saved to `data\config.json` by the rules
+  the Electron app's settings go through, so both apps keep reading the same file.
+
+**Not yet:** the rest of Settings (sound, themes, accounts, launch options, games added by hand, "Set up for me"), the
+Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
+GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu over a
+running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
+yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window mode
+and Seamless play are Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
