@@ -513,15 +513,31 @@ pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
         };
         return refuse(format!("{} isn't at {} any more. {fix}", g.title, g.exe));
     }
-    let plan = Plan { exe, args: build_args(&g.args, ""), env: cfg!(target_os = "linux").then(|| clean_env(None)) };
+    start_program(&g.exe, build_args(&g.args, ""), &g.title).map(Some)
+}
+
+/// Starts a program that isn't an emulator in its own folder; one that asks for administrator rights through
+/// Windows' own prompt.
+fn start_program(exe: &str, args: Vec<String>, name: &str) -> Result<Child, LaunchError> {
+    let plan = Plan { exe: PathBuf::from(exe), args, env: cfg!(target_os = "linux").then(|| clean_env(None)) };
     match start(&plan) {
-        Ok(child) => Ok(Some(child)),
+        Ok(child) => Ok(child),
         Err(LaunchError::Spawn(_)) if cfg!(windows) && needs_admin(&plan.exe) => {
-            start_elevated(&g.exe, &plan.args).map(Some).map_err(|e| LaunchError::Refused(format!("{} didn't start: {e}", g.title)))
+            start_elevated(exe, &plan.args).map_err(|e| LaunchError::Refused(format!("{name} didn't start: {e}")))
         }
-        Err(LaunchError::Spawn(e)) => refuse(format!("{} didn't start: {e}", g.title)),
+        Err(LaunchError::Spawn(e)) => refuse(format!("{name} didn't start: {e}")),
         Err(e) => Err(e),
     }
+}
+
+/// Starts a media app (the Media shelf) by the program Settings has for it.
+pub fn launch_app(name: &str, path: &str, app_root: &Path) -> Result<Child, LaunchError> {
+    let exe = emu_path(path, app_root);
+    if path.trim().is_empty() || !is_file(&exe) {
+        let what = if path.trim().is_empty() { "the program".to_string() } else { exe.display().to_string() };
+        return refuse(format!("Can't find {what}. Check its path in Settings."));
+    }
+    start_program(&exe.to_string_lossy(), Vec::new(), name)
 }
 
 pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Child, LaunchError> {

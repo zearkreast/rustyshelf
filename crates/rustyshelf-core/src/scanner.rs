@@ -60,6 +60,8 @@ pub enum Source {
     },
     /// a PC game from another store, Quiver, the PC games folder, or added by hand
     Pc(Box<crate::pcgames::PcGame>),
+    /// a media app (the Media shelf), by its program as Settings has it
+    App { path: String },
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]

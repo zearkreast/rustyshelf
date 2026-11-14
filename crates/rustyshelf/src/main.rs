@@ -42,6 +42,7 @@ fn main() {
         .init_resource::<shelf::Cursor>()
         .init_resource::<shelf::Covers>()
         .init_resource::<play::Playing>()
+        .init_resource::<play::Plays>()
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
         .add_systems(Startup, (shelf::setup, hud::setup))

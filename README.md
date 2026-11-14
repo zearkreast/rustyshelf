@@ -534,6 +534,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Gives a PC game the cover you chose in the Electron app, else its console box when Settings → PC games → Console box
   art is on, else the store's cover, a picture in the game's own folder, or the cover of the Steam game with the same
   name.
+- Shows the Media shelf's apps (Stremio, Nuvio) and starts them.
+- Keeps the play history the Electron app keeps (`data\history.json`): a console game's launches and time in it, a PC
+  game's or an app's launches. An emulator that closes within five seconds wasn't a play, and the shelf says so.
 - Shows the names you gave games in the Electron app (Details → Rename).
 
 The Xbox 360 title list, the arcade names, the sizes of unpacked Switch 2 games and of PC games' folders, the Steam
@@ -541,7 +544,7 @@ covers Steam itself doesn't keep, and which Steam game a store game's name belon
 `data` folder. Until the Electron app has fetched or measured them, games show their file names, no size and no such
 cover.
 
-**Not yet:** Settings and the setup wizard, art downloads, the Media shelf's apps, the open case and the museum, sounds
+**Not yet:** Settings and the setup wizard, art downloads, the open case and the museum, sounds
 and music, the Home menu over a running game, the phone companion. On Linux, Epic's games and Windows programs (through
 Wine / Proton) aren't started yet, and Android isn't built: the rewrite goes to Windows first. Installing a 3DS `.cia`,
 choosing a Switch 2 build, downloading a missing RetroArch core, a PC game's window mode, Seamless play, and the emulator

@@ -5,7 +5,10 @@ use std::sync::mpsc::{channel, Receiver, TryRecvError};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
+use rustyshelf_core::emuname;
+use rustyshelf_core::history::History;
 use rustyshelf_core::launch::{self, LaunchError};
+use rustyshelf_core::paths;
 use rustyshelf_core::library::ShelfKind;
 use rustyshelf_core::scanner::Source;
 
@@ -13,14 +16,33 @@ use crate::hud::Toast;
 use crate::loading::{LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
+/// The play history, shared with the Electron app.
+#[derive(Resource)]
+pub struct Plays(pub History);
+
+impl Default for Plays {
+    fn default() -> Self {
+        Plays(History::load(&paths::data_dir(&paths::app_root())))
+    }
+}
+
+/// A console game's emulator once it runs, and the name it's shown by.
+type Started = Result<(Child, String), LaunchError>;
+
 /// The game that's starting or running: the shelf waits for it.
 #[derive(Resource, Default)]
 pub struct Playing {
     pub title: Option<String>,
+    id: String,
     /// still being started (a PS5 build's options are asked for first, which can take seconds)
-    starting: Option<Mutex<Receiver<Result<Child, LaunchError>>>>,
+    starting: Option<Mutex<Receiver<Started>>>,
     child: Option<Mutex<Child>>,
+    /// a console game's emulator, and when it started (seconds): one that closes right away wasn't a play
+    emulator: Option<(String, f32)>,
 }
+
+/// An emulator that closes by itself this soon (a missing BIOS, keys or firmware, bad launch options) wasn't a play.
+const QUICK_EXIT: f32 = 5.0;
 
 impl Playing {
     pub fn is_starting(&self) -> bool {
@@ -46,6 +68,7 @@ pub fn navigate(
     mut cursor: ResMut<Cursor>,
     mut repeat: ResMut<Repeat>,
     mut playing: ResMut<Playing>,
+    mut plays: ResMut<Plays>,
     mut toast: ResMut<Toast>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -111,18 +134,24 @@ pub fn navigate(
         // Steam starts it and looks after it; the shelf stays as it is
         (_, Source::Steam { appid, .. }) => {
             toast.text = match launch::launch_steam(appid) {
-                Ok(()) => format!("{} is starting in Steam.", g.title),
+                Ok(()) => {
+                    plays.0.touch(&g.id);
+                    format!("{} is starting in Steam.", g.title)
+                }
                 Err(e) => e.to_string(),
             };
             toast.until = now + 5.0;
         }
+        // a PC game's launch is counted, its time isn't
         (_, Source::Pc(pc)) => match launch::launch_pc(pc) {
             Ok(Some(child)) => {
+                plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
                 playing.child = Some(Mutex::new(child));
             }
             // its store starts it and looks after it
             Ok(None) => {
+                plays.0.touch(&g.id);
                 toast.text = format!("{} is starting in {}.", g.title, crate::hud::store_name(pc.source));
                 toast.until = now + 5.0;
             }
@@ -135,40 +164,67 @@ pub fn navigate(
             let (tx, rx) = channel();
             let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
             std::thread::spawn(move || {
-                let _ = tx.send(launch::launch_game(&console, &sc, &file, &id, &cfg, &root));
+                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| Ok((launch::start(&p)?, emuname::label(&p.exe.to_string_lossy()))));
+                let _ = tx.send(started);
             });
             playing.title = Some(g.title.clone());
+            playing.id = g.id.clone();
             playing.starting = Some(Mutex::new(rx));
         }
-        (ShelfKind::Pc, Source::Rom) => {}
+        (_, Source::App { path }) => match launch::launch_app(&g.title, path, &l.app_root) {
+            Ok(child) => {
+                plays.0.touch(&g.id);
+                playing.title = Some(g.title.clone());
+                playing.child = Some(Mutex::new(child));
+            }
+            Err(e) => {
+                toast.text = e.to_string();
+                toast.until = now + 6.0;
+            }
+        },
+        (ShelfKind::Pc | ShelfKind::Apps, Source::Rom) => {}
     }
 }
 
 /// The shelf takes input again once the emulator has closed, or if it didn't start.
-pub fn watch_game(mut playing: ResMut<Playing>, mut toast: ResMut<Toast>, time: Res<Time>) {
+pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut toast: ResMut<Toast>, time: Res<Time>) {
     let started = playing.starting.as_ref().map(|rx| rx.lock().unwrap().try_recv());
     let title = playing.title.clone().unwrap_or_default();
+    let now = time.elapsed_secs();
     match started {
         None | Some(Err(TryRecvError::Empty)) => {}
-        Some(Ok(Ok(child))) => {
+        Some(Ok(Ok((child, emulator)))) => {
             info!("Launched {title}");
+            plays.0.start(&playing.id);
             playing.starting = None;
             playing.child = Some(Mutex::new(child));
+            playing.emulator = Some((emulator, now));
         }
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");
             toast.text = e.to_string();
-            toast.until = time.elapsed_secs() + 6.0;
+            toast.until = now + 6.0;
             *playing = Playing::default();
         }
         Some(Err(TryRecvError::Disconnected)) => *playing = Playing::default(),
     }
-    let done = match &playing.child {
-        Some(c) => !matches!(c.lock().unwrap().try_wait(), Ok(None)),
-        None => false,
+    let exited = match &playing.child {
+        Some(c) => match c.lock().unwrap().try_wait() {
+            Ok(None) => None,
+            Ok(Some(status)) => Some(status.code()),
+            Err(_) => Some(None),
+        },
+        None => None,
     };
-    if done {
-        playing.child = None;
-        playing.title = None;
+    let Some(code) = exited else { return };
+    match playing.emulator.take() {
+        Some((emulator, at)) if now - at < QUICK_EXIT => {
+            plays.0.undo();
+            let code = code.filter(|c| *c != 0).map(|c| format!(" (code {c})")).unwrap_or_default();
+            toast.text = format!("{emulator} closed right away{code}. Open {emulator} on its own to check its setup: a missing BIOS, keys or firmware is the usual cause.");
+            toast.until = now + 12.0;
+        }
+        _ => plays.0.end(),
     }
+    *playing = Playing::default();
 }

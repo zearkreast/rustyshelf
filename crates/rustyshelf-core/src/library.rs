@@ -24,11 +24,13 @@ pub enum ShelfKind {
     Console { console: Box<Console>, config: SystemConfig },
     /// the PC shelf and the Custom shelf
     Pc,
+    /// the Media shelf
+    Apps,
 }
 
 #[derive(Debug, Clone)]
 pub struct Shelf {
-    /// the console's id, "pc" or "custom"
+    /// the console's id, "pc", "custom" or "media"
     pub id: String,
     pub name: String,
     pub kind: ShelfKind,
@@ -39,7 +41,7 @@ pub struct Shelf {
 pub struct Library {
     pub app_root: PathBuf,
     pub config: Config,
-    /// consoles that are on and have games, in the settings' console order, then the PC shelf and the Custom shelf
+    /// consoles that are on and have games, in the settings' console order, then the PC, Custom and Media shelves
     pub shelves: Vec<Shelf>,
 }
 
@@ -245,6 +247,18 @@ impl Library {
                 shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games });
             }
         }
+        let apps: Vec<Game> = systems()
+            .apps
+            .iter()
+            .filter_map(|a| {
+                let c = config.raw().get("apps").and_then(|m| m.get(&a.id))?;
+                let path = js::filled(c.get("path")).filter(|_| js::truthy(c.get("enabled")))?;
+                Some(Game { id: format!("app-{}", a.id), title: a.name.clone(), file: PathBuf::from(path), source: Source::App { path: path.to_string() }, ..Game::default() })
+            })
+            .collect();
+        if !apps.is_empty() {
+            shelves.push(Shelf { id: "media".into(), name: "Media".into(), kind: ShelfKind::Apps, games: apps });
+        }
         Ok(Library { app_root: app_root.to_path_buf(), config, shelves })
     }
 }
@@ -291,11 +305,12 @@ mod tests {
                 { "title": "On SNES", "exe": at("tools/c.exe"), "shelf": "snes" }, { "title": "Console Off", "exe": at("tools/d.exe"), "shelf": "gc" } ] },
             "systems": { "snes": { "romDirs": [at("snes")] }, "gc": { "enabled": false } },
             "games": { "custom-on-pc": { "title": "Renamed" } },
+            "apps": { "stremio": { "enabled": true, "path": at("tools/a.exe") }, "nuvio": { "enabled": false, "path": at("tools/b.exe") } },
         });
         touch(&root.join("data/config.json"));
         std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
-        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"])]);
+        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("media", vec!["Stremio"])]);
     }
 }

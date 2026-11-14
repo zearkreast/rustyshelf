@@ -116,6 +116,7 @@ fn details(g: &Game) -> String {
         Source::Steam { minutes, .. } => Some(("Steam", played(*minutes))),
         // TODO: the playtime RustyShelf keeps for the games it starts itself (the Electron app's history)
         Source::Pc(pc) => Some((store_name(pc.source), if g.not_installed { "Not installed".into() } else { played(0) })),
+        Source::App { .. } => return "Streaming app".into(),
         Source::Rom => None,
     };
     if let Some((store, played)) = pc {
