@@ -138,10 +138,36 @@ fn flag<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
     Ok(v.as_bool().unwrap_or_else(|| v.as_f64().is_some_and(|n| n != 0.0)))
 }
 
+/// How a shelf's name is lettered: the letters' gradient (as CSS), the glow under them, the colour of the line
+/// below; their font and weight, how far apart they stand (for their size), and their size for the window (least,
+/// hundredths of the window's width, most).
+#[derive(Debug, Clone, Deserialize)]
+pub struct Lettering {
+    pub grad: String,
+    #[serde(deserialize_with = "css")]
+    pub glow: Rgba,
+    #[serde(deserialize_with = "css")]
+    pub tag: Rgba,
+    pub font: String,
+    pub weight: u32,
+    pub spacing: f32,
+    pub size: [f32; 3],
+    /// in capitals
+    pub upper: bool,
+}
+
+impl Lettering {
+    /// The letters' size in a window `window_w` wide.
+    pub fn size_in(&self, window_w: f32) -> f32 {
+        (window_w * self.size[1] / 100.0).clamp(self.size[0], self.size[2])
+    }
+}
+
 #[derive(Deserialize)]
 struct Table {
     style: HashMap<String, Look>,
     wordmarks: HashMap<String, (String, String)>,
+    lettering: HashMap<String, Lettering>,
 }
 
 static TABLE: LazyLock<Table> = LazyLock::new(|| serde_json::from_str(include_str!("../data/looks.json")).expect("data/looks.json"));
@@ -155,6 +181,12 @@ pub fn look(shelf: &str) -> &'static Look {
 /// A shelf's name as the shelf writes it large, and the line under it.
 pub fn wordmark(shelf: &str) -> Option<(&'static str, &'static str)> {
     TABLE.wordmarks.get(shelf).map(|(a, b)| (a.as_str(), b.as_str()))
+}
+
+/// The colours a shelf's name is lettered in; white for a shelf without its own.
+pub fn lettering(shelf: &str) -> &'static Lettering {
+    let id = if shelf.starts_with("col-") { "home" } else { shelf };
+    TABLE.lettering.get(id).unwrap_or_else(|| &TABLE.lettering[""])
 }
 
 /// The case a game stands in on the shelf `shelf` (its own shelf, also when it's shown on Home): the shelf's, or
@@ -190,6 +222,9 @@ mod tests {
         assert_eq!((look("nothing").id.as_str(), look("col-c1").id.as_str(), look("all").id.as_str()), ("media", "home", "home"));
         assert_eq!(wordmark("gc"), Some(("GameCube", "Home console")));
         assert_eq!(parse_css("#fff"), [1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(lettering("gc").grad, "linear-gradient(180deg,#e2dbff 10%,#8b75ff 95%)");
+        assert_eq!((lettering("gc").font.as_str(), lettering("gc").size_in(1280.0), lettering("media").upper), ("Chakra Petch", 30.72, false));
+        assert_eq!((lettering("ps5").tag, lettering("col-c1").tag), (parse_css("#c8cfdd"), lettering("home").tag));
 
         let steam = Game { source: Source::Steam { appid: "1".into(), minutes: 0, last_played: 0 }, ..Game::default() };
         let on_pc = look_for("pc", &steam);

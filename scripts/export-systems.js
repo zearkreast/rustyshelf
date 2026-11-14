@@ -30,7 +30,34 @@ const looks = () => {
   const win = {}; new Function('window', fs.readFileSync(path.join(ROOT, 'renderer', 'systems-extra.js'), 'utf8'))(win);
   STYLE.xsx = STYLE.xboxone; STYLE.xone = STYLE.xboxone; STYLE.all = STYLE.home; WORDMARKS.all = ['All Games', 'Whole library'];
   Object.assign(STYLE, win.BS_SYSTEMS_EXTRA.style || {}); Object.assign(WORDMARKS, win.BS_SYSTEMS_EXTRA.wordmarks || {});
-  return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS }, null, 1) + '\n';
+  // each shelf's lettering colours (the .wm-<id> rules of the renderer's style sheets; "" is a shelf without its own)
+  const wm = {};
+  for (const f of fs.readdirSync(path.join(ROOT, 'renderer')).filter(f => f.endsWith('.css')).sort()) {
+    const css = fs.readFileSync(path.join(ROOT, 'renderer', f), 'utf8');
+    for (const m of css.matchAll(/(?:^|\n|\})((?:\.wm(?:-[a-z0-9]+)?,?)+)\{--wm-grad:(linear-gradient\([^;]*\));--wm-glow:([^;]*);--wm-tagc:([^;}]*)\}/g))
+      for (const sel of m[1].split(',')) wm[sel.replace(/^\.wm-?/, '')] = { grad: m[2], glow: m[3], tag: m[4] };
+  }
+  // and its own letters, where it has them (.wm-<id> .wm-main): the font, how far apart, and how large for the window
+  // ("size": least, hundredths of the window's width, most); the rest are set as .sys-word sets them
+  const plain = { font: 'Lexend', weight: 800, spacing: 0, size: [22, 2.6, 38], upper: true, italic: false };
+  for (const id of Object.keys(wm)) Object.assign(wm[id], plain);
+  for (const f of fs.readdirSync(path.join(ROOT, 'renderer')).filter(f => f.endsWith('.css') && f !== 'bootslide.css').sort()) {
+    const css = fs.readFileSync(path.join(ROOT, 'renderer', f), 'utf8');
+    for (const m of css.matchAll(/(?:^|\n|\})((?:\.wm-[a-z0-9]+ \.wm-main,?)+)\{([^}]*)\}/g)) {
+      const d = Object.fromEntries(m[2].split(';').filter(Boolean).map(x => [x.slice(0, x.indexOf(':')).trim(), x.slice(x.indexOf(':') + 1).trim()]));
+      const size = /clamp\(([\d.]+)px,([\d.]+)vw,([\d.]+)px\)/.exec(d['font-size'] || '');
+      for (const sel of m[1].split(',')) {
+        const id = /\.wm-([a-z0-9]+)/.exec(sel)[1]; wm[id] = wm[id] || { ...wm[''] };
+        if (d['font-family']) wm[id].font = /'([^']+)'/.exec(d['font-family'])[1];
+        if (d['font-weight']) wm[id].weight = +d['font-weight'];
+        if (d['letter-spacing']) wm[id].spacing = parseFloat(d['letter-spacing']);
+        if (size) wm[id].size = [+size[1], +size[2], +size[3]];
+        if (d['text-transform'] === 'none') wm[id].upper = false;
+        if (d['font-style'] === 'italic') wm[id].italic = true;
+      }
+    }
+  }
+  return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS, lettering: wm }, null, 1) + '\n';
 };
 
 // the pictures and patterns the extra themes' backdrops are made of (renderer/themes-extra.js): they never change, so

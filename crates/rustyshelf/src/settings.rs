@@ -288,6 +288,19 @@ impl Settings {
         rustyshelf_core::windowmode::MODES.into_iter().find(|m| *m == mode).unwrap_or("")
     }
 
+    /// The clock in the corner: whether the day is shown with the time, and whether the time counts 24 hours;
+    /// None when it's off.
+    pub fn clock(&self) -> Option<(bool, bool)> {
+        let mode = self.text(&["ui", "clock"]);
+        (mode != "off").then(|| (mode != "time", self.flag(&["ui", "clock24"], false)))
+    }
+
+    /// Puts a game among the favourites or takes it out, from the shelf; whether it's one now.
+    pub fn toggle_favorite(&mut self, id: &str) -> bool {
+        self.flip("favorites", id);
+        self.list(&["ui", "favorites"]).iter().any(|x| x == id)
+    }
+
     /// The shelf's colour theme.
     pub fn theme(&self) -> String {
         rustyshelf_core::themes::id_of(&self.text(&["ui", "theme"])).to_string()
@@ -1206,7 +1219,7 @@ impl Settings {
                 });
                 Page {
                     title: "You're set".into(),
-                    lead: format!("{on} console{} with games. Everything here can be changed later in Settings (F1, or Start on the pad).", if on == 1 { "" } else { "s" }),
+                    lead: format!("{on} console{} with games. Everything here can be changed later in Settings (S, or View on the pad).", if on == 1 { "" } else { "s" }),
                     rows,
                 }
             }
@@ -1357,13 +1370,21 @@ pub fn input(
         if s.just_closed {
             s.just_closed = false;
         }
+        // a favourite made on the shelf
+        if s.rearranged {
+            s.rearranged = false;
+            if let (Some(b), Some(cfg)) = (base.0.as_mut(), Config::from_value(&s.cfg)) {
+                b.config = cfg;
+                loading::reshow(&mut lib, b, &plays.0, &mut cursor);
+            }
+        }
         let first = if playing.title.is_some() {
             None
-        } else if keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) {
+        } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Select) {
             Some(Screen::Root)
-        } else if keys.just_pressed(KeyCode::KeyM) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::North) {
+        } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
             Some(Screen::Shelf)
-        } else if keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) {
+        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) {
             Some(Screen::Details)
         } else {
             None
@@ -1480,7 +1501,7 @@ pub fn input(
         if let Some(press) = page.rows.get(at).and_then(|r| r.press.as_ref()) {
             press(&mut s);
         }
-    } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(GamepadButton::East) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start))) {
+    } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(GamepadButton::East) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) || pad(GamepadButton::Select))) {
         s.back();
     }
 

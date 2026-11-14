@@ -176,8 +176,12 @@ pub fn open_alone(playing: &mut Playing, console: &str, name: String, plan: &lau
 pub struct Repeat {
     dir: i32,
     next: f32,
+    /// when Y went down on the pad, until it's let go or has been held long enough
+    y_since: Option<f32>,
 }
 
+/// seconds Y is held for a favourite
+const HOLD: f32 = 0.45;
 const FIRST_REPEAT: f32 = 0.35;
 const REPEAT: f32 = 0.08;
 
@@ -251,8 +255,8 @@ pub fn navigate(
     }
 
     let n_shelves = l.shelves.len();
-    let shelf_step = (keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::PageDown) || pad(GamepadButton::RightTrigger)) as i32
-        - (keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::PageUp) || pad(GamepadButton::LeftTrigger)) as i32;
+    let shelf_step = (keys.just_pressed(KeyCode::ArrowDown) || keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::PageDown) || pad(GamepadButton::RightTrigger2)) as i32
+        - (keys.just_pressed(KeyCode::ArrowUp) || keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::PageUp) || pad(GamepadButton::LeftTrigger2)) as i32;
     if shelf_step != 0 {
         cursor.shelf = (cursor.shelf as i32 + shelf_step).rem_euclid(n_shelves as i32) as usize;
         cursor.game = 0;
@@ -266,6 +270,22 @@ pub fn navigate(
     if step != 0 && n > 0 {
         cursor.game = (cursor.game as i32 + step).clamp(0, n as i32 - 1) as usize;
     }
+    // to the next letter's first game, or back to this letter's first and then the one before's (app.js letter())
+    let letter_step = (keys.just_pressed(KeyCode::KeyC) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::KeyZ) || pad(GamepadButton::LeftTrigger)) as i32;
+    if letter_step != 0 && n > 0 {
+        let letter = |g: &rustyshelf_core::scanner::Game| g.title.chars().next().filter(char::is_ascii_alphabetic).map_or('#', |c| c.to_ascii_uppercase());
+        let starts: Vec<usize> = (0..n).filter(|&i| i == 0 || letter(&shelf.games[i]) != letter(&shelf.games[i - 1])).collect();
+        if starts.len() > 1 {
+            let k = starts.iter().rposition(|&st| st <= cursor.game).unwrap_or(0);
+            cursor.game = if letter_step > 0 {
+                starts[(k + 1) % starts.len()]
+            } else if cursor.game > starts[k] {
+                starts[k]
+            } else {
+                starts[(k + starts.len() - 1) % starts.len()]
+            };
+        }
+    }
     if keys.just_pressed(KeyCode::Home) {
         cursor.game = 0;
     }
@@ -276,10 +296,26 @@ pub fn navigate(
         cursor.flipped = false;
         sounds.play("tick", if cursor.game < was { -1 } else { 1 });
     }
+    // Y on the pad: a tap turns the case, a hold makes the game a favourite
+    let (y_down, y_up) = (pad(GamepadButton::North), pads.iter().any(|p| p.just_released(GamepadButton::North)));
+    if y_down {
+        repeat.y_since = Some(now);
+    }
+    let y_held = repeat.y_since.is_some_and(|since| now - since >= HOLD);
+    let y_tap = y_up && repeat.y_since.take().is_some();
+    if y_held {
+        repeat.y_since = None;
+    }
     // the chosen case turns round to show its back, and round again
-    if keys.just_pressed(KeyCode::KeyF) && n > 0 {
+    if (keys.just_pressed(KeyCode::KeyF) || y_tap) && n > 0 {
         cursor.flipped = !cursor.flipped;
         sounds.play("flip", 1);
+    }
+    if let Some(g) = shelf.games.get(cursor.game).filter(|_| keys.just_pressed(KeyCode::KeyH) || y_held) {
+        let on = settings.toggle_favorite(&g.id);
+        sounds.play(if on { "toast" } else { "back" }, 1);
+        toast.text = if on { format!("♥ {} added to favorites", g.title) } else { format!("Removed {} from favorites", g.title) };
+        toast.until = now + 3.0;
     }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);

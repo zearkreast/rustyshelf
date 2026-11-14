@@ -260,15 +260,48 @@ pub fn fine(id: &str) -> bool {
     matches!(id_of(id), "arcade" | "cube" | "blueshift" | "swirl" | "pocket" | "walnut" | "forest" | "crt" | "vhs" | "synth")
 }
 
-/// Everything that lies still behind the shelf, painted `width` × `height` pixels: the theme's backdrop, its dark
-/// corners, and the floor's glow under the cases.
-pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, stage: Stage, width: u32, height: u32) -> crate::drawn::Picture {
+/// The size of the chosen game's cover as the backdrop takes its colours: `SWATCH.0` × `SWATCH.1` pixels.
+pub const SWATCH: (usize, usize) = (18, 24);
+
+/// A cover shrunk to a swatch's red, green and blue (`SWATCH.0 * SWATCH.1 * 3` bytes), its colours a little
+/// stronger and darker, as the Electron app shrinks it (CSS saturate(1.3) brightness(.95)).
+pub fn swatch(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
+    let (sw, sh) = (SWATCH.0 as u32, SWATCH.1 as u32);
+    let mut out = Vec::with_capacity(SWATCH.0 * SWATCH.1 * 3);
+    for cy in 0..sh {
+        for cx in 0..sw {
+            let (x0, y0) = (cx * w / sw, cy * h / sh);
+            let (x1, y1) = (((cx + 1) * w / sw).max(x0 + 1).min(w.max(1)), ((cy + 1) * h / sh).max(y0 + 1).min(h.max(1)));
+            let mut sum = [0.0f32; 3];
+            for y in y0..y1 {
+                for x in x0..x1 {
+                    let i = ((y * w + x) * 4) as usize;
+                    for (c, total) in sum.iter_mut().enumerate() {
+                        *total += rgba.get(i + c).copied().map_or(0.0, f32::from);
+                    }
+                }
+            }
+            let n = (x1.saturating_sub(x0) * y1.saturating_sub(y0)).max(1) as f32;
+            let [r, g, b] = sum.map(|v| v / n);
+            let grey = 0.213 * r + 0.715 * g + 0.072 * b;
+            out.extend([r, g, b].map(|v| (((grey + (v - grey) * 1.3) * 0.95).round()).clamp(0.0, 255.0) as u8));
+        }
+    }
+    out
+}
+
+/// Everything that lies still behind the shelf, painted `width` × `height` pixels: the theme's backdrop, a wash of
+/// the chosen game's cover over it (`cover`: its swatch), the dark corners, and the floor's glow under the cases.
+pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[u8]>, stage: Stage, (width, height): (u32, u32)) -> crate::drawn::Picture {
     let id = id_of(id);
     let (floor, corners, _) = strengths(id);
     let whole = (0.0, 0.0, stage.w, stage.h);
     let mut c = crate::cssbg::Canvas::new(width, height, width as f32 / stage.w);
     c.paint("#07070c", whole, 1.0);
     c.paint(&tint(id, sh, hue, song), whole, 1.0);
+    if let Some(rgb) = cover {
+        c.stretch(rgb, SWATCH, (-0.15 * stage.w, -0.15 * stage.h, 1.3 * stage.w, 1.3 * stage.h), 0.16);
+    }
     if id == "arcade" {
         c.paint("repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)", whole, 1.0);
         c.paint("radial-gradient(ellipse 120% 100% at 50% 50%,transparent 60%,rgba(0,0,0,.55))", whole, 1.0);

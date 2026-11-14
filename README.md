@@ -521,7 +521,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   game's case forward in the middle, the others in two angled stacks beside it with their spines out, each in its
   console's own case (the Electron app's table of case shapes and colours), under the same plastic shine and glow.
   Behind them is the colour theme's backdrop (the theme set in the Electron app's Settings; all eighteen are painted,
-  without their moving parts yet), in the console's colour. F turns the chosen case round to its back cover.
+  without their moving parts yet), in the console's colour and washed with the chosen cover's, the floor mirroring
+  the cases. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
+  title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
   A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
   under the console's band, and a back with four small scenes, its description and what Details knows of it.
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,
@@ -557,7 +559,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 - Sets itself up on the first run: it looks for your emulators, games folders, Steam and the streaming apps, shows the
   consoles it found switched on, and lets you change each one's emulator and games folders before the shelf opens.
-- Has Settings (F1, or Start on the pad): each console's shelf, emulator and games folders, RetroArch, Steam and the
+- Has Settings (S or F1, or View on the pad): each console's shelf, emulator and games folders, RetroArch, Steam and the
   other stores, the PC games folder, box art downloads and their region, the art library, fullscreen, the quit combo,
   searching again and restoring the emulators' own settings. Everything is saved to `data\config.json` by the rules
   the Electron app's settings go through, so both apps keep reading the same file.
@@ -592,13 +594,13 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Reads the MIDI files in the Songs folder as songs for the Melody voice, as the Electron app does (the top line as
   the tune, the bass under it as the chords), with or without the built-in songs.
 - Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
-- Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
+- Has the shelf's menu (G, or Menu on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.
 - Has the Home shelf (the twelve games you played last, then your favorites), the All shelf when Settings → Display
   asks for it, and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.
-- Has Details (D, or X on the pad): the game's description, release date, developer, publisher, genre, players,
+- Has Details (I, or X on the pad): the game's description, release date, developer, publisher, genre, players,
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
@@ -621,17 +623,20 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Action | Keyboard | Pad |
 |---|---|---|
 | Choose a game | ← → | D-pad / left stick |
-| Change console | Q / E | LB / RB |
+| Jump by letter | Z / C | LB / RB |
+| Change console | ↑ / ↓ | LT / RT |
 | Play | Enter | A |
-| Turn the case round | F | |
-| Details | D | X |
-| Shelf menu | M | Y |
-| Settings | F1 | Start |
+| Turn the case round | F | Y |
+| Favorite | H | hold Y |
+| Details | I | X |
+| Sort and filter (the shelf's menu) | G | Menu |
+| Settings | S | View |
 | Quit | Esc | |
 
 `cargo test --workspace` runs its tests, which compare its title and folder rules against the Electron app's own answers
-(`node scripts/rust-fixtures.js` regenerates those), and its sounds against the Electron app's sound engine
-(`node scripts/rust-sound-fixtures.js`, which needs Playwright's Chromium, renders the reference sounds).
+(`node scripts/rust-fixtures.js` regenerates those), its sounds and drawn covers against the Electron app's own
+(`node scripts/rust-sound-fixtures.js`), and its painting of the themes' backdrops against Chromium's
+(`node scripts/rust-paint-fixtures.js`); the last two need Playwright's Chromium.
 
 ## For developers
 

@@ -1445,5 +1445,637 @@
    "PS Vita",
    "Handheld"
   ]
+ },
+ "lettering": {
+  "": {
+   "grad": "linear-gradient(180deg,#ffffff 15%,#cfd6e6 100%)",
+   "glow": "rgba(255,255,255,.25)",
+   "tag": "#c8cfdd",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "home": {
+   "grad": "linear-gradient(180deg,#ffffff 10%,#c9b8ff 100%)",
+   "glow": "rgba(201,184,255,.4)",
+   "tag": "#bdb3e6",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0.1,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "psx": {
+   "grad": "linear-gradient(180deg,#f2f2f5 15%,#9aa3b5 100%)",
+   "glow": "rgba(160,170,190,.35)",
+   "tag": "#c3c9d6",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "nes": {
+   "grad": "linear-gradient(180deg,#ffe2e2 10%,#e4202b 95%)",
+   "glow": "rgba(228,32,43,.4)",
+   "tag": "#f2a6aa",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "snes": {
+   "grad": "linear-gradient(180deg,#efeaff 10%,#8f7ff0 95%)",
+   "glow": "rgba(143,127,240,.4)",
+   "tag": "#c4baf5",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "n64": {
+   "grad": "linear-gradient(180deg,#dff6e8 10%,#18a85c 95%)",
+   "glow": "rgba(24,168,92,.4)",
+   "tag": "#9ed9b8",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "gb": {
+   "grad": "linear-gradient(180deg,#f1f8d2 10%,#8bac0f 95%)",
+   "glow": "rgba(139,172,15,.4)",
+   "tag": "#c6d98a",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "gbc": {
+   "grad": "linear-gradient(180deg,#f6e8ff 10%,#b14fd6 95%)",
+   "glow": "rgba(177,79,214,.4)",
+   "tag": "#d9a9ec",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "gba": {
+   "grad": "linear-gradient(180deg,#ece8ff 10%,#5a3ec8 95%)",
+   "glow": "rgba(90,62,200,.45)",
+   "tag": "#b3a6ea",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "nds": {
+   "grad": "linear-gradient(180deg,#ffffff 10%,#a7b1bf 95%)",
+   "glow": "rgba(167,177,191,.35)",
+   "tag": "#cdd3dc",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "megadrive": {
+   "grad": "linear-gradient(180deg,#ffe4e4 10%,#d81f26 95%)",
+   "glow": "rgba(216,31,38,.4)",
+   "tag": "#f0a7aa",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "mastersystem": {
+   "grad": "linear-gradient(180deg,#ffe9e6 10%,#e2412f 95%)",
+   "glow": "rgba(226,65,47,.4)",
+   "tag": "#f1b0a7",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "gamegear": {
+   "grad": "linear-gradient(180deg,#e6f1ff 10%,#2f6fd6 95%)",
+   "glow": "rgba(47,111,214,.4)",
+   "tag": "#a9c5ef",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "dreamcast": {
+   "grad": "linear-gradient(180deg,#fff0e0 10%,#ff7a12 95%)",
+   "glow": "rgba(255,122,18,.4)",
+   "tag": "#ffc08f",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "saturn": {
+   "grad": "linear-gradient(180deg,#eef0ff 10%,#3b4fc4 95%)",
+   "glow": "rgba(59,79,196,.42)",
+   "tag": "#aeb8ec",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "pcengine": {
+   "grad": "linear-gradient(180deg,#fff3dc 10%,#f29a12 95%)",
+   "glow": "rgba(242,154,18,.4)",
+   "tag": "#f6cd8a",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "neogeo": {
+   "grad": "linear-gradient(180deg,#fff6d8 10%,#d4a21a 95%)",
+   "glow": "rgba(212,162,26,.42)",
+   "tag": "#ead08a",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "arcade": {
+   "grad": "linear-gradient(180deg,#ffe3f6 10%,#e0249a 95%)",
+   "glow": "rgba(224,36,154,.42)",
+   "tag": "#f0a3d3",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "segacd": {
+   "grad": "linear-gradient(180deg,#e8f0ff 10%,#2a5bd7 95%)",
+   "glow": "rgba(42,91,215,.42)",
+   "tag": "#a9bff0",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "sega32x": {
+   "grad": "linear-gradient(180deg,#ffe8e2 10%,#e8452c 95%)",
+   "glow": "rgba(232,69,44,.42)",
+   "tag": "#f3b0a4",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "atari2600": {
+   "grad": "linear-gradient(180deg,#fff0e2 10%,#c8642a 95%)",
+   "glow": "rgba(200,100,42,.4)",
+   "tag": "#e9b896",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "atarilynx": {
+   "grad": "linear-gradient(180deg,#e9fbff 10%,#1f9fc4 95%)",
+   "glow": "rgba(31,159,196,.4)",
+   "tag": "#9fd6e7",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "wonderswan": {
+   "grad": "linear-gradient(180deg,#f3ecff 10%,#7c4fd6 95%)",
+   "glow": "rgba(124,79,214,.42)",
+   "tag": "#c4adee",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "dos": {
+   "grad": "linear-gradient(180deg,#e9ffe9 10%,#2fbf4a 95%)",
+   "glow": "rgba(47,191,74,.4)",
+   "tag": "#a3e3ae",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "ngp": {
+   "grad": "linear-gradient(180deg,#e8ecff 10%,#3a4fb8 95%)",
+   "glow": "rgba(58,79,184,.42)",
+   "tag": "#aab6ee",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "gamecom": {
+   "grad": "linear-gradient(180deg,#fff7c2 10%,#e0b400 95%)",
+   "glow": "rgba(224,180,0,.42)",
+   "tag": "#f0dc8a",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "psvita": {
+   "grad": "linear-gradient(180deg,#e6efff 10%,#4f86e8 95%)",
+   "glow": "rgba(79,134,232,.42)",
+   "tag": "#a9c4f5",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "ngpc": {
+   "grad": "linear-gradient(180deg,#ffffff 10%,#2f6ce0 95%)",
+   "glow": "rgba(47,108,224,.42)",
+   "tag": "#a9c3f3",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "gc": {
+   "grad": "linear-gradient(180deg,#e2dbff 10%,#8b75ff 95%)",
+   "glow": "rgba(139,117,255,.45)",
+   "tag": "#b7aaf2",
+   "font": "Chakra Petch",
+   "weight": 700,
+   "spacing": 0.14,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "wii": {
+   "grad": "linear-gradient(180deg,#ffffff 20%,#9cd2ff 100%)",
+   "glow": "rgba(120,190,255,.5)",
+   "tag": "#bfe2ff",
+   "font": "Syne",
+   "weight": 800,
+   "spacing": 0.24,
+   "size": [
+    24,
+    2.7,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "wiiu": {
+   "grad": "linear-gradient(180deg,#ffffff 15%,#5cc8ff 100%)",
+   "glow": "rgba(60,180,255,.5)",
+   "tag": "#a8ddff",
+   "font": "Syne",
+   "weight": 800,
+   "spacing": 0.14,
+   "size": [
+    24,
+    2.7,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "sw": {
+   "grad": "linear-gradient(95deg,#ff9a8a 0%,#ff3d55 70%)",
+   "glow": "rgba(255,61,85,.45)",
+   "tag": "#ffb3b8",
+   "font": "Unbounded",
+   "weight": 700,
+   "spacing": 0.03,
+   "size": [
+    22,
+    2.5,
+    36
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "sw2": {
+   "grad": "linear-gradient(95deg,#ffb0a6 0%,#ff2a3b 60%,#4aa8ff 100%)",
+   "glow": "rgba(255,42,59,.45)",
+   "tag": "#ffc2c7",
+   "font": "Unbounded",
+   "weight": 700,
+   "spacing": 0.03,
+   "size": [
+    22,
+    2.5,
+    36
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "psp": {
+   "grad": "linear-gradient(180deg,#f7f8fc 15%,#8d95a8 100%)",
+   "glow": "rgba(200,210,235,.3)",
+   "tag": "#aab1c2",
+   "font": "Michroma",
+   "weight": 800,
+   "spacing": 0.32,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "ps4": {
+   "grad": "linear-gradient(180deg,#eaf1ff 10%,#6aa6ff 100%)",
+   "glow": "rgba(106,166,255,.4)",
+   "tag": "#a9c6f5",
+   "font": "Audiowide",
+   "weight": 800,
+   "spacing": 0.18,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "ps3": {
+   "grad": "linear-gradient(180deg,#f2f6ff 10%,#7ab4ff 100%)",
+   "glow": "rgba(122,180,255,.4)",
+   "tag": "#b0cdf5",
+   "font": "Michroma",
+   "weight": 800,
+   "spacing": 0.22,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "ps2": {
+   "grad": "linear-gradient(180deg,#eef1ff 10%,#8fa6ff 100%)",
+   "glow": "rgba(143,166,255,.4)",
+   "tag": "#b4c0f5",
+   "font": "Michroma",
+   "weight": 800,
+   "spacing": 0.2,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "x360": {
+   "grad": "linear-gradient(180deg,#eaffea 10%,#5fd35f 100%)",
+   "glow": "rgba(95,211,95,.4)",
+   "tag": "#a9e6a9",
+   "font": "Bungee",
+   "weight": 800,
+   "spacing": 0.06,
+   "size": [
+    22,
+    2.4,
+    34
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "n3ds": {
+   "grad": "linear-gradient(180deg,#ff8a95 0%,#e60012 85%)",
+   "glow": "rgba(230,0,18,.42)",
+   "tag": "#ffb3ba",
+   "font": "Unbounded",
+   "weight": 800,
+   "spacing": 0.02,
+   "size": [
+    22,
+    2.5,
+    36
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "pc": {
+   "grad": "linear-gradient(180deg,#e0f0ff 15%,#5aa3e6 100%)",
+   "glow": "rgba(90,163,230,.4)",
+   "tag": "#9cc6ec",
+   "font": "IBM Plex Mono",
+   "weight": 600,
+   "spacing": 0.12,
+   "size": [
+    24,
+    2.7,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "custom": {
+   "grad": "linear-gradient(180deg,#fff0e0 15%,#e6955a 100%)",
+   "glow": "rgba(230,149,90,.4)",
+   "tag": "#ecc29c",
+   "font": "IBM Plex Mono",
+   "weight": 600,
+   "spacing": 0.12,
+   "size": [
+    24,
+    2.7,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "media": {
+   "grad": "linear-gradient(95deg,#efe6ff 0%,#a98bff 90%)",
+   "glow": "rgba(169,139,255,.45)",
+   "tag": "#c9b8ff",
+   "font": "DM Serif Display",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    28,
+    3.1,
+    44
+   ],
+   "upper": false,
+   "italic": true
+  }
  }
 }

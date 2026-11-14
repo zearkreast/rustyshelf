@@ -7,9 +7,11 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
+use bevy::asset::RenderAssetUsages;
 use bevy::camera::{ClearColorConfig, SubCameraView};
+use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rustyshelf_core::drawn::Picture;
@@ -28,8 +30,11 @@ const IN_VIEW: usize = 13;
 /// seconds a case takes to its place, and to turn round (style.css: .slot and .box)
 const SLIDE: f32 = 0.55;
 const TURN: f32 = 0.75;
-/// pixels of light kept round the chosen case's cover
-const GLOW_ROOM: f32 = 70.0;
+/// how much of a cover shows again under the chosen case, and how strongly at its top (setup.css: the front's
+/// -webkit-box-reflect)
+const MIRRORED: f32 = 0.42;
+/// (.3 in the browser: a light picture over the dark floor is this strong in linear light)
+const MIRROR_TOP: f32 = 0.11;
 /// White blended in linear light comes out stronger than a browser's: this much of a CSS white's alpha looks the
 /// same over a cover.
 const WHITE: f32 = 0.7;
@@ -44,6 +49,10 @@ pub struct Cursor {
     /// the chosen case shows its back
     pub flipped: bool,
 }
+
+/// The hue the floor, the halo and the tabs are lit in: the theme's, for the shelf's colour under the chosen case.
+#[derive(Resource, Default)]
+pub struct Lit(pub f32);
 
 /// The window and a case on the shelf, in CSS pixels (app.js measure()).
 #[derive(Resource, Clone, Copy, PartialEq, Default)]
@@ -111,13 +120,14 @@ pub struct Slot {
 #[derive(Component)]
 pub struct Turning;
 
-/// The clear plastic over a cover.
+/// A layer that looks one way on the chosen case and another on the rest: the plastic over a cover, a spine's
+/// shading.
 #[derive(Component)]
-pub struct Plastic;
+pub struct Either([Handle<StandardMaterial>; 2]);
 
-/// The light round the chosen case's cover.
+/// What only the chosen case wears: the light inside its covers' edges, its cover mirrored in the floor.
 #[derive(Component)]
-pub struct Glow;
+pub struct OnChosen;
 
 #[derive(Component)]
 pub struct ShelfCamera;
@@ -141,6 +151,8 @@ pub struct Covers {
     loaded: HashMap<PathBuf, Option<(Handle<Image>, f32)>>,
     /// a cover's most colourful colour, as a hue
     hues: HashMap<PathBuf, f32>,
+    /// a cover shrunk to a few pixels, for the backdrop
+    swatches: HashMap<PathBuf, Arc<Vec<u8>>>,
 }
 
 impl Covers {
@@ -249,13 +261,13 @@ fn picture(images: &mut Assets<Image>, p: Picture) -> Handle<Image> {
     images.add(to_image(p.width, p.height, p.rgba))
 }
 
-/// A CSS background of white and black over a cover, at twice the pixels it's shown in.
+/// A CSS background of white and black over a cover, at twice the pixels it's shown in, its alpha set for
+/// blending in linear light: a black as dark as the browser's, a white as bright.
 fn overlay(images: &mut Assets<Image>, css: &str, w: f32, h: f32) -> Handle<Image> {
     let mut p = rustyshelf_core::cssbg::paint(css, (w * 2.0).round().max(2.0) as u32, (h * 2.0).round().max(2.0) as u32, 2.0);
     for px in p.rgba.as_chunks_mut::<4>().0 {
-        if px[0] > 128 {
-            px[3] = (f32::from(px[3]) * WHITE) as u8;
-        }
+        let a = f32::from(px[3]) / 255.0;
+        px[3] = (if px[0] > 128 { a * WHITE } else { 1.0 - (1.0 - a).powf(2.2) } * 255.0) as u8;
     }
     picture(images, p)
 }
@@ -284,24 +296,30 @@ fn erf(x: f32) -> f32 {
     x.signum() * (1.0 - (-x * x * (4.0 / PI + a * x * x) / (1.0 + a * x * x)).exp()).sqrt()
 }
 
-/// The light round the chosen case's cover (style.css .slot.sel's box-shadow, at the size the case is shown), white
-/// for the game's colour to tint: a face `w` × `h` pixels with `GLOW_ROOM` round it.
-fn glow_picture(w: f32, h: f32) -> Picture {
-    let (pw, ph) = ((w + 2.0 * GLOW_ROOM).round() as u32, (h + 2.0 * GLOW_ROOM).round() as u32);
+/// The light inside the edges of the chosen case's cover (setup.css .slot.sel's inset box-shadow: 22px wide, 4px
+/// back from the edge), white for the game's colour to tint: a face `w` × `h` pixels.
+fn rim_picture(w: f32, h: f32) -> Picture {
+    let (pw, ph) = (w.round().max(1.0) as u32, h.round().max(1.0) as u32);
     let mut rgba = vec![255u8; (pw * ph * 4) as usize];
-    // a shadow `blur` wide is the face, grown by `spread`, under a Gaussian half as wide
-    let shade = |d: f32, blur: f32, spread: f32| 0.5 * (1.0 - erf((d - spread) / (blur / 2.0 * std::f32::consts::SQRT_2)));
+    // what's left of the face's own shape, grown 4px, under a Gaussian 11px wide
+    let clear = |at: f32, len: f32| 0.5 * (erf((at + 4.0) / (11.0 * std::f32::consts::SQRT_2)) + erf((len + 4.0 - at) / (11.0 * std::f32::consts::SQRT_2)));
     for y in 0..ph {
         for x in 0..pw {
-            let dx = ((x as f32 + 0.5 - GLOW_ROOM - w / 2.0).abs() - w / 2.0).max(0.0);
-            let dy = ((y as f32 + 0.5 - GLOW_ROOM - h / 2.0).abs() - h / 2.0).max(0.0);
-            let d = dx.hypot(dy);
-            let a = 1.0 - (1.0 - shade(d, 18.6, 1.4)) * (1.0 - shade(d, 50.0, 4.3));
-            // light over a dark backdrop: squared, it fades as the browser's does
-            rgba[((y * pw + x) * 4 + 3) as usize] = (a * a * 255.0) as u8;
+            let a = 1.0 - clear(x as f32 + 0.5, w) * clear(y as f32 + 0.5, h);
+            rgba[((y * pw + x) * 4 + 3) as usize] = (a * 255.0) as u8;
         }
     }
     Picture { width: pw, height: ph, rgba }
+}
+
+/// A cover's sheet mirrored below it: as wide, `MIRRORED` as tall, fading out downward.
+fn mirror() -> Mesh {
+    Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vec![[-0.5, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, -MIRRORED, 0.0], [-0.5, -MIRRORED, 0.0]])
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0, 0.0, 1.0]; 4])
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 1.0], [1.0, 1.0], [1.0, 1.0 - MIRRORED], [0.0, 1.0 - MIRRORED]])
+        .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, vec![[1.0, 1.0, 1.0, MIRROR_TOP], [1.0, 1.0, 1.0, MIRROR_TOP], [1.0, 1.0, 1.0, 0.0], [1.0, 1.0, 1.0, 0.0]])
+        .with_inserted_indices(Indices::U32(vec![0, 3, 2, 0, 2, 1]))
 }
 
 /// What every case is made of: the shape of its faces, the plastic and the light.
@@ -311,19 +329,32 @@ pub struct Kit {
     /// over the chosen case, and over the rest
     plastic: [Handle<StandardMaterial>; 2],
     glare: Handle<Image>,
-    glow: Handle<StandardMaterial>,
+    /// the light inside the chosen cover's edges, in its game's colour
     rim: Handle<StandardMaterial>,
+    /// a left spine's shading on the chosen case and on the rest, and a right spine's
+    shade: [Handle<StandardMaterial>; 3],
+    /// the pale strip of floor that mirrors a case
+    strip: Handle<StandardMaterial>,
+    mirror: Handle<Mesh>,
     /// the case the plastic and the light were painted for
     made_for: (f32, f32),
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 struct Wanted {
     theme: String,
     sh: f64,
     hue: f64,
+    /// the chosen game's cover, and its swatch once that's made
+    cover: (PathBuf, Option<Arc<Vec<u8>>>),
     stage: Stage,
     pixels: (u32, u32),
+}
+
+impl PartialEq for Wanted {
+    fn eq(&self, o: &Wanted) -> bool {
+        (&self.theme, self.sh, self.hue, &self.cover.0, self.cover.1.is_some(), self.stage, self.pixels) == (&o.theme, o.sh, o.hue, &o.cover.0, o.cover.1.is_some(), o.stage, o.pixels)
+    }
 }
 
 /// What paints the backdrop, off the frame: the newest one asked for is the one painted.
@@ -349,7 +380,8 @@ impl Default for Backdrop {
                     job = newer;
                 }
                 let stage = themes::Stage { w: job.stage.w, h: job.stage.h, case_h: job.stage.bh };
-                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, stage, job.pixels.0, job.pixels.1)).is_err() {
+                let cover = job.cover.1.as_ref().map(|c| c.as_slice());
+                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, stage, job.pixels)).is_err() {
                     return;
                 }
             }
@@ -377,8 +409,10 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
         face: meshes.add(Rectangle::new(1.0, 1.0)),
         plastic: [clear(&mut materials, Color::WHITE), clear(&mut materials, Color::srgba(1.0, 1.0, 1.0, 0.55))],
         glare: Handle::default(),
-        glow: clear(&mut materials, Color::NONE),
-        rim: clear(&mut materials, Color::srgba(1.0, 1.0, 1.0, 0.7 * WHITE)),
+        rim: clear(&mut materials, Color::NONE),
+        shade: [clear(&mut materials, Color::WHITE), clear(&mut materials, Color::WHITE), clear(&mut materials, Color::WHITE)],
+        strip: materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, cull_mode: None, double_sided: true, ..default() }),
+        mirror: meshes.add(mirror()),
         made_for: (0.0, 0.0),
     });
 }
@@ -435,10 +469,21 @@ pub fn measure(
             }
         }
         kit.glare = overlay(&mut images, &glare_css(now.bw, now.bh), now.bw * 1.2, now.bh);
-        let light = picture(&mut images, glow_picture(now.bw, now.bh));
-        if let Some(mut m) = materials.get_mut(&kit.glow) {
-            m.base_color_texture = Some(light);
+        let mut wear = |m: &Handle<StandardMaterial>, image: Handle<Image>| {
+            if let Some(mut m) = materials.get_mut(m) {
+                m.base_color_texture = Some(image);
+            }
+        };
+        wear(&kit.rim, picture(&mut images, rim_picture(now.bw, now.bh)));
+        // the curve of a spine, as style.css and setup.css shade it (.f-left::after chosen and not, .f-right::after)
+        for (m, css) in kit.shade.iter().zip([
+            "linear-gradient(90deg,rgba(0,0,0,.15),rgba(255,255,255,.14) 45%,rgba(0,0,0,.2))",
+            "linear-gradient(90deg,rgba(0,0,0,.35),rgba(255,255,255,.06) 45%,rgba(0,0,0,.25))",
+            "linear-gradient(90deg,rgba(0,0,0,.25),rgba(255,255,255,.06) 55%,rgba(0,0,0,.35))",
+        ]) {
+            wear(m, overlay(&mut images, css, now.bd, 8.0));
         }
+        wear(&kit.strip, overlay(&mut images, "linear-gradient(180deg,rgba(255,255,255,.08),transparent 80%)", 8.0, now.bh * 0.38));
     }
 }
 
@@ -493,6 +538,7 @@ pub fn build_shelf(
         let back = plain(&mut materials, Color::WHITE);
         let spine = plain(&mut materials, Color::WHITE);
         let glare = materials.add(StandardMaterial { base_color: Color::srgba(1.0, 1.0, 1.0, 0.55), base_color_texture: Some(kit.glare.clone()), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
+        let mirrored = materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
 
         // a game without box art gets a cover drawn from its title, and a back to match
         let app = matches!(g.source, rustyshelf_core::scanner::Source::App { .. });
@@ -502,7 +548,8 @@ pub fn build_shelf(
             None => Art::Front { look: Box::new(look.clone()), title: g.title.clone(), region: g.region.clone(), scene: app.then_some("media"), hue },
         };
         let front_key = cover.key();
-        covers.want(cover, (front.clone(), sheet_w / sheet_h), &loader, &mut materials);
+        covers.want(cover.clone(), (front.clone(), sheet_w / sheet_h), &loader, &mut materials);
+        covers.want(cover, (mirrored.clone(), sheet_w / sheet_h), &loader, &mut materials);
         // painted at twice the pixels it stands in: the chosen case comes nearer
         let label = look.spine_band.as_ref().map_or(String::new(), |b| b.label.clone());
         let drawn = Art::Spine { look: Box::new(look.clone()), title: g.title.clone(), label, width: (stage.bh * d * 2.0).round().max(2.0) as u32, height: (stage.bh * 2.0).round().max(2.0) as u32, edge: edge * stage.bh };
@@ -542,31 +589,37 @@ pub fn build_shelf(
         };
         commands.spawn((slot, Transform::default(), Visibility::Hidden)).with_children(|s| {
             s.spawn((Turning, Transform::default(), Visibility::default())).with_children(|b| {
+                let either = || Either([kit.plastic[0].clone(), kit.plastic[1].clone()]);
                 // the front: the case's border, the printed sheet in it, the plastic and the band of light over them
                 b.spawn((mesh(), MeshMaterial3d(case.clone()), at(0.0, d / 2.0, 0.0, w, 1.0)));
                 b.spawn((mesh(), MeshMaterial3d(front), at(sheet_x, d / 2.0 + SKIN, 0.0, sheet_w, sheet_h)));
-                b.spawn((Plastic, mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, d / 2.0 + 2.0 * SKIN, 0.0, w, 1.0)));
+                b.spawn((either(), mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, d / 2.0 + 2.0 * SKIN, 0.0, w, 1.0)));
                 b.spawn((mesh(), MeshMaterial3d(glare), at(0.0, d / 2.0 + 3.0 * SKIN, 0.0, w, 1.0)));
                 // the back, the spine's side on its right
                 b.spawn((mesh(), MeshMaterial3d(case.clone()), at(0.0, -d / 2.0, PI, w, 1.0)));
                 b.spawn((mesh(), MeshMaterial3d(back), at(-sheet_x, -d / 2.0 - SKIN, PI, sheet_w, sheet_h)));
-                b.spawn((Plastic, mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, -d / 2.0 - 2.0 * SKIN, PI, w, 1.0)));
+                b.spawn((either(), mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, -d / 2.0 - 2.0 * SKIN, PI, w, 1.0)));
                 // a spine on either side: the left stack shows the one, the right stack the other
-                for (x, turn) in [(-w / 2.0, -PI / 2.0), (w / 2.0, PI / 2.0)] {
+                for (x, turn, shade) in [(-w / 2.0, -PI / 2.0, 1), (w / 2.0, PI / 2.0, 2)] {
                     let side = |out: f32, m: &Handle<StandardMaterial>, tall: f32| (mesh(), MeshMaterial3d(m.clone()), Transform::from_xyz(x + x.signum() * out, 0.0, 0.0).with_rotation(Quat::from_rotation_y(turn)).with_scale(Vec3::new(d, tall, 1.0)));
                     b.spawn(side(0.0, &paper, 1.0));
                     b.spawn(side(SKIN, &spine, 1.0));
                     if let Some(art) = &spine_art {
                         b.spawn(side(2.0 * SKIN, art, sheet_h));
                     }
+                    let shaded = b.spawn(side(3.0 * SKIN, &kit.shade[shade], 1.0)).id();
+                    if shade == 1 {
+                        b.commands().entity(shaded).insert(Either([kit.shade[0].clone(), kit.shade[1].clone()]));
+                    }
                 }
-                // the light round the chosen case's covers, from behind the case (its spine stays clear of it), and the
-                // covers' white rim (2px, drawn 1.4 times its size)
-                let (room, rim) = (GLOW_ROOM / stage.bh, 1.43 / stage.bh);
-                for (z, turn) in [(d / 2.0, 0.0), (-d / 2.0, PI)] {
-                    b.spawn((Glow, mesh(), MeshMaterial3d(kit.glow.clone()), at(0.0, -z - z.signum() * SKIN, turn, w + 2.0 * room, 1.0 + 2.0 * room), Visibility::Hidden));
-                    b.spawn((Glow, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, z - z.signum() * SKIN, turn, w + 2.0 * rim, 1.0 + 2.0 * rim), Visibility::Hidden));
+                // the chosen case: light inside its covers' edges, and its cover mirrored in the floor
+                for (z, turn) in [(d / 2.0 + 4.0 * SKIN, 0.0), (-d / 2.0 - 4.0 * SKIN, PI)] {
+                    b.spawn((OnChosen, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, z, turn, w, 1.0), Visibility::Hidden));
                 }
+                let floor = -0.5 - 3.0 / stage.bh;
+                b.spawn((OnChosen, Mesh3d(kit.mirror.clone()), MeshMaterial3d(mirrored), Transform::from_xyz(sheet_x, floor - edge, d / 2.0).with_scale(Vec3::new(sheet_w, sheet_h, 1.0)), Visibility::Hidden));
+                // every case: a pale strip of floor under it
+                b.spawn((mesh(), MeshMaterial3d(kit.strip.clone()), Transform::from_xyz(0.0, floor - 0.19, d / 2.0).with_scale(Vec3::new(w, 0.38, 1.0))));
             });
         });
     }
@@ -583,8 +636,11 @@ pub fn apply_covers(
     mut slots: Query<&mut Slot>,
 ) {
     for d in loader.finished() {
-        if let Some(hue) = d.image.as_ref().and_then(|(w, h, data)| hue_of(*w, *h, data)) {
-            covers.hues.insert(d.path.clone(), hue);
+        if let Some((w, h, data)) = &d.image {
+            if let Some(hue) = hue_of(*w, *h, data) {
+                covers.hues.insert(d.path.clone(), hue);
+            }
+            covers.swatches.insert(d.path.clone(), Arc::new(themes::swatch(*w, *h, data)));
         }
         let done = d.image.map(|(w, h, data)| (images.add(to_image(w, h, data)), w as f32 / h as f32));
         for sheet in covers.waiting.remove(&d.path).unwrap_or_default() {
@@ -625,10 +681,10 @@ pub fn arrange(
     kit: Res<Kit>,
     covers: Res<Covers>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut slots: Query<(&mut Slot, &mut Transform, &mut Visibility, &Children), Without<Turning>>,
+    mut slots: Query<(&mut Slot, &mut Transform, &mut Visibility, &Children), (Without<Turning>, Without<OnChosen>)>,
     mut turning: Query<(&mut Transform, &Children), With<Turning>>,
-    mut plastic: Query<&mut MeshMaterial3d<StandardMaterial>, With<Plastic>>,
-    mut glows: Query<&mut Visibility, (With<Glow>, Without<Slot>)>,
+    mut either: Query<(&Either, &mut MeshMaterial3d<StandardMaterial>)>,
+    mut worn: Query<&mut Visibility, (With<OnChosen>, Without<Slot>)>,
 ) {
     let now = time.elapsed_secs();
     for (mut s, mut t, mut seen, children) in &mut slots {
@@ -674,19 +730,19 @@ pub fn arrange(
             let Ok((mut turn, parts)) = turning.get_mut(child) else { continue };
             turn.rotation = Quat::from_rotation_y(angle.to_radians());
             for part in parts.iter() {
-                if let Ok(mut m) = plastic.get_mut(part) {
-                    let want = &kit.plastic[usize::from(!chosen)];
+                if let Ok((looks, mut m)) = either.get_mut(part) {
+                    let want = &looks.0[usize::from(!chosen)];
                     if m.0 != *want {
                         m.0 = want.clone();
                     }
                 }
-                if let Ok(mut seen) = glows.get_mut(part) {
+                if let Ok(mut seen) = worn.get_mut(part) {
                     seen.set_if_neq(if chosen { Visibility::Inherited } else { Visibility::Hidden });
                 }
             }
         }
         if chosen {
-            if let Some(mut m) = materials.get_mut(&kit.glow) {
+            if let Some(mut m) = materials.get_mut(&kit.rim) {
                 m.base_color = lit(s.hue, 0.9);
             }
         }
@@ -704,6 +760,8 @@ pub fn backdrop(
     window: Query<&Window, With<PrimaryWindow>>,
     mut back: ResMut<Backdrop>,
     mut images: ResMut<Assets<Image>>,
+    covers: Res<Covers>,
+    mut lit_in: ResMut<Lit>,
     slots: Query<&Slot>,
     mut behind: Query<(&Behind, &mut ImageNode, &mut Node)>,
 ) {
@@ -714,13 +772,17 @@ pub fn backdrop(
     }
     let now = time.elapsed_secs();
     let theme = settings.theme();
-    let own = slots.iter().find(|s| s.index == cursor.game).map_or(0.0, |s| s.hue);
+    let chosen = slots.iter().find(|s| s.index == cursor.game);
+    let own = chosen.map_or(0.0, |s| s.hue);
+    let cover = chosen.map_or_else(Default::default, |s| (s.front_key.clone(), covers.swatches.get(&s.front_key).cloned()));
     // the shelf's colour walks a little from its first case to its last (app.js shelfHue)
     let along = cursor.game as f64 / (shelf.games.len().max(2) - 1) as f64;
     let sh = f64::from(looks::look(&shelf.id).hue.unwrap_or(own)) + (along * 2.0 - 1.0) * 16.0;
+    lit_in.0 = themes::halo(&theme, sh, None) as f32;
+    let lit_hue = lit_in.0;
     // a backdrop of soft colours is painted small and stretched
     let part = if themes::fine(&theme) { window.scale_factor().min(1.5) } else { 0.25 };
-    let wanted = Wanted { theme: theme.clone(), sh: (sh * 2.0).round() / 2.0, hue: f64::from(own), stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
+    let wanted = Wanted { theme: theme.clone(), sh: (sh * 2.0).round() / 2.0, hue: f64::from(own), cover, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
     if back.asked.as_ref() != Some(&wanted) {
         back.asked = Some(wanted.clone());
         let _ = back.ask.send(wanted);
@@ -751,9 +813,9 @@ pub fn backdrop(
                 if repaint {
                     let mut p = rustyshelf_core::cssbg::paint("radial-gradient(closest-side,#fff,transparent)", (w / 2.0).round().max(2.0) as u32, (h / 2.0).round().max(2.0) as u32, 0.5);
                     for px in p.rgba.as_chunks_mut::<4>().0 {
-                        // light over a dark backdrop: squared, it fades as the browser's does
+                        // light over a dark backdrop fades faster in linear light than in the browser
                         let a = f32::from(px[3]) / 255.0 * 0.62;
-                        px[3] = (a * a * 255.0) as u8;
+                        px[3] = (a.powf(1.5) * 255.0) as u8;
                     }
                     image.image = picture(&mut images, p);
                 }
@@ -761,7 +823,7 @@ pub fn backdrop(
                 // it breathes: down to .55 and back every 3.4 s
                 let beat = (now / 3.4).fract();
                 let breath = 1.0 - 0.45 * bezier(EASE_IN_OUT, 1.0 - (beat * 2.0 - 1.0).abs());
-                image.color = lit(themes::halo(&theme, sh, None) as f32, 0.95).with_alpha(breath * themes::halo_strength(&theme));
+                image.color = lit(lit_hue, 0.95).with_alpha(breath * themes::halo_strength(&theme));
             }
         }
     }

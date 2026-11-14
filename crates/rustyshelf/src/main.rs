@@ -52,6 +52,7 @@ fn main() {
         .init_resource::<shelf::Cursor>()
         .init_resource::<shelf::Covers>()
         .init_resource::<shelf::Stage>()
+        .init_resource::<shelf::Lit>()
         .init_resource::<shelf::Backdrop>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
@@ -59,6 +60,7 @@ fn main() {
         .init_resource::<sound::Sounds>()
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
+        .init_resource::<hud::Prompts>()
         .init_resource::<settings::Settings>()
         .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup))
@@ -76,8 +78,7 @@ fn main() {
                 shelf::apply_covers,
                 shelf::arrange,
                 shelf::backdrop,
-                hud::update,
-                settings::draw,
+                (hud::update, hud::top, hud::hints, settings::draw).chain(),
             )
                 .chain(),
         )

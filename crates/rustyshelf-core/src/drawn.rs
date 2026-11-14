@@ -152,6 +152,8 @@ fn line(a: (f32, f32), b: (f32, f32)) -> Option<Path> {
 struct Fonts {
     title: [FontRef<'static>; 3],
     lexend: [FontRef<'static>; 5],
+    /// the consoles' own lettering: Chakra Petch, Syne, Unbounded, Michroma, IBM Plex Mono, DM Serif Display
+    word: [FontRef<'static>; 6],
     wide: FontRef<'static>,
 }
 
@@ -166,6 +168,14 @@ static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
             font(include_bytes!("../assets/fonts/Lexend-ExtraBold.ttf")),
             font(include_bytes!("../assets/fonts/Lexend-SemiBold.ttf")),
         ],
+        word: [
+            font(include_bytes!("../assets/fonts/ChakraPetch-Bold.ttf")),
+            font(include_bytes!("../assets/fonts/Syne-ExtraBold.ttf")),
+            font(include_bytes!("../assets/fonts/Unbounded-Bold.ttf")),
+            font(include_bytes!("../assets/fonts/Michroma.ttf")),
+            font(include_bytes!("../assets/fonts/IBMPlexMono-SemiBold.ttf")),
+            font(include_bytes!("../assets/fonts/DMSerifDisplay-Italic.ttf")),
+        ],
         wide: font(include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf")),
     }
 });
@@ -176,6 +186,8 @@ enum Face {
     Title(usize),
     /// Lexend at a weight: 0 regular, 1 medium, 2 bold, 3 extra bold, 4 semibold
     Lexend(usize),
+    /// one of the consoles' lettering fonts
+    Word(usize),
 }
 
 /// The font a letter is drawn in: the face's own when it has the letter.
@@ -183,6 +195,7 @@ fn font_for(face: Face, c: char) -> &'static FontRef<'static> {
     let own = match face {
         Face::Title(i) => &FONTS.title[i % 3],
         Face::Lexend(w) => &FONTS.lexend[w.min(4)],
+        Face::Word(i) => &FONTS.word[i.min(5)],
     };
     if own.glyph_id(c).0 != 0 {
         own
@@ -633,4 +646,105 @@ pub fn spine(look: &Look, title: &str, label: &str, width: u32, height: u32, edg
         px[3] = 255;
     }
     out
+}
+
+/// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).
+fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
+    let r = (((12.0 * sigma * sigma / 3.0 + 1.0).sqrt() - 1.0) / 2.0).round().max(1.0) as usize;
+    let pass = |src: &[f32], len: usize, lines: usize, at: &dyn Fn(usize, usize) -> usize| {
+        let mut out = vec![0.0; src.len()];
+        for line in 0..lines {
+            let mut sum = 0.0;
+            for i in 0..len + r {
+                if i < len {
+                    sum += src[at(line, i)];
+                }
+                if i > 2 * r {
+                    sum -= src[at(line, i - 2 * r - 1)];
+                }
+                if i >= r {
+                    out[at(line, i - r)] = sum / (2 * r + 1) as f32;
+                }
+            }
+        }
+        out
+    };
+    let mut a = alpha.to_vec();
+    for _ in 0..3 {
+        a = pass(&a, w, h, &|line, i| line * w + i);
+        a = pass(&a, h, w, &|line, i| i * w + line);
+    }
+    a
+}
+
+/// A shelf's name as it's lettered over the shelf, for a window `window_w` wide: in the shelf's font and gradient,
+/// a glow of its colour under the letters. `scale` pixels to a pixel of the window; the letters sit `WORD_ROOM` in
+/// from the picture's edges, for the glow.
+pub fn wordmark(text: &str, lettering: &crate::looks::Lettering, window_w: f32, scale: f32) -> Picture {
+    let face = match lettering.font.as_str() {
+        "Chakra Petch" => Face::Word(0),
+        "Syne" => Face::Word(1),
+        "Unbounded" => Face::Word(2),
+        "Michroma" => Face::Word(3),
+        "IBM Plex Mono" => Face::Word(4),
+        "DM Serif Display" => Face::Word(5),
+        "Bungee" => Face::Title(1),
+        "Audiowide" => Face::Title(2),
+        _ => Face::Lexend(3),
+    };
+    let text = if lettering.upper { text.to_uppercase() } else { text.to_string() };
+    let size = lettering.size_in(window_w);
+    let apart = lettering.spacing * size;
+    let wide = text_width(face, &text, size) + apart * text.chars().count() as f32 + size * 0.1;
+    let (w, h) = (((wide + 2.0 * WORD_ROOM) * scale).ceil() as u32, ((size + 2.0 * WORD_ROOM) * scale).ceil() as u32);
+    let mut c = Canvas { pix: Pixmap::new(w.max(1), h.max(1)).expect("a wordmark's size"), clip: None, t: Transform::from_scale(scale, scale) };
+    // a line as tall as its letters' size: the font's own height sits on its middle
+    let f = font_for(face, 'H');
+    let k = size / f.units_per_em().unwrap_or(1000.0);
+    let base = WORD_ROOM + (size - (f.ascent_unscaled() - f.descent_unscaled()) * k) / 2.0 + f.ascent_unscaled() * k;
+    let mut pen = WORD_ROOM;
+    for ch in text.chars() {
+        let one = ch.to_string();
+        c.fill(text_path(face, &one, size, pen, base), &solid(Color::WHITE));
+        pen += text_width(face, &one, size) + apart;
+    }
+    let (w, h) = (w as usize, h as usize);
+    let letters: Vec<f32> = c.pix.pixels().iter().map(|p| f32::from(p.alpha()) / 255.0).collect();
+    let glow = blurred(&letters, w, h, 8.0 * scale);
+    // the gradient runs over the letters' own box
+    let fill = crate::cssbg::paint(&lettering.grad, (wide * scale).round().max(1.0) as u32, (size * scale).round().max(1.0) as u32, scale);
+    let (room, drop) = ((WORD_ROOM * scale).round() as usize, (2.0 * scale).round() as usize);
+    let mut rgba = vec![0u8; w * h * 4];
+    for y in 0..h {
+        let row = y.saturating_sub(room).min(fill.height as usize - 1);
+        for x in 0..w {
+            let at = (row * fill.width as usize + x.saturating_sub(room).min(fill.width as usize - 1)) * 4;
+            let ink = &fill.rgba[at..at + 3];
+            let a = letters[y * w + x];
+            let under = if y >= drop { glow[(y - drop) * w + x] } else { 0.0 } * lettering.glow[3];
+            let all = a + under * (1.0 - a);
+            if all > 0.0 {
+                for i in 0..3 {
+                    rgba[(y * w + x) * 4 + i] = ((f32::from(ink[i]) * a + lettering.glow[i] * 255.0 * under * (1.0 - a)) / all).round() as u8;
+                }
+                rgba[(y * w + x) * 4 + 3] = (all * 255.0).round() as u8;
+            }
+        }
+    }
+    Picture { width: w as u32, height: h as u32, rgba }
+}
+
+/// The room a wordmark's picture keeps round its letters, in the letters' own pixels.
+pub const WORD_ROOM: f32 = 24.0;
+
+/// Lexend's font file at a weight (300 to 800), for what's written over the shelf.
+pub fn lexend(weight: u32) -> &'static [u8] {
+    match weight {
+        ..=349 => include_bytes!("../assets/fonts/Lexend-Light.ttf"),
+        350..=449 => include_bytes!("../assets/fonts/Lexend-Regular.ttf"),
+        450..=549 => include_bytes!("../assets/fonts/Lexend-Medium.ttf"),
+        550..=649 => include_bytes!("../assets/fonts/Lexend-SemiBold.ttf"),
+        650..=749 => include_bytes!("../assets/fonts/Lexend-Bold.ttf"),
+        _ => include_bytes!("../assets/fonts/Lexend-ExtraBold.ttf"),
+    }
 }

@@ -147,6 +147,7 @@ pub struct Decoded {
 }
 
 /// A picture for a case: one on disk, or one drawn for a game that has none.
+#[derive(Clone)]
 pub enum Art {
     File(PathBuf),
     Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32> },
