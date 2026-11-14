@@ -156,6 +156,17 @@ impl Config {
         self.raw.get("ui").and_then(|u| u.get("autoCovers")).and_then(Value::as_bool)
     }
 
+    /// One of the player's own API keys ("steamgriddb" …): as typed, or opened from where the Electron app sealed
+    /// it with `seal_key`. Empty when there's none, or it was sealed on another computer.
+    pub fn api_key(&self, name: &str, seal_key: Option<&[u8; 32]>) -> String {
+        let of = |group: &str| str_of(self.raw.get(group).and_then(|k| k.get(name)), "").trim().to_string();
+        let plain = of("keys");
+        if !plain.is_empty() {
+            return plain;
+        }
+        seal_key.and_then(|k| crate::seal::unseal(&of("keysEnc"), k)).map_or(String::new(), |k| k.trim().to_string())
+    }
+
     /// Settings → Box art region: "auto", "usa", "eur" or "jpn".
     pub fn art_region(&self) -> &str {
         str_of(self.raw.get("ui").and_then(|u| u.get("artRegion")), "auto")

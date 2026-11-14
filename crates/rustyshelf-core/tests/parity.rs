@@ -904,3 +904,83 @@ fn gametdb_matches_the_js() {
     }
     assert!(gametdb::has("sw") && gametdb::has("n3ds") && !gametdb::has("sw2"));
 }
+
+#[test]
+fn steamgriddb_lookups_match_the_js() {
+    use rustyshelf_core::steamgrid::{Game, Reply, SteamGrid};
+    use serde_json::json;
+    use std::sync::{Arc, Mutex};
+    let fx = fixture("steamgrid.json");
+    let asked = Arc::new(Mutex::new(Vec::<String>::new()));
+    let start = |dir: &Path| {
+        asked.lock().unwrap().clear();
+        let (site, heard) = (fx["site"].clone(), asked.clone());
+        SteamGrid::with(
+            dir,
+            Box::new(move |url: &str, key: &str| {
+                let path = url.strip_prefix("https://www.steamgriddb.com/api/v2").unwrap().to_string();
+                let at = site.get(&path);
+                heard.lock().unwrap().push(path);
+                let status = match key {
+                    "offline-key" => return Err(false),
+                    "slow-key" => return Err(true),
+                    "bad-key" => 401,
+                    "k500" => 500,
+                    _ => at.map_or(404, |r| r["status"].as_u64().unwrap() as u16),
+                };
+                let body = if key == "junk-key" { b"<html>".to_vec() } else { at.map_or(Vec::new(), |r| r["body"].to_string().into_bytes()) };
+                Ok(Reply { status, retry_after: at.and_then(|r| r["retry"].as_str()).map(str::to_string), body })
+            }),
+        )
+    };
+    let names: Vec<Vec<String>> = fx["games"].as_array().unwrap().iter().map(|g| g["names"].as_array().map_or(Vec::new(), |n| n.iter().map(|s| s.as_str().unwrap().to_string()).collect())).collect();
+    let game = |i: usize| Game { appid: fx["games"][i]["appid"].as_str().unwrap_or(""), title: fx["games"][i]["title"].as_str().unwrap(), names: &names[i] };
+    let posters = |sg: &SteamGrid, i: usize| Value::from(sg.posters(&game(i)).iter().map(|p| p.to_json()).collect::<Vec<_>>());
+
+    let tmp = tempfile::tempdir().unwrap();
+    let sg = start(tmp.path());
+    assert!(!sg.enabled());
+    assert_eq!(posters(&sg, 0), fx["nokey"]);
+    sg.set_key(" made-up-key ");
+    for i in 0..names.len() {
+        assert_eq!(posters(&sg, i), fx["posters"][i], "{}", fx["games"][i]["title"]);
+    }
+    let ids: Vec<u64> = [0, 4, 1].iter().map(|i| sg.game_id(&game(*i)).unwrap()).collect();
+    assert_eq!(Value::from(ids), fx["ids"]);
+    let logos: Vec<Value> = [1, 0, 3].iter().map(|i| sg.logos(&game(*i)).iter().map(|l| json!({ "url": l.url, "ext": ".png", "w": l.w, "h": l.h })).collect()).collect();
+    assert_eq!(Value::from(logos), fx["logos"]);
+    for t in fx["tests"].as_array().unwrap() {
+        let said = match sg.test(t[0].as_str().unwrap()) {
+            Ok(()) => json!({ "ok": true }),
+            Err(why) => json!({ "ok": false, "error": why }),
+        };
+        assert_eq!(said, t[1], "{}", t[0]);
+    }
+    assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["asked"]);
+    let kept: Value = serde_json::from_slice(&std::fs::read(tmp.path().join("sgdb-cache.json")).unwrap()).unwrap();
+    let column = |m: &Value, n: usize| Value::from(m.as_object().unwrap().iter().map(|(k, v)| (k.clone(), v[n].clone())).collect::<serde_json::Map<_, _>>());
+    assert_eq!(column(&kept["ids"], 0), fx["cache"]["ids"]);
+    assert_eq!(column(&kept["lists"], 1), fx["cache"]["lists"]);
+
+    // what was kept answers after a new start: nothing is asked again
+    let again = start(tmp.path());
+    again.set_key("made-up-key");
+    assert_eq!(posters(&again, 1), fx["posters"][1]);
+    assert_eq!(again.game_id(&game(2)).unwrap(), 10);
+    assert!(asked.lock().unwrap().is_empty());
+
+    let tmp = tempfile::tempdir().unwrap();
+    let sg = start(tmp.path());
+    sg.set_key("made-up-key");
+    let slow = Game { title: "Slow Game", ..Game::default() };
+    let said = json!([sg.posters(&slow).len(), sg.posters(&game(1)).len(), sg.test("another-key").unwrap_err()]);
+    assert_eq!(said, json!([fx["paused"][0].as_array().unwrap().len(), fx["paused"][1].as_array().unwrap().len(), fx["paused"][2]["error"]]));
+    assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["pausedAsked"]);
+
+    let tmp = tempfile::tempdir().unwrap();
+    let sg = start(tmp.path());
+    sg.set_key("bad-key");
+    assert!(sg.posters(&game(1)).is_empty() && !sg.enabled() && sg.posters(&game(0)).is_empty());
+    assert_eq!(fx["refused"], json!([[], false, []]));
+    assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["refusedAsked"]);
+}

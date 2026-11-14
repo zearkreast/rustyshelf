@@ -1,5 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
-// Boxshelf's main/pccovers.js (cover, autoCover, folderCover, consoleCover, consolePlat), as RustyShelf has it.
+// Boxshelf's main/pccovers.js (cover, autoCover, fetchAuto, fillMissing, folderCover, consoleCover, consolePlat), as
+// RustyShelf has it.
 //! A PC game's cover files in the data folder, and a picture found in the game's own folder.
 
 use std::path::{Path, PathBuf};
@@ -30,6 +31,64 @@ pub fn cover(data: &Path, id: &str) -> Option<PathBuf> {
 /// The store's own cover of a game, downloaded once (`data/pc-covers-auto`).
 pub fn auto_cover(data: &Path, id: &str) -> Option<PathBuf> {
     picture(data.join("pc-covers-auto"), id)
+}
+
+/// Downloads a cover into the automatic ones (`data/pc-covers-auto`), with the address it came from beside it:
+/// a cover already there from that address is left alone. None when it couldn't be had.
+pub fn fetch_auto(data: &Path, id: &str, url: &str) -> Option<PathBuf> {
+    static NAMED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(png|webp|jpe?g)(?:$|\?)").unwrap());
+    if !url.starts_with("https://") {
+        return None;
+    }
+    let dir = data.join("pc-covers-auto");
+    let base = dir.join(safe_id(id)).display().to_string();
+    let from = PathBuf::from(format!("{base}.from"));
+    if let Some(had) = auto_cover(data, id).filter(|_| std::fs::read_to_string(&from).is_ok_and(|f| f == url)) {
+        return Some(had);
+    }
+    // a picture of 1 kB to 15 MB
+    let b = crate::net::get_bytes(url, std::time::Duration::from_secs(10), 15_000_000).ok()??;
+    if b.len() <= 1000 || !crate::steamart::is_image(&b) {
+        return None;
+    }
+    let ext = if b.starts_with(&[0x89, b'P']) {
+        "png".to_string()
+    } else if b.get(8..12) == Some(b"WEBP") {
+        "webp".to_string()
+    } else {
+        NAMED.captures(url).map_or("jpg".to_string(), |c| c[1].to_lowercase().replace("jpeg", "jpg"))
+    };
+    std::fs::create_dir_all(&dir).ok()?;
+    for e in ["jpg", "png", "webp"] {
+        let _ = std::fs::remove_file(format!("{base}.{e}"));
+    }
+    let (dest, tmp) = (PathBuf::from(format!("{base}.{ext}")), PathBuf::from(format!("{base}.{ext}.tmp")));
+    std::fs::write(&tmp, &b).and_then(|()| std::fs::rename(&tmp, &dest)).ok()?;
+    let _ = std::fs::write(&from, url);
+    Some(dest)
+}
+
+/// SteamGridDB's best poster for each of these games (id, title), which have no cover at all, kept with the
+/// automatic covers: a cover the player chose, the store's own or Steam's always wins. Returns the games looked
+/// up and the posters that came in.
+pub fn fill_missing(data: &Path, games: &[(&str, &str)], sg: &crate::steamgrid::SteamGrid) -> (usize, usize) {
+    let (mut checked, mut downloaded) = (0, 0);
+    if !sg.enabled() {
+        return (0, 0);
+    }
+    let mut seen = std::collections::HashSet::new();
+    for (id, title) in games {
+        if id.is_empty() || title.is_empty() || !seen.insert(*id) || cover(data, id).is_some() || auto_cover(data, id).is_some() {
+            continue;
+        }
+        checked += 1;
+        let names = [title.to_string()];
+        let posters = sg.posters(&crate::steamgrid::Game { appid: "", title, names: &names });
+        if posters.iter().take(3).any(|p| fetch_auto(data, id, &p.url).is_some()) {
+            downloaded += 1;
+        }
+    }
+    (checked, downloaded)
 }
 
 /// A game's console box (`data/pc-console-covers`). part: "" (the front), "back" or "spine".
@@ -124,5 +183,33 @@ mod tests {
         let exe = d.join("game/Zeta.exe");
         assert_eq!(folder_cover(&exe.to_string_lossy()), Some(d.join("game/art/ZETA.png")));
         assert_eq!(folder_cover(&d.join("nope").to_string_lossy()), None);
+    }
+}
+
+#[cfg(test)]
+mod poster_tests {
+    use super::*;
+    use crate::steamgrid::{Reply, SteamGrid};
+
+    #[test]
+    fn only_games_without_a_cover_are_looked_up() {
+        let t = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(t.path().join("pc-covers")).unwrap();
+        std::fs::write(t.path().join("pc-covers/has-one.jpg"), b"x").unwrap();
+        let asked = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let heard = asked.clone();
+        let sg = SteamGrid::with(
+            t.path(),
+            Box::new(move |url: &str, _| {
+                heard.lock().unwrap().push(url.rsplit('/').next().unwrap().to_string());
+                Ok(Reply { status: 200, retry_after: None, body: br#"{"success":true,"data":[]}"#.to_vec() })
+            }),
+        );
+        let games = [("Has One", "Zeta Run"), ("bare", "Omega Quest"), ("bare", "Omega Quest"), ("", "Nothing"), ("untitled", "")];
+        assert_eq!(fill_missing(t.path(), &games, &sg), (0, 0));
+        sg.set_key("made-up-key");
+        assert_eq!(fill_missing(t.path(), &games, &sg), (1, 0));
+        assert_eq!(*asked.lock().unwrap(), ["Omega%20Quest"]);
+        assert_eq!(fetch_auto(t.path(), "bare", "http://example.org/a.jpg"), None);
     }
 }

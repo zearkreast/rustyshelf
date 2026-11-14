@@ -40,6 +40,23 @@ pub fn get(url: &str, wait: Duration, max: usize, user_agent: &str) -> Result<(u
     Ok((status, b))
 }
 
+/// A server's answer to a request with its own headers: the status, how long it asks to wait (`Retry-After`) and
+/// at most `max` bytes. An error is the network's; `true` when it was a timeout.
+pub fn ask(url: &str, headers: &[(&str, &str)], wait: Duration, max: usize) -> Result<(u16, Option<String>, Vec<u8>), bool> {
+    let mut req = AGENT.get(url).timeout(wait);
+    for (name, value) in headers {
+        req = req.set(name, value);
+    }
+    let res = match req.call() {
+        Ok(r) | Err(ureq::Error::Status(_, r)) => r,
+        Err(ureq::Error::Transport(t)) => return Err(t.to_string().to_lowercase().contains("timed out")),
+    };
+    let (status, after) = (res.status(), res.header("retry-after").map(str::to_string));
+    let mut b = Vec::new();
+    res.into_reader().take(max as u64).read_to_end(&mut b).map_err(|e| e.kind() == std::io::ErrorKind::TimedOut)?;
+    Ok((status, after, b))
+}
+
 /// A page's bytes, at most `max` of them; None when the server says it isn't there (404, 403).
 pub fn get_bytes(url: &str, wait: Duration, max: usize) -> Result<Option<Vec<u8>>, Failure> {
     let res = match AGENT.get(url).timeout(wait).call() {

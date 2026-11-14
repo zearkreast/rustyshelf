@@ -782,12 +782,58 @@ async function gametdbFixtures() {
   fs.rmSync(tmp, { recursive: true, force: true });
   return { xml, stored: zip(false).toString('base64'), deflated: zip(true).toString('base64'), read: gametdb._t.xmlOf(zip(true)) === xml && gametdb._t.xmlOf(zip(false)) === xml, parsed, covers };
 }
+// ---- SteamGridDB (main/steamgrid.js) against a stand-in for the site: made-up games, posters, logos and keys ----
+async function steamgridFixtures() {
+  const steamgrid = require('../main/steamgrid'), covers = require('../main/covers');
+  const cdn = 'https://cdn2.steamgriddb.com', grid = (id, more = {}) => ({ id, url: `${cdn}/grid/${id}.png`, thumb: `${cdn}/thumb/${id}.jpg`, width: 600, height: 900, style: 'alternate', author: { name: 'Made Up Artist' }, score: 3, mime: 'image/png', nsfw: false, humor: false, ...more });
+  const logo = (n, more = {}) => ({ id: n, url: `${cdn}/logo/${n}.png`, width: 800, height: 310, nsfw: false, humor: false, ...more });
+  const ok = data => ({ status: 200, body: { success: true, data } }), find = t => '/search/autocomplete/' + encodeURIComponent(t);
+  const q = '?dimensions=600x900,342x482,660x930&styles=alternate,white_logo,no_logo,material,blurred&nsfw=false&humor=false&epilepsy=false', lq = '?types=static&nsfw=false&humor=false&epilepsy=false';
+  const site = {
+    '/games/steam/4242': ok({ id: 77, name: 'Zeta Run' }),
+    ['/grids/steam/4242' + q]: ok([grid(1001), grid(1002, { nsfw: true }), grid(1003, { humor: true }), grid(1004, { width: 920, height: 430 }), grid(1005, { url: 'http://cdn2.steamgriddb.com/grid/1005.png' }),
+      grid(1006, { url: 'https://steamgriddb.com.example.org/grid/1006.png' }), grid('1007', { url: `${cdn}/grid/1007.JPEG?x=1`, thumb: 'https://example.org/thumb.jpg', width: '342', height: '482', style: 'material', author: null, score: undefined }),
+      grid(1008, { url: `${cdn}/file/1008`, mime: 'image/webp', style: 'unknown_style', author: { name: 'A very long name of somebody who made this poster' } }), grid(0), grid(1010, { width: 512, height: 512, style: 'no_logo', mime: '' }), null, grid(1011, { url: `${cdn}/a b.png` })]),
+    [find('Omega Quest')]: ok([{ id: 5, name: 'Omega Quest II', release_date: 1e9 }, { id: 6, name: 'Omega Quest' }, { id: 0, name: 'Omega Quest' }, null, { id: 7 }]),
+    ['/grids/game/6' + q]: ok(Array.from({ length: 45 }, (_, i) => grid(2000 + i, { style: ['white_logo', 'blurred', 'alternate'][i % 3], score: 45 - i }))),
+    ['/logos/game/6' + lq]: ok([logo(1), logo(2, { url: `${cdn}/logo/2.jpg` }), logo(3, { nsfw: true }), logo(4, { width: 0 }), ...Array.from({ length: 14 }, (_, i) => logo(10 + i, { width: 400 + i }))]),
+    [find("Sigma's Tale: Deluxe Edition")]: ok([{ id: 9, name: 'Sigma Tales' }]), [find("Sigma's Tale")]: ok([{ id: 10, name: "Sigma's Tale" }, { id: 11, name: "Sigma's Tale 2" }]), ['/grids/game/10' + q]: ok([grid(3001)]),
+    [find('Nothing Like It')]: ok([]), [find('Tau Racers')]: { status: 200, body: { success: false, errors: ['nothing'] } }, [find('Phi & Rho: Ünï/2')]: ok([{ id: 12, name: 'Phi and Rho Uni 2' }]), ['/grids/game/12' + q]: ok({ not: 'a list' }),
+    [find('Slow Game')]: { status: 429, retry: '5', body: {} }, [find('zelda')]: ok([]),
+  };
+  const asked = []; let key = '';
+  const fetch = async (url, o) => {
+    const k = o.headers.Authorization.replace(/^Bearer /, ''), p = url.replace('https://www.steamgriddb.com/api/v2', ''); asked.push(p);
+    if (k === 'offline-key') throw new Error('fetch failed'); if (k === 'slow-key') throw Object.assign(new Error('x'), { name: 'TimeoutError' });
+    const r = k === 'bad-key' ? { status: 401 } : k === 'k500' ? { status: 500 } : site[p] || { status: 404 };
+    return { status: r.status, ok: r.status >= 200 && r.status < 300, headers: { get: n => n === 'retry-after' ? r.retry || null : null }, json: async () => { if (k === 'junk-key') throw new Error('bad'); return r.body; } };
+  };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-sgdb-')), start = () => { asked.length = 0; steamgrid.init({ key: () => key, dataDir: fs.mkdtempSync(path.join(tmp, 'd')), fetch }); };
+  const game = (title, appid) => appid ? { appid, title } : { title, names: covers.lookupNames(title) };
+  const games = [game('Zeta Run', '4242'), game('Omega Quest'), game("Sigma's Tale: Deluxe Edition"), game('Nothing Like It'), game('Gone', '999'), game(''), game('Tau Racers'), game('Phi & Rho: Ünï/2'), game('Omega Quest')];
+  try {
+    const out = { site, games };
+    start(); out.nokey = await steamgrid.posters(games[0], covers.sgMatch);
+    key = ' made-up-key '; out.posters = []; for (const g of games) out.posters.push(await steamgrid.posters(g, covers.sgMatch));
+    out.ids = []; for (const g of [games[0], games[4], games[1]]) out.ids.push(await steamgrid.gameId(g, covers.sgMatch));
+    out.logos = []; for (const g of [games[1], games[0], games[3]]) out.logos.push(await steamgrid.logos(g, covers.sgMatch));
+    out.tests = []; for (const k of ['', 'bad-key', 'k500', 'offline-key', 'slow-key', 'junk-key', 'another-key']) out.tests.push([k, await steamgrid.test(k)]);
+    const c = steamgrid._t.cacheGet(); out.cache = { ids: Object.fromEntries(Object.entries(c.ids).map(([k, v]) => [k, v[0]])), lists: Object.fromEntries(Object.entries(c.lists).map(([k, v]) => [k, v[1]])) };
+    out.asked = [...asked];
+    // a pause the site asks for: nothing more is sent
+    start(); out.paused = [await steamgrid.posters(game('Slow Game'), covers.sgMatch), await steamgrid.posters(games[1], covers.sgMatch), await steamgrid.test('another-key')]; out.pausedAsked = [...asked];
+    // a key the site refuses isn't sent again
+    start(); key = 'bad-key'; out.refused = [await steamgrid.posters(games[1], covers.sgMatch), steamgrid.enabled(), await steamgrid.posters(games[0], covers.sgMatch)]; out.refusedAsked = [...asked];
+    return out;
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');

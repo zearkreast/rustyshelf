@@ -1,9 +1,10 @@
-//! Accounts: RetroAchievements. The account's name and web API key, whether each console's emulator is signed in
-//! to it, and a game's achievements in Details.
+//! Accounts: RetroAchievements (the account's name and web API key, whether each console's emulator is signed in
+//! to it, and a game's achievements in Details) and the player's SteamGridDB key.
 
 use std::sync::Arc;
 
 use rustyshelf_core::ra::Ra;
+use rustyshelf_core::steamgrid::SteamGrid;
 use rustyshelf_core::{raemu, seal};
 
 use super::*;
@@ -44,6 +45,30 @@ impl Settings {
                     ra.remove("keyEnc");
                 }
                 self.set(&["ra", "key"], json!(key));
+            }
+        }
+    }
+
+    /// One of the player's own API keys ("steamgriddb" …), opened from where the Electron app sealed it.
+    pub fn api_key(&self, name: &str) -> String {
+        let plain = self.text(&["keys", name]);
+        let key = if plain.trim().is_empty() { self.seal_key.and_then(|k| seal::unseal(&self.text(&["keysEnc", name]), &k)).unwrap_or_default() } else { plain };
+        key.trim().to_string()
+    }
+
+    /// Keeps an API key as `set_ra_key` keeps RetroAchievements'.
+    fn set_api_key(&mut self, name: &str, key: String) {
+        let sealed = self.seal_key.filter(|_| !key.is_empty()).and_then(|k| seal::seal(&key, &k, seal::nonce()));
+        match sealed {
+            Some(s) => {
+                self.set(&["keys", name], json!(""));
+                self.set(&["keysEnc", name], json!(s));
+            }
+            None => {
+                if let Some(enc) = self.cfg.get_mut("keysEnc").and_then(Value::as_object_mut) {
+                    enc.remove(name);
+                }
+                self.set(&["keys", name], json!(key));
             }
         }
     }
@@ -117,7 +142,38 @@ impl Settings {
             };
             rows.push(Row { label: format!("{name} · {}", r.emulator), value: state, hint: r.detail, ..Row::default() });
         }
-        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers.".into(), rows }
+        let sgdb = self.api_key("steamgriddb");
+        let typed_sgdb = |s: &mut Settings| {
+            s.edit(
+                "SteamGridDB key",
+                "Free: sign in at steamgriddb.com, then Preferences → API. Kept encrypted like the RetroAchievements key.",
+                String::new(),
+                Box::new(|s: &mut Settings, v: String| s.set_api_key("steamgriddb", v.trim().to_string())),
+            );
+        };
+        rows.push(Row {
+            label: "SteamGridDB key".into(),
+            value: if sgdb.is_empty() { "(none)".into() } else { "••••••••".into() },
+            hint: "Community-made posters. With box art downloads on, PC games, ports and recomps that have no cover get one (their titles are sent to SteamGridDB). Optional.".into(),
+            press: Some(Box::new(typed_sgdb)),
+            step: None,
+        });
+        rows.push(Row {
+            label: "Check the SteamGridDB key".into(),
+            hint: "Asks SteamGridDB whether it takes this key.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let (key, dir) = (sgdb.clone(), paths::data_dir(&s.app_root));
+                s.say("Asking SteamGridDB…".into());
+                let (tx, rx) = std::sync::mpsc::channel();
+                s.ra_answer = Some(Mutex::new(rx));
+                std::thread::spawn(move || {
+                    let said = SteamGrid::new(&dir).test(&key).map(|()| "SteamGridDB: the key works".to_string()).map_err(|why| format!("SteamGridDB: {why}"));
+                    let _ = tx.send(RaAnswer::Tested(said));
+                });
+            })),
+            ..Row::default()
+        });
+        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover.".into(), rows }
     }
 
     /// Asks for the chosen game's achievements (again, when `force`).

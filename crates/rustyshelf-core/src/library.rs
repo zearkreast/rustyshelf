@@ -368,13 +368,14 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
 
 /// Covers, heroes and store info for the PC shelf's games that have none, from Steam's store: its own games, and
 /// with box art downloads on the other stores' games by the Steam app of the same name (their titles go to Steam's
-/// store search). True when something new came in.
+/// store search); then SteamGridDB's posters. True when something new came in.
 fn steam_fill(lib: &Library, data_dir: &Path) -> bool {
     use crate::steamart::Wanted;
     if lib.config.auto_covers() == Some(false) {
         return false;
     }
-    let Some(pc) = lib.shelves.iter().find(|s| s.id == "pc") else { return false };
+    let posters = poster_fill(lib, data_dir);
+    let Some(pc) = lib.shelves.iter().find(|s| s.id == "pc") else { return posters };
     let has = |g: &Game| (g.art.front.is_some(), g.hero.is_some());
     let mut games: Vec<Wanted> = Vec::new();
     let mut others: Vec<&Game> = Vec::new();
@@ -392,7 +393,23 @@ fn steam_fill(lib: &Library, data_dir: &Path) -> bool {
         games.extend(others.iter().filter_map(|g| Some(Wanted { appid: ids.get(&g.title.to_lowercase())?.clone(), has_front: has(g).0, has_hero: has(g).1 })));
     }
     let (covers, other) = if games.is_empty() { (0, 0) } else { crate::steamart::fill(data_dir, &games) };
-    covers + other + matched > 0
+    posters || covers + other + matched > 0
+}
+
+/// SteamGridDB posters for the PC games that aren't Steam's and have no cover at all, wherever they sit (a program
+/// can be on a console's shelf). Only with the player's SteamGridDB key. True when one came in.
+fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
+    let bare: Vec<(&str, &str)> = lib.shelves.iter().flat_map(|s| &s.games).filter(|g| matches!(g.source, Source::Pc(_)) && g.art.front.is_none()).map(|g| (g.id.as_str(), g.title.as_str())).collect();
+    if bare.is_empty() {
+        return false;
+    }
+    let key = lib.config.api_key("steamgriddb", crate::seal::key(&paths::env_var).as_ref());
+    if key.is_empty() {
+        return false;
+    }
+    let sg = crate::steamgrid::SteamGrid::new(data_dir);
+    sg.set_key(&key);
+    crate::pccovers::fill_missing(data_dir, &bare, &sg).1 > 0
 }
 
 #[cfg(test)]

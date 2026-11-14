@@ -566,6 +566,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   downloaded and built once), and where those have none a spine (GameCube, Wii) or a spine and a back (Switch,
   3DS) cut from GameTDB's full cover scan. Each game is looked at once a week at most; a picture that's there is
   never replaced.
+- With your own SteamGridDB key (Settings → Accounts, with a check of the key) and box art downloads on, gives PC
+  games, ports and recomps that have no cover at all SteamGridDB's best poster, as the Electron app does (their
+  titles are sent to SteamGridDB). The key is kept encrypted like the RetroAchievements one, and the lookups are
+  kept in the same `data\sgdb-cache.json`.
 
 - Sets itself up on the first run: it looks for your emulators, games folders, Steam and the streaming apps, shows the
   consoles it found switched on, and lets you change each one's emulator and games folders before the shelf opens.
@@ -624,7 +628,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 **Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
-full box wraps, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the Home menu over a
+full box wraps, ScreenScraper, choosing among SteamGridDB's posters), manuals, the open case and the museum, the Home menu over a
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
