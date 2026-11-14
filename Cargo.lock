@@ -5021,6 +5021,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "md-5",
+ "quick-xml 0.42.0",
  "regex",
  "serde",
  "serde_json",

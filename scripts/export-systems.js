@@ -13,9 +13,17 @@ const dump = platform => execFileSync(process.execPath, ['-e', `
   process.stdout.write(JSON.stringify({ consoles: s.CONSOLES, apps: s.APPS, searchRoots: s.SEARCH_ROOTS, romRootNames: s.ROM_ROOT_NAMES }, null, 1) + '\\n');
 `], { encoding: 'utf8' });
 
+// the box art sources' names for each console (main/covers.js): libretro's thumbnail folders, LaunchBox's platforms, and
+// the platforms a PC game's console box is looked up in
+const artSources = () => {
+  const covers = require(path.join(ROOT, 'main', 'covers.js')), src = fs.readFileSync(path.join(ROOT, 'main', 'covers.js'), 'utf8');
+  const libretro = new Function('return ' + /const LIBRETRO = (\{[\s\S]*?\});\n/.exec(src)[1])();
+  return JSON.stringify({ libretro, launchbox: covers.LAUNCHBOX, pcBoxPlats: covers.PC_BOX_PLATS }, null, 1) + '\n';
+};
+
 let stale = false;
-for (const [platform, name] of [['win32', 'systems-windows.json'], ['linux', 'systems-linux.json']]) {
-  const file = path.join(OUT, name), text = dump(platform);
+for (const [platform, name] of [['win32', 'systems-windows.json'], ['linux', 'systems-linux.json'], ['', 'art-sources.json']]) {
+  const file = path.join(OUT, name), text = platform ? dump(platform) : artSources();
   const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   if (old === text) continue;
   if (process.argv.includes('--check')) { console.error(`${name} is out of date: run node scripts/export-systems.js`); stale = true; continue; }

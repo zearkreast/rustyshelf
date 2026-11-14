@@ -505,9 +505,55 @@ async function arcadeFixtures() {
   return { dat, names: t.names, bios: t.bios, none };
 }
 
+// box art matching: made-up titles against made-up lists, as main/covers.js answers
+const ART = {
+  norms: ['The Legend of Zélda III & IV: X’s', 'Zeta Run – Definitive Edition + DLC', 'An Ōmega  Quest: A Tale (of the) VIII', 'ÆON ß 2', '  ', 'Mega Zeta X', 'Zeta XIX: The II', "Rock 'n' Run", 'I V X', '1942: An The A', 'Pokémon™ Zeta®'],
+  lookups: ['Zeta Run – Definitive Edition + DLC', 'Zeta Run: Game of the Year Edition', 'Zeta Run GOTY', 'Zeta Run - Nintendo Switch 2 Edition', 'Zeta Run + DLC + All DLC', 'Definitive Edition', 'Zeta & ', 'Zeta Deluxe', 'Zeta Run Complete Edition with DLC', '',
+    'Zeta: The Run - Deluxe Edition (Europe)', 'Zeta Run Deluxe Editions'],
+  list: [['Zeta Run', 2], ['Zeta Run', 5], ['Zeta Run 2', 3], ['Zeta Run: Omega Deluxe', 1], ['Finding Zeta', 1], ['Alpha & Beta', 0], ['Alpha / Beta', 2], ['Sigma and Tau at the Rio 2016 Olympic Games', 1], ['Omega Quest IV', 1],
+    ['Omega Quest', 0], ['Pixar Tau Racers', 1], ['Mega Zeta X', 1], ['Phi: The Long Subtitle of Many Words', 1], ['Kart Phi Deluxe 8', 1], ['', 3], ['Rho', 0], ['Rho Returns', 0], ['The Rho', 1]],
+  titles: ['Zeta Run', 'zetarun', 'ZETA RUN!!', 'Zeta Run 3', 'Zeta Run Omega', 'Zeta Run: Omega', 'Disney-Pixar Finding Zeta', "Disney's Finding Zeta", 'Alpha and Beta', 'Alpha Beta', 'Sigma & Tau Rio 2016', 'Sigma and Tau Rio 2012', 'Omega Quest 4',
+    'Omega Quest V', 'Omega Quest: Definitive Edition', 'Tau Racers', 'Nick Tau Racers', 'Mega Zeta', 'Mega Zeta X2', 'Phi Long Subtitle Many Words', 'Phi', 'Phi Kart 8 Deluxe', 'Deluxe Kart Phi', 'DVD', 'game', 'Xbox 360 Game 4d5307e6', '!!!', '', 'Rho', 'Rho Returns Again',
+    'Sega Rho', 'EA Sports EA Rho', 'Nothing Like It', 'Zeta', 'Run Zeta'],
+  images: [['Box - Front', 'Japan', 'f/jp.jpg'], ['Box - Front', 'Europe', 'f/eu.jpg'], ['Box - Front', '', 'f/none.jpg'], ['Box - Front', 'North America', 'f/na.jpg'], ['Box - Front', 'Germany', 'f/de.jpg'], ['Box - Front', ' United Kingdom ', 'f/uk space.jpg'],
+    ['Box - Front', 'World', 'f/world.jpg'], ['Box - Front', 'Canada', ''], ['Box - Back', 'North America', 'b/na.jpg'], ['Box - Back', 'United Kingdom', 'b/uk.jpg'], ['Box - Back', 'Brazil', 'b/br.jpg'], ['Box - Back', 'Japan', 'b/jp.jpg'], ['Disc', 'Europe', 'd/eu.png'],
+    ['Fanart - Box - Back', 'Australia', 'fb/au.jpg'], ['Box - Spine', 'USA', 's/usa.jpg']],
+  picks: [['Box - Front', 'auto'], ['Box - Front', 'eur'], ['Box - Front', 'jpn'], ['Box - Front', 'usa'], ['Box - Back', ''], ['Box - Back', 'jpn'], ['Fanart - Box - Back', 'eur'], ['Disc', 'usa'], ['Box - Spine', 'usa'], ['Clear Logo', 'usa']],
+  libretro: ['Zeta Run (USA)', 'Zeta Run (Europe) (En,Fr,De)', 'Zeta Run (Japan)', 'Zeta Run (USA) (Rev 1)', 'Omega Quest_ The Tale (Europe)', 'Omega Quest_ The Tale (USA, Europe)', 'Tau Racers (World)', 'Sigma (Japan) (Player\'s Choice)', 'Phi & Rho (USA)', 'Phi _ Rho (Europe)',
+    'Legend of Rho, The (USA) (Collector\'s Edition)', 'Alpha (UK)', 'Beta (Germany)', 'Gamma (Asia)'],
+  games: [['/roms/gc/Zeta Run (USA).iso', 'Zeta Run', 'USA'], ['/roms/gc/Zeta Run (Europe) (En,Fr,De).rvz', 'Zeta Run', 'Europe'], ['/roms/gc/zeta run.iso', 'zeta run', ''], ['/roms/gc/Zeta Run (Korea).iso', 'Zeta Run', 'Korea'], ['/roms/gc/Omega Quest: The Tale (Europe).iso', 'Omega Quest: The Tale', 'Europe'],
+    ['/roms/gc/Omega Quest - The Tale - Definitive Edition.iso', 'Omega Quest - The Tale - Definitive Edition', ''], ['/roms/gc/Tau Racers.iso', 'Tau Racers', ''], ['/roms/gc/Sigma.iso', 'Sigma', ''], ['/roms/gc/Phi & Rho (USA).iso', 'Phi & Rho', 'USA'], ['/roms/gc/The Legend of Rho.iso', 'The Legend of Rho', ''],
+    ['/roms/gc/Unknown Thing.iso', 'Unknown Thing', ''], ['/roms/ps4/Alpha/eboot.bin', 'Alpha', ''], ['/roms/gc/Gamma (Asia).iso', 'Gamma', 'Asia'], ['/roms/gc/Beta.iso', 'Beta', 'Japan']],
+  regions: ['auto', 'usa', 'eur', 'jpn'],
+  editions: ["Zeta (USA) (Player's Choice)", 'Zeta [Greatest Hits]', "Collector's Edition", 'Limited Deluxe', 'Platinum Special', 'plain', '', 'Nintendo Selects', 'hitsville', 'Best Price!'],
+  lbRegions: ['North America', ' usa ', 'Europe', 'PAL', 'Japan', 'World', 'world', 'Brazil', '', 'Oceania', 'United Kingdom'],
+  lrNames: ['Zeta (USA)', 'Zeta (Europe, Australia)', 'Zeta (Japan) (Rev 1)', 'Zeta (World)', 'Zeta (En,Fr) (USA, Europe)', 'Zeta (Asia)', 'Zeta', 'Zeta (U.S.A.)', 'Zeta (Japanese)', 'Zeta (PAL)', 'Zeta (Canada, World)'],
+  tdb: ['US', 'JA', 'KO', 'EN', 'FR', 'AU'],
+  discs: [['a.iso', [[0, 'GZTE01']]], ['b.rvz', [[0, 'RVZ\x01'], [0x58, 'RZTP01']]], ['c.wia', [[0, 'WIA\x01'], [0x58, 'SZTJ8P']]], ['d.ciso', [[0, 'CISO'], [0x8000, 'DZTE01']]], ['e.wbfs', [[0, 'WBFS'], [0x200, 'RZTK01']]], ['f.iso', [[0, 'XZTE01']]],
+    ['g.iso', [[0, 'gzte01']]], ['h.gcz', [[0, '\x01\xc0\x0b\xb1']]], ['i.iso', [[0, 'GZ']]], ['j.wbfs', [[0, 'WBFS']]]],
+  replaced: { names: ['Zeta (2026-01-02-03-04-05-678).png', 'Zeta (2026-01-02-03-04-05-678-2).PNG', 'zeta (2025-12-31-23-59-59-999).jpeg', 'Zeta-back (2026-01-02-03-04-05-678).jpg', 'Zeta (2026-01-02).png', 'Zeta (2026-01-02-03-04-05-67).webp', 'Zeta (2026-1-2-3-4-5-6).jpg',
+    'Zeta (2026-01-02-03-04-05-678).gif', 'Other (2026-01-02-03-04-05-678).png', 'Zeta (x).png'], asks: [['Zeta', ''], ['Zeta', '-back'], ['zeta', ''], ['Other', '-spine']] },
+};
+function artFixtures() {
+  const covers = require('../main/covers'), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-art-'));
+  const list = ART.list.map(([name, art], i) => ({ id: String(100 + i), name, n: covers.norm(name), art })), idx = { games: { 'Nintendo GameCube': list }, images: {} };
+  for (const g of list) idx.images[g.id] = Array.from({ length: g.art }, (_, k) => ({ type: k % 2 ? 'Disc' : 'Box - Front', region: '', file: 'x.jpg' })).concat([{ type: 'Clear Logo', region: '', file: 'l.png' }]);
+  const imgs = ART.images.map(([type, region, file]) => ({ type, region, file })), pos = g => (g ? list.indexOf(g) : null);
+  const out = { norms: ART.norms.map(s => [s, covers.norm(s)]), lookups: ART.lookups.map(t => [t, covers.lookupNames(t)]), list: ART.list,
+    titles: ART.titles.map(t => ({ title: t, loose: pos(covers.matchTitle(list, t, g => g.art)), exact: pos(covers.matchTitle(list, t, g => g.art, true)), plain: pos(covers.matchTitle(list, t)), name: pos(covers.matchName(list, t, g => g.art)), launchbox: pos(covers.launchboxMatch(idx, 'gc', { title: t })) })),
+    images: ART.images, picks: ART.picks.map(([type, region]) => ({ type, region, files: covers.pickImages(imgs, type, region).map(i => i.file) })),
+    libretro: ART.libretro, games: ART.games.map(([file, title, region]) => ({ file, title, region, all: covers.libretroAll(ART.libretro, { file, title, region }), found: ART.regions.map(r => [r, covers.libretroMatch(ART.libretro, { file, title, region }, r)]) })),
+    editions: ART.editions.map(t => [t, covers.edition(t)]), lbRegions: ART.lbRegions.map(r => [r, covers.lbRegion(r)]), lrNames: ART.lrNames.map(n => [n, covers.lrRegion(n)]), tdb: ART.tdb.map(r => [r, covers.tdbRegion(r)]),
+    discs: ART.discs.map(([name, at]) => { const b = Buffer.alloc(0x8010); for (const [o, t] of at) b.write(t, o, 'latin1'); const f = path.join(tmp, name); fs.writeFileSync(f, name === 'i.iso' ? b.subarray(0, 4) : b); return { name, at: at.map(([o, t]) => [o, Buffer.from(t, 'latin1').toString('base64')]), short: name === 'i.iso', id: covers.discId(f) }; }),
+    replaced: { names: ART.replaced.names, asks: ART.replaced.asks.map(([base, suffix]) => ({ base, suffix, found: covers.replacedFor('/art', base, suffix, ART.replaced.names).map(r => [path.basename(r.file), r.stamp]) })) } };
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
+fs.writeFileSync(path.join(OUT, 'art.json'), JSON.stringify(artFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
 steamFixtures().then(async st => {

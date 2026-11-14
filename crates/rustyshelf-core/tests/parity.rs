@@ -536,3 +536,80 @@ fn arcade_names_match_the_js_list() {
     assert_eq!(serde_json::json!(bios), fx["bios"]);
     assert!(rustyshelf_core::arcade::parse_dat("<game name=\"a\">\n<description>A</description>").is_none());
 }
+
+#[test]
+fn box_art_matches_as_in_the_js() {
+    use rustyshelf_core::covers::*;
+    use rustyshelf_core::lbindex::{norm, Game, GameImage};
+    let fx = fixture("art.json");
+    let text = |v: &Value| v.as_str().unwrap().to_string();
+    for c in fx["norms"].as_array().unwrap() {
+        assert_eq!(norm(c[0].as_str().unwrap()), c[1].as_str().unwrap(), "norm {}", c[0]);
+    }
+    for c in fx["lookups"].as_array().unwrap() {
+        assert_eq!(serde_json::json!(lookup_names(c[0].as_str().unwrap())), c[1], "lookup names {}", c[0]);
+    }
+
+    let entries: Vec<(String, usize)> = fx["list"].as_array().unwrap().iter().map(|e| (text(&e[0]), e[1].as_u64().unwrap() as usize)).collect();
+    let normed: Vec<String> = entries.iter().map(|e| norm(&e.0)).collect();
+    let names: Vec<&str> = normed.iter().map(String::as_str).collect();
+    let games: Vec<Game> = entries.iter().enumerate().map(|(i, e)| serde_json::from_value(serde_json::json!({ "id": (100 + i).to_string(), "name": e.0, "n": normed[i] })).unwrap()).collect();
+    let image = |kind: &str, region: &str, file: &str| GameImage { r#type: kind.into(), region: region.into(), file: file.into() };
+    let images: std::collections::HashMap<String, Vec<GameImage>> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, e)| ((100 + i).to_string(), (0..e.1).map(|k| image(if k % 2 == 1 { "Disc" } else { "Box - Front" }, "", "x.jpg")).chain([image("Clear Logo", "", "l.png")]).collect()))
+        .collect();
+    let art = |i: usize| entries[i].1;
+    for c in fx["titles"].as_array().unwrap() {
+        let t = c["title"].as_str().unwrap();
+        let at = |i: Option<usize>| i.map_or(Value::Null, Value::from);
+        let lb = launchbox_match(&games, &images, t).map(|g| games.iter().position(|x| x.id == g.id).unwrap());
+        let got = serde_json::json!({ "title": t, "loose": at(match_title(&names, t, &art, false)), "exact": at(match_title(&names, t, &art, true)),
+            "plain": at(match_title(&names, t, &|_| 1, false)), "name": at(match_name(&names, t, &art)), "launchbox": at(lb) });
+        assert_eq!(&got, c, "matching {t}");
+    }
+
+    let imgs: Vec<GameImage> = fx["images"].as_array().unwrap().iter().map(|i| image(i[0].as_str().unwrap(), i[1].as_str().unwrap(), i[2].as_str().unwrap())).collect();
+    for c in fx["picks"].as_array().unwrap() {
+        let files: Vec<&str> = pick_images(&imgs, c["type"].as_str().unwrap(), c["region"].as_str().unwrap()).iter().map(|i| i.file.as_str()).collect();
+        assert_eq!(serde_json::json!(files), c["files"], "picking {}", c["type"]);
+    }
+
+    let lr = LibretroNames::new(fx["libretro"].as_array().unwrap().iter().map(text).collect());
+    for c in fx["games"].as_array().unwrap() {
+        let (file, title, region) = (Path::new(c["file"].as_str().unwrap()), c["title"].as_str().unwrap(), c["region"].as_str().unwrap());
+        assert_eq!(serde_json::json!(lr.all(file, title)), c["all"], "every cover of {title}");
+        for want in c["found"].as_array().unwrap() {
+            assert_eq!(serde_json::json!(lr.find(file, title, region, want[0].as_str().unwrap())), want[1], "the cover of {} for {}", c["file"], want[0]);
+        }
+    }
+
+    for c in fx["editions"].as_array().unwrap() {
+        let (kind, word) = edition(c[0].as_str().unwrap());
+        assert_eq!(serde_json::json!({ "edition": kind, "name": word }), c[1]);
+    }
+    for (key, of) in [("lbRegions", lb_region as fn(&str) -> &'static str), ("lrNames", lr_region), ("tdb", tdb_region)] {
+        for c in fx[key].as_array().unwrap() {
+            assert_eq!(of(c[0].as_str().unwrap()), c[1].as_str().unwrap(), "{key} {}", c[0]);
+        }
+    }
+
+    let tmp = tempfile::tempdir().unwrap();
+    for d in fx["discs"].as_array().unwrap() {
+        let mut b = vec![0u8; 0x8010];
+        for patch in d["at"].as_array().unwrap() {
+            let (o, data) = (patch[0].as_u64().unwrap() as usize, base64::engine::general_purpose::STANDARD.decode(patch[1].as_str().unwrap()).unwrap());
+            b[o..o + data.len()].copy_from_slice(&data);
+        }
+        let f = tmp.path().join(d["name"].as_str().unwrap());
+        fs::write(&f, if d["short"].as_bool().unwrap() { &b[..4] } else { &b[..] }).unwrap();
+        assert_eq!(serde_json::json!(disc_id(&f)), d["id"], "disc id of {}", d["name"]);
+    }
+
+    let listed: Vec<String> = fx["replaced"]["names"].as_array().unwrap().iter().map(text).collect();
+    for c in fx["replaced"]["asks"].as_array().unwrap() {
+        let found = replaced_for(&listed, c["base"].as_str().unwrap(), c["suffix"].as_str().unwrap());
+        assert_eq!(serde_json::json!(found), c["found"], "replaced pictures of {}{}", c["base"], c["suffix"]);
+    }
+}

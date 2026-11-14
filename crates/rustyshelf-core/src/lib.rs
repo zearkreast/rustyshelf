@@ -5,6 +5,7 @@ pub mod arcade;
 pub mod art;
 pub mod collate;
 pub mod config;
+pub mod covers;
 pub mod detect;
 pub mod dirsize;
 pub mod dolphin;
@@ -16,6 +17,10 @@ pub mod history;
 pub mod js;
 pub mod kyty;
 pub mod launch;
+/// The LaunchBox Games Database index, built by the same code as the Electron app's helper.
+#[path = "../../img-tools/src/lbindex.rs"]
+#[allow(clippy::all, dead_code)]
+pub mod lbindex;
 pub mod library;
 pub mod n3ds;
 pub mod net;
