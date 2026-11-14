@@ -267,6 +267,35 @@ impl Library {
     }
 }
 
+/// What the shelves want from outside, fetched and measured off the shelf's thread: the Xbox 360 title list (again
+/// after a week), the arcade names (once), and the size of each game folder that has none yet or has changed. True
+/// when reading the library again would show something new.
+pub fn upkeep(lib: &Library) -> bool {
+    let data_dir = paths::data_dir(&lib.app_root);
+    let has = |ids: &[&str]| lib.shelves.iter().any(|s| ids.contains(&s.id.as_str()));
+    let mut changed = false;
+    if has(&["x360"]) {
+        changed |= crate::x360::refresh(&data_dir).unwrap_or(false);
+    }
+    if has(&crate::arcade::SYSTEMS) {
+        changed |= crate::arcade::fetch(&data_dir).unwrap_or(false);
+    }
+    let mut dirs: Vec<String> = Vec::new();
+    for shelf in &lib.shelves {
+        for g in &shelf.games {
+            match &g.source {
+                Source::Pc(pc) if g.not_installed || pc.dir.is_empty() => {}
+                Source::Pc(pc) if matches!(pc.source, "folder" | "epic" | "hoyoplay") => dirs.push(pc.dir.clone()),
+                Source::Rom if shelf.id == "sw2" && crate::nx2::is_unpacked(&g.file) => {
+                    dirs.push(crate::art::resolve(&crate::nx2::game_root(&g.file)).to_string_lossy().into_owned())
+                }
+                _ => {}
+            }
+        }
+    }
+    changed | crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

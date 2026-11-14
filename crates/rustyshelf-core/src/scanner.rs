@@ -91,12 +91,12 @@ pub struct Game {
     pub source: Source,
 }
 
-/// What a scan reads from the data folder besides the settings: lists the Electron app downloads, and sizes it measured.
+/// What a scan reads from the data folder besides the settings: the lists fetched for it, and the folder sizes measured.
 #[derive(Debug, Clone, Default)]
 pub struct ScanData {
     pub x360: x360::TitleList,
     pub arcade: Option<arcade::Names>,
-    /// `data/dir-sizes.json`: a folder (resolved) → its size in bytes, as the Electron app last measured it
+    /// `data/dir-sizes.json`: a folder → its size in bytes, as last measured
     pub dir_sizes: HashMap<String, u64>,
 }
 
@@ -111,7 +111,7 @@ impl ScanData {
         }
     }
 
-    /// A PC game's folder as the Electron app last measured it, by the folder as its store wrote it.
+    /// A PC game's folder as last measured, by the folder as its store wrote it.
     pub fn pc_dir_size(&self, dir: &str) -> u64 {
         if !Path::new(dir).is_absolute() || fs::metadata(dir).is_err() {
             return 0;
@@ -119,7 +119,6 @@ impl ScanData {
         self.dir_sizes.get(dir).copied().unwrap_or(0)
     }
 
-    // TODO: measure a folder the Electron app hasn't (an unpacked Switch 2 game shows no size until it has)
     fn dir_size(&self, dir: &Path) -> u64 {
         if !dir.is_absolute() || fs::metadata(dir).is_err() {
             return 0;

@@ -489,6 +489,22 @@ async function n3dsFixtures() {
   return JSON.parse(JSON.stringify({ cias: N3DS.cias.map(([n, b]) => [n, b.toString('base64')]), dirs: N3DS.dirs, files: N3DS.files, plays }).split(home).join('{home}'));
 }
 
+// a list in the shape of FinalBurn Neo's (made-up sets), for the names kept from it
+function arcadeDat() {
+  const L = ['<?xml version="1.0"?>', '<datafile>', '\t<header><name>Made up</name><description>Not a game</description></header>'];
+  for (let i = 1; i <= 110; i++) L.push(`\t<game name="set${i}" sourcefile="x.cpp">`, `\t\t<description>Made Up Game ${i} (World)</description>`, '\t\t<year>1990</year>', '\t</game>');
+  L.push('\t<game name="madebios" isbios="yes">', '\t\t<description>Made Up BIOS</description>', '\t</game>', '\t<game isbios="no" name="1942x" cloneof="set1"><description>  Nineteen &amp; Forty-Two &#233;&#x41; &lt;set&gt; &quot;x&quot; &apos;y&apos; &nope; </description>',
+    '\t<game name="UPPER">', '\t\t<comment>x</comment>', '\t\t<description>Upper Set</description>', '\t<game cloneof="x">', '\t\t<description>No name</description>', '\t<game name="77">\r', '\t\t<description>Seventy Seven</description>\r',
+    '\t<game name="set5">', '\t\t<description>Set Five Again</description>', '\t<gamelist name="notagame">', '\t\t<description>Still set5?</description>', '</datafile>');
+  return L.join('\n');
+}
+async function arcadeFixtures() {
+  const { Readable } = require('stream'), arcadenames = require('../main/arcadenames'), dat = arcadeDat();
+  const t = await arcadenames.parse(Readable.from([dat.slice(0, 5000), dat.slice(5000)]));
+  let none = null; try { await arcadenames.parse(Readable.from(['<game name="a">\n<description>A</description>'])); } catch (e) { none = e.message; }
+  return { dat, names: t.names, bios: t.bios, none };
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
@@ -497,6 +513,7 @@ fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), nul
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'n3ds.json'), JSON.stringify(await n3dsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'detect.json'), JSON.stringify(await detectFixtures(), null, 1) + '\n');

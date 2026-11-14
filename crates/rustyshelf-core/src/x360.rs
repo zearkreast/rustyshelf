@@ -1,8 +1,8 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
 // Boxshelf's main/x360.js, as RustyShelf has it.
 //! Xbox 360: the title id inside a game (a disc image, a default.xex, a Games on Demand / Arcade package), and its real
-//! name from the title list the Electron app keeps in `data/x360-titles.json` (Xenia's compatibility trackers). The list
-//! is only read here; the Electron app downloads it.
+//! name from the title list kept in `data/x360-titles.json` (Xenia's compatibility trackers), a file the Electron app
+//! shares; it's fetched again every week.
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -224,6 +224,53 @@ impl TitleList {
     pub fn get(&self, title_id: &str) -> Option<&Known> {
         self.titles.get(title_id)
     }
+}
+
+/// Xenia Manager's compatibility lists, Canary's first (main/x360.js DB_URLS).
+const DB_URLS: [&str; 2] = [
+    "https://raw.githubusercontent.com/xenia-manager/Database/main/data/game-compatibility/canary.json",
+    "https://raw.githubusercontent.com/xenia-manager/Database/main/data/game-compatibility/stable.json",
+];
+
+/// The titles in one compatibility list (`[{ id, title, state }]`) that `titles` doesn't have yet.
+fn add_titles(list: &serde_json::Value, titles: &mut serde_json::Map<String, serde_json::Value>) {
+    use crate::js;
+    for g in list.as_array().into_iter().flatten() {
+        let id = js::text(g.get("id")).to_uppercase();
+        if !id.is_empty() && js::truthy(g.get("title")) && !titles.contains_key(&id) {
+            let state = js::first(&[g.get("state")]).cloned().unwrap_or_else(|| "".into());
+            titles.insert(id, serde_json::json!({ "title": g["title"], "state": state }));
+        }
+    }
+}
+
+/// Fetches the title list when there's none or it's older than a week; true when a new one was saved. A list that
+/// comes back nearly empty isn't kept: the old one stays.
+pub fn refresh(data_dir: &Path) -> Result<bool, String> {
+    const WEEK: f64 = 7.0 * 86_400_000.0;
+    let file = data_dir.join("x360-titles.json");
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let saved: Option<serde_json::Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
+    if saved.as_ref().is_some_and(|j| j.get("titles").is_some_and(|t| t.is_object()) && now as f64 - crate::js::number(j.get("at").or(Some(&serde_json::Value::Null))) < WEEK) {
+        return Ok(false);
+    }
+    let mut titles = serde_json::Map::new();
+    let mut failure = String::new();
+    for u in DB_URLS {
+        match crate::net::get_bytes(u, std::time::Duration::from_secs(15), 32 << 20) {
+            Ok(Some(b)) => match serde_json::from_slice(&b) {
+                Ok(list) => add_titles(&list, &mut titles),
+                Err(_) => failure = "bad reply".into(),
+            },
+            Ok(None) => failure = "HTTP 404".into(),
+            Err(e) => failure = e,
+        }
+    }
+    if titles.len() <= 100 {
+        return Err(format!("x360 title list: {}", if failure.is_empty() { "too few games in it" } else { &failure }));
+    }
+    std::fs::create_dir_all(data_dir).and_then(|()| std::fs::write(&file, serde_json::json!({ "at": now, "titles": titles }).to_string())).map_err(|e| e.to_string())?;
+    Ok(true)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

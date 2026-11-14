@@ -23,6 +23,10 @@ pub enum LibraryState {
 #[derive(Resource)]
 pub struct LibraryRes(pub LibraryState);
 
+/// The library being read again behind the shelf, after its lists or sizes changed.
+#[derive(Resource, Default)]
+pub struct Refresh(Option<Mutex<Receiver<Library>>>);
+
 pub fn start_library() -> LibraryRes {
     let (tx, rx) = channel();
     thread::spawn(move || {
@@ -31,14 +35,49 @@ pub fn start_library() -> LibraryRes {
     LibraryRes(LibraryState::Loading(Mutex::new(rx)))
 }
 
-pub fn poll_library(mut lib: ResMut<LibraryRes>) {
-    let LibraryState::Loading(rx) = &lib.0 else { return };
-    let got = rx.lock().unwrap().try_recv();
-    match got {
-        Ok(Ok(l)) => lib.0 = LibraryState::Ready(l),
-        Ok(Err(e)) => lib.0 = LibraryState::Failed(e.to_string()),
-        Err(std::sync::mpsc::TryRecvError::Empty) => {}
-        Err(std::sync::mpsc::TryRecvError::Disconnected) => lib.0 = LibraryState::Failed("reading the games stopped".into()),
+pub fn poll_library(mut lib: ResMut<LibraryRes>, mut refresh: ResMut<Refresh>, mut cursor: ResMut<crate::shelf::Cursor>) {
+    if let LibraryState::Loading(rx) = &lib.0 {
+        let got = rx.lock().unwrap().try_recv();
+        match got {
+            Ok(Ok(l)) => {
+                // what the shelves want from outside comes in behind them; a library that shows more is read again
+                let (tx, rx) = channel();
+                let seen = l.clone();
+                thread::spawn(move || {
+                    if rustyshelf_core::library::upkeep(&seen) {
+                        if let Ok(fresh) = Library::load_from(&seen.app_root) {
+                            let _ = tx.send(fresh);
+                        }
+                    }
+                });
+                refresh.0 = Some(Mutex::new(rx));
+                lib.0 = LibraryState::Ready(l);
+            }
+            Ok(Err(e)) => lib.0 = LibraryState::Failed(e.to_string()),
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => lib.0 = LibraryState::Failed("reading the games stopped".into()),
+        }
+        return;
+    }
+    let fresh = refresh.0.as_ref().map(|rx| rx.lock().unwrap().try_recv());
+    match fresh {
+        Some(Ok(l)) => {
+            // the same shelf and game stay under the cursor where they still exist
+            let at = |lib: &Library| lib.shelves.get(cursor.shelf).map(|s| (s.id.clone(), s.games.get(cursor.game).map(|g| g.id.clone())));
+            let was = match &lib.0 {
+                LibraryState::Ready(old) => at(old),
+                _ => None,
+            };
+            if let Some((shelf, game)) = was {
+                cursor.shelf = l.shelves.iter().position(|s| s.id == shelf).unwrap_or(0);
+                cursor.game = l.shelves.get(cursor.shelf).and_then(|s| s.games.iter().position(|g| Some(&g.id) == game.as_ref())).unwrap_or(0);
+            }
+            cursor.built = None;
+            refresh.0 = None;
+            lib.0 = LibraryState::Ready(l);
+        }
+        Some(Err(std::sync::mpsc::TryRecvError::Disconnected)) => refresh.0 = None,
+        _ => {}
     }
 }
 

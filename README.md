@@ -538,15 +538,15 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Keeps the play history the Electron app keeps (`data\history.json`): a console game's launches and time in it, a PC
   game's or an app's launches. An emulator that closes within five seconds wasn't a play, and the shelf says so.
 - Shows the names you gave games in the Electron app (Details → Rename).
-
-The Xbox 360 title list, the arcade names, the sizes of unpacked Switch 2 games and of PC games' folders, the Steam
-covers Steam itself doesn't keep, and which Steam game a store game's name belongs to come from the Electron app's
-`data` folder. Until the Electron app has fetched or measured them, games show their file names, no size and no such
-cover.
-
 - Does what the Electron app does around a launch: Eden and its forks, PCSX2 and RPCS3 stop asking before they close,
   Dolphin's Stop hotkey takes the quit combo from every controller, a 3DS `.cia` is installed into Azahar the first
   time it's played, and on Windows a RetroArch core that's missing is downloaded.
+- Fetches what the shelves need by itself, behind the shelf: the Xbox 360 title list (again after a week), the arcade
+  names (once), and the size of unpacked Switch 2 games and of PC games' folders. The shelf shows them as soon as
+  they're in.
+
+The Steam covers Steam itself doesn't keep, and which Steam game a store game's name belongs to, still come from the
+Electron app's `data` folder. Until the Electron app has fetched them, such a game has no cover.
 
 **Not yet:** Settings and the setup wizard, art downloads, the open case and the museum, sounds and music, the Home menu
 over a running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't

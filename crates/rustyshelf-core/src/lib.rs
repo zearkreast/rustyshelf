@@ -6,6 +6,7 @@ pub mod art;
 pub mod collate;
 pub mod config;
 pub mod detect;
+pub mod dirsize;
 pub mod dolphin;
 pub mod emucfg;
 pub mod emuname;

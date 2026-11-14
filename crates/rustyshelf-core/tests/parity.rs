@@ -525,3 +525,14 @@ fn cia_files_install_as_in_the_js() {
         before = now;
     }
 }
+
+#[test]
+fn arcade_names_match_the_js_list() {
+    let fx = fixture("arcade.json");
+    let (names, bios) = rustyshelf_core::arcade::parse_dat(fx["dat"].as_str().unwrap()).unwrap();
+    let got: std::collections::BTreeMap<&str, &str> = names.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let want: std::collections::BTreeMap<&str, &str> = fx["names"].as_object().unwrap().iter().map(|(k, v)| (k.as_str(), v.as_str().unwrap())).collect();
+    assert_eq!(got, want);
+    assert_eq!(serde_json::json!(bios), fx["bios"]);
+    assert!(rustyshelf_core::arcade::parse_dat("<game name=\"a\">\n<description>A</description>").is_none());
+}
