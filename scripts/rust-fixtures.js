@@ -666,6 +666,34 @@ function findFixtures() {
   return { games: games.map(g => ({ id: g.id, title: g.title, shelf: g.sys, last: g.last, folded: g.n })), searches: typed.map(q => { const found = run(q).map(g => g.id); return { typed: q, found, total: S.total }; }) };
 }
 fs.writeFileSync(path.join(OUT, 'find.json'), JSON.stringify(findFixtures(), null, 1) + '\n');
+// ---- custom themes (main/customthemes.js): the example themes it writes, and how it reads a folder of themes ----
+function customThemeFixtures() {
+  const ct = require('../main/customthemes');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-ct-')), root = path.join(tmp, 'Custom themes');
+  ct.init({ root, cache: path.join(tmp, 'cache'), systems: ['gc', 'ps2', 'home', 'media'] });
+  ct.ensureExamples();
+  const examples = {};
+  for (const d of fs.readdirSync(root).sort()) { const f = path.join(root, d); if (fs.statSync(f).isDirectory()) for (const n of fs.readdirSync(f)) examples[d + '/' + n] = fs.readFileSync(path.join(f, n), 'utf8'); else examples[d] = fs.readFileSync(f, 'utf8'); }
+  // made-up themes: one with every setting, one with a single picture and a broken theme.json, two folders with the
+  // same plain name, one without a picture, one with a picture for a shelf
+  const put = (dir, files) => { fs.mkdirSync(path.join(root, dir), { recursive: true }); for (const [n, t] of Object.entries(files)) fs.writeFileSync(path.join(root, dir, n), t); };
+  const folders = {
+    'My Théme!': { 'background.png': 'x', 'theme.json': JSON.stringify({ name: '  Evening  ', accent: '#AABBCC', shade: 2, blur: true, glow: '0.5' }) },
+    'my theme': { 'only.webp': 'x', 'theme.json': '{ not json' },
+    'My_Theme': { 'Background.JPG': 'x', 'gc.png': 'x', 'PS2.jpg': 'x', 'wii.png': 'x', 'notes.txt': 'x', 'theme.json': JSON.stringify({ accent: 'red', shade: -1, glow: 'x', blur: 'yes' }) },
+    'No picture': { 'theme.json': '{}' }, 'Two pictures': { 'a.png': 'x', 'b.png': 'x' }, '10 Stars': { 'background.svg': '<svg/>' }, '9 Stars': { 'background.svg': '<svg/>', 'theme.json': '[1]' },
+  };
+  for (const [d, f] of Object.entries(folders)) put(d, f);
+  const list = ct.list().map(t => ({ id: t.id, name: t.name, folder: t.folder, bg: path.basename(t.bg), shelves: Object.fromEntries(Object.entries(t.sys).map(([k, v]) => [k, path.basename(v)])), shade: t.shade, blur: t.blur, glow: t.glow,
+    accent: t.accent === '#6b8cff' ? null : t.accent })); // (without a picture decoder the JS gives its stand-in colour: none, here)
+  const src = path.join(tmp, 'Sea_side-view.PNG'); fs.writeFileSync(src, 'x');
+  const made = [ct.create(src, ''), ct.create(src, '  A: name? '), ct.create(src, '')];
+  const after = fs.readdirSync(root).sort().filter(d => !(d in folders) && !(d in examples) && !Object.keys(examples).some(k => k.startsWith(d + '/')));
+  const json = fs.readFileSync(path.join(root, after[0], 'theme.json'), 'utf8');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return { examples, folders, list, made, after, json, slugs: ['My Théme!', '  A_b--c  ', 'ÀÉÎ õü', '日本', 'x'.repeat(50)].map(n => [n, ct._slug(n)]) };
+}
+fs.writeFileSync(path.join(OUT, 'customthemes.json'), JSON.stringify(customThemeFixtures(), null, 1) + '\n');
 themeFixtures.song = { hue: null };
 fs.writeFileSync(path.join(OUT, 'themes.json'), JSON.stringify(themeFixtures()) + '\n');
 fs.writeFileSync(path.join(OUT, 'songs.json'), JSON.stringify(songFixtures()) + '\n');

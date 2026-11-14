@@ -753,3 +753,50 @@ fn find_matches_the_js() {
         assert_eq!(total as u64, s["total"].as_u64().unwrap(), "{typed:?}");
     }
 }
+
+#[test]
+fn custom_themes_match_the_js() {
+    use rustyshelf_core::customthemes as ct;
+    let fx = fixture("customthemes.json");
+    for s in fx["slugs"].as_array().unwrap() {
+        assert_eq!(ct::slug(s[0].as_str().unwrap()), s[1].as_str().unwrap(), "{}", s[0]);
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let root = ct::root(tmp.path());
+    ct::ensure_examples(&root);
+    for (file, text) in fx["examples"].as_object().unwrap() {
+        assert_eq!(std::fs::read_to_string(root.join(file)).unwrap_or_default(), text.as_str().unwrap(), "{file}");
+    }
+    for (dir, files) in fx["folders"].as_object().unwrap() {
+        std::fs::create_dir_all(root.join(dir)).unwrap();
+        for (name, text) in files.as_object().unwrap() {
+            std::fs::write(root.join(dir).join(name), text.as_str().unwrap()).unwrap();
+        }
+    }
+    let ours: Vec<Value> = ct::list(&root, &["gc", "ps2", "home", "media"])
+        .iter()
+        .map(|t| {
+            let file = |p: &std::path::Path| p.file_name().unwrap().to_string_lossy().into_owned();
+            let shelves: serde_json::Map<String, Value> = t.shelves.iter().map(|(k, v)| (k.clone(), Value::from(file(v)))).collect();
+            serde_json::json!({ "id": t.id, "name": t.name, "folder": t.folder, "bg": file(&t.bg), "shelves": shelves, "shade": t.shade, "blur": t.blur, "glow": t.glow, "accent": t.accent })
+        })
+        .collect();
+    for (ours, theirs) in ours.iter().zip(fx["list"].as_array().unwrap()) {
+        for key in ["id", "name", "folder", "bg", "shelves", "blur", "accent"] {
+            assert_eq!(ours[key], theirs[key], "{key} of {}", theirs["folder"]);
+        }
+        assert_eq!((ours["shade"].as_f64(), ours["glow"].as_f64()), (theirs["shade"].as_f64(), theirs["glow"].as_f64()), "{}", theirs["folder"]);
+    }
+    assert_eq!(ours.len(), fx["list"].as_array().unwrap().len());
+    let src = tmp.path().join("Sea_side-view.PNG");
+    std::fs::write(&src, "x").unwrap();
+    let made: Vec<Value> = [("", ""), ("  A: name? ", ""), ("", "")].iter().map(|(name, _)| Value::from(ct::create(&root, &src, name).unwrap())).collect();
+    assert_eq!(Value::from(made), fx["made"]);
+    for dir in fx["after"].as_array().unwrap() {
+        assert!(root.join(dir.as_str().unwrap()).join("background.png").is_file(), "{dir}");
+    }
+    let first = fx["after"][0].as_str().unwrap();
+    let (ours, theirs): (Value, Value) = (serde_json::from_str(&std::fs::read_to_string(root.join(first).join("theme.json")).unwrap()).unwrap(), serde_json::from_str(fx["json"].as_str().unwrap()).unwrap());
+    assert_eq!(ours, theirs);
+    assert!(ct::create(&root, &tmp.path().join("notes.txt"), "").is_err());
+}

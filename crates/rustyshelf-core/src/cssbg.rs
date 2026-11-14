@@ -422,9 +422,11 @@ fn unescaped(text: &str) -> String {
 
 /// What an attribute of an SVG's first tag says.
 fn attribute<'a>(svg: &'a str, name: &str) -> Option<&'a str> {
-    let tag = &svg[..svg.find('>')?];
-    let from = tag.find(&format!("{name}='"))? + name.len() + 2;
-    Some(&tag[from..from + tag[from..].find('\'')?])
+    let open = svg.find("<svg")?;
+    let tag = &svg[open..open + svg[open..].find('>')?];
+    let from = tag.find(&format!("{name}="))? + name.len() + 1;
+    let quote = tag[from..].chars().next().filter(|q| *q == '\'' || *q == '"')?;
+    Some(&tag[from + 1..from + 1 + tag[from + 1..].find(quote)?])
 }
 
 fn view_box(svg: &str) -> Option<[f32; 4]> {
@@ -552,6 +554,13 @@ impl Tile {
             }
         }
     }
+}
+
+/// An SVG picture drawn `width` × `height` pixels, fitted as it asks to be (covering them, by default inside them).
+pub fn svg(text: &str, width: u32, height: u32) -> Option<Picture> {
+    let p = drawn(text, width.max(1), height.max(1), 1.0)?;
+    let rgba = p.pixels().iter().flat_map(|px| { let d = px.demultiply(); [d.red(), d.green(), d.blue(), d.alpha()] }).collect();
+    Some(Picture { width: p.width(), height: p.height(), rgba })
 }
 
 /// A picture being painted: backgrounds go onto it one over another, blended as a browser blends them.

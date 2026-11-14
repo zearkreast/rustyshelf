@@ -154,6 +154,9 @@ pub struct Settings {
     /// the page the shelf asked to be opened at
     wanted: Option<Screen>,
     finding: find::Finding,
+    /// the custom themes found, by id and name; and whether they're to be looked for again
+    pub custom_themes: Vec<(String, String)>,
+    pub reload_themes: bool,
     /// the game Find a game was sent to: its shelf and its id
     go_to: Option<(String, String)>,
     /// something to say on the shelf once Settings has closed
@@ -214,6 +217,8 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             finding: Default::default(),
+            custom_themes: Vec::new(),
+            reload_themes: false,
             go_to: None,
             toast: None,
             discord_changed: true,
@@ -328,7 +333,12 @@ impl Settings {
 
     /// The shelf's colour theme.
     pub fn theme(&self) -> String {
-        rustyshelf_core::themes::id_of(&self.text(&["ui", "theme"])).to_string()
+        let saved = self.text(&["ui", "theme"]);
+        if saved.starts_with("custom-") {
+            saved
+        } else {
+            rustyshelf_core::themes::id_of(&saved).to_string()
+        }
     }
 
     /// How much larger than usual the cases stand: Settings' size for every shelf, by the shelf's own.
@@ -359,6 +369,7 @@ impl Settings {
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
         } else if matches!(path, ["ui", "music" | "musicLevel" | "theme" | "clock" | "clock24"]) {
+            self.redraw = true;
             // the music and the shelf read these as they go
         } else if matches!(path, ["ui", "builtInSongs"]) {
             self.sound_changed = true;
@@ -964,10 +975,24 @@ impl Settings {
                     choice(
                         "Theme",
                         &["ui", "theme"],
-                        rustyshelf_core::themes::themes().into_iter().map(|t| (t.id, t.name)).collect(),
+                        rustyshelf_core::themes::themes().into_iter().map(|t| (t.id, t.name)).chain(self.custom_themes.iter().cloned()).collect(),
                         &self.theme(),
-                        "The colour and mood behind your shelves. Close Settings to see it on your shelf.",
+                        "The colour and mood behind your shelves. Close Settings to see it on your shelf. Your own pictures are themes too: each folder in Custom themes, beside RustyShelf, is one.",
                     ),
+                    Row {
+                        label: "Custom themes folder".into(),
+                        value: "Open".into(),
+                        hint: "A folder with a picture named background (.jpg, .png, .webp or .svg) is a theme; the note in the folder says the rest.".into(),
+                        press: Some(Box::new(|s: &mut Settings| {
+                            let dir = rustyshelf_core::customthemes::root(&s.app_root);
+                            rustyshelf_core::customthemes::ensure_examples(&dir);
+                            if let Err(e) = rustyshelf_core::launch::open_folder(&dir) {
+                                s.say(e.to_string());
+                            }
+                        })),
+                        step: None,
+                    },
+                    Row { label: "Find themes again".into(), hint: "Looks in the Custom themes folder again.".into(), press: Some(Box::new(|s: &mut Settings| s.reload_themes = true)), ..Row::default() },
                     choice(
                         "Clock",
                         &["ui", "clock"],

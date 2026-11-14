@@ -522,7 +522,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   console's own case (the Electron app's table of case shapes and colours), under the same plastic shine and glow.
   Behind them is the colour theme's backdrop (Settings → Display → Theme; all eighteen, with what moves in them:
   Spectrum's ribbons and dust, Arcade's stars and mountains, Aurora's curtains and the rest), in the console's
-  colour and washed with the chosen cover's, the floor mirroring the cases. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
+  colour and washed with the chosen cover's, the floor mirroring the cases. Custom themes work as in the Electron
+  app: each folder in `Custom themes` with a picture named `background` is a theme (with pictures for single
+  consoles and a `theme.json`), and the same three examples are written the first time. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
   title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
   A shelf has the Electron app's own cases among its games: Surprise me (Enter or R lands on a game, Enter again
   plays it), Open with the console's emulator, and Add games on a shelf that has none and at the end of Custom.
@@ -613,7 +615,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
-**Not yet:** the rest of Settings (custom themes, the Artwork and Blur themes' pictures, accounts; adding several games at once, a folder of games or a
+**Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures, accounts; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
 GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the Home menu over a

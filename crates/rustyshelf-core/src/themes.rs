@@ -309,26 +309,70 @@ pub fn swatch(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
     out
 }
 
+/// A custom theme's picture as the backdrop takes it: red, green and blue a pixel, `size` pixels; how much darker
+/// it's made (0 to 0.9), whether it's softened, how bright the floor's glow is, and the hue of that glow.
+pub struct Wall<'a> {
+    pub rgb: &'a [u8],
+    pub size: (usize, usize),
+    pub shade: f64,
+    pub blur: bool,
+    pub glow: f64,
+    pub hue: f64,
+}
+
+/// The hue of a "#rrggbb" colour, in whole degrees; 225 for a grey or for what isn't one (app.js hexHue).
+pub fn hex_hue(hex: &str) -> f64 {
+    let digits = hex.trim().trim_start_matches('#');
+    if digits.len() != 6 || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
+        return 225.0;
+    }
+    let part = |i: usize| f64::from(u8::from_str_radix(&digits[i..i + 2], 16).unwrap_or(0)) / 255.0;
+    let (r, g, b) = (part(0), part(2), part(4));
+    let (most, least) = (r.max(g).max(b), r.min(g).min(b));
+    let d = most - least;
+    if d == 0.0 {
+        return 225.0;
+    }
+    let h = if most == r { ((g - b) / d) % 6.0 } else if most == g { (b - r) / d + 2.0 } else { (r - g) / d + 4.0 };
+    ((h * 60.0 + 360.0) % 360.0 + 0.5).floor()
+}
+
 /// Everything that lies still behind the shelf, painted `width` × `height` pixels: the theme's backdrop, a wash of
 /// the chosen game's cover over it (`cover`: its swatch), the dark corners, and the floor's glow under the cases.
-pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[u8]>, stage: Stage, (width, height): (u32, u32)) -> crate::drawn::Picture {
+/// `wall`: a custom theme's picture, which is the backdrop then, under its shade.
+#[allow(clippy::too_many_arguments)]
+pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[u8]>, wall: Option<&Wall>, stage: Stage, (width, height): (u32, u32)) -> crate::drawn::Picture {
     let id = id_of(id);
-    let (floor, corners, _) = strengths(id);
+    let (mut floor, corners, _) = strengths(id);
     let whole = (0.0, 0.0, stage.w, stage.h);
     let mut c = crate::cssbg::Canvas::new(width, height, width as f32 / stage.w);
     c.paint("#07070c", whole, 1.0);
-    c.paint(&tint(id, sh, hue, song), whole, 1.0);
-    if let Some(rgb) = cover {
-        c.stretch(rgb, SWATCH, (-0.15 * stage.w, -0.15 * stage.h, 1.3 * stage.w, 1.3 * stage.h), 0.16);
-    }
-    if id == "arcade" {
-        c.paint("repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)", whole, 1.0);
-        c.paint("radial-gradient(ellipse 120% 100% at 50% 50%,transparent 60%,rgba(0,0,0,.55))", whole, 1.0);
+    let mut lit = glow(id, sh, song);
+    match wall {
+        Some(w) => {
+            c.paint("#0b0c14", whole, 1.0);
+            // a softened picture is laid a little larger, as the browser lays its blur
+            let grown = if w.blur { (-0.04 * stage.w, -0.04 * stage.h, 1.08 * stage.w, 1.08 * stage.h) } else { whole };
+            c.stretch(w.rgb, w.size, grown, 1.0);
+            let dark = |v: f64| format!("rgba(0,0,0,{:.2})", v.min(0.95));
+            c.paint(&format!("linear-gradient(180deg,{},{} 35%,{} 60%,{})", dark(w.shade + 0.15), dark(w.shade * 0.5), dark(w.shade * 0.6), dark(w.shade + 0.3)), whole, 1.0);
+            (floor, lit) = (w.glow as f32, hsl(w.hue, 95, 62, "0.62"));
+        }
+        None => {
+            c.paint(&tint(id, sh, hue, song), whole, 1.0);
+            if let Some(rgb) = cover {
+                c.stretch(rgb, SWATCH, (-0.15 * stage.w, -0.15 * stage.h, 1.3 * stage.w, 1.3 * stage.h), 0.16);
+            }
+            if id == "arcade" {
+                c.paint("repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)", whole, 1.0);
+                c.paint("radial-gradient(ellipse 120% 100% at 50% 50%,transparent 60%,rgba(0,0,0,.55))", whole, 1.0);
+            }
+        }
     }
     c.paint(corners_css(id), whole, corners);
     let wide = (stage.w * 1.4).min(1400.0);
     c.paint(
-        &format!("radial-gradient(ellipse 18% 26% at 50% 16%,{},transparent 75%),radial-gradient(ellipse 55% 34% at 50% 26%,rgba(0,0,0,.55),transparent 72%)", glow(id, sh, song)),
+        &format!("radial-gradient(ellipse 18% 26% at 50% 16%,{lit},transparent 75%),radial-gradient(ellipse 55% 34% at 50% 26%,rgba(0,0,0,.55),transparent 72%)"),
         ((stage.w - wide) / 2.0, stage.h * 0.42 + stage.case_h / 2.0 - 10.0, wide, 160.0),
         floor,
     );

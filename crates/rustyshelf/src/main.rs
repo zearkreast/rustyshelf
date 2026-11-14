@@ -56,6 +56,7 @@ fn main() {
         .init_resource::<shelf::Lit>()
         .init_resource::<shelf::Backdrop>()
         .init_resource::<shelf::Moving>()
+        .init_resource::<shelf::Customs>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
         .init_resource::<play::Surprise>()
@@ -81,7 +82,7 @@ fn main() {
                 shelf::build_shelf,
                 (shelf::apply_covers, shelf::reveal).chain(),
                 shelf::arrange,
-                (shelf::backdrop, shelf::moving).chain(),
+                (shelf::customs, shelf::backdrop, shelf::moving).chain(),
                 (hud::update, hud::top, hud::hints, settings::draw, boot::run).chain(),
             )
                 .chain(),

@@ -9,6 +9,7 @@ pub mod config;
 pub mod covers;
 pub mod cssbg;
 pub mod cues;
+pub mod customthemes;
 pub mod detect;
 pub mod dirsize;
 pub mod dolphin;

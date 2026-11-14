@@ -366,11 +366,80 @@ pub struct Kit {
     made_for: (f32, f32),
 }
 
+/// A custom theme's picture for the backdrop: its file, how much darker it's made, whether it's softened, how
+/// bright the floor's glow is and that glow's hue.
+#[derive(Clone, PartialEq)]
+struct WallJob {
+    file: PathBuf,
+    shade: f64,
+    blur: bool,
+    glow: f64,
+    hue: f64,
+}
+
+/// The custom themes in the folder beside RustyShelf, each with its glow's hue; looked for off the frame.
+#[derive(Resource, Default)]
+pub struct Customs {
+    list: Vec<(rustyshelf_core::customthemes::Custom, f64)>,
+    looking: Option<Mutex<Receiver<Vec<(rustyshelf_core::customthemes::Custom, f64)>>>>,
+    looked: bool,
+}
+
+/// Looks for the custom themes at the start, and again when Settings asks.
+pub fn customs(mut found: ResMut<Customs>, mut settings: ResMut<crate::settings::Settings>) {
+    if let Some(list) = found.looking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+        settings.custom_themes = list.iter().map(|(t, _)| (t.id.clone(), t.name.clone())).collect();
+        (found.list, found.looking) = (list, None);
+    }
+    if (found.looked && !settings.reload_themes) || found.looking.is_some() {
+        return;
+    }
+    (found.looked, settings.reload_themes) = (true, false);
+    let (tx, rx) = channel();
+    found.looking = Some(Mutex::new(rx));
+    std::thread::spawn(move || {
+        let root = rustyshelf_core::customthemes::root(&rustyshelf_core::paths::app_root());
+        let mut shelves: Vec<&str> = rustyshelf_core::systems::systems().consoles.iter().map(|c| c.id.as_str()).collect();
+        shelves.extend(["home", "media"]);
+        let list = rustyshelf_core::customthemes::list(&root, &shelves)
+            .into_iter()
+            .map(|t| {
+                // the glow takes the theme's accent, or the picture's average colour
+                let accent = t.accent.clone().or_else(|| {
+                    let one = image::ImageReader::open(&t.bg).ok()?.with_guessed_format().ok()?.decode().ok()?.resize_exact(1, 1, image::imageops::FilterType::Triangle).into_rgb8();
+                    let p = one.get_pixel(0, 0);
+                    Some(format!("#{:02x}{:02x}{:02x}", p[0], p[1], p[2]))
+                });
+                let hue = themes::hex_hue(accent.as_deref().unwrap_or("#6b8cff"));
+                (t, hue)
+            })
+            .collect();
+        let _ = tx.send(list);
+    });
+}
+
+/// A custom theme's picture, read and scaled to cover `pixels`: its red, green and blue, and its size. A softened
+/// one is kept small, so stretching it softens it.
+fn wall_picture(file: &std::path::Path, (pw, ph): (u32, u32), blur: bool) -> Option<(Vec<u8>, (usize, usize))> {
+    let rgb = |rgba: &[u8]| rgba.as_chunks::<4>().0.iter().flat_map(|p| [p[0], p[1], p[2]]).collect::<Vec<u8>>();
+    let small = if blur { 33 } else { 1 };
+    if file.extension().is_some_and(|e| e.eq_ignore_ascii_case("svg")) {
+        let p = rustyshelf_core::cssbg::svg(&std::fs::read_to_string(file).ok()?, (pw / small).max(2), (ph / small).max(2))?;
+        return Some((rgb(&p.rgba), (p.width as usize, p.height as usize)));
+    }
+    let img = image::ImageReader::open(file).ok()?.with_guessed_format().ok()?.decode().ok()?;
+    let fit = (pw as f32 / img.width() as f32).max(ph as f32 / img.height() as f32).min(1.0) / small as f32;
+    let img = img.resize_exact(((img.width() as f32 * fit) as u32).max(2), ((img.height() as f32 * fit) as u32).max(2), image::imageops::FilterType::Triangle).into_rgb8();
+    let size = (img.width() as usize, img.height() as usize);
+    Some((img.into_raw(), size))
+}
+
 #[derive(Clone)]
 struct Wanted {
     theme: String,
     sh: f64,
     hue: f64,
+    wall: Option<WallJob>,
     /// the chosen game's cover, and its swatch once that's made
     cover: (PathBuf, Option<Arc<Vec<u8>>>),
     stage: Stage,
@@ -379,7 +448,7 @@ struct Wanted {
 
 impl PartialEq for Wanted {
     fn eq(&self, o: &Wanted) -> bool {
-        (&self.theme, self.sh, self.hue, &self.cover.0, self.cover.1.is_some(), self.stage, self.pixels) == (&o.theme, o.sh, o.hue, &o.cover.0, o.cover.1.is_some(), o.stage, o.pixels)
+        (&self.theme, self.sh, self.hue, &self.wall, &self.cover.0, self.cover.1.is_some(), self.stage, self.pixels) == (&o.theme, o.sh, o.hue, &o.wall, &o.cover.0, o.cover.1.is_some(), o.stage, o.pixels)
     }
 }
 
@@ -401,13 +470,21 @@ impl Default for Backdrop {
         let (ask, jobs) = channel::<Wanted>();
         let (finished, done) = channel();
         std::thread::spawn(move || {
+            // the last custom theme's picture read, for the size it was read for
+            let mut read: Option<(PathBuf, (u32, u32), bool, Vec<u8>, (usize, usize))> = None;
             while let Ok(mut job) = jobs.recv() {
                 while let Ok(newer) = jobs.try_recv() {
                     job = newer;
                 }
+                if let Some(w) = &job.wall {
+                    if read.as_ref().is_none_or(|r| (&r.0, r.1, r.2) != (&w.file, job.pixels, w.blur)) {
+                        read = wall_picture(&w.file, job.pixels, w.blur).map(|(rgb, size)| (w.file.clone(), job.pixels, w.blur, rgb, size));
+                    }
+                }
+                let wall = job.wall.as_ref().and_then(|w| read.as_ref().filter(|r| r.0 == w.file).map(|r| themes::Wall { rgb: &r.3, size: r.4, shade: w.shade, blur: w.blur, glow: w.glow, hue: w.hue }));
                 let stage = themes::Stage { w: job.stage.w, h: job.stage.h, case_h: job.stage.bh };
                 let cover = job.cover.1.as_ref().map(|c| c.as_slice());
-                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, stage, job.pixels)).is_err() {
+                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, wall.as_ref(), stage, job.pixels)).is_err() {
                     return;
                 }
             }
@@ -856,6 +933,7 @@ pub fn backdrop(
     mut back: ResMut<Backdrop>,
     mut images: ResMut<Assets<Image>>,
     covers: Res<Covers>,
+    customs: Res<Customs>,
     mut lit_in: ResMut<Lit>,
     slots: Query<&Slot>,
     mut behind: Query<(&Behind, &mut ImageNode, &mut Node)>,
@@ -866,18 +944,26 @@ pub fn backdrop(
         return;
     }
     let now = time.elapsed_secs();
-    let theme = settings.theme();
+    let mut theme = settings.theme();
+    // a custom theme: its picture, or its own picture for this shelf; one that's gone is Spectrum
+    let custom = customs.list.iter().find(|c| c.0.id == theme);
+    let wall = custom.map(|(t, hue)| WallJob { file: t.shelves.get(&shelf.id).unwrap_or(&t.bg).clone(), shade: t.shade, blur: t.blur, glow: t.glow, hue: *hue });
+    if wall.is_none() && theme.starts_with("custom-") {
+        theme = "spectrum".into();
+    }
     let chosen = slots.iter().find(|s| s.index == cursor.game);
     let own = chosen.map_or(0.0, |s| s.hue);
     let cover = chosen.map_or_else(Default::default, |s| (s.front_key.clone(), covers.swatches.get(&s.front_key).cloned()));
     // the shelf's colour walks a little from its first case to its last (app.js shelfHue)
     let along = cursor.game as f64 / (shelf.games.len().max(2) - 1) as f64;
     let sh = f64::from(looks::look(&shelf.id).hue.unwrap_or(own)) + (along * 2.0 - 1.0) * 16.0;
-    (lit_in.glow, lit_in.shelf) = (themes::halo(&theme, sh, None) as f32, sh as f32);
+    (lit_in.glow, lit_in.shelf) = (wall.as_ref().map_or_else(|| themes::halo(&theme, sh, None), |w| w.hue) as f32, sh as f32);
     let lit_hue = lit_in.glow;
     // a backdrop of soft colours is painted small and stretched
-    let part = if themes::fine(&theme) { window.scale_factor().min(1.5) } else { 0.25 };
-    let wanted = Wanted { theme: theme.clone(), sh: (sh * 2.0).round() / 2.0, hue: f64::from(own), cover, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
+    let part = if themes::fine(&theme) || wall.is_some() { window.scale_factor().min(1.5) } else { 0.25 };
+    // (a picture doesn't change with the shelf's colour or the chosen cover)
+    let (sh_now, own_now, cover) = if wall.is_some() { (0.0, 0.0, Default::default()) } else { ((sh * 2.0).round() / 2.0, f64::from(own), cover) };
+    let wanted = Wanted { theme: theme.clone(), sh: sh_now, hue: own_now, wall, cover, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
     if back.asked.as_ref() != Some(&wanted) {
         back.asked = Some(wanted.clone());
         let _ = back.ask.send(wanted);
@@ -998,7 +1084,7 @@ pub fn moving(
 ) {
     let Some((_, mut node)) = behind.iter_mut().find(|(which, _)| matches!(which, Behind::Moving)) else { return };
     let theme = settings.theme();
-    if !themes_fx::moves(&theme) || stage.bh <= 0.0 {
+    if theme.starts_with("custom-") || !themes_fx::moves(&theme) || stage.bh <= 0.0 {
         node.color = Color::NONE;
         return;
     }
