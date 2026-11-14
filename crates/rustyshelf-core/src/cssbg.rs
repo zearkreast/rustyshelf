@@ -644,6 +644,31 @@ impl Canvas {
         }
     }
 
+    /// Lays a picture (`pw` × `ph`, red, green and blue a pixel) into the box `(x, y, w, h)` in CSS pixels, the
+    /// whole of it, `opacity` strong at most: it fades in over the box's left 45% and out over its right 20%.
+    pub fn faded(&mut self, rgb: &[u8], (pw, ph): (usize, usize), (x, y, w, h): (f32, f32, f32, f32), opacity: f32) {
+        if rgb.len() < pw * ph * 3 || pw == 0 || ph == 0 || w <= 0.0 || h <= 0.0 {
+            return;
+        }
+        let px = |ix: usize, iy: usize, c: usize| f32::from(rgb[(iy.min(ph - 1) * pw + ix.min(pw - 1)) * 3 + c]) / 255.0;
+        let scale = self.scale;
+        for (i, out) in self.px.iter_mut().enumerate() {
+            let (cx, cy) = (((i % self.width as usize) as f32 + 0.5) / scale, ((i / self.width as usize) as f32 + 0.5) / scale);
+            let (across, down) = ((cx - x) / w, (cy - y) / h);
+            if !(0.0..1.0).contains(&across) || !(0.0..1.0).contains(&down) {
+                continue;
+            }
+            let strength = opacity * if across < 0.45 { across / 0.45 } else if across <= 0.8 { 1.0 } else { (1.0 - across) / 0.2 };
+            let (u, v) = ((across * pw as f32 - 0.5).max(0.0), (down * ph as f32 - 0.5).max(0.0));
+            let (ix, iy, fx, fy) = (u as usize, v as usize, u.fract(), v.fract());
+            for (c, under) in out.iter_mut().take(3).enumerate() {
+                let over = (px(ix, iy, c) * (1.0 - fx) + px(ix + 1, iy, c) * fx) * (1.0 - fy) + (px(ix, iy + 1, c) * (1.0 - fx) + px(ix + 1, iy + 1, c) * fx) * fy;
+                *under = over * strength + *under * (1.0 - strength);
+            }
+            out[3] = strength + out[3] * (1.0 - strength);
+        }
+    }
+
     pub fn picture(&self) -> Picture {
         let byte = |v: f32| (v * 255.0 + 0.5).clamp(0.0, 255.0) as u8;
         let rgba = self.px.iter().flat_map(|c| if c[3] > 0.0 { [byte(c[0] / c[3]), byte(c[1] / c[3]), byte(c[2] / c[3]), byte(c[3])] } else { [0; 4] }).collect();

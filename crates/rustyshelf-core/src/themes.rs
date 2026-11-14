@@ -337,11 +337,30 @@ pub fn hex_hue(hex: &str) -> f64 {
     ((h * 60.0 + 360.0) % 360.0 + 0.5).floor()
 }
 
+/// How strong the wash of the chosen game's cover is over a theme's backdrop: the themes whose backdrop is a
+/// designed picture leave it out, and in Blur it's the whole picture (style.css and themes-extra.css, keep in
+/// sync).
+fn wash(id: &str) -> f32 {
+    match id {
+        "spectrum" | "classic" | "artwork" => 0.16,
+        "blur" => 0.85,
+        _ => 0.0,
+    }
+}
+
+/// The chosen game's own picture behind the shelf in the Artwork theme (red, green and blue a pixel, and its
+/// size): wide art fills the screen; a cover stands at the right, faint, over the theme's wash.
+pub enum Art<'a> {
+    Wide(&'a [u8], (usize, usize)),
+    Poster(&'a [u8], (usize, usize)),
+}
+
 /// Everything that lies still behind the shelf, painted `width` × `height` pixels: the theme's backdrop, a wash of
 /// the chosen game's cover over it (`cover`: its swatch), the dark corners, and the floor's glow under the cases.
-/// `wall`: a custom theme's picture, which is the backdrop then, under its shade.
+/// `wall`: a custom theme's picture, which is the backdrop then, under its shade. `art`: the game's own picture,
+/// which takes the wash's place.
 #[allow(clippy::too_many_arguments)]
-pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[u8]>, wall: Option<&Wall>, stage: Stage, (width, height): (u32, u32)) -> crate::drawn::Picture {
+pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[u8]>, wall: Option<&Wall>, art: Option<&Art>, stage: Stage, (width, height): (u32, u32)) -> crate::drawn::Picture {
     let id = id_of(id);
     let (mut floor, corners, _) = strengths(id);
     let whole = (0.0, 0.0, stage.w, stage.h);
@@ -360,8 +379,19 @@ pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[
         }
         None => {
             c.paint(&tint(id, sh, hue, song), whole, 1.0);
-            if let Some(rgb) = cover {
-                c.stretch(rgb, SWATCH, (-0.15 * stage.w, -0.15 * stage.h, 1.3 * stage.w, 1.3 * stage.h), 0.16);
+            match (art, cover) {
+                (Some(Art::Wide(rgb, size)), _) => c.stretch(rgb, *size, whole, 1.0),
+                (Some(Art::Poster(rgb, size)), _) => {
+                    let across = stage.h * size.0 as f32 / size.1.max(1) as f32;
+                    c.faded(rgb, *size, (stage.w * 0.96 - across, 0.0, across, stage.h), 0.38);
+                }
+                (None, Some(rgb)) if wash(id) > 0.0 => c.stretch(rgb, SWATCH, (-0.15 * stage.w, -0.15 * stage.h, 1.3 * stage.w, 1.3 * stage.h), wash(id)),
+                (None, _) => {}
+            }
+            // the shelf and what's written stay readable over busy art: darker at the top and the foot, a soft pool
+            // behind the cases
+            if art.is_some() {
+                c.paint("linear-gradient(180deg,rgba(0,0,0,.78),rgba(0,0,0,.5) 28%,rgba(0,0,0,.52) 60%,rgba(0,0,0,.8)),radial-gradient(ellipse 60% 50% at 50% 45%,rgba(0,0,0,.25),transparent 70%)", whole, 1.0);
             }
             if id == "arcade" {
                 c.paint("repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)", whole, 1.0);
@@ -377,4 +407,44 @@ pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[
         floor,
     );
     c.picture()
+}
+
+#[cfg(test)]
+mod picture_tests {
+    use super::*;
+
+    fn painted(id: &str, cover: Option<&[u8]>, art: Option<&Art>) -> Vec<u8> {
+        backdrop(id, 250.0, 250.0, None, cover, None, art, Stage { w: 320.0, h: 180.0, case_h: 70.0 }, (64, 36)).rgba
+    }
+
+    #[test]
+    fn a_covers_wash_is_only_on_the_themes_that_show_it() {
+        let red: Vec<u8> = [255, 0, 0].repeat(SWATCH.0 * SWATCH.1);
+        for (id, shows) in [("spectrum", true), ("classic", true), ("blur", true), ("artwork", true), ("midnight", false), ("aurora", false), ("keys", false), ("arcade", false), ("oled", false), ("synth", false)] {
+            assert_eq!(painted(id, Some(&red), None) != painted(id, None, None), shows, "{id}");
+        }
+        // in Blur the cover is most of the picture
+        let at = |p: &[u8], x: usize, y: usize| [p[(y * 64 + x) * 4], p[(y * 64 + x) * 4 + 1], p[(y * 64 + x) * 4 + 2]];
+        let (blur, spectrum) = (painted("blur", Some(&red), None), painted("spectrum", Some(&red), None));
+        assert!(at(&blur, 10, 12)[0] > 120 && at(&blur, 10, 12)[2] < 40, "{:?}", at(&blur, 10, 12));
+        assert!(at(&spectrum, 10, 12)[0] < 120);
+    }
+
+    #[test]
+    fn artwork_is_the_games_own_picture_under_a_shade() {
+        let at = |p: &[u8], x: usize, y: usize| [p[(y * 64 + x) * 4], p[(y * 64 + x) * 4 + 1], p[(y * 64 + x) * 4 + 2]];
+        let green: Vec<u8> = [0, 255, 0].repeat(16 * 9);
+        let wide = painted("artwork", None, Some(&Art::Wide(&green, (16, 9))));
+        // everywhere, darker at the top than in the middle
+        for (x, y) in [(2, 2), (32, 14), (60, 30)] {
+            let [r, g, b] = at(&wide, x, y);
+            assert!(g > 20 && r < 12 && b < 12, "{x},{y}: {r} {g} {b}");
+        }
+        assert!(at(&wide, 5, 1)[1] < at(&wide, 5, 14)[1]);
+        // a cover stands at the right and leaves the left to the theme
+        let tall: Vec<u8> = [0, 255, 0].repeat(10 * 14);
+        let (poster, plain) = (painted("artwork", None, Some(&Art::Poster(&tall, (10, 14)))), painted("artwork", None, Some(&Art::Poster(&[0; 3], (1, 1)))));
+        assert!(at(&poster, 50, 14)[1] > at(&plain, 50, 14)[1] + 10);
+        assert_eq!(at(&poster, 8, 14), at(&plain, 8, 14));
+    }
 }

@@ -442,13 +442,24 @@ struct Wanted {
     wall: Option<WallJob>,
     /// the chosen game's cover, and its swatch once that's made
     cover: (PathBuf, Option<Arc<Vec<u8>>>),
+    /// the chosen game's own picture, for the themes that are made of it
+    art: Option<(PathBuf, OwnArt)>,
     stage: Stage,
     pixels: (u32, u32),
 }
 
+/// How a theme takes the chosen game's own picture: Artwork fills the screen with wide art, or stands the cover
+/// at the right; Blur softens wide art into the whole backdrop.
+#[derive(Clone, Copy, PartialEq)]
+enum OwnArt {
+    Wide,
+    Poster,
+    Soft,
+}
+
 impl PartialEq for Wanted {
     fn eq(&self, o: &Wanted) -> bool {
-        (&self.theme, self.sh, self.hue, &self.wall, &self.cover.0, self.cover.1.is_some(), self.stage, self.pixels) == (&o.theme, o.sh, o.hue, &o.wall, &o.cover.0, o.cover.1.is_some(), o.stage, o.pixels)
+        (&self.theme, self.sh, self.hue, &self.wall, &self.cover.0, self.cover.1.is_some(), &self.art, self.stage, self.pixels) == (&o.theme, o.sh, o.hue, &o.wall, &o.cover.0, o.cover.1.is_some(), &o.art, o.stage, o.pixels)
     }
 }
 
@@ -472,6 +483,8 @@ impl Default for Backdrop {
         std::thread::spawn(move || {
             // the last custom theme's picture read, for the size it was read for
             let mut read: Option<(PathBuf, (u32, u32), bool, Vec<u8>, (usize, usize))> = None;
+            // the last game's own picture read: its file, the size and the way it was read for, and what it gave
+            let mut own: Option<(PathBuf, (u32, u32), OwnArt, Option<(Vec<u8>, (usize, usize))>)> = None;
             while let Ok(mut job) = jobs.recv() {
                 while let Ok(newer) = jobs.try_recv() {
                     job = newer;
@@ -483,8 +496,32 @@ impl Default for Backdrop {
                 }
                 let wall = job.wall.as_ref().and_then(|w| read.as_ref().filter(|r| r.0 == w.file).map(|r| themes::Wall { rgb: &r.3, size: r.4, shade: w.shade, blur: w.blur, glow: w.glow, hue: w.hue }));
                 let stage = themes::Stage { w: job.stage.w, h: job.stage.h, case_h: job.stage.bh };
-                let cover = job.cover.1.as_ref().map(|c| c.as_slice());
-                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, wall.as_ref(), stage, job.pixels)).is_err() {
+                // the game's own picture, read again only when it's another or the window has changed
+                if let Some((file, kind)) = &job.art {
+                    if own.as_ref().is_none_or(|o| (&o.0, o.1, o.2) != (file, job.pixels, *kind)) {
+                        let got = match kind {
+                            OwnArt::Wide => wall_picture(file, job.pixels, false),
+                            // (a cover is as tall as the window)
+                            OwnArt::Poster => wall_picture(file, (1, job.pixels.1), false),
+                            OwnArt::Soft => image::ImageReader::open(file).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.decode().ok()).map(|img| {
+                                let small = img.thumbnail(144, 144).into_rgba8();
+                                (themes::swatch(small.width(), small.height(), small.as_raw()), themes::SWATCH)
+                            }),
+                        };
+                        own = Some((file.clone(), job.pixels, *kind, got));
+                    }
+                }
+                let read_art = job.art.as_ref().and(own.as_ref()).and_then(|o| o.3.as_ref().map(|(rgb, size)| (o.2, rgb, *size)));
+                let art = match &read_art {
+                    Some((OwnArt::Wide, rgb, size)) => Some(themes::Art::Wide(rgb, *size)),
+                    Some((OwnArt::Poster, rgb, size)) => Some(themes::Art::Poster(rgb, *size)),
+                    _ => None,
+                };
+                let cover = match &read_art {
+                    Some((OwnArt::Soft, rgb, _)) => Some(rgb.as_slice()),
+                    _ => job.cover.1.as_ref().map(|c| c.as_slice()),
+                };
+                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, wall.as_ref(), art.as_ref(), stage, job.pixels)).is_err() {
                     return;
                 }
             }
@@ -959,11 +996,20 @@ pub fn backdrop(
     let sh = f64::from(looks::look(&shelf.id).hue.unwrap_or(own)) + (along * 2.0 - 1.0) * 16.0;
     (lit_in.glow, lit_in.shelf) = (wall.as_ref().map_or_else(|| themes::halo(&theme, sh, None), |w| w.hue) as f32, sh as f32);
     let lit_hue = lit_in.glow;
+    // Artwork: the game's wide art, else its cover's own file (a drawn cover has none); Blur: its wide art, when it
+    // has some, in the cover's place
+    let hero = shelf.games.get(cursor.game).and_then(|g| g.hero.clone());
+    let art = match theme.as_str() {
+        "artwork" => hero.map(|f| (f, OwnArt::Wide)).or_else(|| Some((cover.0.clone(), OwnArt::Poster)).filter(|c| !["drawn:", "grey:"].iter().any(|made| c.0.to_string_lossy().starts_with(made)))),
+        "blur" => hero.map(|f| (f, OwnArt::Soft)),
+        _ => None,
+    }
+    .filter(|_| wall.is_none());
     // a backdrop of soft colours is painted small and stretched
-    let part = if themes::fine(&theme) || wall.is_some() { window.scale_factor().min(1.5) } else { 0.25 };
+    let part = if themes::fine(&theme) || wall.is_some() || art.as_ref().is_some_and(|a| a.1 != OwnArt::Soft) { window.scale_factor().min(1.5) } else { 0.25 };
     // (a picture doesn't change with the shelf's colour or the chosen cover)
     let (sh_now, own_now, cover) = if wall.is_some() { (0.0, 0.0, Default::default()) } else { ((sh * 2.0).round() / 2.0, f64::from(own), cover) };
-    let wanted = Wanted { theme: theme.clone(), sh: sh_now, hue: own_now, wall, cover, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
+    let wanted = Wanted { theme: theme.clone(), sh: sh_now, hue: own_now, wall, cover, art, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
     if back.asked.as_ref() != Some(&wanted) {
         back.asked = Some(wanted.clone());
         let _ = back.ask.send(wanted);

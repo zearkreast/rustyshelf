@@ -16,9 +16,12 @@ const REPO: &str = "zearkreast/rustyshelf";
 /// The releases page.
 pub const RELEASES: &str = "https://github.com/zearkreast/rustyshelf/releases";
 
+/// A version's four numbers, and its pre-release parts: each a number or a word.
+type Version = ([u64; 4], Vec<Result<u64, String>>);
+
 /// A version's numbers and its pre-release parts: "1.82.0-beta.1" is [1, 82, 0, 0] and ["beta", 1]. A build
 /// number counts as the fourth number, written "2.12.4.284" (a release's tag) or "2.12.4+284".
-fn parse(v: &str) -> Option<([u64; 4], Vec<Result<u64, String>>)> {
+fn parse(v: &str) -> Option<Version> {
     static VERSION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^v?([0-9]+)(?:\.([0-9]+))?(?:\.([0-9]+))?(?:[.+]([0-9]+))?(?:-([0-9A-Za-z.-]+))?").unwrap());
     let m = VERSION.captures(js::trim(v))?;
     let n = |i: usize| m.get(i).map_or(0, |d| d.as_str().parse().unwrap_or(u64::MAX));

@@ -522,7 +522,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   console's own case (the Electron app's table of case shapes and colours), under the same plastic shine and glow.
   Behind them is the colour theme's backdrop (Settings → Display → Theme; all eighteen, with what moves in them:
   Spectrum's ribbons and dust, Arcade's stars and mountains, Aurora's curtains and the rest), in the console's
-  colour and washed with the chosen cover's, the floor mirroring the cases. Custom themes work as in the Electron
+  colour and washed with the chosen cover's (in Spectrum and Classic; Blur makes the softened cover the whole
+  backdrop, and Artwork shows the game's own wide art sharp where it has some on disk, else its cover standing
+  at the right), the floor mirroring the cases. Custom themes work as in the Electron
   app: each folder in `Custom themes` with a picture named `background` is a theme (with pictures for single
   consoles and a `theme.json`), and the same three examples are written the first time. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
   title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
@@ -653,7 +655,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   app's, it's drawn in RustyShelf's own window in front of the paused game, not over the game's picture, so a
   saved state is confirmed by the emulator's own message.
 
-**Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding Microsoft Store apps), the
+**Not yet:** the rest of Settings (making a custom theme from a picture, Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
 full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), manuals, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput, the phone
