@@ -714,3 +714,20 @@ fn game_info_matches_the_js_lookup() {
     assert_eq!(again.get("gc", "Zeta Run").and_then(|i| i.dev), Some("Made Up".to_string()));
     assert_eq!(again.get("gc", "Nothing Here"), None);
 }
+
+#[test]
+fn themes_match_the_js() {
+    use rustyshelf_core::themes;
+    let fx = fixture("themes.json");
+    let ours: Vec<Value> = themes::themes().iter().map(|t| serde_json::json!({ "id": t.id, "name": t.name })).collect();
+    assert_eq!(Value::from(ours), fx["themes"]);
+    for (old, now) in fx["alias"].as_object().unwrap() {
+        assert_eq!(themes::id_of(old), now.as_str().unwrap());
+    }
+    assert_eq!(themes::id_of("no such theme"), "spectrum");
+    for t in fx["tints"].as_array().unwrap() {
+        let (id, sh, hue, song) = (t["id"].as_str().unwrap(), t["sh"].as_f64().unwrap(), t["hue"].as_f64().unwrap(), t["song"].as_f64());
+        assert_eq!(themes::tint(id, sh, hue, song), t["css"].as_str().unwrap(), "{id} at {sh}");
+        assert_eq!(themes::halo(id, sh, song), t["halo"].as_f64().unwrap(), "{id} at {sh}");
+    }
+}

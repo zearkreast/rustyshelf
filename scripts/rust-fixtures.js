@@ -637,6 +637,22 @@ function songFixtures() {
     midi: cases.map(([name, bytes]) => { let song = null; try { song = plain(Songs.parseMidi(new Uint8Array(bytes), name)); } catch {} return { name, bytes: bytes.toString('base64'), song }; }),
   };
 }
+// ---- the backdrop every theme paints (renderer/app.js THEMES, renderer/themes-extra.js): its CSS, and the glow's hue ----
+function themeFixtures() {
+  const app = fs.readFileSync(path.join(ROOT, 'renderer', 'app.js'), 'utf8'), covers = fs.readFileSync(path.join(ROOT, 'renderer', 'covers.js'), 'utf8');
+  const hsl = /\nconst hsl=.*\n/.exec(covers)[0], block = /\nconst THEMES=\{[\s\S]*?\n\};\n/.exec(app)[0], alias = /\nconst THEME_ALIAS=.*\n/.exec(app)[0];
+  const win = {}; new Function('window', fs.readFileSync(path.join(ROOT, 'renderer', 'themes-extra.js'), 'utf8'))(win);
+  const { THEMES, THEME_ALIAS } = new Function('window', 'song', `${hsl}const songHue=sh=>song.hue==null?sh:song.hue;${block}${alias}
+    for(const t of window.BS_EXTRA_THEMES)THEMES[t.id]={name:t.name,halo:typeof t.halo==="function"?t.halo:sh=>sh,tint:t.tint};return {THEMES,THEME_ALIAS}`)(win, themeFixtures.song);
+  const tints = [];
+  for (const id of Object.keys(THEMES)) for (const [sh, hue, song] of [[258, 40, null], [0, 359, null], [351.6, 200, 96], [-12.5, 0, null], [374.25, 120.5, 300]]) {
+    themeFixtures.song.hue = song;
+    tints.push({ id, sh, hue, song, halo: THEMES[id].halo(sh, .5), css: THEMES[id].tint(sh, { hue }, .5) });
+  }
+  return { themes: Object.keys(THEMES).map(id => ({ id, name: THEMES[id].name })), alias: THEME_ALIAS, tints };
+}
+themeFixtures.song = { hue: null };
+fs.writeFileSync(path.join(OUT, 'themes.json'), JSON.stringify(themeFixtures()) + '\n');
 fs.writeFileSync(path.join(OUT, 'songs.json'), JSON.stringify(songFixtures()) + '\n');
 fs.writeFileSync(path.join(OUT, 'art.json'), JSON.stringify(artFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');

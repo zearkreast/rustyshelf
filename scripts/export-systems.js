@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Writes main/systems.js's consoles and apps as JSON for the Rust app (crates/rustyshelf-core/data), once for Windows
 // and once for Linux (systems.js rewrites its paths and programs for Linux when it's loaded there); with them the box
-// art sources' names and each shelf's looks.
+// art sources' names, each shelf's looks and the themes' pictures.
 //   node scripts/export-systems.js           write the files
 //   node scripts/export-systems.js --check   exit 1 when they're out of date
 'use strict';
@@ -33,9 +33,19 @@ const looks = () => {
   return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS }, null, 1) + '\n';
 };
 
+// the pictures and patterns the extra themes' backdrops are made of (renderer/themes-extra.js): they never change, so
+// the Rust app takes them as they are and only writes the colours round them
+const themes = () => {
+  const src = fs.readFileSync(path.join(ROOT, 'renderer', 'themes-extra.js'), 'utf8');
+  const hooked = src.replace('window.BS_EXTRA_THEMES = [', 'window.BS_THEME_PARTS = { CUBE, BLUE, SWIRL, FOREST, CRT_BEZEL, VHS_NOISE, SYN_GRID, SYN_SUN };\n  window.BS_EXTRA_THEMES = [');
+  if (hooked === src) throw new Error('themes-extra.js: the theme list was not found');
+  const win = {}; new Function('window', hooked)(win);
+  return JSON.stringify({ parts: win.BS_THEME_PARTS, extra: win.BS_EXTRA_THEMES.map(t => ({ id: t.id, name: t.name, moves: typeof t.fx === 'function' })) }, null, 1) + '\n';
+};
+
 let stale = false;
-for (const [platform, name] of [['win32', 'systems-windows.json'], ['linux', 'systems-linux.json'], ['', 'art-sources.json'], ['', 'looks.json']]) {
-  const file = path.join(OUT, name), text = platform ? dump(platform) : name === 'looks.json' ? looks() : artSources();
+for (const [platform, name] of [['win32', 'systems-windows.json'], ['linux', 'systems-linux.json'], ['', 'art-sources.json'], ['', 'looks.json'], ['', 'themes.json']]) {
+  const file = path.join(OUT, name), text = platform ? dump(platform) : name === 'looks.json' ? looks() : name === 'themes.json' ? themes() : artSources();
   const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   if (old === text) continue;
   if (process.argv.includes('--check')) { console.error(`${name} is out of date: run node scripts/export-systems.js`); stale = true; continue; }
