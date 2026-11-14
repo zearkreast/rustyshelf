@@ -577,6 +577,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Plays the interface's sounds, synthesised as the Electron app's are (the same voices, room and limiter, checked
   against renders of the Electron app's own engine): Aero, Melody with its built-in songs, and Music box; each shelf
   in its own key; the five boot sounds. Settings → Sounds has the switch, the volume, the voice and the boot sound.
+- Plays the menu music under the shelf (Settings → Sounds → Menu music): Drift, Night and Glow, written as it goes
+  like the Electron app's (the same notes for the same seed, in the shelf's key), stepping back for each sound and
+  going quiet while a game runs.
 - Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
@@ -588,8 +591,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 **Not yet:** the rest of Settings (themes, accounts; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
-GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the menu music (and your own music and
-songs), the Home menu over a
+GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, your own music under the shelf and your own
+songs for the Melody voice, the Home menu over a
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar

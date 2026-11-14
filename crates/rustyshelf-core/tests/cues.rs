@@ -19,7 +19,7 @@ fn written(v: &Voice) -> (&'static str, Map<String, Value>) {
             for (k, v) in [("freq", o.freq), ("dur", o.dur), ("vol", o.vol), ("at", o.at), ("pan", o.pan), ("verb", o.verb), ("bright", o.bright), ("thump", o.thump)] {
                 put(k, v);
             }
-            for (k, v) in [("attack", o.attack), ("noise", o.noise), ("glide", o.glide), ("glideTime", o.glide_time), ("sub", o.under), ("breath", o.breath)] {
+            for (k, v) in [("attack", o.attack), ("noise", o.noise), ("glide", o.glide), ("glideTime", o.glide_time), ("sub", o.under), ("breath", o.breath), ("duck", o.duck)] {
                 put(k, v);
             }
             if let Some(p) = o.partials {
@@ -82,8 +82,8 @@ fn differs(theirs: &Value, ours: &Voice) -> Option<String> {
         return Some(format!("a {} where theirs is a {}", kind, theirs[0]));
     }
     let want = theirs[1].as_object().unwrap();
-    // not sound: the music stepping back for a cue, the lights that follow a note, how a swell's chord was named
-    let skip = ["duck", "fx", "notes", "octave"];
+    // not sound: the lights that follow a note, how a swell's chord was named
+    let skip = ["fx", "notes", "octave"];
     let unset = |k: &str| match k {
         // these are nothing when they aren't given
         "at" | "pan" => json!(0.0),

@@ -31,6 +31,7 @@ fn voice(kind: &str, o: &Value) -> Voice {
                 glide_time: f("glideTime"),
                 under: f("sub"),
                 breath: f("breath"),
+                duck: None,
             })
         }
         "air" => Voice::Air(Air {

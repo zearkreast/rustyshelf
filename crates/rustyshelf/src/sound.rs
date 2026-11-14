@@ -38,6 +38,8 @@ pub struct Sounds {
     later: Vec<(f32, &'static str)>,
     /// the shelf the cues are tuned to
     shelf: String,
+    /// the menu music is asked to step back for the cue just played: how far (0 to 1), and for how long (ms)
+    pub ducked: Option<(f32, f32)>,
 }
 
 impl Default for Sounds {
@@ -52,7 +54,7 @@ impl Default for Sounds {
                 }
             }
         });
-        Sounds { state: cues::Sound::default(), on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new() }
+        Sounds { state: cues::Sound::default(), on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), ducked: None }
     }
 }
 
@@ -65,6 +67,9 @@ impl Sounds {
         let cue = self.state.cue(name, dir, self.started.elapsed().as_secs_f64() * 1000.0);
         if cue.voices.is_empty() {
             return;
+        }
+        if cue.duck.is_some() {
+            self.ducked = cue.duck;
         }
         self.seed = self.seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
         let _ = self.jobs.send(Job { voices: cue.voices, tone: self.state.theme().tone, level: cue.level, volume: self.volume, seed: self.seed });

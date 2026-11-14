@@ -4,6 +4,7 @@
 
 mod hud;
 mod loading;
+mod music;
 mod osk;
 mod padwatch;
 mod play;
@@ -56,6 +57,7 @@ fn main() {
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
         .init_resource::<settings::Settings>()
+        .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup))
         .add_systems(
             Update,
@@ -65,6 +67,7 @@ fn main() {
                 settings::input,
                 play::navigate,
                 sound::run,
+                music::run,
                 shelf::build_shelf,
                 shelf::apply_covers,
                 shelf::arrange,

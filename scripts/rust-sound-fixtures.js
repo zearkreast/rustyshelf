@@ -116,7 +116,19 @@ const CASES = [
     scores.push({ track, seed, shelf, theme, events });
     await pg.close();
   }
+  // ---- and its sound: half a minute of each track as the engine renders it, by its level every quarter of a second ----
+  const sounds = [];
+  for (const [track, seed, shelf] of [['drift', 1, 'gc'], ['night', 7, 'ps4'], ['glow', 3, 'sw']]) {
+    const pg = await browser.newPage(); await pg.setContent('<html></html>'); await pg.addScriptTag({ content: src });
+    const rms = await pg.evaluate(async ({ track, seed, key }) => {
+      window.Sound.set(key || { key: 0 });
+      const buf = await window.Sound.renderMusic(track, 30, seed, .4), step = 11025;
+      return [0, 1].map(c => { const d = buf.getChannelData(c), out = []; for (let i = 0; i + step <= d.length; i += step) { let q = 0; for (let j = i; j < i + step; j++) q += d[j] * d[j]; out.push(+Math.sqrt(q / step).toFixed(6)); } return out; });
+    }, { track, seed, key: KEYS[shelf] });
+    sounds.push({ track, seed, shelf, rms });
+    await pg.close();
+  }
   await browser.close();
-  fs.writeFileSync(MUSIC_OUT, JSON.stringify({ start: .05, seconds: 240, scores }) + '\n');
+  fs.writeFileSync(MUSIC_OUT, JSON.stringify({ start: .05, seconds: 240, scores, sounds }) + '\n');
   console.log('wrote', path.relative(ROOT, MUSIC_OUT), `(${scores.length} scores)`);
 })().catch(e => { console.error(e); process.exit(1); });

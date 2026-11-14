@@ -165,10 +165,12 @@ pub fn built_in_songs() -> Vec<Song> {
     SONGS.iter().map(|(name, hue, tune)| parse(name, *hue, tune)).collect()
 }
 
-/// A cue: its voices, and the level of the whole (the boot's own volume).
+/// A cue: its voices, the level of the whole (the boot's own volume), and how the menu music steps back for it:
+/// how far (0 to 1) and for how long (ms). None: it doesn't.
 pub struct Cue {
     pub voices: Vec<Voice>,
     pub level: f32,
+    pub duck: Option<(f32, f32)>,
 }
 
 /// Twelve places of the figure quick steps ride: up to four above home, down to two below.
@@ -336,15 +338,15 @@ impl Sound {
         }
         let step = tri(f64::from(self.shelf_run));
         let pan = (self.random() - 0.5) * 0.3;
-        self.put(hit(self.d(step)).dur(0.1).vol(0.3).verb(0.4).pan(pan).attack(0.006).breath(0.25));
-        self.put(hit(self.d(4 + step)).dur(0.14).vol(0.18).at(0.05).verb(0.5).attack(0.01).breath(0.25));
+        self.put(hit(self.d(step)).dur(0.1).vol(0.3).verb(0.4).pan(pan).attack(0.006).breath(0.25).duck(0.15));
+        self.put(hit(self.d(4 + step)).dur(0.14).vol(0.18).at(0.05).verb(0.5).attack(0.01).breath(0.25).duck(0.0));
         true
     }
 
     // ---------- the boots, each in the shelf's own key ----------
 
     fn thump_low(&mut self, at: f32, vol: f32) {
-        self.put(hit(self.deg(0, -2)).dur(0.45).vol(vol).at(at).attack(0.003).under(1.0).bright(420.0).verb(0.2).noise(0.0).breath(0.0));
+        self.put(hit(self.deg(0, -2)).dur(0.45).vol(vol).at(at).attack(0.003).under(1.0).bright(420.0).verb(0.2).noise(0.0).breath(0.0).duck(0.0));
     }
 
     fn boot(&mut self) {
@@ -399,10 +401,10 @@ impl Sound {
     /// notes rising and a bright open chord that rings out over a warm pad, with two tiny sparkles at the top.
     fn boot_chime(&mut self) {
         let bell = |h: Hit| Hit { partials: Some(BELL), ..h }.noise(0.0).breath(0.0);
-        self.put(hit(self.deg(0, -2)).dur(0.5).vol(0.2).attack(0.004).under(0.8).bright(500.0).verb(0.25).noise(0.0).breath(0.0));
+        self.put(hit(self.deg(0, -2)).dur(0.5).vol(0.2).attack(0.004).under(0.8).bright(500.0).verb(0.25).noise(0.0).breath(0.0).duck(0.0));
         self.put(air(Filter::Highpass, true).dur(0.7).vol(0.06).freq(1800.0).sweep_to(7000.0).q(0.5).verb(0.5).attack(0.25));
         for (i, (n, t)) in [(0, 0.14), (3, 0.29), (4, 0.44)].into_iter().enumerate() {
-            self.put(bell(hit(self.deg(n, 1)).dur(0.55).vol(0.26).at(t).attack(0.002).verb(0.45).pan((i as f32 - 1.0) * 0.22)));
+            self.put(bell(hit(self.deg(n, 1)).dur(0.55).vol(0.26).at(t).attack(0.002).verb(0.45).pan((i as f32 - 1.0) * 0.22)).duck(0.0));
         }
         // the landing: the octave on top, the third above it, the fifth underneath
         self.put(bell(hit(self.deg(5, 1)).dur(2.1).vol(0.26).at(0.62).attack(0.002).verb(0.6).pan(0.05)));
@@ -410,7 +412,7 @@ impl Sound {
         self.put(bell(hit(self.d(3)).dur(1.9).vol(0.16).at(0.64).attack(0.004).verb(0.6).pan(-0.25)));
         self.swell(&[0, 2, 3], -1, 2.2, 0.1, 0.55, 0.35);
         for (n, t, p) in [(10, 1.02, 0.3), (12, 1.16, -0.3)] {
-            self.put(bell(hit(self.deg(n, 1)).dur(0.5).vol(0.07).at(t).attack(0.002).verb(0.8).pan(p)));
+            self.put(bell(hit(self.deg(n, 1)).dur(0.5).vol(0.07).at(t).attack(0.002).verb(0.8).pan(p)).duck(0.0));
         }
     }
 
@@ -496,13 +498,13 @@ impl Sound {
                 self.put(air(Filter::Bandpass, false).dur(1.0).vol(0.08).freq(2400.0).sweep_to(5200.0).q(3.0).verb(0.3).attack(0.35).hold(0.2));
             }
             // the museum: a picture lamp switching on, a case sliding on wood and back, lifting one, a disc on its hub
-            "lamp" => self.put(hit(self.deg(-9, -1)).dur(0.12).vol(0.05).bright(700.0).noise(0.25).under(0.4).attack(0.004).breath(0.0).verb(0.5)),
+            "lamp" => self.put(hit(self.deg(-9, -1)).dur(0.12).vol(0.05).bright(700.0).noise(0.25).under(0.4).attack(0.004).breath(0.0).verb(0.5).duck(0.0)),
             // the museum opening: a slow warm chord blooming up with a breath of air, like lights coming up
             "museum" => {
                 const WARM: &[Partial] = &[(1.0, 1.0, 1.0), (2.0, 0.32, 0.6), (3.0, 0.1, 0.4), (4.2, 0.05, 0.3)];
                 for i in 0..8 {
                     let f = i as f32;
-                    self.put(Hit { partials: Some(WARM), ..hit(d(self, i)) }.dur(0.32 + f * 0.02).vol(0.24).at(f * 0.072 - f * f * 0.0015).verb(0.55).pan((f - 3.5) * 0.09).attack(0.003).breath(0.0).noise(0.0));
+                    self.put(Hit { partials: Some(WARM), ..hit(d(self, i)) }.dur(0.32 + f * 0.02).vol(0.24).at(f * 0.072 - f * f * 0.0015).verb(0.55).pan((f - 3.5) * 0.09).attack(0.003).breath(0.0).noise(0.0).duck(0.2));
                 }
                 // a soft landing: the run resolves down onto a warm mid chord
                 self.put(Hit { partials: Some(WARM), ..hit(d(self, 5)) }.dur(1.5).vol(0.18).at(0.6).verb(0.85).attack(0.02).pan(0.12));
@@ -529,15 +531,15 @@ impl Sound {
             // the console's pedestal: a short warm three-note rise, like a system powering up
             "pedestal" => {
                 for (i, n) in [0, 4, 7].into_iter().enumerate() {
-                    self.put(hit(d(self, n)).dur(0.5 + i as f32 * 0.1).vol(0.12).at(i as f32 * 0.09).verb(0.7).attack(0.006).breath(0.2).pan((i as f32 - 1.0) * 0.15));
+                    self.put(hit(d(self, n)).dur(0.5 + i as f32 * 0.1).vol(0.12).at(i as f32 * 0.09).verb(0.7).attack(0.006).breath(0.2).pan((i as f32 - 1.0) * 0.15).duck(0.1));
                 }
                 self.put(hit(self.deg(0, -1)).dur(1.2).vol(0.07).at(0.25).verb(0.9).attack(0.05).breath(0.3));
             }
             // the quiet settle when a motion lands
-            "arrive" => self.put(hit(d(self, 0)).dur(0.1).vol(0.05).verb(0.3).attack(0.01).breath(0.1)),
+            "arrive" => self.put(hit(d(self, 0)).dur(0.1).vol(0.05).verb(0.3).attack(0.01).breath(0.1).duck(0.0)),
             "panel" => {
                 self.put(air(Filter::Bandpass, true).dur(0.2).vol(0.07).freq(700.0).sweep_to(2200.0).q(0.6).verb(0.4));
-                self.put(hit(d(self, 2)).dur(0.16).vol(0.08).at(0.1).attack(0.01));
+                self.put(hit(d(self, 2)).dur(0.16).vol(0.08).at(0.1).attack(0.01).duck(0.05));
             }
             _ => {}
         }
@@ -556,7 +558,7 @@ impl Sound {
                 let pan = (self.random() - 0.5) * 0.2;
                 let parts: &'static [Partial] = [&[(1.0, 1.0, 1.0), (2.0, 0.12, 0.5)][..], &[(1.0, 1.0, 1.0), (2.01, 0.1, 0.5), (3.98, 0.03, 0.3)], &[(1.0, 1.0, 1.0), (1.99, 0.14, 0.45)]][v];
                 let v = v as f32;
-                self.put(Hit { partials: Some(parts), ..hit(self.d(2 + n) * jitter) }.dur(0.085 + v * 0.006).vol(0.34 + v * 0.015).verb(0.35).pan(pan).attack(0.005 + v * 0.002).breath(0.3 + v * 0.05));
+                self.put(Hit { partials: Some(parts), ..hit(self.d(2 + n) * jitter) }.dur(0.085 + v * 0.006).vol(0.34 + v * 0.015).verb(0.35).pan(pan).attack(0.005 + v * 0.002).breath(0.3 + v * 0.05).duck(0.15));
             }
             "shelf" => {
                 if self.shelf_quick(dir, now) {
@@ -613,10 +615,10 @@ impl Sound {
             }
             "lidClick" => self.put(hit(self.d(7)).dur(0.045).vol(0.26).noise(1.0).verb(0.1).attack(0.002).breath(0.0).thump(1.6)),
             "seat" => self.put(hit(self.deg(-9, -1)).dur(0.34).vol(0.2).bright(700.0).noise(0.0).under(0.7).attack(0.008).breath(0.0).thump(1.05)),
-            "arrive" => self.put(hit(self.deg(0, -1)).dur(0.12).vol(0.04).verb(0.5).attack(0.012).breath(0.2)),
+            "arrive" => self.put(hit(self.deg(0, -1)).dur(0.12).vol(0.04).verb(0.5).attack(0.012).breath(0.2).duck(0.0)),
             "panel" => {
                 self.put(air(Filter::Bandpass, true).dur(0.26).vol(0.07).freq(800.0).sweep_to(2800.0).q(0.5).verb(0.6).attack(0.04));
-                self.put(hit(self.deg(2, -1)).dur(0.22).vol(0.07).at(0.12).attack(0.015).breath(0.3));
+                self.put(hit(self.deg(2, -1)).dur(0.22).vol(0.07).at(0.12).attack(0.015).breath(0.3).duck(0.05));
             }
             _ => return false,
         }
@@ -671,7 +673,7 @@ impl Sound {
     /// A piano note, placed left to right by its pitch.
     fn piano(&mut self, m: i32, vol: f32, dur: f32, at: f32) -> Hit {
         let _ = &self;
-        hit(mf(m)).dur(dur).attack(0.003).verb(0.5).pan(((m - 72) as f32 / 30.0).clamp(-0.5, 0.5)).vol(vol * 0.45).at(at)
+        hit(mf(m)).dur(dur).attack(0.003).verb(0.5).pan(((m - 72) as f32 / 30.0).clamp(-0.5, 0.5)).duck(0.1).vol(vol * 0.45).at(at)
     }
 
     /// The bass when a bar changes: the chord's root low and soft, with its octave.
@@ -821,7 +823,7 @@ impl Sound {
 
     /// One tine, placed left to right by its step.
     fn tine(&self, n: i32, vol: f32, dur: f32, at: f32) -> Hit {
-        hit(self.d(n)).dur(dur).pan((n as f32 * 0.05).clamp(-0.4, 0.4)).vol(vol * 0.48).at(at)
+        hit(self.d(n)).dur(dur).pan((n as f32 * 0.05).clamp(-0.4, 0.4)).duck(0.1).vol(vol * 0.48).at(at)
     }
 
     fn music_box(&mut self, name: &str, dir: i32, now: f64) -> bool {
@@ -830,7 +832,7 @@ impl Sound {
                 let n = self.walk(dir, now);
                 let vol = 0.3 + (self.random() - 0.5) * 0.03;
                 let pan = (self.random() - 0.5) * 0.25;
-                self.put(hit(self.d(2 + n)).dur(0.55).pan(pan).vol(vol * 0.48));
+                self.put(hit(self.d(2 + n)).dur(0.55).pan(pan).duck(0.1).vol(vol * 0.48));
             }
             "shelf" => {
                 if self.shelf_quick(dir, now) {
@@ -899,6 +901,11 @@ impl Sound {
         if !own {
             self.shared(name, dir, now);
         }
-        Cue { voices: std::mem::take(&mut self.out), level: if name == "boot" { self.boot_level } else { 1.0 } }
+        // each struck note asks the music back; the last one's word stands
+        let duck = self.out.iter().rev().find_map(|v| match v {
+            Voice::Hit(h) => Some((h.duck.unwrap_or(0.35), h.dur.filter(|d| *d != 0.0).unwrap_or(self.theme.tone.decay) * 1000.0 + 150.0)),
+            _ => None,
+        });
+        Cue { voices: std::mem::take(&mut self.out), level: if name == "boot" { self.boot_level } else { 1.0 }, duck }
     }
 }

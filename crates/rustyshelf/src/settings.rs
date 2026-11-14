@@ -163,6 +163,9 @@ pub struct SoundPrefs {
     pub voice: String,
     pub boot: String,
     pub boot_volume: f32,
+    /// the menu music's track ("off", "own" or a track's name), and its level
+    pub music: String,
+    pub music_level: f32,
 }
 
 impl Default for Settings {
@@ -257,6 +260,8 @@ impl Settings {
             voice: self.text(&["ui", "soundTheme"]),
             boot: Some(self.text(&["ui", "bootSound"])).filter(|b| !b.is_empty()).unwrap_or_else(|| "chime".into()),
             boot_volume: number(&["ui", "bootVolume"], 1.0),
+            music: Some(self.text(&["ui", "music"])).filter(|m| !m.is_empty()).unwrap_or_else(|| "off".into()),
+            music_level: number(&["ui", "musicLevel"], 0.4),
         }
     }
 
@@ -287,6 +292,8 @@ impl Settings {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
+        } else if matches!(path, ["ui", "music" | "musicLevel"]) {
+            // the music reads these as it plays
         } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "bootSound" | "bootVolume")] = path {
             // heard at once: the boot for its own settings, a chime for the rest
             self.sound_changed = true;
@@ -898,6 +905,7 @@ impl Settings {
             }
             Screen::Sound => {
                 const VOICES: [(&str, &str); 3] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box")];
+                const TRACKS: [(&str, &str); 4] = [("drift", "Drift"), ("night", "Night"), ("glow", "Glow"), ("off", "Off")];
                 const BOOTS: [(&str, &str); 5] = [("chime", "Chime"), ("crystal", "Crystal"), ("pulse", "Pulse"), ("horizon", "Horizon"), ("keys", "Keys")];
                 let prefs = self.sound();
                 let voice = rustyshelf_core::cues::theme(&prefs.voice).id;
@@ -919,6 +927,9 @@ impl Settings {
                 let (boot_volume, boot_volume_step) = level(&["ui", "bootVolume"], prefs.boot_volume);
                 let (voice_name, voice_press, voice_step) = pick(&["ui", "soundTheme"], &VOICES, voice);
                 let (boot_name, boot_press, boot_step) = pick(&["ui", "bootSound"], &BOOTS, &prefs.boot);
+                let playing = rustyshelf_core::music::track(&prefs.music).map_or("off", |t| t.id);
+                let (music_name, music_press, music_step) = pick(&["ui", "music"], &TRACKS, playing);
+                let (music_level, music_level_step) = level(&["ui", "musicLevel"], prefs.music_level);
                 Page {
                     title: "Sounds".into(),
                     lead: String::new(),
@@ -932,6 +943,14 @@ impl Settings {
                             press: Some(voice_press),
                             step: Some(voice_step),
                         },
+                        Row {
+                            label: "Menu music".into(),
+                            value: music_name,
+                            hint: "Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. It goes quiet while a game runs.".into(),
+                            press: Some(music_press),
+                            step: Some(music_step),
+                        },
+                        Row { label: "Music volume".into(), value: percent(prefs.music_level), hint: "How loud the menu music plays, under RustyShelf's other sounds.".into(), press: Some(music_level), step: Some(music_level_step) },
                         Row { label: "Boot sound".into(), value: boot_name, hint: "The sting that plays as a console's game starts.".into(), press: Some(boot_press), step: Some(boot_step) },
                         Row {
                             label: "Boot sound volume".into(),

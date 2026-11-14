@@ -328,3 +328,320 @@ impl Score {
         out.push(Event::Bell { note: self.degree_note(degree), at: t, vel, pan });
     }
 }
+
+// ---------- the music's sound ----------
+
+use std::f32::consts::PI;
+
+use crate::synth::{makeup, saturate, Biquad, Filter, Rng, RoomStream, Stereo};
+
+/// How much of the level setting (0 to 1) reaches the music's bus, and how much of the music goes to the room.
+const GAIN: f32 = 0.4;
+const ROOM: f32 = 0.4;
+
+fn pitch(note: i32) -> f32 {
+    440.0 * 2f32.powf((note - 69) as f32 / 12.0)
+}
+
+fn cents(c: f32) -> f32 {
+    2f32.powf(c / 1200.0)
+}
+
+/// A note that's sounding: partials (a multiple of its pitch, a level, a detune in cents), its level over time, and
+/// where it sits left to right (None: in the middle, as it is).
+struct Tone {
+    start: f64,
+    end: f64,
+    freq: f32,
+    partials: &'static [(f32, f32, f32)],
+    phases: [f32; 3],
+    kind: Kind,
+    vel: f32,
+    dur: f32,
+    pan: Option<f32>,
+    /// the electric piano's bending sine
+    bend: f32,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Drone,
+    Glass,
+    Ep,
+    Bell,
+}
+
+impl Tone {
+    /// Its level `t` seconds after it starts.
+    fn level(&self, t: f32) -> f32 {
+        let v = self.vel;
+        match self.kind {
+            // breathing in over a few seconds, and out at the next chord
+            Kind::Drone => {
+                if t < self.dur {
+                    v * (t / 2.5).min(1.0)
+                } else {
+                    v * (-(t - self.dur) / 1.2).exp()
+                }
+            }
+            // a soft attack and a long ring
+            Kind::Glass => {
+                if t < 0.05 {
+                    v * t / 0.05
+                } else if t < 0.06 {
+                    v
+                } else {
+                    v * (-(t - 0.06) / 1.6).exp()
+                }
+            }
+            // down to half in a moment, then a slow fall once it's let go
+            Kind::Ep => {
+                let held = |t: f32| v * 0.5 + v * 0.5 * (-(t - 0.02) / 0.4).exp();
+                if t < 0.02 {
+                    v * t / 0.02
+                } else if t < self.dur {
+                    held(t)
+                } else {
+                    held(self.dur) * (-(t - self.dur) / 0.8).exp()
+                }
+            }
+            // plucked and left to ring
+            Kind::Bell => {
+                if t < 0.004 {
+                    v * t / 0.004
+                } else if t < 0.01 {
+                    v
+                } else {
+                    v * (-(t - 0.01) / 0.55).exp()
+                }
+            }
+        }
+    }
+}
+
+/// The music as sound: the score's notes played as they fall due, a block at a time. What comes out is the music's
+/// own bus, before its level and the room.
+pub struct Player {
+    rate: f32,
+    score: Score,
+    frame: u64,
+    /// the pad: four voices of two triangles a little apart, gliding to each new chord
+    pad_freq: [f32; 4],
+    pad_to: [f32; 4],
+    pad_phase: [[f32; 2]; 4],
+    pad_filter: Biquad,
+    pad_level: f32,
+    pad_level_to: f32,
+    /// the air: a few seconds of softened noise, looped, through a filter that slowly breathes
+    air: [Vec<f32>; 2],
+    air_at: usize,
+    air_filter: [Biquad; 2],
+    tones: Vec<Tone>,
+    /// events written, waiting for their time
+    waiting: Vec<Event>,
+    /// the music comes in over its first seconds
+    fade_in: bool,
+}
+
+impl Player {
+    /// `fade_in`: the music comes in over three seconds, as it does when it starts under the shelf.
+    pub fn new(score: Score, rate: u32, seed: u64, fade_in: bool) -> Player {
+        let rate = rate as f32;
+        let mut rng = Rng(seed | 1);
+        let n = (rate * 4.0) as usize;
+        let mut air = [vec![0.0f32; n], vec![0.0f32; n]];
+        if score.track.air > 0.0 {
+            for ch in air.iter_mut() {
+                let mut smooth = 0.0f32;
+                for s in ch.iter_mut() {
+                    smooth += (rng.noise() - smooth) * 0.02;
+                    *s = smooth * 6.0;
+                }
+            }
+        }
+        let mut pad_filter = Biquad::default();
+        pad_filter.set(Filter::Lowpass, 850.0, 0.3, rate);
+        Player {
+            rate,
+            score,
+            frame: 0,
+            pad_freq: [220.0; 4],
+            pad_to: [220.0; 4],
+            pad_phase: [[0.0; 2]; 4],
+            pad_filter,
+            pad_level: 0.0,
+            pad_level_to: 0.0,
+            air,
+            air_at: 0,
+            air_filter: Default::default(),
+            tones: Vec::new(),
+            waiting: Vec::new(),
+            fade_in,
+        }
+    }
+
+    pub fn score(&mut self) -> &mut Score {
+        &mut self.score
+    }
+
+    fn start(&mut self, e: Event) {
+        const DRONE: &[(f32, f32, f32)] = &[(1.0, 1.0, 0.0), (2.0, 0.25, 4.0), (1.0, 0.5, -3.0)];
+        const GLASS: &[(f32, f32, f32)] = &[(1.0, 1.0, 0.0), (2.001, 0.1, 0.0), (3.003, 0.03, 0.0)];
+        const BELL: &[(f32, f32, f32)] = &[(1.0, 1.0, 0.0), (2.0, 0.16, 0.0), (5.4, 0.05, 0.0)];
+        const EP: &[(f32, f32, f32)] = &[(1.0, 1.0, 0.0)];
+        let tone = |start: f64, len: f64, note: i32, partials, kind, vel: f64, dur: f64, pan: Option<f64>| Tone {
+            start,
+            end: start + len,
+            freq: pitch(note),
+            partials,
+            phases: [0.0; 3],
+            kind,
+            vel: vel as f32,
+            dur: dur as f32,
+            pan: pan.map(|p| p as f32),
+            bend: 0.0,
+        };
+        match e {
+            Event::Pad { notes, glide, .. } => {
+                for (i, n) in notes.into_iter().enumerate() {
+                    self.pad_to[i] = pitch(n);
+                    if !glide {
+                        self.pad_freq[i] = self.pad_to[i];
+                    }
+                }
+            }
+            Event::PadLevel { level, .. } => self.pad_level_to = level as f32,
+            Event::Drone { note, at, dur, vel } => self.tones.push(tone(at, dur + 6.0, note, DRONE, Kind::Drone, vel, dur, None)),
+            Event::Glass { note, at, vel, pan } => self.tones.push(tone(at, 7.0, note, GLASS, Kind::Glass, vel, 0.0, Some(pan))),
+            Event::Ep { note, at, dur, vel, pan } => self.tones.push(tone(at, dur + 4.0, note, EP, Kind::Ep, vel, dur, Some(pan))),
+            Event::Bell { note, at, vel, pan } => self.tones.push(tone(at, 2.4, note, BELL, Kind::Bell, vel, 0.0, Some(pan))),
+        }
+    }
+
+    /// The next `n` frames of the music's bus.
+    pub fn fill(&mut self, n: usize) -> [Vec<f32>; 2] {
+        let rate = self.rate;
+        let d = self.score.track;
+        let mut out = [vec![0.0f32; n], vec![0.0f32; n]];
+        let (glide, swell) = (1.0 - (-1.0 / (d.glide as f32 / 3.0 * rate)).exp(), 1.0 - (-1.0 / (2.2 * rate)).exp());
+        let at_time = |e: &Event| match e {
+            Event::Pad { at, .. } | Event::PadLevel { at, .. } | Event::Drone { at, .. } | Event::Glass { at, .. } | Event::Ep { at, .. } | Event::Bell { at, .. } => *at,
+        };
+        for i in 0..n {
+            let now = self.frame as f64 / f64::from(rate);
+            // the eighths that fall due are written, and what they ask for starts at its time
+            while self.score.next_at() <= now {
+                let written = self.score.step();
+                self.waiting.extend(written);
+            }
+            if self.waiting.iter().any(|e| at_time(e) <= now) {
+                let (due, later): (Vec<Event>, Vec<Event>) = std::mem::take(&mut self.waiting).into_iter().partition(|e| at_time(e) <= now);
+                self.waiting = later;
+                for e in due {
+                    self.start(e);
+                }
+            }
+            // the pad
+            let mut pad = 0.0f32;
+            for v in 0..4 {
+                self.pad_freq[v] += (self.pad_to[v] - self.pad_freq[v]) * glide;
+                for (k, apart) in [-6.0f32, 6.0].into_iter().enumerate() {
+                    let p = &mut self.pad_phase[v][k];
+                    pad += if *p < 0.25 { 4.0 * *p } else if *p < 0.75 { 2.0 - 4.0 * *p } else { 4.0 * *p - 4.0 };
+                    *p = (*p + self.pad_freq[v] * cents(apart) / rate) % 1.0;
+                }
+            }
+            self.pad_level += (self.pad_level_to - self.pad_level) * swell;
+            let pad = self.pad_filter.run(pad) * self.pad_level;
+            let (mut left, mut right) = (pad, pad);
+            // the air
+            if d.air > 0.0 {
+                if self.frame.is_multiple_of(64) {
+                    let hz = d.air_hz as f32 * (1.0 + 0.35 * (2.0 * PI * 0.05 * now as f32).sin());
+                    for f in self.air_filter.iter_mut() {
+                        f.set(Filter::Bandpass, hz, 0.4, rate);
+                    }
+                }
+                let level = 0.05 * d.air as f32;
+                left += self.air_filter[0].run(self.air[0][self.air_at]) * level;
+                right += self.air_filter[1].run(self.air[1][self.air_at]) * level;
+                self.air_at = (self.air_at + 1) % self.air[0].len();
+            }
+            // the notes
+            for t in self.tones.iter_mut() {
+                let age = (now - t.start) as f32;
+                let level = t.level(age);
+                let mut s = 0.0f32;
+                if t.kind == Kind::Ep {
+                    // a sine bent by a sine at the same pitch: the bark fades in a moment
+                    let depth = t.freq * 0.08 + (t.freq * (0.6 + t.vel * 4.0) - t.freq * 0.08) * (-age / 0.25).exp();
+                    s = t.phases[0].sin();
+                    t.phases[0] = (t.phases[0] + 2.0 * PI * (t.freq + depth * t.bend.sin()) / rate) % (2.0 * PI);
+                    t.bend = (t.bend + 2.0 * PI * t.freq / rate) % (2.0 * PI);
+                } else {
+                    for (k, (ratio, amp, apart)) in t.partials.iter().enumerate() {
+                        s += t.phases[k].sin() * amp;
+                        t.phases[k] = (t.phases[k] + 2.0 * PI * t.freq * ratio * cents(*apart) / rate) % (2.0 * PI);
+                    }
+                }
+                let s = s * level;
+                match t.pan {
+                    Some(pan) => {
+                        let x = (pan.clamp(-1.0, 1.0) + 1.0) / 2.0 * PI / 2.0;
+                        left += s * x.cos();
+                        right += s * x.sin();
+                    }
+                    None => {
+                        left += s;
+                        right += s;
+                    }
+                }
+            }
+            let come_in = if self.fade_in { (now as f32 / 3.0).min(1.0) } else { 1.0 };
+            out[0][i] = left * come_in;
+            out[1][i] = right * come_in;
+            self.frame += 1;
+            if self.frame.is_multiple_of(4096) {
+                let now = self.frame as f64 / f64::from(rate);
+                self.tones.retain(|t| t.end > now);
+            }
+        }
+        out
+    }
+}
+
+/// The music from its bus to the speakers: its level, some of it through the room, the lift the limiter gives quiet
+/// sound, the interface's volume.
+pub struct Chain {
+    room: RoomStream,
+    lift: f32,
+}
+
+impl Chain {
+    pub fn new(rate: u32) -> Chain {
+        Chain { room: RoomStream::new(rate as f32), lift: makeup() }
+    }
+
+    /// `level`: the music's level setting (0 to 1), for each frame of the block; `volume`: the interface's.
+    pub fn run(&mut self, bus: &[Vec<f32>; 2], level: &[f32], volume: f32) -> [Vec<f32>; 2] {
+        let amb: [Vec<f32>; 2] = [0, 1].map(|ch| bus[ch].iter().zip(level).map(|(s, l)| s * l * GAIN).collect());
+        let wet: [Vec<f32>; 2] = [0, 1].map(|ch| amb[ch].iter().map(|s| s * ROOM).collect());
+        let room = self.room.run(&wet);
+        [0, 1].map(|ch| amb[ch].iter().zip(&room[ch]).map(|(dry, r)| (dry + saturate(r * 0.9)) * self.lift * volume).collect())
+    }
+}
+
+/// Some seconds of a track from its start, as the Electron app's `renderMusic` gives them (for comparing the two).
+pub fn render(track: &'static Track, seed: u32, tonic: i32, seconds: f32, level: f32, volume: f32, rate: u32) -> Stereo {
+    let mut player = Player::new(Score::new(track, seed, 0.05, tonic), rate, u64::from(seed) + 17, false);
+    let mut chain = Chain::new(rate);
+    let (mut left, mut right) = (Vec::new(), Vec::new());
+    let total = (seconds * rate as f32) as usize;
+    while left.len() < total {
+        let n = (total - left.len()).min(16_384);
+        let [l, r] = chain.run(&player.fill(n), &vec![level; n], volume);
+        left.extend(l);
+        right.extend(r);
+    }
+    Stereo { rate, left, right }
+}

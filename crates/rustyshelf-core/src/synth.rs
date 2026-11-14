@@ -19,7 +19,7 @@ pub const TRIM: f32 = 0.27;
 /// part of the note's length.
 pub type Partial = (f32, f32, f32);
 
-struct Rng(u64);
+pub(crate) struct Rng(pub(crate) u64);
 
 impl Rng {
     /// 0 up to 1.
@@ -30,7 +30,7 @@ impl Rng {
         (self.0 >> 40) as f32 / (1u64 << 24) as f32
     }
 
-    fn noise(&mut self) -> f32 {
+    pub(crate) fn noise(&mut self) -> f32 {
         self.next() * 2.0 - 1.0
     }
 }
@@ -45,7 +45,7 @@ pub enum Filter {
 
 /// WebAudio's BiquadFilterNode: `q` is in dB for a lowpass and a highpass, plain for a bandpass.
 #[derive(Default)]
-struct Biquad {
+pub(crate) struct Biquad {
     b: [f32; 3],
     a: [f32; 2],
     x: [f32; 2],
@@ -53,7 +53,7 @@ struct Biquad {
 }
 
 impl Biquad {
-    fn set(&mut self, kind: Filter, freq: f32, q: f32, rate: f32) {
+    pub(crate) fn set(&mut self, kind: Filter, freq: f32, q: f32, rate: f32) {
         let f = (freq / (rate / 2.0)).clamp(0.0, 1.0);
         let (b, a0, a1, a2);
         match kind {
@@ -87,7 +87,7 @@ impl Biquad {
         self.a = [a1 / a0, a2 / a0];
     }
 
-    fn run(&mut self, x: f32) -> f32 {
+    pub(crate) fn run(&mut self, x: f32) -> f32 {
         let y = self.b[0] * x + self.b[1] * self.x[0] + self.b[2] * self.x[1] - self.a[0] * self.y[0] - self.a[1] * self.y[1];
         self.x = [x, self.x[0]];
         self.y = [y, self.y[0]];
@@ -137,6 +137,8 @@ pub struct Hit {
     /// a soft octave below, at this level
     pub under: Option<f32>,
     pub breath: Option<f32>,
+    /// how far the menu music steps back for it (0 to 1); not part of its own sound
+    pub duck: Option<f32>,
 }
 
 /// Shaped noise: transients, whooshes, breath.
@@ -229,7 +231,7 @@ macro_rules! setters {
     };
 }
 
-setters!(Hit: freq, dur, vol, at, pan, verb, bright, thump, attack, noise, glide, glide_time, under, breath);
+setters!(Hit: freq, dur, vol, at, pan, verb, bright, thump, attack, noise, glide, glide_time, under, breath, duck);
 setters!(Air: at, dur, vol, freq, sweep_to, q, verb, pan, attack, hold);
 setters!(Fm: freq, at, dur, vol, ratio, index, floor, bright, pan, verb, detune, attack);
 setters!(Pad: at, dur, vol, from, to, open, attack, hold, q, verb);
@@ -570,7 +572,7 @@ fn through_tail(sig: &[f32], rate: f32, ch: usize) -> Vec<f32> {
 }
 
 /// The room every cue shares: a few early reflections placed left and right, and a soft diffuse tail.
-fn room(wet: &[Vec<f32>; 2], rate: f32) -> [Vec<f32>; 2] {
+fn room(wet: &[Vec<f32>; 2], rate: f32, soften: &mut [Biquad; 2]) -> [Vec<f32>; 2] {
     const TAPS: [(f32, f32, f32); 4] = [(0.011, 0.5, -0.6), (0.019, 0.38, 0.6), (0.029, 0.3, -0.25), (0.041, 0.22, 0.35)];
     let ir = impulse(rate);
     let n = wet[0].len() + ir[0].len();
@@ -588,7 +590,7 @@ fn room(wet: &[Vec<f32>; 2], rate: f32) -> [Vec<f32>; 2] {
         }
     }
     for ch in 0..2 {
-        let mut hc = Biquad::default();
+        let hc = &mut soften[ch];
         hc.set(Filter::Lowpass, 3600.0, 1.0, rate);
         let soft: Vec<f32> = wet[ch].iter().map(|s| hc.run(*s)).collect();
         for (o, s) in out[ch].iter_mut().zip(through_tail(&soft, rate, ch)) {
@@ -596,6 +598,48 @@ fn room(wet: &[Vec<f32>; 2], rate: f32) -> [Vec<f32>; 2] {
         }
     }
     out
+}
+
+/// The room for sound that goes on: a block goes in, the room's sound over the same span comes out, and what rings
+/// on is kept for the blocks after.
+pub(crate) struct RoomStream {
+    rate: f32,
+    soften: [Biquad; 2],
+    ringing: [Vec<f32>; 2],
+}
+
+impl RoomStream {
+    pub(crate) fn new(rate: f32) -> RoomStream {
+        RoomStream { rate, soften: Default::default(), ringing: [Vec::new(), Vec::new()] }
+    }
+
+    pub(crate) fn run(&mut self, wet: &[Vec<f32>; 2]) -> [Vec<f32>; 2] {
+        let n = wet[0].len();
+        let full = room(wet, self.rate, &mut self.soften);
+        let mut out = [Vec::new(), Vec::new()];
+        for ch in 0..2 {
+            let ring = &mut self.ringing[ch];
+            if ring.len() < full[ch].len() {
+                ring.resize(full[ch].len(), 0.0);
+            }
+            for (r, s) in ring.iter_mut().zip(&full[ch]) {
+                *r += s;
+            }
+            out[ch] = ring.drain(..n).collect();
+        }
+        out
+    }
+}
+
+/// The limiter's lift of everything under its threshold.
+pub(crate) fn makeup() -> f32 {
+    (1.0 / Curve::new().shape(1.0)).powf(0.6)
+}
+
+/// Gentle saturation: a little body for pure tones without sounding distorted.
+pub(crate) fn saturate(x: f32) -> f32 {
+    const BODY: f32 = 1.15;
+    (x.clamp(-1.0, 1.0) * BODY).tanh() / BODY.tanh()
 }
 
 // ---------- the limiter (WebAudio's DynamicsCompressorNode: threshold -10 dB, knee 4 dB, ratio 12, 2 ms, 90 ms) ----------
@@ -750,13 +794,10 @@ pub fn render(voices: &[Voice], tone: &Tone, level: f32, rate: u32, volume: f32,
     if level != 1.0 {
         mix.dry.iter_mut().chain(mix.wet.iter_mut()).flatten().for_each(|s| *s *= level);
     }
-    let mut out = room(&mix.wet, mix.rate);
-    // gentle saturation gives the pure tones a little body without sounding distorted
-    let body = 1.15f32;
+    let mut out = room(&mix.wet, mix.rate, &mut Default::default());
     for ch in 0..2 {
         for (i, o) in out[ch].iter_mut().enumerate() {
-            let x = (*o * 0.9 + mix.dry[ch].get(i).copied().unwrap_or(0.0)).clamp(-1.0, 1.0);
-            *o = (x * body).tanh() / body.tanh();
+            *o = saturate(*o * 0.9 + mix.dry[ch].get(i).copied().unwrap_or(0.0));
         }
     }
     limit(&mut out, mix.rate);
