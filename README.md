@@ -530,6 +530,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   them in the Electron app's Settings.
   A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
   under the console's band, and a back with four small scenes, its description and what Details knows of it.
+- Covers a console's game starting with the Electron app's boot slide: the console's own colours and lettering,
+  the game's cover and title, what starts it, and a line filling (their moving backgrounds aren't drawn yet).
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,
   else RetroArch with the console's core; with the options the emulator in use takes (a standalone retro emulator,
   Ryujinx, Dolphin's settings for the session, the GameCube startup), the real Xenia behind Xenia Manager, a PS Vita game

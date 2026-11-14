@@ -2077,5 +2077,84 @@
    "upper": false,
    "italic": true
   }
+ },
+ "boot": {
+  "": {
+   "ink": "#fff",
+   "dim": "rgba(255,255,255,.7)",
+   "acc": "#9d8cff",
+   "bg": "#0b0d1f",
+   "cover-shadow": "rgba(0,0,0,.55)"
+  },
+  "wii": {
+   "bg": "radial-gradient(ellipse 80% 70% at 50% 45%,#ffffff,#e6ebf2 70%,#d3dae4)",
+   "ink": "#3b414b",
+   "dim": "#7d8592",
+   "acc": "#34bdf2",
+   "cover-shadow": "rgba(40,60,90,.28)",
+   "word": "linear-gradient(180deg,#9aa1ab,#6c737e)"
+  },
+  "wiiu": {
+   "bg": "linear-gradient(135deg,#0c9fe0,#0a6fc2 55%,#08458a)",
+   "acc": "#ffffff",
+   "dim": "rgba(255,255,255,.75)",
+   "word": "#fff"
+  },
+  "sw": {
+   "bg": "radial-gradient(ellipse 80% 70% at 50% 40%,#ff2a3b,#e60012 55%,#a3000d)",
+   "acc": "#ffffff",
+   "dim": "rgba(255,255,255,.8)",
+   "cover-shadow": "rgba(80,0,0,.45)",
+   "ratio": ".62",
+   "word": "#fff"
+  },
+  "psp": {
+   "bg": "radial-gradient(ellipse 90% 70% at 50% 60%,#16171d,#000 75%)",
+   "acc": "#d9dcea",
+   "ratio": ".585",
+   "word": "linear-gradient(180deg,#fff,#a9adbb)"
+  },
+  "ps3": {
+   "bg": "radial-gradient(ellipse 90% 70% at 50% 40%,#173a7a,#0a1c44 50%,#030814)",
+   "acc": "#9cc9ff",
+   "ratio": ".8",
+   "word": "linear-gradient(180deg,#fff,#b9d4ff)"
+  },
+  "ps2": {
+   "bg": "radial-gradient(ellipse 80% 70% at 50% 70%,#0d2160,#040a22 55%,#000)",
+   "acc": "#7f9cff",
+   "word": "linear-gradient(180deg,#fff,#9fb0ff)"
+  },
+  "ps4": {
+   "bg": "radial-gradient(ellipse 80% 70% at 30% 30%,#2b64d6,#0d2f7a 50%,#04102e)",
+   "acc": "#bcd6ff",
+   "ratio": ".8",
+   "word": "#fff"
+  },
+  "x360": {
+   "bg": "radial-gradient(circle at 50% 50%,#9be86a 0,#3fb13f 18%,#127a12 45%,#063806 80%,#021a02)",
+   "acc": "#d8ffc8",
+   "dim": "rgba(235,255,230,.8)",
+   "cover-shadow": "rgba(0,30,0,.5)",
+   "word": "#fff"
+  },
+  "gc": {
+   "bg": "radial-gradient(ellipse 85% 75% at 62% 45%,#4a35a8,#24186a 45%,#0c0828 85%)",
+   "acc": "#c7b8ff",
+   "dim": "rgba(225,215,255,.78)",
+   "cover-shadow": "rgba(10,0,40,.55)",
+   "word": "linear-gradient(180deg,#fff,#cbbfff)"
+  },
+  "other": {
+   "bg": "radial-gradient(ellipse 80% 70% at 50% 40%,var(--bs-t0),var(--bs-t1) 75%)"
+  },
+  "n3ds": {
+   "bg": "radial-gradient(ellipse 85% 75% at 50% 45%,#ffffff,#eef0f4 65%,#d9dde5)",
+   "ink": "#2c3038",
+   "dim": "#737a87",
+   "acc": "#e60012",
+   "cover-shadow": "rgba(60,20,30,.28)",
+   "word": "linear-gradient(180deg,#ff3d4f,#c4000f)"
+  }
  }
 }

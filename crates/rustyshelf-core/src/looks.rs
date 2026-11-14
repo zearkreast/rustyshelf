@@ -163,11 +163,33 @@ impl Lettering {
     }
 }
 
+/// The boot slide's colours as the style sheet has them for a console: only what it changes.
+#[derive(Deserialize, Default, Clone)]
+struct BootVars {
+    bg: Option<String>,
+    ink: Option<String>,
+    dim: Option<String>,
+    acc: Option<String>,
+    word: Option<String>,
+}
+
+/// The slide a console's game starts behind: its backdrop (a CSS background), the colours of its words, of its
+/// quieter words and of its line, and what the console's name is lettered in there (None: the shelf's own).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Boot {
+    pub bg: String,
+    pub ink: Rgba,
+    pub dim: Rgba,
+    pub acc: Rgba,
+    pub word: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct Table {
     style: HashMap<String, Look>,
     wordmarks: HashMap<String, (String, String)>,
     lettering: HashMap<String, Lettering>,
+    boot: HashMap<String, BootVars>,
 }
 
 static TABLE: LazyLock<Table> = LazyLock::new(|| serde_json::from_str(include_str!("../data/looks.json")).expect("data/looks.json"));
@@ -187,6 +209,26 @@ pub fn wordmark(shelf: &str) -> Option<(&'static str, &'static str)> {
 pub fn lettering(shelf: &str) -> &'static Lettering {
     let id = if shelf.starts_with("col-") { "home" } else { shelf };
     TABLE.lettering.get(id).unwrap_or_else(|| &TABLE.lettering[""])
+}
+
+/// The boot slide of the shelf `shelf`: its console's own, the Switch's for the Switch 2, and for a console
+/// without one the shelf's colours.
+pub fn boot(shelf: &str) -> Boot {
+    let id = if shelf == "sw2" { "sw" } else { shelf };
+    let (plain, own) = (&TABLE.boot[""], TABLE.boot.get(id).filter(|_| !id.is_empty() && id != "other"));
+    let own_or = |pick: fn(&BootVars) -> &Option<String>| own.and_then(|o| pick(o).clone()).or_else(|| pick(plain).clone()).unwrap_or_default();
+    let style = look(shelf);
+    let css = |c: Rgba| format!("rgba({},{},{},{})", (c[0] * 255.0).round(), (c[1] * 255.0).round(), (c[2] * 255.0).round(), c[3]);
+    match own {
+        Some(o) => Boot { bg: own_or(|b| &b.bg), ink: parse_css(&own_or(|b| &b.ink)), dim: parse_css(&own_or(|b| &b.dim)), acc: parse_css(&own_or(|b| &b.acc)), word: o.word.clone() },
+        None => Boot {
+            bg: TABLE.boot.get("other").and_then(|o| o.bg.clone()).unwrap_or_default().replace("var(--bs-t0)", &css(style.tint[0])).replace("var(--bs-t1)", &css(style.tint[1])),
+            ink: parse_css(&own_or(|b| &b.ink)),
+            dim: parse_css(&own_or(|b| &b.dim)),
+            acc: style.glow,
+            word: None,
+        },
+    }
 }
 
 /// The case a game stands in on the shelf `shelf` (its own shelf, also when it's shown on Home): the shelf's, or
@@ -223,6 +265,12 @@ mod tests {
         assert_eq!(wordmark("gc"), Some(("GameCube", "Home console")));
         assert_eq!(parse_css("#fff"), [1.0, 1.0, 1.0, 1.0]);
         assert_eq!(lettering("gc").grad, "linear-gradient(180deg,#e2dbff 10%,#8b75ff 95%)");
+        let wii = boot("wii");
+        assert_eq!((wii.ink, wii.acc, wii.word.as_deref()), (parse_css("#3b414b"), parse_css("#34bdf2"), Some("linear-gradient(180deg,#9aa1ab,#6c737e)")));
+        assert_eq!((boot("sw2"), boot("gc").dim), (boot("sw"), [225.0 / 255.0, 215.0 / 255.0, 1.0, 0.78]));
+        let snes = boot("snes");
+        assert!(snes.bg.starts_with("radial-gradient(ellipse 80% 70% at 50% 40%,rgba(") && !snes.bg.contains("var("), "{}", snes.bg);
+        assert_eq!((snes.acc, snes.ink, snes.word), (look("snes").glow, [1.0; 4], None));
         assert_eq!((lettering("gc").font.as_str(), lettering("gc").size_in(1280.0), lettering("media").upper), ("Chakra Petch", 30.72, false));
         assert_eq!((lettering("ps5").tag, lettering("col-c1").tag), (parse_css("#c8cfdd"), lettering("home").tag));
 

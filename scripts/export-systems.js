@@ -57,7 +57,14 @@ const looks = () => {
       }
     }
   }
-  return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS, lettering: wm }, null, 1) + '\n';
+  // the boot slide's colours for the consoles that have their own (renderer/bootslide.css .ins-slide.bs-<id>, and the
+  // gradient their name is lettered in there); "" is what the rest start from
+  const bs = fs.readFileSync(path.join(ROOT, 'renderer', 'bootslide.css'), 'utf8'), boot = {};
+  const vars = text => Object.fromEntries([...text.matchAll(/--bs-([a-z-]+):((?:[^;()}]|\([^()]*(?:\([^()]*\)[^()]*)*\))*)/g)].map(m => [m[1], m[2].trim()]));
+  boot[''] = vars(/\.ins-slide\{[^}]*\}/.exec(bs)[0]);
+  for (const m of bs.matchAll(/\.ins-slide\.bs-([a-z0-9]+)\{([^}]*)\}/g)) boot[m[1]] = { ...(boot[m[1]] || {}), ...vars(m[2]) };
+  for (const m of bs.matchAll(/\.bs-([a-z0-9]+) \.bs-word \.wm-main\{background:([^;}]*(?:\([^)]*\))?[^;}]*)/g)) if (boot[m[1]]) boot[m[1]].word = m[2].trim();
+  return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS, lettering: wm, boot }, null, 1) + '\n';
 };
 
 // the pictures and patterns the extra themes' backdrops are made of (renderer/themes-extra.js): they never change, so

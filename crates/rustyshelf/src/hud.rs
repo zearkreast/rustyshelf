@@ -77,7 +77,7 @@ pub struct Face(pub Handle<Font>);
 pub struct Lexend([Handle<Font>; 6]);
 
 impl Lexend {
-    fn font(&self, weight: u32, size: f32) -> TextFont {
+    pub fn font(&self, weight: u32, size: f32) -> TextFont {
         // small light letters on the dark shelf come out heavier here than in the browser: a weight lighter
         let weight = if size < 16.0 { weight.saturating_sub(100).max(300) } else { weight };
         let mut font = TextFont::from_font_size(FontSize::Px(size)).with_font(self.0[((weight.clamp(300, 800) - 300) / 100) as usize].clone());

@@ -2,6 +2,7 @@
 // Bevy systems take their data as arguments, and queries are types
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
+mod boot;
 mod hud;
 mod loading;
 mod music;
@@ -62,10 +63,11 @@ fn main() {
         .init_resource::<sound::Sounds>()
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
+        .init_resource::<boot::Slide>()
         .init_resource::<hud::Prompts>()
         .init_resource::<settings::Settings>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup))
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup).chain())
         .add_systems(
             Update,
             (
@@ -80,7 +82,7 @@ fn main() {
                 (shelf::apply_covers, shelf::reveal).chain(),
                 shelf::arrange,
                 (shelf::backdrop, shelf::moving).chain(),
-                (hud::update, hud::top, hud::hints, settings::draw).chain(),
+                (hud::update, hud::top, hud::hints, settings::draw, boot::run).chain(),
             )
                 .chain(),
         )

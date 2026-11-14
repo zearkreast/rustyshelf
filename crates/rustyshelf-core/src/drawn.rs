@@ -766,6 +766,12 @@ fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
 /// a glow of its colour under the letters. `scale` pixels to a pixel of the window; the letters sit `WORD_ROOM` in
 /// from the picture's edges, for the glow.
 pub fn wordmark(text: &str, lettering: &crate::looks::Lettering, window_w: f32, scale: f32) -> Picture {
+    lettered(text, lettering, lettering.size_in(window_w), &lettering.grad, true, scale)
+}
+
+/// A shelf's name in its own letters `size` pixels tall, filled with the CSS background `fill`, with the glow
+/// under them or without.
+pub fn lettered(text: &str, lettering: &crate::looks::Lettering, size: f32, fill: &str, glow: bool, scale: f32) -> Picture {
     let face = match lettering.font.as_str() {
         "Chakra Petch" => Face::Word(0),
         "Syne" => Face::Word(1),
@@ -778,7 +784,6 @@ pub fn wordmark(text: &str, lettering: &crate::looks::Lettering, window_w: f32, 
         _ => Face::Lexend(3),
     };
     let text = if lettering.upper { text.to_uppercase() } else { text.to_string() };
-    let size = lettering.size_in(window_w);
     let apart = lettering.spacing * size;
     let wide = text_width(face, &text, size) + apart * text.chars().count() as f32 + size * 0.1;
     let (w, h) = (((wide + 2.0 * WORD_ROOM) * scale).ceil() as u32, ((size + 2.0 * WORD_ROOM) * scale).ceil() as u32);
@@ -795,9 +800,9 @@ pub fn wordmark(text: &str, lettering: &crate::looks::Lettering, window_w: f32, 
     }
     let (w, h) = (w as usize, h as usize);
     let letters: Vec<f32> = c.pix.pixels().iter().map(|p| f32::from(p.alpha()) / 255.0).collect();
-    let glow = blurred(&letters, w, h, 8.0 * scale);
+    let glow = if glow { blurred(&letters, w, h, 8.0 * scale) } else { vec![0.0; w * h] };
     // the gradient runs over the letters' own box
-    let fill = crate::cssbg::paint(&lettering.grad, (wide * scale).round().max(1.0) as u32, (size * scale).round().max(1.0) as u32, scale);
+    let fill = crate::cssbg::paint(fill, (wide * scale).round().max(1.0) as u32, (size * scale).round().max(1.0) as u32, scale);
     let (room, drop) = ((WORD_ROOM * scale).round() as usize, (2.0 * scale).round() as usize);
     let mut rgba = vec![0u8; w * h * 4];
     for y in 0..h {

@@ -175,6 +175,12 @@ pub struct Covers {
 }
 
 impl Covers {
+    /// A game's cover as it's on the shelf `own`, once it's loaded.
+    pub fn of(&self, g: &rustyshelf_core::scanner::Game, own: &str) -> Option<Handle<Image>> {
+        let key = cover_of(g, own, &looks::look_for(own, g)).0.key();
+        self.loaded.get(&key).and_then(|c| c.as_ref()).map(|c| c.0.clone())
+    }
+
     /// Puts a picture on a sheet: at once when it's loaded, else when it arrives.
     fn want(&mut self, art: Art, sheet: Sheet, loader: &ArtLoader, materials: &mut Assets<StandardMaterial>) {
         let key = art.key();
@@ -217,7 +223,7 @@ fn lit(hue: f32, saturation: f32) -> Color {
 }
 
 /// A CSS cubic-bezier(x1, y1, x2, y2) timing curve at `t`.
-fn bezier([x1, y1, x2, y2]: [f32; 4], t: f32) -> f32 {
+pub fn bezier([x1, y1, x2, y2]: [f32; 4], t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     let at = |a: f32, b: f32, s: f32| 3.0 * a * s * (1.0 - s) * (1.0 - s) + 3.0 * b * s * s * (1.0 - s) + s * s * s;
     let (mut lo, mut hi) = (0.0, 1.0);

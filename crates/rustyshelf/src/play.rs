@@ -214,6 +214,8 @@ pub fn navigate(
     mut held: Local<padwatch::Held>,
     mut sounds: ResMut<crate::sound::Sounds>,
     mut surprise: ResMut<Surprise>,
+    mut slide: ResMut<crate::boot::Slide>,
+    covers: Res<crate::shelf::Covers>,
 ) {
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
@@ -459,6 +461,10 @@ pub fn navigate(
             playing.combo = combo;
             playing.starting = Some(Mutex::new(rx));
             sounds.play_later("boot", now, 0.7);
+            // the console's boot slide covers the emulator starting, unless it's switched off for this console
+            if l.config.raw().get("systems").and_then(|s| s.get(&own.id)).and_then(|s| s.get("insertAnim")) != Some(&false.into()) {
+                slide.start(now, &own.id, &g.title, &crate::settings::emulator_of(own), covers.of(g, &own.id));
+            }
         }
         (_, Source::App { path }) => match launch::launch_app(&g.title, path, &l.app_root) {
             Ok(child) => {
