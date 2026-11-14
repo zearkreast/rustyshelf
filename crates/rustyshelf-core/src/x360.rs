@@ -165,7 +165,7 @@ pub fn stfs_info(file: &Path) -> Option<Package> {
         _ => return None,
     };
     let u16be = |at: usize| {
-        let units: Vec<u16> = h[at..at + 0x80].chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+        let units: Vec<u16> = h[at..at + 0x80].as_chunks::<2>().0.iter().map(|c| u16::from_be_bytes(*c)).collect();
         let s = String::from_utf16_lossy(&units);
         let s = s.split('\0').next().unwrap_or("");
         s.split_whitespace().collect::<Vec<_>>().join(" ")
