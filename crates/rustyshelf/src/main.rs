@@ -42,6 +42,7 @@ fn main() {
         }))
         .insert_resource(loading::start_library())
         .init_resource::<loading::Refresh>()
+        .init_resource::<loading::Base>()
         .insert_resource(loading::ArtLoader::start())
         .init_resource::<shelf::Cursor>()
         .init_resource::<shelf::Covers>()

@@ -68,7 +68,7 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
             (Line::Details, Text::default(), font(2.2), TextColor(DIM)),
             (
                 Node { margin: UiRect::top(vmin(2.0)), ..default() },
-                Text::new("◀ ▶  Game      Q / E · LB / RB  Console      Enter · A  Play      F1 · Start  Settings      Esc  Quit"),
+                Text::new("◀ ▶  Game      Q / E · LB / RB  Console      Enter · A  Play      D · X  Details      M · Y  Menu      F1 · Start  Settings      Esc  Quit"),
                 font(1.9),
                 TextColor(DIM),
             ),
@@ -76,7 +76,7 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
     ));
 }
 
-fn size(bytes: u64) -> String {
+pub fn size(bytes: u64) -> String {
     let b = bytes as f64;
     if b >= 1e9 {
         format!("{:.1} GB", b / 1e9)
@@ -155,6 +155,9 @@ pub fn update(
         }
         LibraryState::Ready(l) => {
             let shelf = &l.shelves[cursor.shelf.min(l.shelves.len() - 1)];
+            if shelf.games.is_empty() {
+                note = "Nothing on this shelf with what's shown now. Change it in the menu (M, or Y on the pad).".into();
+            }
             tabs = l
                 .shelves
                 .iter()

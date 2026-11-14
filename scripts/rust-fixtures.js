@@ -575,9 +575,29 @@ async function placeFixtures() {
   return { files: PLACE.files, steps, sizes };
 }
 
+// a small LaunchBox index (made-up games) and what the game info lookup gives for each title
+const INFO = {
+  index: { v: 8, at: 1, games: { 'Nintendo GameCube': [
+    { id: '1', name: 'Zeta Run', n: 'zeta run', overview: 'A run.', release: '1999-11-21T00:00:00-08:00', year: '1999', dev: 'Made Up', pub: 'Made Up', genres: 'Racing; Sports', esrb: 'E - Everyone', players: '1-4', coop: 'true', rating: '3.456', wiki: 'https://example.invalid/w', video: 'https://example.invalid/v' },
+    { id: '2', name: 'Zeta Run', n: 'zeta run' }, { id: '3', name: 'Omega Quest: The Tale', n: 'omega quest tale', year: '2001', rating: '0' }, { id: '4', name: 'Tau Racers Deluxe', n: 'tau racers deluxe', genres: 'Racing' }, { id: '5', name: 'Sigma', n: 'sigma', rating: 'x' }],
+    'Nintendo Wii': [] },
+    images: { 1: [{ type: 'Box - Front', region: '', file: 'f/1.jpg' }, { type: 'Screenshot - Game Title', region: '', file: 's/title 1.jpg' }, { type: 'Screenshot - Gameplay', region: '', file: 's/play1.jpg' }, { type: 'Screenshot - Gameplay', region: '', file: 's/play2.jpg' },
+      { type: 'Fanart - Background', region: '', file: 'bg/1.jpg' }, { type: 'Clear Logo', region: '', file: 'logo/1.png' }], 2: [{ type: 'Box - Front', region: '', file: 'f/2.jpg' }], 4: [{ type: 'Disc', region: '', file: 'd/4.png' }] } },
+  asks: [['gc', 'Zeta Run'], ['gc', 'ZetaRun'], ['gc', 'zeta run!'], ['gc', 'Omega Quest - The Tale'], ['gc', 'OmegaQuestTale'], ['gc', 'Tau Racers'], ['gc', 'Sigma'], ['gc', 'Nothing Here'], ['wii', 'Zeta Run'], ['snes', 'Zeta Run'], ['nope', 'Zeta Run'], ['gc', 'Zeta Run - Definitive Edition']],
+};
+function infoFixtures() {
+  const covers = require('../main/covers'), data = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-info-'));
+  fs.mkdirSync(path.join(data, 'boxart-cache')); fs.writeFileSync(path.join(data, 'boxart-cache', 'launchbox-index.json'), JSON.stringify(INFO.index));
+  covers.init(data);
+  const out = { index: INFO.index, asks: INFO.asks.map(([sys, title]) => [sys, title, covers.gameInfo(sys, title)]) };
+  fs.rmSync(data, { recursive: true, force: true });
+  return JSON.parse(JSON.stringify(out));
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
+fs.writeFileSync(path.join(OUT, 'info.json'), JSON.stringify(infoFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'art.json'), JSON.stringify(artFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');

@@ -77,14 +77,16 @@ pub fn navigate(
     mut playing: ResMut<Playing>,
     mut plays: ResMut<Plays>,
     mut toast: ResMut<Toast>,
-    settings: Res<crate::settings::Settings>,
+    mut settings: ResMut<crate::settings::Settings>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    // Details' Play starts the game under the cursor
+    let asked = std::mem::take(&mut settings.play);
     // Settings has the keys while it's open
-    if settings.open || settings.just_closed {
+    if settings.open || (settings.just_closed && !asked) {
         return;
     }
-    if keys.just_pressed(KeyCode::Escape) {
+    if keys.just_pressed(KeyCode::Escape) && !asked {
         exit.write(AppExit::Success);
     }
     if playing.title.is_some() {
@@ -140,7 +142,7 @@ pub fn navigate(
         cursor.game = n.saturating_sub(1);
     }
 
-    let go = keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
+    let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
     let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
     match (&shelf.kind, &g.source) {
         // Steam starts it and looks after it; the shelf stays as it is

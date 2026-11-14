@@ -9,12 +9,16 @@ use bevy::prelude::*;
 use bevy::text::FontSize;
 use rustyshelf_core::config::Config;
 use rustyshelf_core::detect::{Detected, Detector};
+use rustyshelf_core::history::Played;
+use rustyshelf_core::library::ShelfKind;
+use rustyshelf_core::scanner::{Game, Source};
+use rustyshelf_core::shelfview::{self, SORTS};
 use rustyshelf_core::systems::{systems, Console};
 use rustyshelf_core::{emucfg, emuname, paths};
 use serde_json::{json, Value};
 
 use crate::hud::Face;
-use crate::loading::{self, LibraryRes};
+use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
 const STEEL: Color = Color::srgb(0.87, 0.89, 0.92);
@@ -41,6 +45,19 @@ enum Screen {
     Controller,
     System,
     Done,
+    /// the shelf's menu: its order, what's shown, the chosen game
+    Shelf,
+    Details,
+    Hidden,
+}
+
+/// The game the shelf's menu or Details was opened on.
+struct Chosen {
+    shelf: String,
+    /// the emulator its shelf names
+    emulator: String,
+    game: Game,
+    plays: Option<Played>,
 }
 
 type Press = Box<dyn Fn(&mut Settings) + Send + Sync>;
@@ -90,6 +107,15 @@ pub struct Settings {
     redraw: bool,
     /// something was saved since Settings opened: the shelves are read again when it closes
     changed: bool,
+    /// only what's shown changed (the order, the filter, a favourite, a hidden game): the shelves are arranged again,
+    /// not read again
+    rearranged: bool,
+    /// Details' Play was chosen: the shelf starts the game under its cursor
+    pub play: bool,
+    chosen: Option<Chosen>,
+    /// the filters this library can use, and every game's title by its id (for the hidden ones)
+    filters: Vec<(String, String)>,
+    titles: std::collections::HashMap<String, String>,
     note: String,
     repeat: (i32, f32),
 }
@@ -111,6 +137,11 @@ impl Default for Settings {
             picking: None,
             redraw: true,
             changed: false,
+            rearranged: false,
+            play: false,
+            chosen: None,
+            filters: Vec::new(),
+            titles: std::collections::HashMap::new(),
             note: String::new(),
             repeat: (0, 0.0),
         }
@@ -170,13 +201,30 @@ impl Settings {
         if let Err(e) = cfg.save(&paths::data_dir(&self.app_root)) {
             self.note = format!("The settings couldn't be saved ({e}).");
         }
-        self.changed = true;
         self.redraw = true;
     }
 
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
+        // what's shown of the shelves, not what's on them
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort"]) {
+            self.rearranged = true;
+        } else {
+            self.changed = true;
+        }
         self.save();
+    }
+
+    /// Adds an id to one of the settings' lists of game ids, or takes it out.
+    fn flip(&mut self, list: &'static str, id: &str) {
+        let mut ids = self.list(&["ui", list]);
+        match ids.iter().position(|x| x == id) {
+            Some(i) => {
+                ids.remove(i);
+            }
+            None => ids.push(id.to_string()),
+        }
+        self.set(&["ui", list], json!(ids));
     }
 
     fn toggle(&mut self, path: &[&str], default: bool) {
@@ -251,6 +299,7 @@ impl Settings {
                 put(&mut self.cfg, &["apps", &a.id, "enabled"], json!(there));
             }
         }
+        self.changed = true;
         self.save();
     }
 
@@ -344,6 +393,7 @@ impl Settings {
                     open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo", Screen::Controller),
+                    open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                     open("System", String::new(), "Search again, emulator setup", Screen::System),
                     Row { label: "Back to the shelf".into(), press: Some(Box::new(|s: &mut Settings| s.back())), ..Row::default() },
                 ],
@@ -627,6 +677,102 @@ impl Settings {
                     },
                 ],
             },
+            Screen::Shelf => {
+                let sort = self.text(&["ui", "sort"]);
+                let at = SORTS.iter().position(|x| x.0 == sort).unwrap_or(0);
+                let turn_sort = move |s: &mut Settings, d: i32| {
+                    let n = (at as i32 + d).rem_euclid(SORTS.len() as i32) as usize;
+                    s.set(&["ui", "sort"], json!(SORTS[n].0));
+                };
+                let filter = self.text(&["ui", "filter"]);
+                let fat = self.filters.iter().position(|f| f.0 == filter).unwrap_or(0);
+                let turn_filter = move |s: &mut Settings, d: i32| {
+                    if s.filters.is_empty() {
+                        return;
+                    }
+                    let n = (fat as i32 + d).rem_euclid(s.filters.len() as i32) as usize;
+                    let id = s.filters[n].0.clone();
+                    s.set(&["ui", "filter"], json!(id));
+                };
+                let mut rows = vec![
+                    Row { label: "Order".into(), value: SORTS[at].1.into(), hint: "The order of every shelf".into(), press: Some(Box::new(move |s: &mut Settings| turn_sort(s, 1))), step: Some(Box::new(turn_sort)) },
+                    Row {
+                        label: "Show".into(),
+                        value: self.filters.get(fat).map_or("All games".into(), |f| f.1.clone()),
+                        hint: "Which games every shelf shows".into(),
+                        press: Some(Box::new(move |s: &mut Settings| turn_filter(s, 1))),
+                        step: Some(Box::new(turn_filter)),
+                    },
+                ];
+                if let Some(c) = &self.chosen {
+                    let (id, id2) = (c.game.id.clone(), c.game.id.clone());
+                    let fav = self.list(&["ui", "favorites"]).contains(&c.game.id);
+                    rows.push(open(&format!("Details of {}", c.game.title), String::new(), "", Screen::Details));
+                    rows.push(Row {
+                        label: "Favorite".into(),
+                        value: on_off(fav),
+                        hint: c.game.title.clone(),
+                        press: Some(Box::new(move |s: &mut Settings| s.flip("favorites", &id))),
+                        step: Some(Box::new(move |s: &mut Settings, _| s.flip("favorites", &id2))),
+                    });
+                }
+                rows.push(open("Settings", String::new(), "", Screen::Root));
+                Page { title: "Shelf".into(), lead: String::new(), rows }
+            }
+            Screen::Details => {
+                let Some(c) = &self.chosen else { return Page { title: "Details".into(), lead: String::new(), rows: Vec::new() } };
+                let g = &c.game;
+                let (id, id2, id3) = (g.id.clone(), g.id.clone(), g.id.clone());
+                let fav = self.list(&["ui", "favorites"]).contains(&g.id);
+                let mut rows = vec![
+                    Row {
+                        label: "Play".into(),
+                        press: Some(Box::new(|s: &mut Settings| {
+                            s.play = true;
+                            s.open = false;
+                            s.redraw = true;
+                        })),
+                        ..Row::default()
+                    },
+                    Row {
+                        label: "Favorite".into(),
+                        value: on_off(fav),
+                        press: Some(Box::new(move |s: &mut Settings| s.flip("favorites", &id))),
+                        step: Some(Box::new(move |s: &mut Settings, _| s.flip("favorites", &id2))),
+                        ..Row::default()
+                    },
+                    Row {
+                        label: "Hide from the shelf".into(),
+                        hint: "It can be shown again in Settings → Hidden games".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            s.flip("hidden", &id3);
+                            s.open = false;
+                        })),
+                        ..Row::default()
+                    },
+                ];
+                rows.extend(facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }));
+                let about = g.info.as_ref().and_then(|i| i.overview.clone()).unwrap_or_default();
+                let about: String = if about.chars().count() > 420 { format!("{}…", about.chars().take(419).collect::<String>()) } else { about };
+                Page { title: g.title.clone(), lead: about, rows }
+            }
+            Screen::Hidden => {
+                let hidden = self.list(&["ui", "hidden"]);
+                let rows: Vec<Row> = hidden
+                    .iter()
+                    .map(|id| {
+                        let id2 = id.clone();
+                        Row {
+                            label: self.titles.get(id).cloned().unwrap_or_else(|| short(id)),
+                            value: "Show again".into(),
+                            hint: short(id),
+                            press: Some(Box::new(move |s: &mut Settings| s.flip("hidden", &id2))),
+                            step: None,
+                        }
+                    })
+                    .collect();
+                Page { title: "Hidden games".into(), lead: if rows.is_empty() { "No game is hidden. Details → Hide from the shelf takes one off its shelf.".into() } else { String::new() }, rows }
+            }
             Screen::Done => {
                 let on = systems().consoles.iter().filter(|c| self.flag(&["systems", &c.id, "enabled"], true) && !self.list(&["systems", &c.id, "romDirs"]).is_empty()).count();
                 Page {
@@ -648,6 +794,105 @@ impl Settings {
     }
 }
 
+/// A date the way Details writes it: "November 21, 1999" from a date that starts YYYY-MM-DD, else the year.
+fn release(date: Option<&str>, year: Option<&str>) -> String {
+    const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    let parsed = date.and_then(|d| {
+        let mut parts = d.get(..10)?.split('-').map(|p| p.parse::<u32>().ok());
+        let (y, m, day) = (parts.next()??, parts.next()??, parts.next()??);
+        Some(format!("{} {day}, {y}", MONTHS.get(m.checked_sub(1)? as usize)?))
+    });
+    parsed.or(year.map(String::from)).unwrap_or_default()
+}
+
+/// When a game was last played: "Today", "Yesterday", "5 days ago", else how long ago in months or years.
+fn last_played(ms: u64) -> String {
+    if ms == 0 {
+        return "Never".into();
+    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    match now.saturating_sub(ms) / 86_400_000 {
+        0 => "Today".into(),
+        1 => "Yesterday".into(),
+        d @ 2..=6 => format!("{d} days ago"),
+        d @ 7..=59 => format!("{} weeks ago", d / 7),
+        d @ 60..=729 => format!("{} months ago", d / 30),
+        d => format!("{} years ago", d / 365),
+    }
+}
+
+/// What Details says of a game, a name and a value a line.
+fn facts(c: &Chosen) -> Vec<(String, String)> {
+    let g = &c.game;
+    let i = g.info.clone().unwrap_or_default();
+    let mut rows: Vec<(&str, String)> = Vec::new();
+    let hours = |ms: u64| format!("{:.1} hours", ms as f64 / 3_600_000.0);
+    let playtime = match c.plays {
+        Some(p) if p.ms > 0 => hours(p.ms),
+        Some(p) if p.count > 0 => format!("Started {} time{}", p.count, if p.count == 1 { "" } else { "s" }),
+        _ => "Not played yet".into(),
+    };
+    let known = i.release.is_some() || i.year.is_some();
+    if known {
+        rows.push(("Released", release(i.release.as_deref(), i.year.as_deref())));
+    }
+    if let Some(dev) = &i.dev {
+        rows.push(("Developer", dev.clone()));
+    }
+    if let Some(p) = i.publisher.as_ref().filter(|p| i.dev.as_ref() != Some(p)) {
+        rows.push(("Publisher", p.clone()));
+    }
+    if let Some(genres) = &i.genres {
+        rows.push(("Genre", genres.replace(';', ", ")));
+    }
+    match &g.source {
+        Source::Rom => {
+            if let Some(p) = &i.players {
+                rows.push(("Players", format!("{p}{}", if i.coop.as_deref() == Some("true") { " (co-op)" } else { "" })));
+            }
+            if let Some(e) = &i.esrb {
+                rows.push(("Rating", e.split(" - ").next().unwrap_or(e).to_string()));
+            }
+            if let Some(r) = i.rating.filter(|r| *r != 0.0) {
+                rows.push(("Community score", format!("{r} / 5")));
+            }
+            rows.push(("Region", if g.region.is_empty() { "Unknown".into() } else { g.region.clone() }));
+            let discs = if g.discs.len() > 1 { format!("{} discs", g.discs.len()) } else { String::new() };
+            let file: Vec<String> = [g.ext.to_uppercase(), crate::hud::size(g.size_bytes), discs].into_iter().filter(|x| !x.is_empty()).collect();
+            rows.push(("File", file.join(" · ")));
+            rows.push(("Emulator", c.emulator.clone()));
+            rows.push(("Playtime", playtime));
+            rows.push(("Last played", last_played(c.plays.map_or(0, |p| p.last))));
+        }
+        Source::Steam { appid, .. } => {
+            if let Some(m) = i.metacritic.filter(|m| *m != 0.0) {
+                rows.push(("Metacritic", format!("{m} / 100")));
+            }
+            rows.push(("Playtime", playtime));
+            rows.push(("Last played", last_played(c.plays.map_or(0, |p| p.last))));
+            if g.size_bytes > 0 {
+                rows.push(("Install size", crate::hud::size(g.size_bytes)));
+            }
+            rows.push(("Steam ID", appid.clone()));
+        }
+        Source::Pc(pc) => {
+            rows.insert(0, ("Source", crate::hud::store_name(pc.source).to_string()));
+            if !pc.exe.is_empty() && !known {
+                rows.push(("Program", short(&pc.exe)));
+                if !pc.args.is_empty() {
+                    rows.push(("Launch options", pc.args.clone()));
+                }
+            }
+            rows.push(("Playtime", playtime));
+        }
+        Source::App { path } => {
+            rows.push(("Type", "Streaming app".into()));
+            rows.push(("Program", short(path)));
+        }
+    }
+    rows.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
+}
+
 #[derive(Component)]
 pub struct SettingsUi;
 
@@ -658,6 +903,8 @@ pub fn input(
     time: Res<Time>,
     mut s: ResMut<Settings>,
     mut lib: ResMut<LibraryRes>,
+    mut base: ResMut<Base>,
+    plays: Res<crate::play::Plays>,
     mut cursor: ResMut<Cursor>,
     playing: Res<crate::play::Playing>,
 ) {
@@ -666,12 +913,42 @@ pub fn input(
         if s.just_closed {
             s.just_closed = false;
         }
-        if playing.title.is_none() && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start)) {
-            s.open = true;
-            s.changed = false;
-            s.stack = vec![(Screen::Root, 0)];
-            s.redraw = true;
+        let first = if playing.title.is_some() {
+            None
+        } else if keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) {
+            Some(Screen::Root)
+        } else if keys.just_pressed(KeyCode::KeyM) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::North) {
+            Some(Screen::Shelf)
+        } else if keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) {
+            Some(Screen::Details)
+        } else {
+            None
+        };
+        let Some(first) = first else { return };
+        s.chosen = None;
+        if let LibraryState::Ready(l) = &lib.0 {
+            if let Some(shelf) = l.shelves.get(cursor.shelf) {
+                let emulator = match &shelf.kind {
+                    ShelfKind::Console { config, .. } if !config.emulator.is_empty() => emuname::label(&config.emulator),
+                    ShelfKind::Console { console, .. } => console.emulator_name.clone(),
+                    _ => String::new(),
+                };
+                s.chosen = shelf.games.get(cursor.game).map(|g| Chosen { shelf: shelf.id.clone(), emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
+            }
         }
+        if let Some(b) = &base.0 {
+            let all: Vec<&Game> = b.shelves.iter().flat_map(|sh| sh.games.iter()).collect();
+            s.filters = shelfview::filters(&all, &s.text(&["ui", "filter"]));
+            s.titles = all.iter().map(|g| (g.id.clone(), g.title.clone())).collect();
+        }
+        if first == Screen::Details && s.chosen.is_none() {
+            return;
+        }
+        s.open = true;
+        s.changed = false;
+        s.rearranged = false;
+        s.stack = vec![(first, 0)];
+        s.redraw = true;
         return;
     }
 
@@ -718,8 +995,13 @@ pub fn input(
         let p = pads.iter().map(|p| { let v = -(p.left_stick().y + p.dpad().y); if v > 0.5 { 1 } else if v < -0.5 { -1 } else { 0 } }).find(|&d| d != 0).unwrap_or(0);
         if k != 0 { k } else { p }
     };
+    // a tap can start and end within one frame, so it's never seen as held
+    let tap = (keys.just_pressed(KeyCode::ArrowDown) || pad(GamepadButton::DPadDown)) as i32 - (keys.just_pressed(KeyCode::ArrowUp) || pad(GamepadButton::DPadUp)) as i32;
     let mut move_by = 0;
-    if held != s.repeat.0 {
+    if tap != 0 {
+        s.repeat = (tap, now + 0.35);
+        move_by = tap;
+    } else if held != s.repeat.0 {
         s.repeat = (held, now + 0.35);
         move_by = held;
     } else if held != 0 && now >= s.repeat.1 {
@@ -752,11 +1034,26 @@ pub fn input(
     if !s.open {
         s.just_closed = true;
     }
-    // closed with something changed: the shelves are read again
+    // a change to what's shown only rearranges the shelves; any other reads them again once Settings closes
     if !s.open && s.changed {
         s.changed = false;
+        s.rearranged = false;
         *lib = loading::start_library();
         *cursor = Cursor::default();
+    } else if s.rearranged {
+        s.rearranged = false;
+        if let (Some(b), Some(cfg)) = (base.0.as_mut(), Config::from_value(&s.cfg)) {
+            b.config = cfg;
+            let fresh = loading::shown(b, &plays.0);
+            let keep = s.chosen.as_ref().map(|c| (c.shelf.clone(), c.game.id.clone()));
+            if let Some((shelf, game)) = keep {
+                cursor.shelf = fresh.shelves.iter().position(|sh| sh.id == shelf).unwrap_or(cursor.shelf.min(fresh.shelves.len().saturating_sub(1)));
+                let games = fresh.shelves.get(cursor.shelf).map_or(&[][..], |sh| sh.games.as_slice());
+                cursor.game = games.iter().position(|g| g.id == game).unwrap_or(cursor.game.min(games.len().saturating_sub(1)));
+            }
+            cursor.built = None;
+            lib.0 = LibraryState::Ready(fresh);
+        }
     }
 }
 

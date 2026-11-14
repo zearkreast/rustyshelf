@@ -555,6 +555,12 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   other stores, the PC games folder, box art downloads and their region, the art library, fullscreen, the quit combo,
   searching again and restoring the emulators' own settings. Everything is saved to `data\config.json` by the rules
   the Electron app's settings go through, so both apps keep reading the same file.
+- Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
+  the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
+  favorite. The choices are the Electron app's own, in the same settings.
+- Has Details (D, or X on the pad): the game's description, release date, developer, publisher, genre, players,
+  rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
+  with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
 **Not yet:** the rest of Settings (sound, themes, accounts, launch options, games added by hand, "Set up for me"), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
@@ -575,6 +581,9 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Choose a game | ← → | D-pad / left stick |
 | Change console | Q / E | LB / RB |
 | Play | Enter | A |
+| Details | D | X |
+| Shelf menu | M | Y |
+| Settings | F1 | Start |
 | Quit | Esc | |
 
 `cargo test --workspace` runs its tests, which compare its title and folder rules against the Electron app's own answers

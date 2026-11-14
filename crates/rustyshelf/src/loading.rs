@@ -20,8 +20,26 @@ pub enum LibraryState {
     Failed(String),
 }
 
+/// The shelves as they're shown: the games the filter keeps, in the order chosen.
 #[derive(Resource)]
 pub struct LibraryRes(pub LibraryState);
+
+/// Every game the library holds, as it was read: what the shown shelves are made from.
+#[derive(Resource, Default)]
+pub struct Base(pub Option<Library>);
+
+/// The library with each shelf's hidden games and the ones the filter leaves out gone, the rest in the order chosen
+/// (the settings' `ui.sort`, `ui.filter`, `ui.favorites`, `ui.hidden`).
+pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Library {
+    use rustyshelf_core::shelfview::{arrange, View};
+    let view = View::from_ui(base.config.raw().get("ui"));
+    let mut lib = base.clone();
+    for shelf in lib.shelves.iter_mut() {
+        let order = arrange(&shelf.id, &shelf.games, &view, history);
+        shelf.games = order.into_iter().map(|i| shelf.games[i].clone()).collect();
+    }
+    lib
+}
 
 /// The library being read again behind the shelf, after its lists or sizes changed.
 #[derive(Resource, Default)]
@@ -35,7 +53,7 @@ pub fn start_library() -> LibraryRes {
     LibraryRes(LibraryState::Loading(Mutex::new(rx)))
 }
 
-pub fn poll_library(mut lib: ResMut<LibraryRes>, mut refresh: ResMut<Refresh>, mut cursor: ResMut<crate::shelf::Cursor>) {
+pub fn poll_library(mut lib: ResMut<LibraryRes>, mut base: ResMut<Base>, plays: Res<crate::play::Plays>, mut refresh: ResMut<Refresh>, mut cursor: ResMut<crate::shelf::Cursor>) {
     if let LibraryState::Loading(rx) = &lib.0 {
         let got = rx.lock().unwrap().try_recv();
         match got {
@@ -51,7 +69,8 @@ pub fn poll_library(mut lib: ResMut<LibraryRes>, mut refresh: ResMut<Refresh>, m
                     }
                 });
                 refresh.0 = Some(Mutex::new(rx));
-                lib.0 = LibraryState::Ready(l);
+                lib.0 = LibraryState::Ready(shown(&l, &plays.0));
+                base.0 = Some(l);
             }
             Ok(Err(e)) => lib.0 = LibraryState::Failed(e.to_string()),
             Err(std::sync::mpsc::TryRecvError::Empty) => {}
@@ -61,7 +80,9 @@ pub fn poll_library(mut lib: ResMut<LibraryRes>, mut refresh: ResMut<Refresh>, m
     }
     let fresh = refresh.0.as_ref().map(|rx| rx.lock().unwrap().try_recv());
     match fresh {
-        Some(Ok(l)) => {
+        Some(Ok(fresh)) => {
+            let l = shown(&fresh, &plays.0);
+            base.0 = Some(fresh);
             // the same shelf and game stay under the cursor where they still exist
             let at = |lib: &Library| lib.shelves.get(cursor.shelf).map(|s| (s.id.clone(), s.games.get(cursor.game).map(|g| g.id.clone())));
             let was = match &lib.0 {

@@ -53,6 +53,8 @@ struct PcArt<'a> {
     boxes: bool,
     /// a store game's title (lower case) → the Steam app it was matched to
     steam_ids: HashMap<String, String>,
+    /// Steam's store info by app id
+    steam_infos: HashMap<String, crate::info::Info>,
     sizes: &'a ScanData,
 }
 
@@ -87,6 +89,7 @@ impl PcArt<'_> {
             art,
             hero: g.hero.or(hero),
             box_plat,
+            info: self.steam_infos.get(&g.appid).cloned(),
             source: Source::Steam { appid: g.appid, minutes: g.minutes, last_played: g.last_played },
             ..Game::default()
         }
@@ -96,7 +99,8 @@ impl PcArt<'_> {
         // a store's title names the Steam app whose art it gets; a recomp or a program added by hand often shares its
         // name with an unrelated Steam game
         let store = matches!(g.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder");
-        let (cover, hero) = store.then(|| self.steam_ids.get(&g.title.to_lowercase())).flatten().map(|sid| self.steam_art(sid)).unwrap_or_default();
+        let sid = store.then(|| self.steam_ids.get(&g.title.to_lowercase())).flatten();
+        let (cover, hero) = sid.map(|sid| self.steam_art(sid)).unwrap_or_default();
         let (art, box_plat) = self.case(&g.id, || {
             pccovers::auto_cover(self.data, &g.id).or_else(|| Some(&g.exe).filter(|e| !e.is_empty()).and_then(|e| pccovers::folder_cover(e))).or(cover)
         });
@@ -111,6 +115,7 @@ impl PcArt<'_> {
             hero,
             not_installed: g.installed == Some(false),
             box_plat,
+            info: sid.and_then(|sid| self.steam_infos.get(sid)).cloned(),
             source: Source::Pc(Box::new(g)),
             ..Game::default()
         }
@@ -214,12 +219,20 @@ impl Library {
             let shelves: Vec<Shelf> = jobs.into_iter().filter_map(|j| j.join().ok()).collect();
             (shelves, steam.join().unwrap_or_default(), pc.join().unwrap_or_default())
         });
-        for g in shelves.iter_mut().flat_map(|s| s.games.iter_mut()) {
-            if let Some(t) = config.game_title(&g.id) {
-                g.title = t.to_string();
+        // a console game's info goes by the name its art is looked up under: the one picked by hand (Details → Art
+        // match), else the title read from its file
+        let mut infos = crate::info::InfoCache::load(&data_dir.join("boxart-cache"));
+        for shelf in shelves.iter_mut() {
+            for g in shelf.games.iter_mut() {
+                let name = config.game(&g.id).and_then(|o| o.get("artName")).and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or(&g.title);
+                g.info = infos.get(&shelf.id, name);
+                if let Some(t) = config.game_title(&g.id) {
+                    g.title = t.to_string();
+                }
             }
         }
-        let art = PcArt { cfg: &config, data: &data_dir, boxes: config.pc_console_box(), steam_ids: pcgames::steam_ids(&data_dir), sizes: &data };
+        infos.flush();
+        let art = PcArt { cfg: &config, data: &data_dir, boxes: config.pc_console_box(), steam_ids: pcgames::steam_ids(&data_dir), steam_infos: crate::info::steam_infos(&data_dir), sizes: &data };
         let mut pc: Vec<Game> = steam.into_iter().map(|g| art.steam_game(g)).collect();
         pc.extend(stores.into_iter().map(|g| art.pc_game(g)));
         // a game added by hand can sit on the PC shelf or on a console's, beside its ROMs: it's still started as its
@@ -395,7 +408,7 @@ mod tests {
         }
         let cfg = Config::parse(r#"{"games":{"steam-10":{"title":"Zeta Deluxe"}}}"#).unwrap();
         let sizes = ScanData::default();
-        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::from([("omega".to_string(), "77".to_string())]), sizes: &sizes };
+        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::from([("omega".to_string(), "77".to_string())]), steam_infos: HashMap::new(), sizes: &sizes };
         let g = art.steam_game(SteamGame { appid: "10".into(), title: "Zeta".into(), size_bytes: 1, dir: None, minutes: 3, last_played: 0, front: Some("/s/f.jpg".into()), hero: None });
         assert_eq!((g.title.as_str(), g.art.front, g.art.spine), ("Zeta Deluxe", Some(d.join("pc-covers/steam-10.png")), None));
         let g = art.pc_game(PcGame { id: "custom-zeta".into(), source: "custom", title: "Omega".into(), ..PcGame::default() });

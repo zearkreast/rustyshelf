@@ -88,6 +88,8 @@ pub struct Game {
     pub compat: Option<String>,
     /// the console a PC game's box comes from ("ps5", "xone" …), when its cover is a console box
     pub box_plat: Option<String>,
+    /// release, developer, genres … from the box art database or Steam's store
+    pub info: Option<crate::info::Info>,
     pub source: Source,
 }
 

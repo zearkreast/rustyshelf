@@ -657,3 +657,27 @@ fn pictures_go_in_place_as_in_the_js() {
         assert_eq!(serde_json::json!(size_of(&f).map(|z| [z.0, z.1])), s[2], "the size of {}", s[0]);
     }
 }
+
+#[test]
+fn game_info_matches_the_js_lookup() {
+    use rustyshelf_core::info::InfoCache;
+    let fx = fixture("info.json");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("launchbox-index.json"), fx["index"].to_string()).unwrap();
+    let mut cache = InfoCache::load(tmp.path());
+    for a in fx["asks"].as_array().unwrap() {
+        let got = cache.get(a[0].as_str().unwrap(), a[1].as_str().unwrap()).map_or(Value::Null, |i| serde_json::to_value(i).unwrap());
+        // a field that's null is as good as not there, and 3.0 is 3
+        let plain = |v: &Value| -> Option<std::collections::BTreeMap<String, String>> {
+            let fields = v.as_object()?.iter().filter(|(k, x)| !x.is_null() || *k == "bg" || *k == "logo");
+            Some(fields.map(|(k, x)| (k.clone(), x.as_f64().map_or(x.to_string(), |n| n.to_string()))).collect())
+        };
+        assert_eq!(plain(&got), plain(&a[2]), "the info of {} on {}", a[1], a[0]);
+    }
+    // what was found is kept, and read back without the index
+    cache.flush();
+    fs::remove_file(tmp.path().join("launchbox-shards.json")).unwrap();
+    let mut again = InfoCache::load(tmp.path());
+    assert_eq!(again.get("gc", "Zeta Run").and_then(|i| i.dev), Some("Made Up".to_string()));
+    assert_eq!(again.get("gc", "Nothing Here"), None);
+}
