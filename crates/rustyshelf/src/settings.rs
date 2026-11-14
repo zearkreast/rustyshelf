@@ -1,3 +1,5 @@
+// Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the pages and their wording
+// follow Boxshelf's renderer/settings.js and renderer/setup.js, as RustyShelf has them.
 //! The first run and Settings: pages of rows, moved through with the keys or a pad. What's chosen is saved to
 //! `data/config.json` at once, by the rules the Electron app's settings go through.
 
@@ -21,11 +23,19 @@ use crate::hud::Face;
 use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
+mod custom;
+pub mod setup;
+mod text;
+
+
 const STEEL: Color = Color::srgb(0.87, 0.89, 0.92);
 const RUST: Color = Color::srgb(0.83, 0.32, 0.17);
 const DIM: Color = Color::srgb(0.55, 0.58, 0.62);
 const PANEL: Color = Color::srgb(0.05, 0.05, 0.07);
 const CHOSEN: Color = Color::srgba(0.83, 0.32, 0.17, 0.28);
+const KEY: Color = Color::srgb(0.13, 0.13, 0.17);
+
+const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /// The rows a page shows at once; a longer page scrolls with the cursor.
 const WINDOW: usize = 11;
@@ -39,7 +49,14 @@ enum Screen {
     /// the emulator of a console, or RetroArch for every retro console ("")
     Emulator(String),
     Folders(String),
+    /// a console's emulator on its own, its launch options and startup oddities
+    Advanced(String),
+    /// Set up for me, for a console's emulator
+    EmuSetup(String),
     Pc,
+    Custom,
+    /// one game added by hand, by its place in the list
+    CustomGame(usize),
     BoxArt,
     Display,
     Controller,
@@ -88,6 +105,8 @@ enum Pick {
     Steam,
     GamesDir,
     ArtLibrary,
+    ArtDir(String),
+    CustomGame,
 }
 
 #[derive(Resource)]
@@ -118,6 +137,16 @@ pub struct Settings {
     titles: std::collections::HashMap<String, String>,
     note: String,
     repeat: (i32, f32),
+    editing: Option<text::Editing>,
+    /// what a first press asked to be pressed again for (removing a game, undoing a setup)
+    asked: String,
+    setup: setup::SetupState,
+    /// the graphics card's vendor, for the graphics preset "For this PC"
+    pub gpu_vendor: Option<u32>,
+    /// a console whose emulator a page asked to open on its own
+    open_emulator: Option<String>,
+    /// something to say on the shelf once Settings has closed
+    toast: Option<String>,
 }
 
 impl Default for Settings {
@@ -144,6 +173,12 @@ impl Default for Settings {
             titles: std::collections::HashMap::new(),
             note: String::new(),
             repeat: (0, 0.0),
+            editing: None,
+            asked: String::new(),
+            setup: setup::SetupState::default(),
+            gpu_vendor: None,
+            open_emulator: None,
+            toast: None,
         }
     }
 }
@@ -209,7 +244,7 @@ impl Settings {
         // what's shown of the shelves, not what's on them
         if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort"]) {
             self.rearranged = true;
-        } else {
+        } else if path[0] != "emuSetup" {
             self.changed = true;
         }
         self.save();
@@ -233,9 +268,55 @@ impl Settings {
     }
 
     fn go(&mut self, screen: Screen) {
+        if let Screen::EmuSetup(id) = &screen {
+            self.load_setup(id);
+        }
         self.stack.push((screen, 0));
         self.note.clear();
+        self.asked.clear();
         self.redraw = true;
+    }
+
+    /// True on the second press in a row of something that asks twice; the first says so.
+    fn twice(&mut self, key: &str, ask: &str) -> bool {
+        if self.asked == key {
+            self.asked.clear();
+            return true;
+        }
+        self.asked = key.to_string();
+        self.note = ask.to_string();
+        self.redraw = true;
+        false
+    }
+
+    /// A row that switches a setting on and off.
+    fn switch(&self, label: &str, path: &[&str], default: bool, hint: &str) -> Row {
+        let (a, b): (Vec<String>, Vec<String>) = (path.iter().map(|p| p.to_string()).collect(), path.iter().map(|p| p.to_string()).collect());
+        let flip = move |s: &mut Settings, p: &[String]| s.toggle(&p.iter().map(String::as_str).collect::<Vec<_>>(), default);
+        Row {
+            label: label.to_string(),
+            value: on_off(self.flag(path, default)),
+            hint: hint.to_string(),
+            press: Some(Box::new(move |s: &mut Settings| flip(s, &a))),
+            step: Some(Box::new(move |s: &mut Settings, _| flip(s, &b))),
+        }
+    }
+
+    /// A row whose text is typed.
+    fn typed(&self, label: &'static str, path: &[&str], hint: &'static str) -> Row {
+        let now = self.text(path);
+        let owned: Vec<String> = path.iter().map(|p| p.to_string()).collect();
+        let value = now.clone();
+        Row {
+            label: label.to_string(),
+            value: if now.is_empty() { "(none)".into() } else { now },
+            hint: hint.to_string(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let path = owned.clone();
+                s.edit(label, hint, value.clone(), Box::new(move |s: &mut Settings, v: String| s.set(&path.iter().map(String::as_str).collect::<Vec<_>>(), json!(v))));
+            })),
+            step: None,
+        }
     }
 
     fn back(&mut self) {
@@ -245,6 +326,7 @@ impl Settings {
             self.open = false;
         }
         self.note.clear();
+        self.asked.clear();
         self.redraw = true;
     }
 
@@ -335,6 +417,8 @@ impl Settings {
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
+            Pick::ArtDir(id) => self.set(&["systems", &id, "artDir"], json!(p)),
+            Pick::CustomGame => self.add_custom(&p),
         }
     }
 
@@ -390,6 +474,7 @@ impl Settings {
                 rows: vec![
                     open("Consoles", String::new(), "Each console's emulator and games folders", Screen::Consoles),
                     open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
+                    open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
                     open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo", Screen::Controller),
@@ -450,25 +535,48 @@ impl Settings {
                     },
                     open("Emulator", if emu.is_empty() { "Not set".into() } else { emuname::label(&emu) }, &short(&emu), Screen::Emulator(e)),
                     open("Games folders", format!("{n} folder{}", if n == 1 { "" } else { "s" }), "", Screen::Folders(f)),
-                    Row { label: "Launch options".into(), value: short(&self.text(&["systems", id, "gameArgs"])), hint: "{rom} is the game".into(), ..Row::default() },
                 ];
-                if id == "gc" {
-                    let g = id.clone();
-                    let g2 = g.clone();
+                let runs = self.emulator_of(id);
+                if c.retro && c.ra_cores.len() > 1 && is_retroarch(&runs) {
+                    let usual = c.ra_core.clone().unwrap_or_default();
+                    let chosen = Some(self.text(&["systems", id, "raCore"])).filter(|x| c.ra_cores.iter().any(|(k, _)| k == x)).unwrap_or(usual.clone());
+                    let at = c.ra_cores.iter().position(|(k, _)| *k == chosen).unwrap_or(0);
+                    let cid = id.clone();
+                    let turn = move |s: &mut Settings, d: i32| {
+                        let n = (at as i32 + d).rem_euclid(c.ra_cores.len() as i32) as usize;
+                        s.set(&["systems", &cid, "raCore"], json!(c.ra_cores[n].0));
+                    };
+                    let turn2 = turn.clone();
                     rows.push(Row {
-                        label: "GameCube startup".into(),
-                        value: on_off(self.flag(&["systems", id, "useIpl"], false)),
-                        hint: "Plays the console's own startup before a game (needs an IPL.bin in Dolphin's folder)".into(),
-                        press: Some(Box::new(move |s: &mut Settings| {
-                            let on = s.flag(&["systems", &g, "useIpl"], false);
-                            s.set(&["systems", &g, "useIpl"], json!(!on));
-                        })),
-                        step: Some(Box::new(move |s: &mut Settings, _| {
-                            let on = s.flag(&["systems", &g2, "useIpl"], false);
-                            s.set(&["systems", &g2, "useIpl"], json!(!on));
-                        })),
+                        label: "RetroArch core".into(),
+                        value: if chosen == usual { format!("{} (usual)", c.ra_cores[at].1) } else { c.ra_cores[at].1.clone() },
+                        hint: format!("The core RetroArch runs {} games in. A core that isn't there yet is downloaded the first time you play. Save states made in one core don't load in another; in-game saves usually carry over.", c.name),
+                        press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+                        step: Some(Box::new(turn2)),
                     });
                 }
+                let twin = match id.as_str() {
+                    "wii" => Some(("gc", "GameCube")),
+                    "gc" => Some(("wii", "Wii")),
+                    _ => None,
+                };
+                if let Some((other, name)) = twin.filter(|(o, _)| emu.is_empty() && !self.text(&["systems", o, "emulator"]).is_empty()) {
+                    let cid = id.clone();
+                    rows.push(Row {
+                        label: format!("Use {name}'s Dolphin"),
+                        hint: "The same Dolphin runs both.".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            let dolphin = s.text(&["systems", other, "emulator"]);
+                            s.set(&["systems", &cid, "emulator"], json!(dolphin));
+                        })),
+                        ..Row::default()
+                    });
+                }
+                let name = if emu.is_empty() { c.emulator_name.clone() } else { emuname::label(&emu) };
+                if self.can_set_up(id) {
+                    rows.push(open(&format!("Set up {name} for me"), String::new(), &format!("Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for {name}: backed up first, and Undo puts it back."), Screen::EmuSetup(id.clone())));
+                }
+                rows.push(open("Emulator & advanced", String::new(), &format!("Open {name} on its own, launch options{}.", if id == "gc" { " and the real GameCube startup" } else { "" }), Screen::Advanced(id.clone())));
                 Page { title: c.name.clone(), lead: self.status(c), rows }
             }
             Screen::Emulator(id) => {
@@ -550,6 +658,85 @@ impl Settings {
                 });
                 Page { title: self.console(id).map_or(id.clone(), |c| format!("{} games folders", c.name)), lead: String::new(), rows }
             }
+            Screen::Advanced(id) => {
+                let Some(c) = self.console(id) else { return Page { title: id.clone(), lead: String::new(), rows: Vec::new() } };
+                let runs = self.emulator_of(id);
+                let name = if runs.is_empty() { c.emulator_name.clone() } else { emuname::label(&runs) };
+                let mut rows = Vec::new();
+                if !runs.is_empty() {
+                    let cid = id.clone();
+                    rows.push(Row {
+                        label: "Open the emulator on its own".into(),
+                        hint: "Starts the emulator without a game so you can change its graphics or controls.".into(),
+                        press: Some(Box::new(move |s: &mut Settings| s.open_emulator = Some(cid.clone()))),
+                        ..Row::default()
+                    });
+                }
+                rows.push(self.typed("Emulator options", &["systems", id, "emulatorArgs"], "What RustyShelf passes when it opens the emulator on its own."));
+                if id == "gc" {
+                    let on = self.flag(&["systems", id, "useIpl"], false);
+                    let exe = rustyshelf_core::launch::emu_path(&runs, &self.app_root).to_string_lossy().into_owned();
+                    rows.push(self.switch(
+                        "Play the real GameCube startup",
+                        &["systems", id, "useIpl"],
+                        false,
+                        "Boots through the console's own startup animation. Needs your GameCube's system file (IPL.bin) in Dolphin's GC\\USA folder (EUR or JAP for those regions).",
+                    ));
+                    rows.push(Row {
+                        label: "Add your IPL.bin".into(),
+                        value: "Open folder".into(),
+                        hint: "Opens Dolphin's GC\\USA folder: put the IPL.bin dumped from your GameCube there (EUR or JAP folders for those regions).".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            let opened = rustyshelf_core::dolphin::ensure_ipl_folder(&exe, "USA", &paths::env_var).map_err(|e| e.to_string()).and_then(|d| rustyshelf_core::launch::open_folder(Path::new(&d)).map_err(|e| e.to_string()));
+                            if let Err(e) = opened {
+                                s.note = e;
+                                s.redraw = true;
+                            }
+                        })),
+                        step: None,
+                    });
+                    if on {
+                        rows.push(self.switch("Skip Dolphin's warning pop-ups", &["systems", id, "hideDolphinWarnings"], false, "Hides Dolphin's warnings (like an unrecognised IPL.bin) that would stop the game from starting."));
+                    }
+                }
+                if id == "ps5" {
+                    rows.push(self.switch(
+                        "Start games through Kyty's launcher",
+                        &["systems", id, "viaLauncher"],
+                        false,
+                        "Off: Play starts the game straight away, with the settings you chose in Kyty's launcher. On: Play opens Kyty's launcher and you start the game there.",
+                    ));
+                }
+                rows.push(self.typed("Game launch options", &["systems", id, "gameArgs"], "What RustyShelf passes to the emulator when you play. {rom} is the game file."));
+                let cid = id.clone();
+                rows.push(Row {
+                    label: "Restore default launch options".into(),
+                    hint: format!("Default: {}", if c.game_args.is_empty() { "(none)" } else { &c.game_args }),
+                    press: Some(Box::new(move |s: &mut Settings| {
+                        put(&mut s.cfg, &["systems", &cid, "emulatorArgs"], json!(c.emulator_args));
+                        s.set(&["systems", &cid, "gameArgs"], json!(c.game_args));
+                        s.note = "Launch options back to the defaults".into();
+                    })),
+                    ..Row::default()
+                });
+                let art = self.text(&["systems", id, "artDir"]);
+                let (what, cid) = (Pick::ArtDir(id.clone()), id.clone());
+                rows.push(Row {
+                    label: "Own art folder".into(),
+                    value: if art.is_empty() { "(uses the art library)".into() } else { short(&art) },
+                    hint: "A folder with this console's covers, if you keep them separately. Name images after the game file; add -back for the back cover.  ·  Enter chooses it, ◀ forgets it".into(),
+                    press: Some(Box::new(move |s: &mut Settings| s.pick(what.clone(), "Choose a cover art folder", true))),
+                    step: Some(Box::new(move |s: &mut Settings, d| {
+                        if d < 0 {
+                            s.set(&["systems", &cid, "artDir"], json!(""));
+                        }
+                    })),
+                });
+                Page { title: "Emulator & advanced".into(), lead: format!("{name}'s own tools, how RustyShelf starts it, and the rarely-needed settings for {}.", c.name), rows }
+            }
+            Screen::EmuSetup(id) => self.setup_page(id),
+            Screen::Custom => self.custom_page(),
+            Screen::CustomGame(i) => self.custom_game_page(*i),
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
                 let games = self.text(&["pc", "gamesDir"]);
@@ -775,19 +962,31 @@ impl Settings {
             }
             Screen::Done => {
                 let on = systems().consoles.iter().filter(|c| self.flag(&["systems", &c.id, "enabled"], true) && !self.list(&["systems", &c.id, "romDirs"]).is_empty()).count();
+                let mut rows = Vec::new();
+                let kinds = self.setup_kinds();
+                if rustyshelf_core::emusetup::ON && !kinds.is_empty() {
+                    rows.push(self.switch(
+                        "Set up my emulators for me",
+                        &["emuSetup", "auto"],
+                        true,
+                        &format!("{}: your controller mapped, the Home menu's Save and Load keys, one BIOS folder and graphics that suit this PC. Emulators you've used before are left as they are. Everything is backed up first, and Settings → each console → Set up for me can undo it.", kinds.join(", ")),
+                    ));
+                }
+                rows.push(Row {
+                    label: "Open RustyShelf".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        s.set(&["setupDone"], json!(true));
+                        s.toast = s.auto_setup();
+                        s.wizard = false;
+                        s.open = false;
+                        s.stack = vec![(Screen::Root, 0)];
+                    })),
+                    ..Row::default()
+                });
                 Page {
                     title: "You're set".into(),
                     lead: format!("{on} console{} with games. Everything here can be changed later in Settings (F1, or Start on the pad).", if on == 1 { "" } else { "s" }),
-                    rows: vec![Row {
-                        label: "Open RustyShelf".into(),
-                        press: Some(Box::new(|s: &mut Settings| {
-                            s.set(&["setupDone"], json!(true));
-                            s.wizard = false;
-                            s.open = false;
-                            s.stack = vec![(Screen::Root, 0)];
-                        })),
-                        ..Row::default()
-                    }],
+                    rows,
                 }
             }
         }
@@ -796,7 +995,6 @@ impl Settings {
 
 /// A date the way Details writes it: "November 21, 1999" from a date that starts YYYY-MM-DD, else the year.
 fn release(date: Option<&str>, year: Option<&str>) -> String {
-    const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     let parsed = date.and_then(|d| {
         let mut parts = d.get(..10)?.split('-').map(|p| p.parse::<u32>().ok());
         let (y, m, day) = (parts.next()??, parts.next()??, parts.next()??);
@@ -906,10 +1104,22 @@ pub fn input(
     mut base: ResMut<Base>,
     plays: Res<crate::play::Plays>,
     mut cursor: ResMut<Cursor>,
-    playing: Res<crate::play::Playing>,
+    mut playing: ResMut<crate::play::Playing>,
+    mut typed: MessageReader<bevy::input::keyboard::KeyboardInput>,
+    mut toast: ResMut<crate::hud::Toast>,
+    adapter: Option<Res<bevy::render::renderer::RenderAdapterInfo>>,
 ) {
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
+    // read every frame: a key that opened a text mustn't be typed into it a frame later
+    let typed: Vec<_> = typed.read().cloned().collect();
+    if s.gpu_vendor.is_none() {
+        s.gpu_vendor = adapter.map(|a| a.vendor);
+    }
     if !s.open {
+        if let Some(text) = s.toast.take() {
+            toast.text = text;
+            toast.until = time.elapsed_secs() + 12.0;
+        }
         if s.just_closed {
             s.just_closed = false;
         }
@@ -982,8 +1192,13 @@ pub fn input(
         Some(Err(TryRecvError::Disconnected)) => s.picking = None,
         _ => {}
     }
-    // a dialog is up: the page waits for it
-    if s.picking.is_some() {
+    s.poll_core();
+    // a dialog is up, or the emulator opened from here: the page waits for it
+    if s.picking.is_some() || playing.title.is_some() {
+        return;
+    }
+    if s.editing.is_some() {
+        s.type_text(&typed, &pads);
         return;
     }
 
@@ -1015,6 +1230,8 @@ pub fn input(
     if move_by != 0 && n > 0 {
         let at = &mut s.stack.last_mut().expect("a page").1;
         *at = (*at as i32 + move_by).clamp(0, n as i32 - 1) as usize;
+        s.asked.clear();
+        s.note.clear();
         s.redraw = true;
     }
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
@@ -1031,6 +1248,16 @@ pub fn input(
         s.back();
     }
 
+    if let Some(id) = s.open_emulator.take() {
+        let (emulator, args) = (s.emulator_of(&id), s.text(&["systems", &id, "emulatorArgs"]));
+        let combo = Config::from_value(&s.cfg).and_then(|c| c.quit_combo());
+        let opened = rustyshelf_core::launch::emulator_plan(&id, &emulator, &args, &s.app_root).and_then(|plan| crate::play::open_alone(&mut playing, &id, emuname::label(&emulator), &plan, combo.as_deref(), time.elapsed_secs()));
+        s.note = match opened {
+            Ok(()) => format!("{} is open. Settings is back when it closes.", emuname::label(&emulator)),
+            Err(e) => e.to_string(),
+        };
+        s.redraw = true;
+    }
     if !s.open {
         s.just_closed = true;
     }
@@ -1068,6 +1295,10 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         commands.entity(e).despawn();
     }
     if !s.open {
+        return;
+    }
+    if let Some(e) = &s.editing {
+        e.draw(&mut commands, &face.0);
         return;
     }
     let page = s.page();

@@ -555,6 +555,15 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   other stores, the PC games folder, box art downloads and their region, the art library, fullscreen, the quit combo,
   searching again and restoring the emulators' own settings. Everything is saved to `data\config.json` by the rules
   the Electron app's settings go through, so both apps keep reading the same file.
+- Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and
+  emulator options (Settings → the console → Emulator & advanced, which also opens the emulator on its own, holds the
+  GameCube startup and Kyty's launcher switch, and the console's own art folder), and the RetroArch core a console
+  runs in.
+- Has Custom games in Settings: a program added by hand, its name, launch arguments and the shelf it sits on.
+- Sets emulators up for you on Windows, as the Electron app does (Settings → a console → Set up for me, and the
+  first run's switch): the controller, the Home menu's hotkeys, one BIOS folder, a graphics preset and no quit
+  questions for RetroArch, Dolphin, DuckStation, PCSX2 and PPSSPP, each file backed up first, with Undo. The page
+  also shows the console's RetroArch core (and downloads it) and checks its BIOS files.
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.
@@ -562,7 +571,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
-**Not yet:** the rest of Settings (sound, themes, accounts, launch options, games added by hand, "Set up for me"), the
+**Not yet:** the rest of Settings (sound, themes, accounts; adding several games at once, a folder of games or a
+Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
 GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu over a
 running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started

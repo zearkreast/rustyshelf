@@ -32,9 +32,12 @@ struct Emulator {
     exe: String,
     /// when it started (seconds): one that closes right away wasn't a play
     at: f32,
+    /// opened from Settings without a game: no play to count or take back
+    alone: bool,
 }
 
-type Started = Result<(Child, String), LaunchError>;
+/// The emulator's process and its program; the emulators still waiting to be set up, when this one just was.
+type Started = Result<(Child, String, Option<Vec<String>>), LaunchError>;
 
 /// The game that's starting or running: the shelf waits for it.
 #[derive(Resource, Default)]
@@ -55,6 +58,15 @@ impl Playing {
     pub fn is_starting(&self) -> bool {
         self.starting.is_some()
     }
+}
+
+/// Starts a console's emulator without a game (Settings → Emulator & advanced); the shelf waits for it as for a game.
+pub fn open_alone(playing: &mut Playing, console: &str, name: String, plan: &launch::Plan, quit_combo: Option<&str>, now: f32) -> Result<(), LaunchError> {
+    let exe = plan.exe.to_string_lossy().into_owned();
+    emucfg::before_launch(console, &exe, quit_combo, &paths::env_var);
+    let child = launch::start(plan)?;
+    *playing = Playing { title: Some(name), child: Some(Mutex::new(child)), emulator: Some(Emulator { console: console.to_string(), exe, at: now, alone: true }), ..Playing::default() };
+    Ok(())
 }
 
 /// Holding a direction steps again after a moment, then quickly.
@@ -178,11 +190,13 @@ pub fn navigate(
             let (tx, rx) = channel();
             let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
             playing.console = console.id.clone();
+            let waiting = settings.at_launch();
             std::thread::spawn(move || {
                 let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| {
                     let exe = p.exe.to_string_lossy().into_owned();
+                    let still = waiting.and_then(|w| w.run(&p.exe));
                     emucfg::before_launch(&console.id, &exe, cfg.quit_combo().as_deref(), &paths::env_var);
-                    Ok((launch::start(&p)?, exe))
+                    Ok((launch::start(&p)?, exe, still))
                 });
                 let _ = tx.send(started);
             });
@@ -206,18 +220,21 @@ pub fn navigate(
 }
 
 /// The shelf takes input again once the emulator has closed, or if it didn't start.
-pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut toast: ResMut<Toast>, time: Res<Time>) {
+pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut toast: ResMut<Toast>, mut settings: ResMut<crate::settings::Settings>, time: Res<Time>) {
     let started = playing.starting.as_ref().map(|rx| rx.lock().unwrap().try_recv());
     let title = playing.title.clone().unwrap_or_default();
     let now = time.elapsed_secs();
     match started {
         None | Some(Err(TryRecvError::Empty)) => {}
-        Some(Ok(Ok((child, exe)))) => {
+        Some(Ok(Ok((child, exe, still)))) => {
             info!("Launched {title}");
+            if let Some(list) = still {
+                settings.set_pending(list);
+            }
             plays.0.start(&playing.id);
             playing.starting = None;
             playing.child = Some(Mutex::new(child));
-            playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now });
+            playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now, alone: false });
         }
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");
@@ -241,7 +258,7 @@ pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut to
         let (console, exe) = (e.console.clone(), e.exe.clone());
         std::thread::spawn(move || emucfg::after_exit(&console, &exe, &paths::env_var));
     }
-    match emulator.map(|e| (emuname::label(&e.exe), e.at)) {
+    match emulator.filter(|e| !e.alone).map(|e| (emuname::label(&e.exe), e.at)) {
         Some((emulator, at)) if now - at < QUICK_EXIT => {
             plays.0.undo();
             let code = code.filter(|c| *c != 0).map(|c| format!(" (code {c})")).unwrap_or_default();

@@ -4,6 +4,7 @@
 
 mod hud;
 mod loading;
+mod osk;
 mod play;
 mod settings;
 mod shelf;

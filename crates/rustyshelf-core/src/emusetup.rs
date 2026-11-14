@@ -24,6 +24,9 @@ use crate::emucfg::{self, Var};
 use crate::js;
 use crate::paths::{is_dir, is_file};
 
+/// Windows for now: the emulators keep their settings elsewhere on Linux.
+pub const ON: bool = cfg!(windows);
+
 pub const GROUPS: &[&str] = &["controller", "hotkeys", "bios", "graphics", "quit", "resume"];
 
 /// A group's name in Settings.
@@ -676,11 +679,122 @@ impl Setup<'_> {
     }
 }
 
+/// What the first run's "Set up my emulators for me" did, by emulator name.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Auto {
+    pub done: Vec<&'static str>,
+    /// no settings file yet: set up at their next launch (`pending`)
+    pub later: Vec<&'static str>,
+    /// used before: left as they are
+    pub left: Vec<&'static str>,
+    /// the settings' `emuSetup.pending`, with the emulators that wait added
+    pub pending: Vec<String>,
+}
+
+fn same_path(a: &Path, b: &Path) -> bool {
+    resolve(a).to_string_lossy().to_lowercase() == resolve(b).to_string_lossy().to_lowercase()
+}
+
+impl Setup<'_> {
+    /// Sets up each emulator once: `emulators` as the settings have them (the consoles switched on), `resolved` turns
+    /// one into its path. One that hasn't run yet waits for its settings file; one used before is left alone.
+    pub fn auto(&self, emulators: &[String], resolved: &dyn Fn(&str) -> PathBuf, pending: &[String], resume: bool, opts: &Options, now: u64) -> Auto {
+        let mut out = Auto { pending: pending.to_vec(), ..Auto::default() };
+        let mut seen: Vec<String> = Vec::new();
+        for emu in emulators.iter().filter(|e| !e.is_empty()) {
+            let path = resolved(emu);
+            let key = resolve(&path).to_string_lossy().to_lowercase();
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
+            let exe = path.to_string_lossy().into_owned();
+            let Some(st) = self.status(&exe, now).filter(|st| st.done.is_none()) else { continue };
+            let name = st.kind.name();
+            if st.used {
+                out.left.push(name);
+            } else if !st.ready {
+                if !out.pending.iter().any(|p| same_path(&resolved(p), &path)) {
+                    out.pending.push(emu.clone());
+                }
+                out.later.push(name);
+            } else if self.apply(&exe, &[("resume", resume)], opts, now).ok {
+                out.done.push(name);
+            }
+        }
+        out
+    }
+
+    /// An emulator that waited for its settings file is set up as it's started, if the file is there now. Returns
+    /// the waiting list without it, or None when nothing changed.
+    pub fn at_launch(&self, exe: &Path, resolved: &dyn Fn(&str) -> PathBuf, pending: &[String], resume: bool, opts: &Options, now: u64) -> Option<Vec<String>> {
+        if !pending.iter().any(|p| same_path(&resolved(p), exe)) {
+            return None;
+        }
+        let text = exe.to_string_lossy();
+        if !self.status(&text, now).is_some_and(|st| st.ready) {
+            return None;
+        }
+        self.apply(&text, &[("resume", resume)], opts, now);
+        Some(pending.iter().filter(|p| !same_path(&resolved(p), exe)).cloned().collect())
+    }
+}
+
 /// The graphics preset for this computer from its graphics card's vendor: NVIDIA, AMD, then Intel and the rest.
 pub fn preset_for(vendor_id: Option<u32>) -> &'static str {
     match vendor_id {
         Some(0x10de) => "pretty",
         Some(0x1002) => "balanced",
         _ => "fast",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_run_sets_up_each_emulator_once() {
+        let tmp = tempfile::tempdir().unwrap();
+        let at = |p: &str| tmp.path().join(p).to_string_lossy().into_owned();
+        let write = |p: &str, text: &str| {
+            let f = tmp.path().join(p);
+            std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+            std::fs::write(f, text).unwrap();
+        };
+        // a Dolphin that has run, a DuckStation that hasn't, a PCSX2 in use for days
+        for f in ["a/Dolphin.exe", "a/portable.txt", "b/duckstation.exe", "b/portable.txt", "c/pcsx2.exe", "c/portable.ini"] {
+            write(f, "");
+        }
+        std::fs::create_dir_all(tmp.path().join("app/data")).unwrap();
+        write("a/User/Config/Dolphin.ini", "[Core]\n");
+        write("c/inis/PCSX2.ini", "[UI]\n");
+        let now = now_for_tests();
+        let old = std::time::UNIX_EPOCH + std::time::Duration::from_millis(now - 3 * 86_400_000);
+        std::fs::File::options().write(true).open(tmp.path().join("c/inis/PCSX2.ini")).unwrap().set_modified(old).unwrap();
+
+        let home = at("home");
+        let var = move |k: &str| matches!(k, "HOME" | "USERPROFILE").then(|| home.clone());
+        let setup = Setup { data_dir: tmp.path().join("app/data"), app_root: tmp.path().join("app"), var: &var };
+        let resolved = |e: &str| PathBuf::from(e);
+        let emulators = vec![at("a/Dolphin.exe"), String::new(), at("b/duckstation.exe"), at("a/Dolphin.exe"), at("c/pcsx2.exe")];
+        let opts = Options { graphics: "fast".into(), bios_dir: String::new() };
+        let r = setup.auto(&emulators, &resolved, &[], false, &opts, now);
+        assert_eq!((r.done, r.later, r.left), (vec!["Dolphin"], vec!["DuckStation"], vec!["PCSX2"]));
+        assert_eq!(r.pending, vec![at("b/duckstation.exe")]);
+        // done once: a second run leaves it, and the one that waits isn't listed twice
+        let again = setup.auto(&emulators, &resolved, &r.pending, false, &opts, now);
+        assert_eq!((again.done, again.later, again.pending.len()), (Vec::<&str>::new(), vec!["DuckStation"], 1));
+
+        let duck = PathBuf::from(at("b/duckstation.exe"));
+        assert_eq!(setup.at_launch(&duck, &resolved, &r.pending, false, &opts, now), None);
+        assert_eq!(setup.at_launch(Path::new(&at("a/Dolphin.exe")), &resolved, &r.pending, false, &opts, now), None);
+        write("b/settings.ini", "[Main]\n");
+        assert_eq!(setup.at_launch(&duck, &resolved, &r.pending, false, &opts, now), Some(Vec::new()));
+        assert!(setup.status(&duck.to_string_lossy(), now).unwrap().done.is_some());
+    }
+
+    fn now_for_tests() -> u64 {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64
     }
 }

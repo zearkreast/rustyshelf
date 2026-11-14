@@ -174,7 +174,7 @@ fn alt_args(exe_name: &str) -> Option<&'static str> {
     ALT.iter().find(|(re, _)| re.is_match(exe_name)).map(|(_, a)| *a)
 }
 
-fn is_retroarch(exe: &Path) -> bool {
+pub fn is_retroarch(exe: &Path) -> bool {
     static LINUX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(retroarch|org\.libretro\.retroarch|retroarch.*\.appimage)$").unwrap());
     let n = name_of(exe);
     if cfg!(target_os = "linux") {
@@ -214,7 +214,7 @@ fn core_name(id: &str) -> String {
 }
 
 /// The core a console runs in: the one picked in Settings when the console offers it, else its own.
-fn core_of(console: &Console, sc: &SystemConfig) -> Option<String> {
+pub fn core_of(console: &Console, sc: &SystemConfig) -> Option<String> {
     if !sc.ra_core.is_empty() && console.ra_cores.iter().any(|(id, _)| *id == sc.ra_core) {
         return Some(sc.ra_core.clone());
     }
@@ -437,6 +437,35 @@ fn open_external(url: &str) -> Result<(), LaunchError> {
     };
     cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     // the opener returns at once; reaped on a thread so it doesn't linger
+    let mut child = cmd.spawn().map_err(LaunchError::Spawn)?;
+    std::thread::spawn(move || child.wait());
+    Ok(())
+}
+
+/// The emulator on its own, for changing its settings, with the console's emulator options. The PS5's is Kyty's
+/// launcher: kyty_emulator needs a game.
+pub fn emulator_plan(console_id: &str, emulator: &str, emulator_args: &str, app_root: &Path) -> Result<Plan, LaunchError> {
+    if emulator.trim().is_empty() {
+        return refuse("Choose this console's emulator first.");
+    }
+    let mut exe = emu_path(emulator, app_root);
+    if console_id == "ps5" {
+        let dir = exe.parent().map(Path::to_path_buf).unwrap_or_default();
+        if let Some(ui) = ["kyty_launcher.exe", "launcher.exe"].iter().map(|n| dir.join(n)).find(|f| is_file(f)) {
+            exe = ui;
+        }
+    }
+    if !is_file(&exe) {
+        return refuse(format!("The emulator isn't at {} any more. Choose it again in Settings.", exe.display()));
+    }
+    let env = if cfg!(target_os = "linux") { Some(clean_env(None)) } else { None };
+    Ok(Plan { exe, args: build_args(emulator_args, ""), env })
+}
+
+/// Shows a folder in the system's file manager.
+pub fn open_folder(dir: &Path) -> Result<(), LaunchError> {
+    let mut cmd = Command::new(if cfg!(windows) { "explorer" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" });
+    cmd.arg(dir).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     let mut child = cmd.spawn().map_err(LaunchError::Spawn)?;
     std::thread::spawn(move || child.wait());
     Ok(())
