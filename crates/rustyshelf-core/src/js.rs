@@ -170,6 +170,121 @@ pub fn stem(p: &str) -> String {
     n[..n.len() - e.len()].to_string()
 }
 
+/// JS `+v` (`Number(v)`); None is `undefined`.
+pub fn number(v: Option<&Value>) -> f64 {
+    match v {
+        None => f64::NAN,
+        Some(Value::Null) => 0.0,
+        Some(Value::Bool(b)) => f64::from(u8::from(*b)),
+        Some(Value::Number(n)) => n.as_f64().unwrap_or(f64::NAN),
+        Some(Value::String(s)) => number_of(s),
+        Some(Value::Array(a)) => match a.as_slice() {
+            [] => 0.0,
+            [one] if !one.is_null() => number_of(&string(Some(one))),
+            [_] => 0.0,
+            _ => f64::NAN,
+        },
+        Some(Value::Object(_)) => f64::NAN,
+    }
+}
+
+/// JS `Number("...")`: white space around it off, "" is 0, hex / octal / binary prefixes, Infinity.
+fn number_of(s: &str) -> f64 {
+    let t = trim(s);
+    if t.is_empty() {
+        return 0.0;
+    }
+    let radix = |digits: &str, r: u32| u64::from_str_radix(digits, r).map_or(f64::NAN, |n| n as f64);
+    match t.get(..2).map(str::to_ascii_lowercase).as_deref() {
+        Some("0x") => return radix(&t[2..], 16),
+        Some("0o") => return radix(&t[2..], 8),
+        Some("0b") => return radix(&t[2..], 2),
+        _ => {}
+    }
+    match t.strip_prefix(['+', '-']).unwrap_or(t) {
+        "Infinity" => return if t.starts_with('-') { f64::NEG_INFINITY } else { f64::INFINITY },
+        // Rust also takes "inf", "nan" and "infinity", which JS doesn't
+        rest if !rest.starts_with(|c: char| c.is_ascii_digit() || c == '.') => return f64::NAN,
+        _ => {}
+    }
+    t.parse().unwrap_or(f64::NAN)
+}
+
+/// JS `Math.round`: a half goes up.
+pub fn round(n: f64) -> f64 {
+    (n + 0.5).floor()
+}
+
+/// A number as JS writes it: whole numbers without a fraction.
+fn number_text(n: &serde_json::Number) -> String {
+    match n.as_f64() {
+        Some(0.0) => "0".into(),
+        Some(f) if f.fract() == 0.0 && f.abs() < 1e21 => format!("{f:.0}"),
+        _ => n.to_string(),
+    }
+}
+
+/// A whole number or a fraction as a JSON value (2.0 is written 2, as JS has only one kind of number).
+pub fn num(n: f64) -> Value {
+    if n.fract() == 0.0 && n.abs() < 9e15 {
+        Value::from(n as i64)
+    } else {
+        Value::from(n)
+    }
+}
+
+fn write_json(v: &Value, depth: usize, out: &mut String) {
+    let pad = |d: usize, out: &mut String| out.push_str(&"  ".repeat(d));
+    match v {
+        Value::Number(n) => out.push_str(&number_text(n)),
+        Value::Array(a) if !a.is_empty() => {
+            out.push_str("[\n");
+            for (i, x) in a.iter().enumerate() {
+                pad(depth + 1, out);
+                write_json(x, depth + 1, out);
+                out.push_str(if i + 1 < a.len() { ",\n" } else { "\n" });
+            }
+            pad(depth, out);
+            out.push(']');
+        }
+        Value::Object(o) if !o.is_empty() => {
+            out.push_str("{\n");
+            let ents = entries(o);
+            for (i, (k, x)) in ents.iter().enumerate() {
+                pad(depth + 1, out);
+                out.push_str(&Value::from(k.as_str()).to_string());
+                out.push_str(": ");
+                write_json(x, depth + 1, out);
+                out.push_str(if i + 1 < ents.len() { ",\n" } else { "\n" });
+            }
+            pad(depth, out);
+            out.push('}');
+        }
+        other => out.push_str(&other.to_string()),
+    }
+}
+
+/// JS `JSON.stringify(v, null, 2)`.
+pub fn stringify_pretty(v: &Value) -> String {
+    let mut out = String::new();
+    write_json(v, 0, &mut out);
+    out
+}
+
+/// node's `path.isAbsolute`.
+pub fn is_absolute(p: &str) -> bool {
+    let b = p.as_bytes();
+    if cfg!(windows) {
+        match b {
+            [b'/' | b'\\', ..] => true,
+            [d, b':', b'/' | b'\\', ..] => d.is_ascii_alphabetic(),
+            _ => false,
+        }
+    } else {
+        b.first() == Some(&b'/')
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,6 +303,10 @@ mod tests {
         let keys: Vec<&str> = entries(o.as_object().unwrap()).iter().map(|e| e.0.as_str()).collect();
         assert_eq!(keys, ["2", "10", "b", "01"]);
         assert_eq!(encode_uri_component("a b:c/é'(x)"), "a%20b%3Ac%2F%C3%A9'(x)");
+        assert_eq!((number(Some(&json!(" 12.5 "))), number(Some(&json!(""))), number(Some(&json!("0x10"))), number(Some(&json!([7]))), number(Some(&json!(true)))), (12.5, 0.0, 16.0, 7.0, 1.0));
+        assert!(number(Some(&json!("inf"))).is_nan() && number(None).is_nan() && number(Some(&json!("1a"))).is_nan());
+        assert_eq!((round(2.5), round(-2.5), round(1.4)), (3.0, -2.0, 1.0));
+        assert_eq!(stringify_pretty(&json!({"b": [1.0, 0.5, {}], "a": {"x": "q\"", "y": []}, "2": null})), "{\n  \"2\": null,\n  \"b\": [\n    1,\n    0.5,\n    {}\n  ],\n  \"a\": {\n    \"x\": \"q\\\"\",\n    \"y\": []\n  }\n}");
     }
 
     #[cfg(unix)]

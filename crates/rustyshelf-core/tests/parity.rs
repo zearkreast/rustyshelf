@@ -274,3 +274,25 @@ fn emulator_names_match_the_js_ones() {
         assert_eq!(&got, case);
     }
 }
+
+// the defaults hold this platform's consoles, and the fixture was written on Linux
+#[cfg(target_os = "linux")]
+#[test]
+fn settings_match_the_js_rules() {
+    use rustyshelf_core::{js, settings};
+    // the first lines that differ say more than two whole files
+    let same = |what: &str, got: &str, want: &str| {
+        let at = got.lines().zip(want.lines()).position(|(g, w)| g != w).unwrap_or(got.lines().count().min(want.lines().count()));
+        let near = |t: &str| t.lines().skip(at.saturating_sub(3)).take(8).collect::<Vec<_>>().join("\n");
+        assert!(got == want, "{what}, line {}:\n--- got\n{}\n--- want\n{}", at + 1, near(got), near(want));
+    };
+    for (i, case) in fixture("settings.json").as_array().unwrap().iter().enumerate() {
+        let text = case["text"].as_str().unwrap();
+        let loaded = settings::read(text).unwrap_or_else(settings::fallback);
+        same(&format!("loading settings {i}"), &js::stringify_pretty(&loaded), case["loaded"].as_str().unwrap());
+        if let Some(want) = case["normalized"].as_str() {
+            let got = settings::normalize(&serde_json::from_str(text).unwrap()).unwrap();
+            same(&format!("normalizing settings {i}"), &js::stringify_pretty(&got), want);
+        }
+    }
+}

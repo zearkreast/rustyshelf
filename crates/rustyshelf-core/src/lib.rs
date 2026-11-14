@@ -19,6 +19,7 @@ pub mod pcfolder;
 pub mod pcgames;
 pub mod pkg;
 pub mod scanner;
+pub mod settings;
 pub mod sfo;
 pub mod steam;
 pub mod systems;

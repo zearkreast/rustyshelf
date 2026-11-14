@@ -303,8 +303,45 @@ const EMUS = ['C:\\Emus\\selevet-eglantine-performance-6-windows-x86_64\\eglanti
   '/x/Ryujinx.1.2.3-linux_x64/Ryujinx.sh', 'C:\\BizHawk-2.9\\EmuHawk.exe', 'C:\\x\\citra-qt.exe', '/y/eden nightly/eden-nightly-eden.AppImage', '', 'élan.exe', 'C:\\Emu\\windowsxenia_canary.exe',
   '/z/0123456789ABCDEF0123456789abcdef01234567/cemu', 'C:\\q\\win64.exe', '/a/b.c/duckstation-qt-x64-ReleaseLTCG.exe', 'C:\\v1.2\\Lichii.v1.2.exe', 'C:\\Lichii (test) [b]\\LICHII.EXE'];
 
+// settings files as saved by older versions, edited by hand, or damaged: what load() and normalize() make of them
+const SETTINGS = [
+  '{}', '[1]', '{"ui": nope', '{"ui":null,"pc":"x","systems":[],"games":[],"steam":null}', '{"ui":"str","art":5}',
+  J({ ui: { ambient: true, ambientLevel: 0.03 } }), J({ ui: { soundRev: 3, ambient: true, ambientLevel: 0.03 } }), J({ ui: { soundRev: '1', ambientLevel: 0.5, theme: 'custom-my-theme', music: 'own' } }),
+  J({ ui: { soundRev: null, theme: 5, soundTheme: '', music: '', bootSound: 'keys', quitComboKeys: 'start+back', quitComboChosen: true, autoCovers: false } }),
+  J({ setupDone: true, retroarch: 'C:\\RetroArch\\retroarch.exe', systems: { gc: { enabled: true, emulator: 'C:\\Emu\\Dolphin.exe', romDirs: ['D:\\Games\\GC'], gameArgs: '--batch "{rom}"' }, snes: { romDirs: ['D:\\Games\\SNES'], raCore: 'snes9x' } },
+    steam: { enabled: true, path: 'C:\\Steam', hideTools: false }, pc: { custom: [{ id: 'tool', title: 'Tool', exe: 'C:\\Tools\\tool.exe', args: '-x', shelf: 'pc' }], gamesDir: 'D:\\PC', programs: { Zeta: 'bin\\zeta.exe' } },
+    games: { 'gc:D:\\Games\\GC\\Zeta.iso': { title: 'Zeta DX', status: 'playing' } }, ui: { theme: 'crt', favorites: ['gc:D:\\Games\\GC\\Zeta.iso'], volume: 0.35, soundRev: 4, autoCovers: true, autoManuals: false, uiScale: 1.3, sort: 'recent' },
+    keys: { fanart: 'k' }, ra: { user: 'u', key: '', enabled: false } }),
+  J({ setupDone: 'yes', retroarch: '  C:\\RA\\retroarch.exe  ',
+    systems: { gc: { gameArgs: '-b -e "{rom}"', romDirs: 'nope', enabled: false, extra: 1 }, wii: null, snes: { romDirs: ['/roms/snes'], emulator: 5 }, madeup: { a: 1 } },
+    steam: { enabled: true, path: 5, hideTools: 'x' },
+    pc: { epic: 'no', quiver: false, custom: [{ exe: ' C:\\a.exe ', title: '  A  ', id: '', args: 7, shelf: 'nope', platform: 'snes', src: 'playnite', runner: '' }, { exe: '' }, 'x', null, { exe: '/b', shelf: 'pc', platform: 'gc' }],
+      pnDirs: { steam: ['/a', 5, '/b'], '12345678901234567890123': 'x' }, gamesDir: ' /games ', run: { 'pc-a': { runner: ' proton ', prefix: 'relative', env: { GOOD: 'v', '1BAD': 'v', NUM: 5 } }, 'pc-b': { prefix: '/abs' }, 'pc-c': 3 },
+      programs: { A: 'bin/a.exe', B: '/abs.exe', C: '../x.exe', D: '', E: 'ok\\..\\x', 7: 'seven.exe' }, boxColor: '#12abCD', boxColors: { ps5: '#000000', nope: '#111111', ps4: 'red' }, quiverPath: null, consoleBox: 'yes', gog: 0 },
+    games: { 'gc:/g/a.iso': { emulator: '  /e/dolphin  ', title: ' A   b\t c ', window: 'borderless', install: 'gone', artName: '', status: 'finished', other: 1 }, x: 'str', y: {}, 5: { title: 'five' } },
+    emuSeen: ['a', 'a', '', 5, 'b'], emuSetup: { auto: 0, graphics: 'ultra', resume: true, pending: ['p', 'p'] }, apps: { stremio: { enabled: false, path: 'x' } },
+    art: { styles: { gc: { preset: 'sets', region: 'eur', parts: { front: 'hd', back: 'nope', spine: 'region' }, setsHd: true, sharper: 'x' }, madeup: {}, wii: 'x', snes: { preset: 'weird', regionFirst: false }, n64: { region: 'jpn' } },
+      locks: { 'gc|Game A': { front: { look: 'exact', key: 'k', at: '5' }, back: { look: 'nope' }, all: { at: 'x', sig: { front: 'hd', disc: 5 } } }, 'BAD|x': { front: { look: 'hd' } }, 'gc|': { front: { look: 'hd' } }, 'snes|Empty': {}, 'snes|\n': { disc: { look: 'special', key: '', at: -1 } } } },
+    ui: { sound: false, quitComboKeys: 'start+back', theme: 'sunset', soundTheme: 'jazz', music: 'lounge', bootSound: 'boom', discordPresence: 'x', discordAppId: 'ab12-34', language: 'tr', background: 'art', volume: '0.5', ambientLevel: 9, musicLevel: null,
+      previews: 'all', previewDelay: '3', previewSound: 1, clipHint: 'x', previewDirs: ['/p', '/p', '', 5], collections: [{ id: 'c1', name: '  My   games ', ids: ['a', 'a', 5] }, { id: '', name: 'x' }, { id: 'c2', name: '   ' }, 'x'],
+      looks: [{ name: ' L ', set: { theme: 'crt', n: 1.5, b: true, o: {}, 'bad key': 1, long: 'x'.repeat(81) } }, { name: 5 }], openInto: 'nowhere', clock: 'time', buttons: 'ps', performance: 5, homeLayout: 'center', clock24: 'x', seamless: false,
+      trailerVol: '', screenMode: 'tiny', windowBounds: { x: 10.4, y: -5.5, width: 800, height: 600.5 }, display: 2, audioOut: 5, safeArea: '95.5', attractMinutes: '61', dimMinutes: '20', uiScale: '1.15', wiimote: 'x', makeBacks: false, wmHold: 'flat',
+      wmSpeed: '1.26', sw2Last: { 'sw2:/a': '/e', 'sw2:/b': 5 }, museumStyle: { walkIn: 'x', tvStand: 'cart', tvSize: 'xl', tv: 'x', tvMute: true, tvVol: 3, tvCrt: 'x' }, museumLight: 'disco', tvFavs: ['a', 'a', 5, ''], tvLast: { ads: 'x', mix: 5, other: 'y' },
+      hidden: ['a', 5, 'a', {}, ''], autoHideHints: 1, boxScale: '1.234', shelfScale: { gc: '1.239', wii: 3, snes: 'x', 10: 0.5 }, gameScale: 'x', customSort: { gc: ['a', 5], wii: 'x' }, favorites: 'x', lastSeenVersion: 5, soundRev: 1, ambient: true, artRegion: 'eur', artHD: false } }),
+  J({ ui: { windowBounds: { x: 1, y: 2, width: 100, height: 600 }, trailerVol: 0.25, safeArea: 80, attractMinutes: 12.5, dimMinutes: null, uiScale: 2, wmSpeed: 5, wmHold: 'sideways', wiimote: false, volume: ' ', ambientLevel: '0.01', musicLevel: 'loud', display: 'HDMI-1',
+    museumStyle: { tvVol: 0.4, tvCh: 'mix', tvAnim: false }, museumLight: 'neon', boxScale: 0.5, tvLast: 'x', sw2Last: 5, previewDelay: 4, screenMode: 'window', leaveHint: true, artRegion: 'mars' }, art: { styles: { gc: {} } } }),
+];
+function settingsFixtures() {
+  const config = require('../main/config'), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-cfg-')); config.init(dir);
+  const out = SETTINGS.map(text => { fs.writeFileSync(path.join(dir, 'config.json'), text); let o = null; try { o = JSON.parse(text); } catch {}
+    return { text, loaded: JSON.stringify(config.load(), null, 2), normalized: o && typeof o === 'object' && !Array.isArray(o) ? JSON.stringify(config.normalize(o), null, 2) : null }; });
+  fs.rmSync(dir, { recursive: true, force: true });
+  return out;
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
+fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
 steamFixtures().then(async st => {

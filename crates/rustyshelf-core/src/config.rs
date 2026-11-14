@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): reads the settings
 // Boxshelf's main/config.js writes, as RustyShelf has it.
-//! `data/config.json`, the Electron app's settings. Read only: the Electron app saves its whole copy over the file,
-//! so a write from here would be lost.
+//! `data/config.json`, the settings the Electron app shares, as the app reads them (src/settings.rs has the rules a
+//! file goes through first).
 
 use std::fs;
 use std::io;
@@ -11,9 +11,18 @@ use serde_json::{Map, Value};
 
 use crate::systems::Console;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Config {
     raw: Map<String, Value>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        match crate::settings::defaults() {
+            Value::Object(raw) => Config { raw },
+            _ => Config { raw: Map::new() },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,12 +62,6 @@ impl std::fmt::Display for LoadError {
 
 impl std::error::Error for LoadError {}
 
-/// Launch options an older version saved as the default, which load as today's default (main/config.js OLD_DEFAULTS:
-/// keep in sync).
-fn old_default(console_id: &str, args: &str) -> bool {
-    matches!(console_id, "gc" | "wii") && args == r#"-b -e "{rom}""#
-}
-
 fn str_of<'a>(v: Option<&'a Value>, default: &'a str) -> &'a str {
     v.and_then(Value::as_str).unwrap_or(default)
 }
@@ -74,11 +77,15 @@ impl Config {
         Self::parse(&text)
     }
 
+    /// A saved file as today's settings: merged over the defaults, older versions' values moved on, every value one
+    /// the app can use.
     pub fn parse(text: &str) -> Result<Config, LoadError> {
-        match serde_json::from_str::<Value>(text) {
-            Ok(Value::Object(raw)) => Ok(Config { raw }),
-            Ok(_) => Err(LoadError::Damaged("not a settings object".into())),
-            Err(e) => Err(LoadError::Damaged(e.to_string())),
+        match crate::settings::read(text) {
+            Some(Value::Object(raw)) => Ok(Config { raw }),
+            _ => Err(LoadError::Damaged(match serde_json::from_str::<Value>(text) {
+                Ok(_) => "not a settings object".into(),
+                Err(e) => e.to_string(),
+            })),
         }
     }
 
@@ -101,7 +108,7 @@ impl Config {
         SystemConfig {
             enabled: get("enabled").and_then(Value::as_bool).unwrap_or(true),
             emulator: str_of(get("emulator"), "").to_string(),
-            game_args: Some(str_of(get("gameArgs"), &console.game_args)).filter(|a| !old_default(&console.id, a)).unwrap_or(&console.game_args).to_string(),
+            game_args: str_of(get("gameArgs"), &console.game_args).to_string(),
             emulator_args: str_of(get("emulatorArgs"), &console.emulator_args).to_string(),
             rom_dirs: get("romDirs")
                 .and_then(Value::as_array)
