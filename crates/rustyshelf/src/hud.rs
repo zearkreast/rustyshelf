@@ -95,9 +95,31 @@ fn played(minutes: u64) -> String {
     format!("{h} h played")
 }
 
+/// Where a PC game comes from, as the Electron app names it (renderer/app.js PC_SRC, keep in sync).
+pub fn store_name(source: &str) -> &'static str {
+    match source {
+        "epic" => "Epic Games",
+        "folder" => "PC games folder",
+        "quiver" => "Quiver",
+        "custom" => "Custom",
+        "gog" => "GOG",
+        "ubisoft" => "Ubisoft",
+        "ea" => "EA",
+        "xbox" => "Xbox",
+        "hoyoplay" => "HoYoPlay",
+        _ => "Steam",
+    }
+}
+
 fn details(g: &Game) -> String {
-    if let Source::Steam { minutes, .. } = g.source {
-        let parts = ["Steam".to_string(), played(minutes), size(g.size_bytes)];
+    let pc = match &g.source {
+        Source::Steam { minutes, .. } => Some(("Steam", played(*minutes))),
+        // TODO: the playtime RustyShelf keeps for the games it starts itself (the Electron app's history)
+        Source::Pc(pc) => Some((store_name(pc.source), if g.not_installed { "Not installed".into() } else { played(0) })),
+        Source::Rom => None,
+    };
+    if let Some((store, played)) = pc {
+        let parts = [store.to_string(), played, size(g.size_bytes)];
         return parts.into_iter().filter(|p| !p.is_empty()).collect::<Vec<_>>().join("  ·  ");
     }
     let mut parts = vec![g.region.clone(), g.ext.to_uppercase(), size(g.size_bytes)];

@@ -1,0 +1,209 @@
+[
+ {
+  "path": "C:\\Emus\\selevet-eglantine-performance-6-windows-x86_64\\eglantine.exe",
+  "label": "Eglantine · selevet performance 6",
+  "parts": {
+   "emu": "Eglantine",
+   "build": "selevet performance 6"
+  },
+  "known": "Eglantine"
+ },
+ {
+  "path": "C:\\Switch 2 emu\\lichii pgo\\lichii.exe",
+  "label": "Lichii · pgo",
+  "parts": {
+   "emu": "Lichii",
+   "build": "pgo"
+  },
+  "known": "Lichii"
+ },
+ {
+  "path": "/home/me/Games/Nintendo Switch 2/Lichii_K-code-AI.AppImage",
+  "label": "Lichii · K code AI",
+  "parts": {
+   "emu": "Lichii",
+   "build": "K code AI"
+  },
+  "known": "Lichii"
+ },
+ {
+  "path": "/home/me/Games/Nintendo Switch 2/Eglantine_old.AppImage",
+  "label": "Eglantine · old",
+  "parts": {
+   "emu": "Eglantine",
+   "build": "old"
+  },
+  "known": "Eglantine"
+ },
+ {
+  "path": "/home/me/Applications/dolphin-emu.AppImage",
+  "label": "Dolphin",
+  "parts": {
+   "emu": "Dolphin",
+   "build": ""
+  },
+  "known": "Dolphin"
+ },
+ {
+  "path": "D:\\Emu\\Dolphin-x64\\Dolphin.exe",
+  "label": "Dolphin",
+  "parts": {
+   "emu": "Dolphin",
+   "build": ""
+  },
+  "known": "Dolphin"
+ },
+ {
+  "path": "C:\\RetroArch-Win64\\retroarch.exe",
+  "label": "RetroArch",
+  "parts": {
+   "emu": "RetroArch",
+   "build": ""
+  },
+  "known": "RetroArch"
+ },
+ {
+  "path": "C:\\emus\\citron-0123456789abcdef0123456789abcdef01234567\\citron.exe",
+  "label": "Citron · 0123456",
+  "parts": {
+   "emu": "Citron",
+   "build": "0123456"
+  },
+  "known": "Citron"
+ },
+ {
+  "path": "/opt/x86_64mariotennis.eglantine.v2.1.0.AppImage",
+  "label": "Eglantine · mariotennis v2.1.0",
+  "parts": {
+   "emu": "Eglantine",
+   "build": "mariotennis v2.1.0"
+  },
+  "known": "Eglantine"
+ },
+ {
+  "path": "C:\\Tools\\My Thing\\thing.launcher.exe",
+  "label": "Thing · launcher",
+  "parts": {
+   "emu": "Thing",
+   "build": "launcher"
+  },
+  "known": ""
+ },
+ {
+  "path": "C:\\a\\pcsx2-qt.exe",
+  "label": "PCSX2",
+  "parts": {
+   "emu": "PCSX2",
+   "build": ""
+  },
+  "known": "PCSX2"
+ },
+ {
+  "path": "/x/Ryujinx.1.2.3-linux_x64/Ryujinx.sh",
+  "label": "Ryujinx · 1.2.3",
+  "parts": {
+   "emu": "Ryujinx",
+   "build": "1.2.3"
+  },
+  "known": "Ryujinx"
+ },
+ {
+  "path": "C:\\BizHawk-2.9\\EmuHawk.exe",
+  "label": "BizHawk · 2.9",
+  "parts": {
+   "emu": "BizHawk",
+   "build": "2.9"
+  },
+  "known": "BizHawk"
+ },
+ {
+  "path": "C:\\x\\citra-qt.exe",
+  "label": "Citra",
+  "parts": {
+   "emu": "Citra",
+   "build": ""
+  },
+  "known": "Citra"
+ },
+ {
+  "path": "/y/eden nightly/eden-nightly-eden.AppImage",
+  "label": "Eden · nightly",
+  "parts": {
+   "emu": "Eden",
+   "build": "nightly"
+  },
+  "known": "Eden"
+ },
+ {
+  "path": "",
+  "label": "Emulator",
+  "parts": {
+   "emu": "Emulator",
+   "build": ""
+  },
+  "known": ""
+ },
+ {
+  "path": "élan.exe",
+  "label": "Élan",
+  "parts": {
+   "emu": "Élan",
+   "build": ""
+  },
+  "known": ""
+ },
+ {
+  "path": "C:\\Emu\\windowsxenia_canary.exe",
+  "label": "Xenia · canary",
+  "parts": {
+   "emu": "Xenia",
+   "build": "canary"
+  },
+  "known": "Xenia"
+ },
+ {
+  "path": "/z/0123456789ABCDEF0123456789abcdef01234567/cemu",
+  "label": "Cemu · 0123456",
+  "parts": {
+   "emu": "Cemu",
+   "build": "0123456"
+  },
+  "known": "Cemu"
+ },
+ {
+  "path": "C:\\q\\win64.exe",
+  "label": "Win64",
+  "parts": {
+   "emu": "Win64",
+   "build": ""
+  },
+  "known": ""
+ },
+ {
+  "path": "/a/b.c/duckstation-qt-x64-ReleaseLTCG.exe",
+  "label": "DuckStation · ReleaseLTCG",
+  "parts": {
+   "emu": "DuckStation",
+   "build": "ReleaseLTCG"
+  },
+  "known": "DuckStation"
+ },
+ {
+  "path": "C:\\v1.2\\Lichii.v1.2.exe",
+  "label": "Lichii · v1.2",
+  "parts": {
+   "emu": "Lichii",
+   "build": "v1.2"
+  },
+  "known": "Lichii"
+ },
+ {
+  "path": "C:\\Lichii (test) [b]\\LICHII.EXE",
+  "label": "Lichii · test b",
+  "parts": {
+   "emu": "Lichii",
+   "build": "test b"
+  },
+  "known": "Lichii"
+ }
+]

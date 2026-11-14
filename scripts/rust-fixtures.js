@@ -199,11 +199,117 @@ async function steamFixtures() {
   return { files: STEAM.files, cases: out };
 }
 
+// PC games beyond Steam: [file, text (with {root}) | size | { b64 }], exec: the files with their execute bit set
+const J = o => JSON.stringify(o);
+const utf16 = t => ({ b64: Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(t, 'utf16le')]).toString('base64') });
+const GOG_KEY = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games', HYP_KEY = 'HKEY_CURRENT_USER\\Software\\Cognosphere\\HYP\\1_0';
+const regKey = (key, vals) => key + '\r\n' + vals.map(([n, t, d]) => '    ' + n + '    ' + t + (d == null ? '' : '    ' + d)).join('\r\n') + '\r\n\r\n';
+const PC = {
+  files: [
+    ['epic/m/a.item', J({ AppName: 'Zeta', DisplayName: ' Zeta Run ', InstallLocation: '{root}/epic/Zeta', LaunchExecutable: 'bin/../Zeta.exe', CatalogNamespace: 'ns1', CatalogItemId: 'it1', AppCategories: ['public', 'games'] })],
+    ['epic/m/b.item', J({ AppName: 'UE_5.1', DisplayName: 'Engine' })], ['epic/m/c.item', J({ AppName: 'Plug', DisplayName: 'Plugin', AppCategories: ['plugins'] })],
+    ['epic/m/d.item', J({ AppName: 'Gone', DisplayName: 'Gone Game', InstallLocation: '{root}/epic/Nope' })], ['epic/m/e.item', J({ AppName: 'zeta', DisplayName: 'Zeta Again' })],
+    ['epic/m/f.ITEM', J({ AppName: 'Alpha Two!', DisplayName: 'alpha two', bIsIncompleteInstall: false })], ['epic/m/g.item', J({ AppName: 'Half', DisplayName: 'Half', bIsIncompleteInstall: true })],
+    ['epic/m/h.item', 'not json'], ['epic/m/i.item', '\uFEFF' + J({ AppName: 'Éclair & Co', DisplayName: 'Éclair', InstallLocation: '{root}/epic/Zeta' })],
+    ['epic/m/j.item', J({ AppName: 77, DisplayName: 'Alpha Two' })], ['epic/m/k.item', J({ AppName: 'Eclair', DisplayName: 'Eclair', LaunchExecutable: 'x.exe' })], ['epic/m/l.txt', J({ AppName: 'Txt', DisplayName: 'Txt' })],
+    ['epic/Zeta/Zeta.exe', 10],
+    ['ea/Game One/__Installer/installerdata.xml', '<DiP><contentIDs><contentID>OFB-EAST:111</contentID><contentID> 222 </contentID></contentIDs><gameTitles><gameTitle locale="de_DE">Spiel Eins</gameTitle><gameTitle locale="en_US">Game &amp; One </gameTitle></gameTitles></DiP>'],
+    ['ea/Game One/One.exe', 5], ['ea/Game One/Setup.exe', 50], ['ea/Game One/_Redist/big.exe', 500], ['ea/Game One/bin/x64/deep.exe', 400], ['ea/Game One/bin/x64/too/deeper.exe', 900],
+    ['ea/Two/__Installer/installerdata.xml', '<contentID>OFB-EAST:111</contentID><gameTitle>Dup</gameTitle>'], ['ea/Three/__Installer/installerdata.xml', '<contentID>x.y</contentID>'],
+    ['ea/Four/__Installer/installerdata.xml', '<gameTitle>No ids</gameTitle>'], ['ea/Five/__Installer/installerdata.xml', '<contentID>five</contentID><gameTitle locale="fr_FR"> Cinq &lt;5&gt; </gameTitle>'],
+    ['xbox/Alpha/Content/MicrosoftGame.config', '\uFEFF<Game><Identity Name="Made.Alpha" Publisher="CN=Made &amp; Up" Version="1"/><ExecutableList><Executable Name="a.exe" Id="AlphaApp"/></ExecutableList><ShellVisuals DefaultDisplayName="Alpha &amp; Co" /></Game>'],
+    ['xbox/Beta/Content/MicrosoftGame.config', utf16('<Game><Identity Name="Made.Beta" Publisher="CN=Example Corp, O=Example, C=US"/><Executable Name="b.exe"/><ShellVisuals DefaultDisplayName="ms-resource:Name"/></Game>')],
+    ['xbox/GameSave/x', 0], ['xbox/Gamma/Content/MicrosoftGame.config', '<Game><Identity Publisher="x"/></Game>'],
+    ['gog/Omega/omega.exe', 3], ['gog/Omega/other.exe', 9], ['gog/Sigma/sigma.exe', 3], ['gog/Tau/bin/tau.exe', 3], ['gog/Tau/unins000.exe', 30], ['gog/Phi/readme.txt', 1],
+    ['hoyo/GI/sub/YuanShen.exe', 1], ['hoyo/SR/StarRail.exe', 1], ['hoyo/ZZZ/x', 1],
+    ['q3/apps.json', J({ apps: [{ name: 'Zeta64', repository: 'owner/zeta64', folderName: 'Zeta64', appIconUrl: 'https://example.invalid/z.png', tags: ['n64', 5] }, { name: 'Not Installed', folderName: 'Nope' },
+      { name: 'By Path', installPath: '{root}/q3/Elsewhere', project: 'P', appIconUrl: 'http://example.invalid/p.png' }, { project: 'Proj Only', folderName: 'ProjOnly' }, 'junk', null, { name: 'Listed Elsewhere', repository: 'owner/starship' }] })],
+    ['q3/settings.json', J({ AppsPath: ' ', UserAppDisplayNames: { 'owner/zeta64': 'Zeta 64 Recomp' } })],
+    ['q3/Apps/Zeta64/zeta.exe', 4], ['q3/Apps/Zeta64/UnityCrashHandler64.exe', 40], ['q3/Elsewhere/e.exe', 1], ['q3/Apps/ProjOnly/p.exe', 1], ['q3/Apps/Starship-v1.0.2/ship.exe', 1],
+    ['q3/Apps/Loose_One.Game/l.exe', 1], ['q3/Apps/_hidden/h.exe', 1], ['q3/Apps/temp/t.exe', 1], ['q3/Apps/Empty/readme.txt', 1],
+    ['q4/installs.json', J({ 'github:own/alpha': { folder: 'alpha', group: 'Ports/N64', program: 'bin/alpha.exe' }, 7: { dir: '{root}/q4/custom/seven', executables: ['seven.exe'] }, 'github:own/beta': { folder: 'beta' },
+      gone: { folder: 'gone' }, notexe: { dir: '{root}/q4/custom/sh', program: 'run.sh' }, bad: 3 })],
+    ['q4/library.json', J({ items: [{ id: 'github:own/alpha', overrides: { name: 'Alpha DX', cover: 'https://example.invalid/a.jpg' } }, { id: 7, local: { name: 'Seven Local' } }, { id: 'x', name: 'Gamma Loose', folder: 'gamma-loose' }] })],
+    ['q4/catalog.json', J([{ id: 'github:own/beta', name: ' Beta Name ', slug: 'beta', artwork: 'https://example.invalid/b.jpg', tags: ['a', 'b'] }, { id: 'github:own/delta', name: 'Delta Port', slug: 'delta', libraryArt: { capsule: 'https://example.invalid/d.jpg' } }, { id: 'noname' }])],
+    ['q4/apps/Ports/N64/alpha/bin/alpha.exe', 1], ['q4/custom/seven/seven.exe', 1], ['q4/apps/beta/b.exe', 1], ['q4/apps/Games/delta/d.exe', 1], ['q4/apps/Emulators/emu1/e.exe', 1],
+    ['q4/apps/Ports/GC/gamma-loose/g.exe', 1], ['q4/apps/standalone/s.exe', 1], ['q4/custom/sh/run.sh', 1],
+    ['custom/tool.exe', 1], ['custom/Some-Game_v2.exe', 1], ['custom/x.exe', 1],
+    ['pcf/games/Hollow Knight/hollow_knight.exe', 10], ['pcf/games/Hollow Knight/zbig.exe', 100], ['pcf/own/Hollow Knight/mine.exe', 1], ['pcf/games/Deep One/a/b/deep.exe', 1], ['pcf/games/Deep One/a/b/c/toodeep.exe', 1],
+    ['pcf/games/Native Game/start.sh', 1], ['pcf/games/Native Game/game.x86_64', { b64: b64(Buffer.from('\x7fELF', 'latin1')) }], ['pcf/games/Native Game/notelf', 4], ['pcf/games/Native Game/win.exe', 1], ['pcf/games/Native Game/run.bat', 1],
+    ['pcf/games/Chosen/one.exe', 5], ['pcf/games/Chosen/two.exe', 3], ['pcf/games/Epic Install/.egstore/x', 1], ['pcf/games/Epic Install/game.exe', 1], ['pcf/games/Skipped/s.exe', 1], ['pcf/games/.hidden/h.exe', 1],
+    ['pcf/games/Empty/readme.txt', 1], ['pcf/games/Öde Stadt/o.exe', 1], ['pcf/games/Half-Life/hl.exe', 1], ['pcf/games/Half Life/hl.exe', 1], ['pcf/games/Sub Elf/bin/sub_elf', { b64: b64(Buffer.from('\x7fELF', 'latin1')) }],
+    ['pcf/games/Sub Elf/bin/other', { b64: b64(Buffer.from('\x7fELF', 'latin1')) }], ['pcf/games/file.txt', 1],
+  ],
+  exec: ['pcf/games/Native Game/start.sh', 'pcf/games/Native Game/game.x86_64', 'pcf/games/Native Game/notelf', 'pcf/games/Sub Elf/bin/sub_elf', 'pcf/games/Sub Elf/bin/other'],
+  eaDirs: ['ea/Game One', 'ea/Two', 'ea/Three', 'ea/Four', 'ea/Five', 'ea/Missing'],
+  gog: regKey(GOG_KEY, []) + regKey(GOG_KEY + '\\1001', [['gameName', 'REG_SZ', 'Omega Quest'], ['path', 'REG_SZ', '{root}/gog/Omega'], ['launchCommand', 'REG_SZ', '"{root}/gog/Omega/omega.exe" -fast'], ['exe', 'REG_SZ', '{root}/gog/Omega/other.exe']])
+    + regKey(GOG_KEY + '\\1002', [['gameName', 'REG_SZ', 'Omega Extra'], ['path', 'REG_SZ', '{root}/gog/Omega'], ['dependsOn', 'REG_SZ', '1001']])
+    + regKey(GOG_KEY + '\\1003', [['GAMETITLE', 'REG_SZ', ' Sigma '], ['path', 'REG_SZ', '{root}/gog/Sigma'], ['launchCommand', 'REG_SZ', '{root}/gog/Sigma/nope.exe'], ['exe', 'REG_SZ', '{root}/gog/Sigma/sigma.exe'], ['launchParam', 'REG_SZ', '--x'], ['empty', 'REG_SZ']])
+    + regKey(GOG_KEY + '\\1004', [['gameName', 'REG_SZ', 'Tau'], ['path', 'REG_SZ', '{root}/gog/Tau']]) + regKey(GOG_KEY + '\\1005', [['gameName', 'REG_SZ', 'Nowhere'], ['path', 'REG_SZ', '{root}/gog/None']])
+    + regKey(GOG_KEY + '\\1006', [['gameName', 'REG_SZ', 'Phi'], ['path', 'REG_SZ', '{root}/gog/Phi']]) + regKey(GOG_KEY + '\\extra', [['gameName', 'REG_SZ', 'Not a number'], ['path', 'REG_SZ', '{root}/gog/Tau']]),
+  hoyo: regKey(HYP_KEY + '\\hk4e_global', [['GameBiz', 'REG_SZ', 'hk4e_global'], ['GameInstallPath', 'REG_SZ', '{root}/hoyo/GI/']])
+    + regKey(HYP_KEY + '\\hkrpg_cn', [['GameBiz', 'REG_BINARY', Buffer.from('hkrpg_cn\0').toString('hex').toUpperCase()], ['GameInstallPath', 'REG_SZ', '{root}/hoyo/SR']])
+    + regKey(HYP_KEY + '\\nap_global', [['GameBiz', 'REG_SZ', 'nap_global'], ['GameInstallPath', 'REG_SZ', '{root}/hoyo/ZZZ']]) + regKey(HYP_KEY + '\\other', [['GameBiz', 'REG_SZ', 'zzz'], ['GameInstallPath', 'REG_SZ', '{root}/hoyo/GI']])
+    + regKey(HYP_KEY + '\\again', [['GameBiz', 'REG_SZ', 'HK4E_GLOBAL'], ['GameInstallPath', 'REG_SZ', '{root}/hoyo/GI']]),
+  xboxAnswer: 'Made.Alpha|Made.Alpha_abc123\r\n\r\nTS-END\r\n',
+  quiver: ['q3', 'q4', 'q3/Apps', ''],
+  custom: [{ id: 'c1', title: ' My Tool ', exe: '{root}/custom/tool.exe', args: '-a "b c"', shelf: 'pc' }, { title: 'Gone', exe: '{root}/custom/gone.exe' }, { exe: '{root}/custom/Some-Game_v2.exe', shelf: 'snes' },
+    { exe: '{root}/custom/x.exe', shelf: 'nope', args: 5 }, { shellApp: 'Made.Up_8abcdefgh12345!App', title: 'Store Thing' }, { shellApp: 'bad' }, null, 'x', { exe: '', shellApp: 'Made.Up_8abcdefgh12345!App2' }, { exe: '{root}/custom/tool.exe', title: 'my tool' }],
+  folder: { gamesDir: 'pcf/games', ownDir: 'pcf/own', programs: { Chosen: 'two.exe', 'Deep One': 'nope.exe' }, skip: ['pcf/games/Skipped', ''] },
+  publishers: ['CN=Made & Up', 'CN=Example Corp, O=Example, C=US', ''],
+  exes: ['C:/x/SoH-Ship-of-Harkinian.exe', '/a/b/zeta_run.v2.exe', '/a/...', 'plain'],
+};
+
+async function pcFixtures() {
+  const cp = require('child_process'), realExec = cp.execFile; let regOut = '';
+  cp.execFile = (cmd, args, opts, cb) => (cmd === 'reg' ? (setImmediate(() => cb(null, regOut, '')), null) : realExec(cmd, args, opts, cb)); // (before pcgames.js takes it)
+  const pcgames = require('../main/pcgames'), pcfolder = require('../main/pcfolder');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-pc-')), root = path.join(tmp, 'root'), R = root.split(path.sep).join('/');
+  const fill = t => t.split('{root}').join(R), at = r => (r ? path.join(root, r) : '');
+  for (const [f, c] of PC.files) { const p = path.join(root, f); fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, typeof c === 'string' ? fill(c) : typeof c === 'number' ? Buffer.alloc(c) : Buffer.from(c.b64, 'base64')); }
+  for (const f of PC.exec) fs.chmodSync(path.join(root, f), 0o755);
+  const env = { ...process.env }; delete process.env.APPDATA; delete process.env.LOCALAPPDATA; // (Quiver's usual places: none here)
+  const game = g => ({ id: g.id, source: g.source, title: g.title, exe: g.exe || '', args: g.args || '', uri: g.uri || '', shellApp: g.shellApp || '', dir: g.dir || '', icon: g.icon || '', tags: g.tags || [],
+    shelf: g.shelf || null, native: !!g.native, programs: (g.programs || []).map(p => [p.rel, p.native]) });
+  const unroot = o => JSON.parse(JSON.stringify(o).split(R).join('{root}'));
+  const asWindows = async fn => { const d = Object.getOwnPropertyDescriptor(process, 'platform'); Object.defineProperty(process, 'platform', { value: 'win32' }); try { return await fn(); } finally { Object.defineProperty(process, 'platform', d); } };
+  const out = { files: PC.files, exec: PC.exec };
+  out.epic = pcgames.epicGames(at('epic/m')).map(game);
+  out.ea = { dirs: PC.eaDirs, games: pcgames.eaFromDirs(PC.eaDirs.map(at)).map(game) };
+  regOut = fill(PC.gog);
+  out.gog = { text: PC.gog, tree: [...pcgames.parseReg(regOut)], games: (await asWindows(() => pcgames.gogGames())).map(game) };
+  out.hoyo = { text: PC.hoyo, games: pcgames.hoyoFromTree(pcgames.parseReg(fill(PC.hoyo))).map(game) };
+  const xbox = async answer => { const data = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-pcdata-')); pcgames.init(data); pcgames._xboxReset();
+    Object.assign(pcgames._xboxIo, { platform: () => 'win32', roots: () => [at('xbox')], run: async () => answer });
+    const first = (await pcgames.xboxGames()).map(game); pcgames._xboxReset(); Object.assign(pcgames._xboxIo, { run: async () => '' });
+    const again = (await pcgames.xboxGames()).map(game); fs.rmSync(data, { recursive: true, force: true }); return { answer, first, again }; };
+  out.xbox = { scan: pcgames.xboxScan([at('xbox'), at('nope')]), cases: [await xbox(PC.xboxAnswer), await xbox('')] };
+  out.quiver = PC.quiver.map(chosen => ({ chosen, games: pcgames.quiverGames(at(chosen)).map(game) }));
+  const custom = JSON.parse(fill(J(PC.custom)));
+  out.custom = { list: PC.custom, games: (await pcgames.customGames(custom)).map(game) };
+  out.folder = { ...PC.folder, games: pcfolder.scan({ gamesDir: at(PC.folder.gamesDir), ownDir: at(PC.folder.ownDir), programs: PC.folder.programs, skip: PC.folder.skip.map(at) }).map(game) };
+  out.publishers = PC.publishers.map(p => [p, pcgames.publisherId(p)]);
+  out.exes = PC.exes.map(e => [e, pcgames.titleFromExe(e)]);
+  Object.assign(process.env, env); cp.execFile = realExec;
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return unroot(out);
+}
+
+// emulator programs, for the names shown for them (made-up builds of the emulators shared/emuname.js knows)
+const EMUS = ['C:\\Emus\\selevet-eglantine-performance-6-windows-x86_64\\eglantine.exe', 'C:\\Switch 2 emu\\lichii pgo\\lichii.exe', '/home/me/Games/Nintendo Switch 2/Lichii_K-code-AI.AppImage',
+  '/home/me/Games/Nintendo Switch 2/Eglantine_old.AppImage', '/home/me/Applications/dolphin-emu.AppImage', 'D:\\Emu\\Dolphin-x64\\Dolphin.exe', 'C:\\RetroArch-Win64\\retroarch.exe',
+  'C:\\emus\\citron-0123456789abcdef0123456789abcdef01234567\\citron.exe', '/opt/x86_64mariotennis.eglantine.v2.1.0.AppImage', 'C:\\Tools\\My Thing\\thing.launcher.exe', 'C:\\a\\pcsx2-qt.exe',
+  '/x/Ryujinx.1.2.3-linux_x64/Ryujinx.sh', 'C:\\BizHawk-2.9\\EmuHawk.exe', 'C:\\x\\citra-qt.exe', '/y/eden nightly/eden-nightly-eden.AppImage', '', 'élan.exe', 'C:\\Emu\\windowsxenia_canary.exe',
+  '/z/0123456789ABCDEF0123456789abcdef01234567/cemu', 'C:\\q\\win64.exe', '/a/b.c/duckstation-qt-x64-ReleaseLTCG.exe', 'C:\\v1.2\\Lichii.v1.2.exe', 'C:\\Lichii (test) [b]\\LICHII.EXE'];
+
 fs.mkdirSync(OUT, { recursive: true });
+fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
-steamFixtures().then(st => {
+steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   console.log('wrote', path.relative(ROOT, OUT));
   process.exit(0); // (the folder-size measure it queued would keep the process waiting)
 });

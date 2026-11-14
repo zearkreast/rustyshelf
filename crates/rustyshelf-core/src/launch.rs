@@ -11,6 +11,7 @@ use regex::Regex;
 
 use crate::config::{Config, SystemConfig};
 use crate::paths::{expand, is_file};
+use crate::pcgames::PcGame;
 use crate::scanner::read_dir_sorted;
 use crate::systems::{systems, Console};
 use crate::{kyty, nx2};
@@ -414,23 +415,19 @@ pub fn start(plan: &Plan) -> Result<Child, LaunchError> {
     cmd.spawn().map_err(LaunchError::Spawn)
 }
 
-/// Hands a Steam game to Steam (steam://rungameid), which starts it.
-pub fn launch_steam(appid: &str) -> Result<(), LaunchError> {
-    if appid.is_empty() || !appid.bytes().all(|b| b.is_ascii_digit()) {
-        return refuse("Unknown Steam game.");
-    }
-    let url = format!("steam://rungameid/{appid}");
+/// Hands an address to the program registered for it (steam://, a store's launch link).
+fn open_external(url: &str) -> Result<(), LaunchError> {
     let mut cmd = if cfg!(windows) {
         let mut c = Command::new("rundll32");
-        c.args(["url.dll,FileProtocolHandler", &url]);
+        c.args(["url.dll,FileProtocolHandler", url]);
         c
     } else if cfg!(target_os = "macos") {
         let mut c = Command::new("open");
-        c.arg(&url);
+        c.arg(url);
         c
     } else {
         let mut c = Command::new("xdg-open");
-        c.arg(&url);
+        c.arg(url);
         c
     };
     cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
@@ -438,6 +435,93 @@ pub fn launch_steam(appid: &str) -> Result<(), LaunchError> {
     let mut child = cmd.spawn().map_err(LaunchError::Spawn)?;
     std::thread::spawn(move || child.wait());
     Ok(())
+}
+
+/// Hands a Steam game to Steam (steam://rungameid), which starts it.
+pub fn launch_steam(appid: &str) -> Result<(), LaunchError> {
+    if appid.is_empty() || !appid.bytes().all(|b| b.is_ascii_digit()) {
+        return refuse("Unknown Steam game.");
+    }
+    open_external(&format!("steam://rungameid/{appid}"))
+}
+
+/// A program whose manifest asks for administrator rights can't be started by a normal process: Windows refuses it.
+fn needs_admin(exe: &Path) -> bool {
+    const MARK: &[u8] = b"requireAdministrator";
+    exe.metadata().is_ok_and(|m| m.len() <= 600_000_000) && std::fs::read(exe).is_ok_and(|b| b.windows(MARK.len()).any(|w| w == MARK))
+}
+
+/// The PowerShell lines that start a program with Windows' own administrator prompt, and wait for it.
+fn elevated_script(exe: &str, args: &[String]) -> String {
+    // one PowerShell string: a quote inside is doubled
+    let q = |s: &str| format!("'{}'", s.replace('\'', "''"));
+    let dir = match exe.rfind(['\\', '/']) {
+        Some(0) => &exe[..1],
+        Some(i) => &exe[..i],
+        None => ".",
+    };
+    let list = if args.is_empty() { String::new() } else { format!("-ArgumentList @({}) ", args.iter().map(|a| q(a)).collect::<Vec<_>>().join(",")) };
+    format!("$p = Start-Process -FilePath {} -WorkingDirectory {} -Verb RunAs {list}-PassThru; $p.WaitForExit()", q(exe), q(dir))
+}
+
+/// The game stays "running" as long as the elevated program does: PowerShell waits for it.
+fn start_elevated(exe: &str, args: &[String]) -> std::io::Result<Child> {
+    use base64::Engine;
+    let utf16: Vec<u8> = elevated_script(exe, args).encode_utf16().flat_map(u16::to_le_bytes).collect();
+    let mut cmd = Command::new("powershell.exe");
+    cmd.args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", &base64::engine::general_purpose::STANDARD.encode(utf16)]);
+    cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut cmd, 0x0800_0000); // CREATE_NO_WINDOW
+    cmd.spawn()
+}
+
+/// Starts a PC game that isn't Steam's. A store's game goes through its store (Epic, Ubisoft Connect, the EA app:
+/// their sign-in, cloud saves, overlay) and an Xbox game is started as the Windows app it is: None then, the store
+/// looks after it. The others start their own program in its own folder.
+pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
+    static STORE_LINK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(com\.epicgames\.launcher|uplay|origin2)://").unwrap());
+    if g.installed == Some(false) {
+        return refuse(format!("{} isn't installed. Install it first.", g.title));
+    }
+    // TODO: on Linux the Electron app runs Epic's games, the PC games folder's and Windows programs through Wine /
+    // Proton (main/linuxpc.js)
+    if cfg!(target_os = "linux") && (g.source == "epic" || (g.source == "folder" && !g.native) || g.exe.to_lowercase().ends_with(".exe")) {
+        return refuse(format!("{} is a Windows game: this version can't start those on Linux yet.", g.title));
+    }
+    if STORE_LINK.is_match(&g.uri) {
+        return open_external(&g.uri).map(|()| None);
+    }
+    if !g.shell_app.is_empty() {
+        if !crate::pcgames::is_shell_app(&g.shell_app) {
+            return refuse("Couldn't start that Xbox game.");
+        }
+        let mut cmd = Command::new("explorer.exe");
+        cmd.arg(format!("shell:AppsFolder\\{}", g.shell_app)).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        let mut child = cmd.spawn().map_err(LaunchError::Spawn)?;
+        std::thread::spawn(move || child.wait());
+        return Ok(None);
+    }
+    let exe = PathBuf::from(&g.exe);
+    if !is_file(&exe) {
+        let fix = match g.source {
+            "quiver" => "Check it in Quiver Launcher.",
+            "gog" => "Check it in GOG Galaxy.",
+            "hoyoplay" => "Check it in HoYoPlay.",
+            "folder" => "Check its folder in the PC games folder.",
+            _ => "Remove it in Settings → Custom games and add it again.",
+        };
+        return refuse(format!("{} isn't at {} any more. {fix}", g.title, g.exe));
+    }
+    let plan = Plan { exe, args: build_args(&g.args, ""), env: cfg!(target_os = "linux").then(|| clean_env(None)) };
+    match start(&plan) {
+        Ok(child) => Ok(Some(child)),
+        Err(LaunchError::Spawn(_)) if cfg!(windows) && needs_admin(&plan.exe) => {
+            start_elevated(&g.exe, &plan.args).map(Some).map_err(|e| LaunchError::Refused(format!("{} didn't start: {e}", g.title)))
+        }
+        Err(LaunchError::Spawn(e)) => refuse(format!("{} didn't start: {e}", g.title)),
+        Err(e) => Err(e),
+    }
 }
 
 pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Child, LaunchError> {
@@ -572,6 +656,35 @@ mod tests {
         assert!(status.success());
         let got = std::fs::read_to_string(&out).unwrap();
         assert_eq!(got, format!("{}|-f|/g/A Game.iso|x|", emu.parent().unwrap().display()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn starts_a_pc_game() {
+        use std::os::unix::fs::PermissionsExt;
+        let s = Setup::new();
+        let out = s.dir.path().join("got.txt");
+        let exe = s.dir.path().join("Tool/tool.sh");
+        std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        std::fs::write(&exe, format!("#!/bin/sh\nprintf '%s|' \"$PWD\" \"$@\" > '{}'\n", out.display())).unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let g = PcGame { id: "custom-tool".into(), source: "custom", title: "Tool".into(), exe: exe.to_string_lossy().into_owned(), args: "-a \"b c\"".into(), ..PcGame::default() };
+        assert!(launch_pc(&g).unwrap().unwrap().wait().unwrap().success());
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), format!("{}|-a|b c|", exe.parent().unwrap().display()));
+
+        let refused = |g: PcGame| launch_pc(&g).unwrap_err().to_string();
+        assert_eq!(refused(PcGame { installed: Some(false), title: "Zeta".into(), ..g.clone() }), "Zeta isn't installed. Install it first.");
+        assert_eq!(refused(PcGame { source: "gog", exe: "/nope/zeta".into(), title: "Zeta".into(), ..g.clone() }), "Zeta isn't at /nope/zeta any more. Check it in GOG Galaxy.");
+        assert_eq!(refused(PcGame { shell_app: "not an app".into(), ..g }), "Couldn't start that Xbox game.");
+    }
+
+    #[test]
+    fn administrator_prompt() {
+        assert_eq!(
+            elevated_script("C:\\Games\\It's\\a.exe", &["-x".into(), "it's".into()]),
+            "$p = Start-Process -FilePath 'C:\\Games\\It''s\\a.exe' -WorkingDirectory 'C:\\Games\\It''s' -Verb RunAs -ArgumentList @('-x','it''s') -PassThru; $p.WaitForExit()"
+        );
+        assert_eq!(elevated_script("a.exe", &[]), "$p = Start-Process -FilePath 'a.exe' -WorkingDirectory '.' -Verb RunAs -PassThru; $p.WaitForExit()");
     }
 
     #[test]

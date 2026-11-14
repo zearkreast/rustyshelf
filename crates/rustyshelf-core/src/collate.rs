@@ -58,6 +58,15 @@ pub fn compare_plain(a: &str, b: &str) -> Ordering {
     compare_with(a, b, false)
 }
 
+/// `localeCompare` as it is: titles that only differ by an accent or by case still have an order, the plain letter
+/// first, then the small one.
+pub fn compare_exact(a: &str, b: &str) -> Ordering {
+    use unicode_normalization::UnicodeNormalization;
+    let marks = |s: &str| s.nfd().filter(|c| ('\u{300}'..='\u{36f}').contains(c)).collect::<Vec<char>>();
+    let upper = |s: &str| s.chars().map(char::is_uppercase).collect::<Vec<bool>>();
+    compare_plain(a, b).then_with(|| marks(a).cmp(&marks(b))).then_with(|| upper(a).cmp(&upper(b)))
+}
+
 fn compare_with(a: &str, b: &str, numeric: bool) -> Ordering {
     let (a, b) = (folded(a), folded(b));
     let (mut x, mut y) = (a.iter().copied().peekable(), b.iter().copied().peekable());

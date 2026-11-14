@@ -525,16 +525,28 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Shows your installed Steam games on a PC shelf, from every Steam library, with Steam's covers (or the cover you chose
   in the Electron app) and your playtime, and starts them through Steam. Steam's tools (Proton, runtimes) stay off it
   unless Settings → PC games says otherwise.
+- Puts the other stores' games on the PC shelf too: the Epic Games Launcher's, GOG Galaxy's, Ubisoft Connect's, the EA
+  app's, Xbox / Game Pass and HoYoPlay's (on Windows), and every game in the PC games folder. Epic's, Ubisoft's and EA's
+  start through their store, an Xbox game as the Windows app it is, the others by their own program.
+- Shows the apps Quiver Launcher installed and the programs you added by hand on the Custom shelf, or on the PC shelf or
+  a console's shelf when you moved them there, and starts them in their own folder (with Windows' administrator prompt
+  for a program that asks for it).
+- Gives a PC game the cover you chose in the Electron app, else its console box when Settings → PC games → Console box
+  art is on, else the store's cover, a picture in the game's own folder, or the cover of the Steam game with the same
+  name.
 - Shows the names you gave games in the Electron app (Details → Rename).
 
-The Xbox 360 title list, the arcade names, the sizes of unpacked Switch 2 games and the Steam covers Steam itself doesn't
-keep come from the Electron app's `data` folder. Until the Electron app has fetched or measured them, games show their
-file names, no size and no such cover.
+The Xbox 360 title list, the arcade names, the sizes of unpacked Switch 2 games and of PC games' folders, the Steam
+covers Steam itself doesn't keep, and which Steam game a store game's name belongs to come from the Electron app's
+`data` folder. Until the Electron app has fetched or measured them, games show their file names, no size and no such
+cover.
 
-**Not yet:** Settings and the setup wizard, art downloads, PC games other than Steam's (Epic, GOG, Ubisoft, EA, Xbox, the
-PC games folder, games added by hand), the open case and the museum, sounds and music, the phone companion, Android. Installing a 3DS `.cia`, choosing a Switch 2 build, downloading a missing RetroArch
-core, and the emulator settings the Electron app adjusts before a game (so the controller's quit combo closes it without
-a question) are Electron-only too.
+**Not yet:** Settings and the setup wizard, art downloads, the Media shelf's apps, the open case and the museum, sounds
+and music, the Home menu over a running game, the phone companion. On Linux, Epic's games and Windows programs (through
+Wine / Proton) aren't started yet, and Android isn't built: the rewrite goes to Windows first. Installing a 3DS `.cia`,
+choosing a Switch 2 build, downloading a missing RetroArch core, a PC game's window mode, Seamless play, and the emulator
+settings the Electron app adjusts before a game (so the controller's quit combo closes it without a question) are
+Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

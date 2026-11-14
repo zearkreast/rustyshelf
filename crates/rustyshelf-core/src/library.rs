@@ -1,29 +1,34 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the shelves of
-// Boxshelf's main.js library build, with main/pccovers.js (cover, consoleCover) and main/steamart.js (local), as
-// RustyShelf has them.
-//! Every shelf: each console's, read from the settings and the games folders, and the PC shelf's Steam games.
+// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it.
+//! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
+//! the Custom shelf's Quiver apps and programs added by hand.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
-use regex::Regex;
+use serde_json::Value;
 
 use crate::art::{Art, ArtLibrary};
+use crate::collate::compare_plain;
 use crate::config::{Config, LoadError, SystemConfig};
 use crate::paths::{self, is_file};
+use crate::pccovers;
+use crate::pcgames::{self, PcGame};
 use crate::scanner::{self, Game, ScanData, Source};
 use crate::steam::{self, SteamGame};
 use crate::systems::{systems, Console};
+use crate::{js, pcfolder};
 
 #[derive(Debug, Clone)]
 pub enum ShelfKind {
     Console { console: Box<Console>, config: SystemConfig },
+    /// the PC shelf and the Custom shelf
     Pc,
 }
 
 #[derive(Debug, Clone)]
 pub struct Shelf {
-    /// the console's id, or "pc"
+    /// the console's id, "pc" or "custom"
     pub id: String,
     pub name: String,
     pub kind: ShelfKind,
@@ -34,24 +39,84 @@ pub struct Shelf {
 pub struct Library {
     pub app_root: PathBuf,
     pub config: Config,
-    /// consoles that are on and have games, in the settings' console order, then the PC shelf
+    /// consoles that are on and have games, in the settings' console order, then the PC shelf and the Custom shelf
     pub shelves: Vec<Shelf>,
 }
 
-/// A PC game's id as a file name.
-fn safe_id(id: &str) -> String {
-    static UNSAFE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-z0-9._-]+").unwrap());
-    UNSAFE.replace_all(&id.to_lowercase(), "-").chars().take(120).collect()
+/// What a PC game's case needs from the data folder.
+struct PcArt<'a> {
+    cfg: &'a Config,
+    data: &'a Path,
+    /// Settings → PC games → Console box art
+    boxes: bool,
+    /// a store game's title (lower case) → the Steam app it was matched to
+    steam_ids: HashMap<String, String>,
+    sizes: &'a ScanData,
 }
 
-/// The cover the player chose for a PC game, in `data/pc-covers`.
-fn chosen_cover(data: &Path, id: &str) -> Option<PathBuf> {
-    let b = data.join("pc-covers").join(safe_id(id));
-    ["jpg", "png", "webp"].iter().map(|e| PathBuf::from(format!("{}.{e}", b.display()))).find(|f| is_file(f))
+impl PcArt<'_> {
+    /// The art the Electron app fetched from Steam's store for an app (`data/steam-art`): its cover and its hero.
+    fn steam_art(&self, appid: &str) -> (Option<PathBuf>, Option<PathBuf>) {
+        let local = |name: String| Some(self.data.join("steam-art").join(name)).filter(|f| is_file(f));
+        (local(format!("{appid}_cover.jpg")), local(format!("{appid}_hero.jpg")))
+    }
+
+    /// A game's front, and with a console box its back, its spine and the console it's from. The player's pick comes
+    /// first, then its console box, then `auto`: the automatic covers, best first.
+    fn case(&self, id: &str, auto: impl FnOnce() -> Option<PathBuf>) -> (Art, Option<String>) {
+        let chosen = pccovers::cover(self.data, id);
+        let boxed = if chosen.is_none() && self.boxes { pccovers::console_cover(self.data, id, "") } else { None };
+        let plat = if chosen.is_some() || boxed.is_some() { pccovers::console_plat(self.data, id) } else { None };
+        let in_box = boxed.is_some() || (chosen.is_some() && plat.is_some());
+        let part = |p: &str| if in_box { pccovers::console_cover(self.data, id, p) } else { None };
+        let (back, spine) = (part("back"), part("spine"));
+        (Art { front: chosen.or(boxed).or_else(auto), back, spine, ..Art::default() }, plat)
+    }
+
+    fn steam_game(&self, g: SteamGame) -> Game {
+        let id = format!("steam-{}", g.appid);
+        let (cover, hero) = self.steam_art(&g.appid);
+        let (art, box_plat) = self.case(&id, || g.front.or(cover));
+        Game {
+            title: self.cfg.game_title(&id).map(String::from).unwrap_or(g.title),
+            id,
+            file: g.dir.unwrap_or_default(),
+            size_bytes: g.size_bytes,
+            art,
+            hero: g.hero.or(hero),
+            box_plat,
+            source: Source::Steam { appid: g.appid, minutes: g.minutes, last_played: g.last_played },
+            ..Game::default()
+        }
+    }
+
+    fn pc_game(&self, g: PcGame) -> Game {
+        // a store's title names the Steam app whose art it gets; a recomp or a program added by hand often shares its
+        // name with an unrelated Steam game
+        let store = matches!(g.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder");
+        let (cover, hero) = store.then(|| self.steam_ids.get(&g.title.to_lowercase())).flatten().map(|sid| self.steam_art(sid)).unwrap_or_default();
+        let (art, box_plat) = self.case(&g.id, || {
+            pccovers::auto_cover(self.data, &g.id).or_else(|| Some(&g.exe).filter(|e| !e.is_empty()).and_then(|e| pccovers::folder_cover(e))).or(cover)
+        });
+        // only the games whose own folder is the game: a program added by hand may sit in a shared folder
+        let sized = g.installed != Some(false) && matches!(g.source, "folder" | "epic" | "hoyoplay") && !g.dir.is_empty();
+        Game {
+            id: g.id.clone(),
+            title: g.title.clone(),
+            file: PathBuf::from(if g.exe.is_empty() { &g.dir } else { &g.exe }),
+            size_bytes: if sized { self.sizes.pc_dir_size(&g.dir) } else { 0 },
+            art,
+            hero,
+            not_installed: g.installed == Some(false),
+            box_plat,
+            source: Source::Pc(Box::new(g)),
+            ..Game::default()
+        }
+    }
 }
 
 /// The PC shelf's Steam games, from the Steam folder Settings names, else the one found in the usual place.
-fn steam_shelf(cfg: &Config, data: &Path) -> Vec<Game> {
+fn steam_games(cfg: &Config) -> Vec<SteamGame> {
     let (enabled, path, hide_tools) = cfg.steam();
     if !enabled {
         return Vec::new();
@@ -73,31 +138,42 @@ fn steam_shelf(cfg: &Config, data: &Path) -> Vec<Game> {
         .and_then(|_| steam::find_steam())
         .filter(|p| steam::steam_root_within(&p.to_string_lossy()).is_some_and(|r| steam::is_main_steam_within(&r)))
         .map(|p| p.to_string_lossy().into_owned());
-    let boxes = cfg.pc_console_box();
-    steam::scan(&path, main.as_deref(), hide_tools).into_iter().map(|g| steam_game(g, cfg, data, boxes)).collect()
+    steam::scan(&path, main.as_deref(), hide_tools)
 }
 
-fn steam_game(g: SteamGame, cfg: &Config, data: &Path, boxes: bool) -> Game {
-    let id = format!("steam-{}", g.appid);
-    let art_dir = data.join("steam-art");
-    let local = |name: String| Some(art_dir.join(name)).filter(|f| is_file(f));
-    let console_box = || Some(data.join("pc-console-covers").join(format!("{}.jpg", safe_id(&id)))).filter(|f| is_file(f));
-    // the player's pick, its console box, Steam's own cover, then one the Electron app fetched from Steam's store
-    let front = chosen_cover(data, &id)
-        .or_else(|| boxes.then(console_box).flatten())
-        .or(g.front)
-        .or_else(|| local(format!("{}_cover.jpg", g.appid)));
-    let hero = g.hero.or_else(|| local(format!("{}_hero.jpg", g.appid)));
-    Game {
-        title: cfg.game_title(&id).map(String::from).unwrap_or(g.title),
-        id,
-        file: g.dir.unwrap_or_default(),
-        size_bytes: g.size_bytes,
-        art: Art { front, ..Art::default() },
-        hero,
-        source: Source::Steam { appid: g.appid, minutes: g.minutes, last_played: g.last_played },
-        ..Game::default()
+/// The PC games that aren't Steam's, under the names the player gave them: the stores' and the PC games folder's
+/// (for the PC shelf), then Quiver's and the ones added by hand.
+fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
+    let pc = cfg.raw().get("pc");
+    let (get, on) = (|k: &str| pc.and_then(|p| p.get(k)), |k: &str| pcgames::wanted(pc, k));
+    let mut stores = Vec::new();
+    // TODO: on Linux the Electron app lists the games the Epic account owns (main/linuxpc.js)
+    if on("epic") && cfg!(windows) {
+        stores.extend(pcgames::epic_games(&pcgames::epic_dir()));
     }
+    // Details → Installation: an Epic game set by hand to installed / not installed
+    for g in stores.iter_mut() {
+        match cfg.game(&g.id).and_then(|o| o.get("install")).and_then(Value::as_str) {
+            Some("installed") => g.installed = Some(true),
+            Some("notinstalled") => g.installed = Some(false),
+            _ => {}
+        }
+    }
+    // Epic's installs in the PC games folder are already on the shelf
+    let taken: Vec<String> = stores.iter().map(|g| g.dir.clone()).collect();
+    stores.extend(pcfolder::scan(js::str_of(get("gamesDir")).unwrap_or(""), js::str_of(get("userGamesDir")).unwrap_or(""), get("programs"), &taken));
+    stores.extend(pcgames::store_games_of(pc, data));
+    let mut mine = Vec::new();
+    if on("quiver") {
+        mine.extend(pcgames::quiver_games(js::str_of(get("quiverPath")).unwrap_or("")));
+    }
+    mine.extend(pcgames::custom_games(get("custom")));
+    for g in stores.iter_mut().chain(mine.iter_mut()) {
+        if let Some(t) = cfg.game_title(&g.id) {
+            g.title = t.to_string();
+        }
+    }
+    (stores, mine)
 }
 
 impl Library {
@@ -110,14 +186,17 @@ impl Library {
         let config = Config::load(&data_dir)?;
         let lib = ArtLibrary::from_config(&config, app_root);
         let data = ScanData::load(&data_dir);
+        let retroarch = config.retroarch();
+        // a console that's on, with an emulator or a games folder, has its place among the shelves
         let wanted: Vec<(&Console, SystemConfig)> = systems()
             .consoles
             .iter()
             .map(|c| (c, config.system(c)))
-            .filter(|(_, sc)| sc.enabled && !sc.rom_dirs.is_empty())
+            .filter(|(c, sc)| sc.enabled && !c.standalone && (!sc.emulator.is_empty() || (c.retro && !retroarch.is_empty()) || !sc.rom_dirs.is_empty()))
             .collect();
-        let (mut shelves, pc): (Vec<Shelf>, Vec<Game>) = std::thread::scope(|s| {
-            let pc = s.spawn(|| steam_shelf(&config, &data_dir));
+        let (mut shelves, steam, (stores, mine)) = std::thread::scope(|s| {
+            let steam = s.spawn(|| steam_games(&config));
+            let pc = s.spawn(|| pc_games(&config, &data_dir));
             let jobs: Vec<_> = wanted
                 .into_iter()
                 .map(|(c, sc)| {
@@ -125,21 +204,46 @@ impl Library {
                     s.spawn(move || Shelf {
                         id: c.id.clone(),
                         name: c.name.clone(),
-                        games: scanner::scan(c, &sc, &dirs, data),
+                        games: if sc.rom_dirs.is_empty() { Vec::new() } else { scanner::scan(c, &sc, &dirs, data) },
                         kind: ShelfKind::Console { console: Box::new(c.clone()), config: sc },
                     })
                 })
                 .collect();
-            let shelves = jobs.into_iter().filter_map(|j| j.join().ok()).filter(|s| !s.games.is_empty()).collect();
-            (shelves, pc.join().unwrap_or_default())
+            let shelves: Vec<Shelf> = jobs.into_iter().filter_map(|j| j.join().ok()).collect();
+            (shelves, steam.join().unwrap_or_default(), pc.join().unwrap_or_default())
         });
         for g in shelves.iter_mut().flat_map(|s| s.games.iter_mut()) {
             if let Some(t) = config.game_title(&g.id) {
                 g.title = t.to_string();
             }
         }
-        if !pc.is_empty() {
-            shelves.push(Shelf { id: "pc".into(), name: "PC".into(), kind: ShelfKind::Pc, games: pc });
+        let art = PcArt { cfg: &config, data: &data_dir, boxes: config.pc_console_box(), steam_ids: pcgames::steam_ids(&data_dir), sizes: &data };
+        let mut pc: Vec<Game> = steam.into_iter().map(|g| art.steam_game(g)).collect();
+        pc.extend(stores.into_iter().map(|g| art.pc_game(g)));
+        // a game added by hand can sit on the PC shelf or on a console's, beside its ROMs: it's still started as its
+        // own program. A console that's switched off sends its games back to Custom
+        let mut custom = Vec::new();
+        for g in mine {
+            let shelf = g.shelf.clone();
+            let game = art.pc_game(g);
+            match shelf.as_deref() {
+                None => custom.push(game),
+                Some("pc") => pc.push(game),
+                Some(id) => match (shelves.iter_mut().find(|s| s.id == id), systems().console(id).map(|c| (c, config.system(c))).filter(|(_, sc)| sc.enabled)) {
+                    (Some(shelf), Some(_)) => shelf.games.push(game),
+                    (None, Some((c, sc))) => {
+                        shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games: vec![game], kind: ShelfKind::Console { console: Box::new(c.clone()), config: sc } })
+                    }
+                    _ => custom.push(game),
+                },
+            }
+        }
+        shelves.retain(|s| !s.games.is_empty());
+        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom)] {
+            if !games.is_empty() {
+                games.sort_by(|a, b| compare_plain(&a.title, &b.title));
+                shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games });
+            }
         }
         Ok(Library { app_root: app_root.to_path_buf(), config, shelves })
     }
@@ -149,19 +253,49 @@ impl Library {
 mod tests {
     use super::*;
 
+    fn touch(p: &Path) {
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, b"x").unwrap();
+    }
+
     #[test]
-    fn pc_cover_names() {
-        assert_eq!(safe_id("steam-12 34/X"), "steam-12-34-x");
+    fn pc_cases() {
         let t = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(t.path().join("pc-covers")).unwrap();
-        std::fs::write(t.path().join("pc-covers/steam-10.png"), b"").unwrap();
-        assert_eq!(chosen_cover(t.path(), "steam-10"), Some(t.path().join("pc-covers/steam-10.png")));
-        let g = steam_game(
-            SteamGame { appid: "10".into(), title: "Zeta".into(), size_bytes: 1, dir: None, minutes: 3, last_played: 0, front: Some("/s/f.jpg".into()), hero: None },
-            &Config::parse(r#"{"games":{"steam-10":{"title":"Zeta Deluxe"}}}"#).unwrap(),
-            t.path(),
-            false,
-        );
-        assert_eq!((g.title.as_str(), g.art.front), ("Zeta Deluxe", Some(t.path().join("pc-covers/steam-10.png"))));
+        let d = t.path();
+        for f in ["pc-covers/steam-10.png", "pc-console-covers/custom-zeta.jpg", "pc-console-covers/custom-zeta-spine.jpg", "steam-art/77_cover.jpg", "steam-art/77_hero.jpg"] {
+            touch(&d.join(f));
+        }
+        let cfg = Config::parse(r#"{"games":{"steam-10":{"title":"Zeta Deluxe"}}}"#).unwrap();
+        let sizes = ScanData::default();
+        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::from([("omega".to_string(), "77".to_string())]), sizes: &sizes };
+        let g = art.steam_game(SteamGame { appid: "10".into(), title: "Zeta".into(), size_bytes: 1, dir: None, minutes: 3, last_played: 0, front: Some("/s/f.jpg".into()), hero: None });
+        assert_eq!((g.title.as_str(), g.art.front, g.art.spine), ("Zeta Deluxe", Some(d.join("pc-covers/steam-10.png")), None));
+        let g = art.pc_game(PcGame { id: "custom-zeta".into(), source: "custom", title: "Omega".into(), ..PcGame::default() });
+        assert_eq!((g.art.front, g.art.spine, g.hero), (Some(d.join("pc-console-covers/custom-zeta.jpg")), Some(d.join("pc-console-covers/custom-zeta-spine.jpg")), None));
+        let g = art.pc_game(PcGame { id: "epic-omega".into(), source: "epic", title: "Omega".into(), installed: Some(false), ..PcGame::default() });
+        assert_eq!((g.art.front, g.hero, g.not_installed), (Some(d.join("steam-art/77_cover.jpg")), Some(d.join("steam-art/77_hero.jpg")), true));
+    }
+
+    #[test]
+    fn hand_added_games_on_their_shelves() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for f in ["tools/a.exe", "tools/b.exe", "tools/c.exe", "tools/d.exe", "snes/Zeta (USA).sfc"] {
+            touch(&root.join(f));
+        }
+        let at = |f: &str| root.join(f).to_string_lossy().replace('\\', "/");
+        let cfg = serde_json::json!({
+            "steam": { "enabled": false },
+            "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false, "custom": [
+                { "title": "On Custom", "exe": at("tools/a.exe") }, { "title": "On PC", "exe": at("tools/b.exe"), "shelf": "pc" },
+                { "title": "On SNES", "exe": at("tools/c.exe"), "shelf": "snes" }, { "title": "Console Off", "exe": at("tools/d.exe"), "shelf": "gc" } ] },
+            "systems": { "snes": { "romDirs": [at("snes")] }, "gc": { "enabled": false } },
+            "games": { "custom-on-pc": { "title": "Renamed" } },
+        });
+        touch(&root.join("data/config.json"));
+        std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+        let lib = Library::load_from(root).unwrap();
+        let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
+        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"])]);
     }
 }

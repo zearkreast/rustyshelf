@@ -1,0 +1,1400 @@
+{
+ "files": [
+  [
+   "epic/m/a.item",
+   "{\"AppName\":\"Zeta\",\"DisplayName\":\" Zeta Run \",\"InstallLocation\":\"{root}/epic/Zeta\",\"LaunchExecutable\":\"bin/../Zeta.exe\",\"CatalogNamespace\":\"ns1\",\"CatalogItemId\":\"it1\",\"AppCategories\":[\"public\",\"games\"]}"
+  ],
+  [
+   "epic/m/b.item",
+   "{\"AppName\":\"UE_5.1\",\"DisplayName\":\"Engine\"}"
+  ],
+  [
+   "epic/m/c.item",
+   "{\"AppName\":\"Plug\",\"DisplayName\":\"Plugin\",\"AppCategories\":[\"plugins\"]}"
+  ],
+  [
+   "epic/m/d.item",
+   "{\"AppName\":\"Gone\",\"DisplayName\":\"Gone Game\",\"InstallLocation\":\"{root}/epic/Nope\"}"
+  ],
+  [
+   "epic/m/e.item",
+   "{\"AppName\":\"zeta\",\"DisplayName\":\"Zeta Again\"}"
+  ],
+  [
+   "epic/m/f.ITEM",
+   "{\"AppName\":\"Alpha Two!\",\"DisplayName\":\"alpha two\",\"bIsIncompleteInstall\":false}"
+  ],
+  [
+   "epic/m/g.item",
+   "{\"AppName\":\"Half\",\"DisplayName\":\"Half\",\"bIsIncompleteInstall\":true}"
+  ],
+  [
+   "epic/m/h.item",
+   "not json"
+  ],
+  [
+   "epic/m/i.item",
+   "﻿{\"AppName\":\"Éclair & Co\",\"DisplayName\":\"Éclair\",\"InstallLocation\":\"{root}/epic/Zeta\"}"
+  ],
+  [
+   "epic/m/j.item",
+   "{\"AppName\":77,\"DisplayName\":\"Alpha Two\"}"
+  ],
+  [
+   "epic/m/k.item",
+   "{\"AppName\":\"Eclair\",\"DisplayName\":\"Eclair\",\"LaunchExecutable\":\"x.exe\"}"
+  ],
+  [
+   "epic/m/l.txt",
+   "{\"AppName\":\"Txt\",\"DisplayName\":\"Txt\"}"
+  ],
+  [
+   "epic/Zeta/Zeta.exe",
+   10
+  ],
+  [
+   "ea/Game One/__Installer/installerdata.xml",
+   "<DiP><contentIDs><contentID>OFB-EAST:111</contentID><contentID> 222 </contentID></contentIDs><gameTitles><gameTitle locale=\"de_DE\">Spiel Eins</gameTitle><gameTitle locale=\"en_US\">Game &amp; One </gameTitle></gameTitles></DiP>"
+  ],
+  [
+   "ea/Game One/One.exe",
+   5
+  ],
+  [
+   "ea/Game One/Setup.exe",
+   50
+  ],
+  [
+   "ea/Game One/_Redist/big.exe",
+   500
+  ],
+  [
+   "ea/Game One/bin/x64/deep.exe",
+   400
+  ],
+  [
+   "ea/Game One/bin/x64/too/deeper.exe",
+   900
+  ],
+  [
+   "ea/Two/__Installer/installerdata.xml",
+   "<contentID>OFB-EAST:111</contentID><gameTitle>Dup</gameTitle>"
+  ],
+  [
+   "ea/Three/__Installer/installerdata.xml",
+   "<contentID>x.y</contentID>"
+  ],
+  [
+   "ea/Four/__Installer/installerdata.xml",
+   "<gameTitle>No ids</gameTitle>"
+  ],
+  [
+   "ea/Five/__Installer/installerdata.xml",
+   "<contentID>five</contentID><gameTitle locale=\"fr_FR\"> Cinq &lt;5&gt; </gameTitle>"
+  ],
+  [
+   "xbox/Alpha/Content/MicrosoftGame.config",
+   "﻿<Game><Identity Name=\"Made.Alpha\" Publisher=\"CN=Made &amp; Up\" Version=\"1\"/><ExecutableList><Executable Name=\"a.exe\" Id=\"AlphaApp\"/></ExecutableList><ShellVisuals DefaultDisplayName=\"Alpha &amp; Co\" /></Game>"
+  ],
+  [
+   "xbox/Beta/Content/MicrosoftGame.config",
+   {
+    "b64": "//48AEcAYQBtAGUAPgA8AEkAZABlAG4AdABpAHQAeQAgAE4AYQBtAGUAPQAiAE0AYQBkAGUALgBCAGUAdABhACIAIABQAHUAYgBsAGkAcwBoAGUAcgA9ACIAQwBOAD0ARQB4AGEAbQBwAGwAZQAgAEMAbwByAHAALAAgAE8APQBFAHgAYQBtAHAAbABlACwAIABDAD0AVQBTACIALwA+ADwARQB4AGUAYwB1AHQAYQBiAGwAZQAgAE4AYQBtAGUAPQAiAGIALgBlAHgAZQAiAC8APgA8AFMAaABlAGwAbABWAGkAcwB1AGEAbABzACAARABlAGYAYQB1AGwAdABEAGkAcwBwAGwAYQB5AE4AYQBtAGUAPQAiAG0AcwAtAHIAZQBzAG8AdQByAGMAZQA6AE4AYQBtAGUAIgAvAD4APAAvAEcAYQBtAGUAPgA="
+   }
+  ],
+  [
+   "xbox/GameSave/x",
+   0
+  ],
+  [
+   "xbox/Gamma/Content/MicrosoftGame.config",
+   "<Game><Identity Publisher=\"x\"/></Game>"
+  ],
+  [
+   "gog/Omega/omega.exe",
+   3
+  ],
+  [
+   "gog/Omega/other.exe",
+   9
+  ],
+  [
+   "gog/Sigma/sigma.exe",
+   3
+  ],
+  [
+   "gog/Tau/bin/tau.exe",
+   3
+  ],
+  [
+   "gog/Tau/unins000.exe",
+   30
+  ],
+  [
+   "gog/Phi/readme.txt",
+   1
+  ],
+  [
+   "hoyo/GI/sub/YuanShen.exe",
+   1
+  ],
+  [
+   "hoyo/SR/StarRail.exe",
+   1
+  ],
+  [
+   "hoyo/ZZZ/x",
+   1
+  ],
+  [
+   "q3/apps.json",
+   "{\"apps\":[{\"name\":\"Zeta64\",\"repository\":\"owner/zeta64\",\"folderName\":\"Zeta64\",\"appIconUrl\":\"https://example.invalid/z.png\",\"tags\":[\"n64\",5]},{\"name\":\"Not Installed\",\"folderName\":\"Nope\"},{\"name\":\"By Path\",\"installPath\":\"{root}/q3/Elsewhere\",\"project\":\"P\",\"appIconUrl\":\"http://example.invalid/p.png\"},{\"project\":\"Proj Only\",\"folderName\":\"ProjOnly\"},\"junk\",null,{\"name\":\"Listed Elsewhere\",\"repository\":\"owner/starship\"}]}"
+  ],
+  [
+   "q3/settings.json",
+   "{\"AppsPath\":\" \",\"UserAppDisplayNames\":{\"owner/zeta64\":\"Zeta 64 Recomp\"}}"
+  ],
+  [
+   "q3/Apps/Zeta64/zeta.exe",
+   4
+  ],
+  [
+   "q3/Apps/Zeta64/UnityCrashHandler64.exe",
+   40
+  ],
+  [
+   "q3/Elsewhere/e.exe",
+   1
+  ],
+  [
+   "q3/Apps/ProjOnly/p.exe",
+   1
+  ],
+  [
+   "q3/Apps/Starship-v1.0.2/ship.exe",
+   1
+  ],
+  [
+   "q3/Apps/Loose_One.Game/l.exe",
+   1
+  ],
+  [
+   "q3/Apps/_hidden/h.exe",
+   1
+  ],
+  [
+   "q3/Apps/temp/t.exe",
+   1
+  ],
+  [
+   "q3/Apps/Empty/readme.txt",
+   1
+  ],
+  [
+   "q4/installs.json",
+   "{\"7\":{\"dir\":\"{root}/q4/custom/seven\",\"executables\":[\"seven.exe\"]},\"github:own/alpha\":{\"folder\":\"alpha\",\"group\":\"Ports/N64\",\"program\":\"bin/alpha.exe\"},\"github:own/beta\":{\"folder\":\"beta\"},\"gone\":{\"folder\":\"gone\"},\"notexe\":{\"dir\":\"{root}/q4/custom/sh\",\"program\":\"run.sh\"},\"bad\":3}"
+  ],
+  [
+   "q4/library.json",
+   "{\"items\":[{\"id\":\"github:own/alpha\",\"overrides\":{\"name\":\"Alpha DX\",\"cover\":\"https://example.invalid/a.jpg\"}},{\"id\":7,\"local\":{\"name\":\"Seven Local\"}},{\"id\":\"x\",\"name\":\"Gamma Loose\",\"folder\":\"gamma-loose\"}]}"
+  ],
+  [
+   "q4/catalog.json",
+   "[{\"id\":\"github:own/beta\",\"name\":\" Beta Name \",\"slug\":\"beta\",\"artwork\":\"https://example.invalid/b.jpg\",\"tags\":[\"a\",\"b\"]},{\"id\":\"github:own/delta\",\"name\":\"Delta Port\",\"slug\":\"delta\",\"libraryArt\":{\"capsule\":\"https://example.invalid/d.jpg\"}},{\"id\":\"noname\"}]"
+  ],
+  [
+   "q4/apps/Ports/N64/alpha/bin/alpha.exe",
+   1
+  ],
+  [
+   "q4/custom/seven/seven.exe",
+   1
+  ],
+  [
+   "q4/apps/beta/b.exe",
+   1
+  ],
+  [
+   "q4/apps/Games/delta/d.exe",
+   1
+  ],
+  [
+   "q4/apps/Emulators/emu1/e.exe",
+   1
+  ],
+  [
+   "q4/apps/Ports/GC/gamma-loose/g.exe",
+   1
+  ],
+  [
+   "q4/apps/standalone/s.exe",
+   1
+  ],
+  [
+   "q4/custom/sh/run.sh",
+   1
+  ],
+  [
+   "custom/tool.exe",
+   1
+  ],
+  [
+   "custom/Some-Game_v2.exe",
+   1
+  ],
+  [
+   "custom/x.exe",
+   1
+  ],
+  [
+   "pcf/games/Hollow Knight/hollow_knight.exe",
+   10
+  ],
+  [
+   "pcf/games/Hollow Knight/zbig.exe",
+   100
+  ],
+  [
+   "pcf/own/Hollow Knight/mine.exe",
+   1
+  ],
+  [
+   "pcf/games/Deep One/a/b/deep.exe",
+   1
+  ],
+  [
+   "pcf/games/Deep One/a/b/c/toodeep.exe",
+   1
+  ],
+  [
+   "pcf/games/Native Game/start.sh",
+   1
+  ],
+  [
+   "pcf/games/Native Game/game.x86_64",
+   {
+    "b64": "f0VMRg=="
+   }
+  ],
+  [
+   "pcf/games/Native Game/notelf",
+   4
+  ],
+  [
+   "pcf/games/Native Game/win.exe",
+   1
+  ],
+  [
+   "pcf/games/Native Game/run.bat",
+   1
+  ],
+  [
+   "pcf/games/Chosen/one.exe",
+   5
+  ],
+  [
+   "pcf/games/Chosen/two.exe",
+   3
+  ],
+  [
+   "pcf/games/Epic Install/.egstore/x",
+   1
+  ],
+  [
+   "pcf/games/Epic Install/game.exe",
+   1
+  ],
+  [
+   "pcf/games/Skipped/s.exe",
+   1
+  ],
+  [
+   "pcf/games/.hidden/h.exe",
+   1
+  ],
+  [
+   "pcf/games/Empty/readme.txt",
+   1
+  ],
+  [
+   "pcf/games/Öde Stadt/o.exe",
+   1
+  ],
+  [
+   "pcf/games/Half-Life/hl.exe",
+   1
+  ],
+  [
+   "pcf/games/Half Life/hl.exe",
+   1
+  ],
+  [
+   "pcf/games/Sub Elf/bin/sub_elf",
+   {
+    "b64": "f0VMRg=="
+   }
+  ],
+  [
+   "pcf/games/Sub Elf/bin/other",
+   {
+    "b64": "f0VMRg=="
+   }
+  ],
+  [
+   "pcf/games/file.txt",
+   1
+  ]
+ ],
+ "exec": [
+  "pcf/games/Native Game/start.sh",
+  "pcf/games/Native Game/game.x86_64",
+  "pcf/games/Native Game/notelf",
+  "pcf/games/Sub Elf/bin/sub_elf",
+  "pcf/games/Sub Elf/bin/other"
+ ],
+ "epic": [
+  {
+   "id": "epic-alpha-two",
+   "source": "epic",
+   "title": "alpha two",
+   "exe": "",
+   "args": "",
+   "uri": "com.epicgames.launcher://apps/Alpha%20Two!?action=launch&silent=true",
+   "shellApp": "",
+   "dir": "",
+   "icon": "",
+   "tags": [],
+   "shelf": null,
+   "native": false,
+   "programs": []
+  },
+  {
+   "id": "epic-77",
+   "source": "epic",
+   "title": "Alpha Two",
+   "exe": "",
+   "args": "",
+   "uri": "com.epicgames.launcher://apps/77?action=launch&silent=true",
+   "shellApp": "",
+   "dir": "",
+   "icon": "",
+   "tags": [],
+   "shelf": null,
+   "native": false,
+   "programs": []
+  },
+  {
+   "id": "epic-eclair",
+   "source": "epic",
+   "title": "Eclair",
+   "exe": "",
+   "args": "",
+   "uri": "com.epicgames.launcher://apps/Eclair?action=launch&silent=true",
+   "shellApp": "",
+   "dir": "",
+   "icon": "",
+   "tags": [],
+   "shelf": null,
+   "native": false,
+   "programs": []
+  },
+  {
+   "id": "epic-clair-co",
+   "source": "epic",
+   "title": "Éclair",
+   "exe": "",
+   "args": "",
+   "uri": "com.epicgames.launcher://apps/%C3%89clair%20%26%20Co?action=launch&silent=true",
+   "shellApp": "",
+   "dir": "{root}/epic/Zeta",
+   "icon": "",
+   "tags": [],
+   "shelf": null,
+   "native": false,
+   "programs": []
+  },
+  {
+   "id": "epic-zeta",
+   "source": "epic",
+   "title": "Zeta Run",
+   "exe": "{root}/epic/Zeta/Zeta.exe",
+   "args": "",
+   "uri": "com.epicgames.launcher://apps/ns1%3Ait1%3AZeta?action=launch&silent=true",
+   "shellApp": "",
+   "dir": "{root}/epic/Zeta",
+   "icon": "",
+   "tags": [],
+   "shelf": null,
+   "native": false,
+   "programs": []
+  }
+ ],
+ "ea": {
+  "dirs": [
+   "ea/Game One",
+   "ea/Two",
+   "ea/Three",
+   "ea/Four",
+   "ea/Five",
+   "ea/Missing"
+  ],
+  "games": [
+   {
+    "id": "ea-ofb-east-111",
+    "source": "ea",
+    "title": "Game & One",
+    "exe": "{root}/ea/Game One/bin/x64/deep.exe",
+    "args": "",
+    "uri": "origin2://game/launch?offerIds=OFB-EAST%3A111%2C222&autoDownload=1",
+    "shellApp": "",
+    "dir": "{root}/ea/Game One",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "ea-x-y",
+    "source": "ea",
+    "title": "Three",
+    "exe": "",
+    "args": "",
+    "uri": "origin2://game/launch?offerIds=x.y&autoDownload=1",
+    "shellApp": "",
+    "dir": "{root}/ea/Three",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "ea-five",
+    "source": "ea",
+    "title": "Cinq <5>",
+    "exe": "",
+    "args": "",
+    "uri": "origin2://game/launch?offerIds=five&autoDownload=1",
+    "shellApp": "",
+    "dir": "{root}/ea/Five",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   }
+  ]
+ },
+ "gog": {
+  "text": "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\r\n\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1001\r\n    gameName    REG_SZ    Omega Quest\r\n    path    REG_SZ    {root}/gog/Omega\r\n    launchCommand    REG_SZ    \"{root}/gog/Omega/omega.exe\" -fast\r\n    exe    REG_SZ    {root}/gog/Omega/other.exe\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1002\r\n    gameName    REG_SZ    Omega Extra\r\n    path    REG_SZ    {root}/gog/Omega\r\n    dependsOn    REG_SZ    1001\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1003\r\n    GAMETITLE    REG_SZ     Sigma \r\n    path    REG_SZ    {root}/gog/Sigma\r\n    launchCommand    REG_SZ    {root}/gog/Sigma/nope.exe\r\n    exe    REG_SZ    {root}/gog/Sigma/sigma.exe\r\n    launchParam    REG_SZ    --x\r\n    empty    REG_SZ\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1004\r\n    gameName    REG_SZ    Tau\r\n    path    REG_SZ    {root}/gog/Tau\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1005\r\n    gameName    REG_SZ    Nowhere\r\n    path    REG_SZ    {root}/gog/None\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1006\r\n    gameName    REG_SZ    Phi\r\n    path    REG_SZ    {root}/gog/Phi\r\n\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\extra\r\n    gameName    REG_SZ    Not a number\r\n    path    REG_SZ    {root}/gog/Tau\r\n\r\n",
+  "tree": [
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games",
+    {}
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1001",
+    {
+     "gamename": "Omega Quest",
+     "path": "{root}/gog/Omega",
+     "launchcommand": "\"{root}/gog/Omega/omega.exe\" -fast",
+     "exe": "{root}/gog/Omega/other.exe"
+    }
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1002",
+    {
+     "gamename": "Omega Extra",
+     "path": "{root}/gog/Omega",
+     "dependson": "1001"
+    }
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1003",
+    {
+     "gametitle": "Sigma",
+     "path": "{root}/gog/Sigma",
+     "launchcommand": "{root}/gog/Sigma/nope.exe",
+     "exe": "{root}/gog/Sigma/sigma.exe",
+     "launchparam": "--x",
+     "empty": ""
+    }
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1004",
+    {
+     "gamename": "Tau",
+     "path": "{root}/gog/Tau"
+    }
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1005",
+    {
+     "gamename": "Nowhere",
+     "path": "{root}/gog/None"
+    }
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1006",
+    {
+     "gamename": "Phi",
+     "path": "{root}/gog/Phi"
+    }
+   ],
+   [
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\extra",
+    {
+     "gamename": "Not a number",
+     "path": "{root}/gog/Tau"
+    }
+   ]
+  ],
+  "games": [
+   {
+    "id": "gog-1001",
+    "source": "gog",
+    "title": "Omega Quest",
+    "exe": "{root}/gog/Omega/omega.exe",
+    "args": "-fast",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "gog-1003",
+    "source": "gog",
+    "title": "Sigma",
+    "exe": "{root}/gog/Sigma/sigma.exe",
+    "args": "--x",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "gog-1004",
+    "source": "gog",
+    "title": "Tau",
+    "exe": "{root}/gog/Tau/bin/tau.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   }
+  ]
+ },
+ "hoyo": {
+  "text": "HKEY_CURRENT_USER\\Software\\Cognosphere\\HYP\\1_0\\hk4e_global\r\n    GameBiz    REG_SZ    hk4e_global\r\n    GameInstallPath    REG_SZ    {root}/hoyo/GI/\r\n\r\nHKEY_CURRENT_USER\\Software\\Cognosphere\\HYP\\1_0\\hkrpg_cn\r\n    GameBiz    REG_BINARY    686B7270675F636E00\r\n    GameInstallPath    REG_SZ    {root}/hoyo/SR\r\n\r\nHKEY_CURRENT_USER\\Software\\Cognosphere\\HYP\\1_0\\nap_global\r\n    GameBiz    REG_SZ    nap_global\r\n    GameInstallPath    REG_SZ    {root}/hoyo/ZZZ\r\n\r\nHKEY_CURRENT_USER\\Software\\Cognosphere\\HYP\\1_0\\other\r\n    GameBiz    REG_SZ    zzz\r\n    GameInstallPath    REG_SZ    {root}/hoyo/GI\r\n\r\nHKEY_CURRENT_USER\\Software\\Cognosphere\\HYP\\1_0\\again\r\n    GameBiz    REG_SZ    HK4E_GLOBAL\r\n    GameInstallPath    REG_SZ    {root}/hoyo/GI\r\n\r\n",
+  "games": [
+   {
+    "id": "hoyo-hk4e-global",
+    "source": "hoyoplay",
+    "title": "Genshin Impact",
+    "exe": "{root}/hoyo/GI/sub/YuanShen.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/hoyo/GI",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "hoyo-hkrpg-cn",
+    "source": "hoyoplay",
+    "title": "Honkai: Star Rail (China)",
+    "exe": "{root}/hoyo/SR/StarRail.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/hoyo/SR",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   }
+  ]
+ },
+ "xbox": {
+  "scan": [
+   {
+    "name": "Made.Alpha",
+    "publisher": "CN=Made & Up",
+    "appId": "AlphaApp",
+    "title": "Alpha & Co",
+    "dir": "{root}/xbox/Alpha"
+   },
+   {
+    "name": "Made.Beta",
+    "publisher": "CN=Example Corp, O=Example, C=US",
+    "appId": "Game",
+    "title": "Beta",
+    "dir": "{root}/xbox/Beta"
+   }
+  ],
+  "cases": [
+   {
+    "answer": "Made.Alpha|Made.Alpha_abc123\r\n\r\nTS-END\r\n",
+    "first": [
+     {
+      "id": "xbox-made-alpha",
+      "source": "xbox",
+      "title": "Alpha & Co",
+      "exe": "",
+      "args": "",
+      "uri": "",
+      "shellApp": "Made.Alpha_abc123!AlphaApp",
+      "dir": "{root}/xbox/Alpha",
+      "icon": "",
+      "tags": [],
+      "shelf": null,
+      "native": false,
+      "programs": []
+     }
+    ],
+    "again": [
+     {
+      "id": "xbox-made-alpha",
+      "source": "xbox",
+      "title": "Alpha & Co",
+      "exe": "",
+      "args": "",
+      "uri": "",
+      "shellApp": "Made.Alpha_abc123!AlphaApp",
+      "dir": "{root}/xbox/Alpha",
+      "icon": "",
+      "tags": [],
+      "shelf": null,
+      "native": false,
+      "programs": []
+     }
+    ]
+   },
+   {
+    "answer": "",
+    "first": [
+     {
+      "id": "xbox-made-alpha",
+      "source": "xbox",
+      "title": "Alpha & Co",
+      "exe": "",
+      "args": "",
+      "uri": "",
+      "shellApp": "Made.Alpha_k4894jzdyjeze!AlphaApp",
+      "dir": "{root}/xbox/Alpha",
+      "icon": "",
+      "tags": [],
+      "shelf": null,
+      "native": false,
+      "programs": []
+     },
+     {
+      "id": "xbox-made-beta",
+      "source": "xbox",
+      "title": "Beta",
+      "exe": "",
+      "args": "",
+      "uri": "",
+      "shellApp": "Made.Beta_43d6n9z62912m!Game",
+      "dir": "{root}/xbox/Beta",
+      "icon": "",
+      "tags": [],
+      "shelf": null,
+      "native": false,
+      "programs": []
+     }
+    ],
+    "again": [
+     {
+      "id": "xbox-made-alpha",
+      "source": "xbox",
+      "title": "Alpha & Co",
+      "exe": "",
+      "args": "",
+      "uri": "",
+      "shellApp": "Made.Alpha_k4894jzdyjeze!AlphaApp",
+      "dir": "{root}/xbox/Alpha",
+      "icon": "",
+      "tags": [],
+      "shelf": null,
+      "native": false,
+      "programs": []
+     },
+     {
+      "id": "xbox-made-beta",
+      "source": "xbox",
+      "title": "Beta",
+      "exe": "",
+      "args": "",
+      "uri": "",
+      "shellApp": "Made.Beta_43d6n9z62912m!Game",
+      "dir": "{root}/xbox/Beta",
+      "icon": "",
+      "tags": [],
+      "shelf": null,
+      "native": false,
+      "programs": []
+     }
+    ]
+   }
+  ]
+ },
+ "quiver": [
+  {
+   "chosen": "q3",
+   "games": [
+    {
+     "id": "quiver-owner-zeta64",
+     "source": "quiver",
+     "title": "Zeta 64 Recomp",
+     "exe": "{root}/q3/Apps/Zeta64/zeta.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "https://example.invalid/z.png",
+     "tags": [
+      "n64",
+      "5"
+     ],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-by-path",
+     "source": "quiver",
+     "title": "By Path",
+     "exe": "{root}/q3/Elsewhere/e.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-projonly",
+     "source": "quiver",
+     "title": "Proj Only",
+     "exe": "{root}/q3/Apps/ProjOnly/p.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-loose-one-game",
+     "source": "quiver",
+     "title": "Loose One Game",
+     "exe": "{root}/q3/Apps/Loose_One.Game/l.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-starship-v1-0-2",
+     "source": "quiver",
+     "title": "Listed Elsewhere",
+     "exe": "{root}/q3/Apps/Starship-v1.0.2/ship.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    }
+   ]
+  },
+  {
+   "chosen": "q4",
+   "games": [
+    {
+     "id": "quiver-7",
+     "source": "quiver",
+     "title": "Seven Local",
+     "exe": "{root}/q4/custom/seven/seven.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-github-own-alpha",
+     "source": "quiver",
+     "title": "Alpha DX",
+     "exe": "{root}/q4/apps/Ports/N64/alpha/bin/alpha.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "https://example.invalid/a.jpg",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-github-own-beta",
+     "source": "quiver",
+     "title": "Beta Name",
+     "exe": "{root}/q4/apps/beta/b.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "https://example.invalid/b.jpg",
+     "tags": [
+      "a",
+      "b"
+     ],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-emu1",
+     "source": "quiver",
+     "title": "emu1",
+     "exe": "{root}/q4/apps/Emulators/emu1/e.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-delta",
+     "source": "quiver",
+     "title": "Delta Port",
+     "exe": "{root}/q4/apps/Games/delta/d.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "https://example.invalid/d.jpg",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-gamma-loose",
+     "source": "quiver",
+     "title": "Gamma Loose",
+     "exe": "{root}/q4/apps/Ports/GC/gamma-loose/g.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-standalone",
+     "source": "quiver",
+     "title": "standalone",
+     "exe": "{root}/q4/apps/standalone/s.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    }
+   ]
+  },
+  {
+   "chosen": "q3/Apps",
+   "games": [
+    {
+     "id": "quiver-owner-zeta64",
+     "source": "quiver",
+     "title": "Zeta 64 Recomp",
+     "exe": "{root}/q3/Apps/Zeta64/zeta.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "https://example.invalid/z.png",
+     "tags": [
+      "n64",
+      "5"
+     ],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-by-path",
+     "source": "quiver",
+     "title": "By Path",
+     "exe": "{root}/q3/Elsewhere/e.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-projonly",
+     "source": "quiver",
+     "title": "Proj Only",
+     "exe": "{root}/q3/Apps/ProjOnly/p.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-loose-one-game",
+     "source": "quiver",
+     "title": "Loose One Game",
+     "exe": "{root}/q3/Apps/Loose_One.Game/l.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    },
+    {
+     "id": "quiver-starship-v1-0-2",
+     "source": "quiver",
+     "title": "Listed Elsewhere",
+     "exe": "{root}/q3/Apps/Starship-v1.0.2/ship.exe",
+     "args": "",
+     "uri": "",
+     "shellApp": "",
+     "dir": "",
+     "icon": "",
+     "tags": [],
+     "shelf": null,
+     "native": false,
+     "programs": []
+    }
+   ]
+  },
+  {
+   "chosen": "",
+   "games": []
+  }
+ ],
+ "custom": {
+  "list": [
+   {
+    "id": "c1",
+    "title": " My Tool ",
+    "exe": "{root}/custom/tool.exe",
+    "args": "-a \"b c\"",
+    "shelf": "pc"
+   },
+   {
+    "title": "Gone",
+    "exe": "{root}/custom/gone.exe"
+   },
+   {
+    "exe": "{root}/custom/Some-Game_v2.exe",
+    "shelf": "snes"
+   },
+   {
+    "exe": "{root}/custom/x.exe",
+    "shelf": "nope",
+    "args": 5
+   },
+   {
+    "shellApp": "Made.Up_8abcdefgh12345!App",
+    "title": "Store Thing"
+   },
+   {
+    "shellApp": "bad"
+   },
+   null,
+   "x",
+   {
+    "exe": "",
+    "shellApp": "Made.Up_8abcdefgh12345!App2"
+   },
+   {
+    "exe": "{root}/custom/tool.exe",
+    "title": "my tool"
+   }
+  ],
+  "games": [
+   {
+    "id": "custom-c1",
+    "source": "custom",
+    "title": "My Tool",
+    "exe": "{root}/custom/tool.exe",
+    "args": "-a \"b c\"",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": "pc",
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "custom-some-game-v2-exe",
+    "source": "custom",
+    "title": "Some-Game_v2",
+    "exe": "{root}/custom/Some-Game_v2.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": "snes",
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "custom-x-exe",
+    "source": "custom",
+    "title": "x",
+    "exe": "{root}/custom/x.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "custom-store-thing",
+    "source": "custom",
+    "title": "Store Thing",
+    "exe": "",
+    "args": "",
+    "uri": "",
+    "shellApp": "Made.Up_8abcdefgh12345!App",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "custom-made-up-8abcdefgh12345-app2",
+    "source": "custom",
+    "title": "Game",
+    "exe": "",
+    "args": "",
+    "uri": "",
+    "shellApp": "Made.Up_8abcdefgh12345!App2",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "custom-my-tool",
+    "source": "custom",
+    "title": "my tool",
+    "exe": "{root}/custom/tool.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   }
+  ]
+ },
+ "folder": {
+  "gamesDir": "pcf/games",
+  "ownDir": "pcf/own",
+  "programs": {
+   "Chosen": "two.exe",
+   "Deep One": "nope.exe"
+  },
+  "skip": [
+   "pcf/games/Skipped",
+   ""
+  ],
+  "games": [
+   {
+    "id": "pc-chosen",
+    "source": "folder",
+    "title": "Chosen",
+    "exe": "{root}/pcf/games/Chosen/two.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Chosen",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": [
+     [
+      "one.exe",
+      false
+     ],
+     [
+      "two.exe",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-deep-one",
+    "source": "folder",
+    "title": "Deep One",
+    "exe": "{root}/pcf/games/Deep One/a/b/deep.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Deep One",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": [
+     [
+      "a/b/deep.exe",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-half-life",
+    "source": "folder",
+    "title": "Half Life",
+    "exe": "{root}/pcf/games/Half Life/hl.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Half Life",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": [
+     [
+      "hl.exe",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-half-life-5348a530",
+    "source": "folder",
+    "title": "Half-Life",
+    "exe": "{root}/pcf/games/Half-Life/hl.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Half-Life",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": [
+     [
+      "hl.exe",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-hollow-knight",
+    "source": "folder",
+    "title": "Hollow Knight",
+    "exe": "{root}/pcf/own/Hollow Knight/mine.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/own/Hollow Knight",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": [
+     [
+      "mine.exe",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-native-game",
+    "source": "folder",
+    "title": "Native Game",
+    "exe": "{root}/pcf/games/Native Game/start.sh",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Native Game",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": true,
+    "programs": [
+     [
+      "start.sh",
+      true
+     ],
+     [
+      "game.x86_64",
+      true
+     ],
+     [
+      "win.exe",
+      false
+     ],
+     [
+      "run.bat",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-de-stadt-0b354e70",
+    "source": "folder",
+    "title": "Öde Stadt",
+    "exe": "{root}/pcf/games/Öde Stadt/o.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Öde Stadt",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": [
+     [
+      "o.exe",
+      false
+     ]
+    ]
+   },
+   {
+    "id": "pc-sub-elf",
+    "source": "folder",
+    "title": "Sub Elf",
+    "exe": "{root}/pcf/games/Sub Elf/bin/sub_elf",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "{root}/pcf/games/Sub Elf",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": true,
+    "programs": [
+     [
+      "bin/sub_elf",
+      true
+     ]
+    ]
+   }
+  ]
+ },
+ "publishers": [
+  [
+   "CN=Made & Up",
+   "k4894jzdyjeze"
+  ],
+  [
+   "CN=Example Corp, O=Example, C=US",
+   "43d6n9z62912m"
+  ],
+  [
+   "",
+   "werc8gmrzge18"
+  ]
+ ],
+ "exes": [
+  [
+   "C:/x/SoH-Ship-of-Harkinian.exe",
+   "SoH Ship of Harkinian"
+  ],
+  [
+   "/a/b/zeta_run.v2.exe",
+   "zeta run v2"
+  ],
+  [
+   "/a/...",
+   "Game"
+  ],
+  [
+   "plain",
+   "plain"
+  ]
+ ]
+}

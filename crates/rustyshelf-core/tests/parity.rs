@@ -186,3 +186,91 @@ fn steam_matches_the_js_scan() {
         assert_eq!(serde_json::to_string_pretty(&got).unwrap(), serde_json::to_string_pretty(&want).unwrap(), "{case}");
     }
 }
+
+// the PC games folder picks Linux programs on Linux, and the fixture was written there
+#[cfg(target_os = "linux")]
+#[test]
+fn pc_games_match_the_js_lists() {
+    use rustyshelf_core::pcgames::{self, PcGame};
+    use std::os::unix::fs::PermissionsExt;
+    let fx = fixture("pc.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("root");
+    let r = root.to_string_lossy().into_owned();
+    let fill = |t: &str| t.replace("{root}", &r);
+    let at = |rel: &str| if rel.is_empty() { String::new() } else { format!("{r}/{rel}") };
+    for f in fx["files"].as_array().unwrap() {
+        let p = root.join(f[0].as_str().unwrap());
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        match &f[1] {
+            Value::String(t) => fs::write(&p, fill(t)).unwrap(),
+            Value::Number(n) => fs::write(&p, vec![0u8; n.as_u64().unwrap() as usize]).unwrap(),
+            o => fs::write(&p, base64::engine::general_purpose::STANDARD.decode(o["b64"].as_str().unwrap()).unwrap()).unwrap(),
+        }
+    }
+    for f in fx["exec"].as_array().unwrap() {
+        fs::set_permissions(root.join(f.as_str().unwrap()), fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let game = |g: &PcGame| {
+        serde_json::json!({ "id": g.id, "source": g.source, "title": g.title, "exe": g.exe, "args": g.args, "uri": g.uri, "shellApp": g.shell_app, "dir": g.dir,
+            "icon": g.icon, "tags": g.tags, "shelf": g.shelf, "native": g.native, "programs": g.programs })
+    };
+    let same = |what: &str, got: &[PcGame], want: &Value| {
+        let got = serde_json::to_string_pretty(&got.iter().map(game).collect::<Vec<_>>()).unwrap().replace(&r, "{root}");
+        assert_eq!(got, serde_json::to_string_pretty(want).unwrap(), "{what}");
+    };
+    let strs = |v: &Value| -> Vec<String> { v.as_array().unwrap().iter().map(|s| at(s.as_str().unwrap())).collect() };
+
+    same("epic", &pcgames::epic_games(&root.join("epic/m")), &fx["epic"]);
+    same("ea", &pcgames::ea_from_dirs(&strs(&fx["ea"]["dirs"])), &fx["ea"]["games"]);
+
+    let tree = pcgames::parse_reg(&fill(fx["gog"]["text"].as_str().unwrap()));
+    let got: Vec<Value> = tree.iter().map(|(k, v)| serde_json::json!([k, v.iter().collect::<std::collections::BTreeMap<_, _>>()])).collect();
+    let want: Vec<Value> = fx["gog"]["tree"].as_array().unwrap().iter().map(|e| serde_json::json!([e[0], e[1].as_object().unwrap().iter().collect::<std::collections::BTreeMap<_, _>>()])).collect();
+    assert_eq!(serde_json::to_string_pretty(&got).unwrap().replace(&r, "{root}"), serde_json::to_string_pretty(&want).unwrap(), "registry");
+    same("gog", &pcgames::gog_from_tree(&tree), &fx["gog"]["games"]);
+    same("hoyo", &pcgames::hoyo_from_tree(&pcgames::parse_reg(&fill(fx["hoyo"]["text"].as_str().unwrap()))), &fx["hoyo"]["games"]);
+
+    let scanned = pcgames::xbox_scan(&[at("xbox"), at("nope")]);
+    let got: Vec<Value> = scanned.iter().map(|f| serde_json::json!({ "name": f.name, "publisher": f.publisher, "appId": f.app_id, "title": f.title, "dir": f.dir })).collect();
+    assert_eq!(serde_json::to_string_pretty(&got).unwrap().replace(&r, "{root}"), serde_json::to_string_pretty(&fx["xbox"]["scan"]).unwrap(), "xbox folders");
+    for case in fx["xbox"]["cases"].as_array().unwrap() {
+        let data = tempfile::tempdir().unwrap();
+        let answer = case["answer"].as_str().unwrap().to_string();
+        let found = pcgames::xbox_scan(&[at("xbox")]);
+        same("xbox", &pcgames::xbox_games_with(data.path(), found.clone(), |_| answer, 1_000_000), &case["first"]);
+        same("xbox again", &pcgames::xbox_games_with(data.path(), found, |_| String::new(), 1_000_001), &case["again"]);
+    }
+
+    // Quiver's usual places: none here, as when the fixture was written
+    std::env::remove_var("APPDATA");
+    std::env::remove_var("LOCALAPPDATA");
+    for case in fx["quiver"].as_array().unwrap() {
+        same("quiver", &pcgames::quiver_games(&at(case["chosen"].as_str().unwrap())), &case["games"]);
+    }
+
+    let list: Value = serde_json::from_str(&fill(&fx["custom"]["list"].to_string())).unwrap();
+    same("custom", &pcgames::custom_games(Some(&list)), &fx["custom"]["games"]);
+
+    let f = &fx["folder"];
+    let games = rustyshelf_core::pcfolder::scan(&at(f["gamesDir"].as_str().unwrap()), &at(f["ownDir"].as_str().unwrap()), Some(&f["programs"]), &strs(&f["skip"]));
+    same("folder", &games, &f["games"]);
+
+    for p in fx["publishers"].as_array().unwrap() {
+        assert_eq!(pcgames::publisher_id(p[0].as_str().unwrap()), p[1].as_str().unwrap());
+    }
+    for e in fx["exes"].as_array().unwrap() {
+        assert_eq!(pcgames::title_from_exe(e[0].as_str().unwrap()), e[1].as_str().unwrap());
+    }
+}
+
+#[test]
+fn emulator_names_match_the_js_ones() {
+    use rustyshelf_core::emuname;
+    for case in fixture("emunames.json").as_array().unwrap() {
+        let p = case["path"].as_str().unwrap();
+        let (emu, build) = emuname::parts(p);
+        let got = serde_json::json!({ "path": p, "label": emuname::label(p), "parts": { "emu": emu, "build": build }, "known": emuname::known_name(p) });
+        assert_eq!(&got, case);
+    }
+}

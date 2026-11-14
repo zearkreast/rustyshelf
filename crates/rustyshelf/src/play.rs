@@ -116,6 +116,21 @@ pub fn navigate(
             };
             toast.until = now + 5.0;
         }
+        (_, Source::Pc(pc)) => match launch::launch_pc(pc) {
+            Ok(Some(child)) => {
+                playing.title = Some(g.title.clone());
+                playing.child = Some(Mutex::new(child));
+            }
+            // its store starts it and looks after it
+            Ok(None) => {
+                toast.text = format!("{} is starting in {}.", g.title, crate::hud::store_name(pc.source));
+                toast.until = now + 5.0;
+            }
+            Err(e) => {
+                toast.text = e.to_string();
+                toast.until = now + 6.0;
+            }
+        },
         (ShelfKind::Console { console, config }, Source::Rom) => {
             let (tx, rx) = channel();
             let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());

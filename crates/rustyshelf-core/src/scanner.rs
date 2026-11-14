@@ -58,6 +58,8 @@ pub enum Source {
         /// seconds since 1970
         last_played: u64,
     },
+    /// a PC game from another store, Quiver, the PC games folder, or added by hand
+    Pc(Box<crate::pcgames::PcGame>),
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -82,6 +84,8 @@ pub struct Game {
     pub not_installed: bool,
     /// how well the game runs in Xenia, from the Xbox 360 title list
     pub compat: Option<String>,
+    /// the console a PC game's box comes from ("ps5", "xone" …), when its cover is a console box
+    pub box_plat: Option<String>,
     pub source: Source,
 }
 
@@ -103,6 +107,14 @@ impl ScanData {
             arcade: arcade::Names::load(data_dir),
             dir_sizes: sizes.into_iter().filter_map(|(k, v)| Some((k, v.get("bytes")?.as_f64()? as u64))).collect(),
         }
+    }
+
+    /// A PC game's folder as the Electron app last measured it, by the folder as its store wrote it.
+    pub fn pc_dir_size(&self, dir: &str) -> u64 {
+        if !Path::new(dir).is_absolute() || fs::metadata(dir).is_err() {
+            return 0;
+        }
+        self.dir_sizes.get(dir).copied().unwrap_or(0)
     }
 
     // TODO: measure a folder the Electron app hasn't (an unpacked Switch 2 game shows no size until it has)
@@ -434,7 +446,7 @@ fn add_packages(console: &Console, sc: &SystemConfig, by_title: &mut HashMap<Str
                     hero: None,
                     not_installed: true,
                     compat: None,
-                    source: Source::Rom,
+                    ..Game::default()
                 },
             },
         );
@@ -700,7 +712,7 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &S
                     hero,
                     not_installed: false,
                     compat,
-                    source: Source::Rom,
+                    ..Game::default()
                 },
             },
         );

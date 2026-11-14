@@ -40,6 +40,9 @@ pub struct Console {
     pub ra_cores: Vec<(String, String)>,
     #[serde(default)]
     pub retro: bool,
+    /// a shelf with no emulator and no games folder: only programs put on it by hand
+    #[serde(default)]
+    pub standalone: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
