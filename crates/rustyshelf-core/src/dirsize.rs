@@ -116,7 +116,7 @@ mod tests {
         let mut sizes = DirSizes::load(t.path());
         assert!(sizes.stale(&dir) && !sizes.stale("relative") && !sizes.stale(&format!("{dir}/nope")));
         assert!(sizes.measure_stale(&[dir.clone(), "relative".into()]));
-        assert!(!sizes.stale(&dir) && !sizes.measure_stale(&[dir.clone()]));
+        assert!(!sizes.stale(&dir) && !sizes.measure_stale(std::slice::from_ref(&dir)));
         let kept = DirSizes::load(t.path());
         assert!(kept.cache[&dir]["bytes"].as_u64().unwrap() >= 1500 && !kept.stale(&dir));
     }

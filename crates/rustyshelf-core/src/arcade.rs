@@ -62,9 +62,11 @@ fn un_xml(s: &str) -> String {
         .into_owned()
 }
 
-/// The names in FinalBurn Neo's list, in the order it gives them, and its BIOS sets. None when it holds no games
-/// (not the list).
-pub fn parse_dat(text: &str) -> Option<(Vec<(String, String)>, Vec<String>)> {
+/// Each set with its game's name, in the list's order, and the BIOS sets.
+pub type Parsed = (Vec<(String, String)>, Vec<String>);
+
+/// The names in FinalBurn Neo's list and its BIOS sets. None when it holds no games (not the list).
+pub fn parse_dat(text: &str) -> Option<Parsed> {
     static GAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<game(?-u:\b)([^>]*)>").unwrap());
     static NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(?-u:\b)name="([^"]+)""#).unwrap());
     static BIOS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(?-u:\b)isbios="yes""#).unwrap());
