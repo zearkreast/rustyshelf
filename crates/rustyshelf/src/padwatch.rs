@@ -81,8 +81,9 @@ pub struct Watch {
 }
 
 impl Watch {
-    /// `pid`: the game's process. The combo only counts while it (or a program it started, or RustyShelf) is in
-    /// front: held in another app the player switched to, it would close the game behind their back.
+    /// `pid`: the game's process (0: not known). The combo only counts while it (or a program it started, or
+    /// RustyShelf) is in front: held in another app the player switched to, it would close the game behind their
+    /// back.
     pub fn start(combo: &str, pid: u32) -> Watch {
         let (mask, stop) = (mask(combo), Arc::new(AtomicBool::new(false)));
         let quit = xinput::watch(mask, pid, stop.clone()).map(Mutex::new);
@@ -254,7 +255,7 @@ mod xinput {
                     if front != own && !fam.contains(&front) && now.duration_since(fam_at) > Duration::from_secs(2) {
                         (fam, fam_at) = (family(pid), now);
                     }
-                    if front == own || fam.contains(&front) {
+                    if pid == 0 || front == own || fam.contains(&front) {
                         let _ = tx.send(());
                         return;
                     }

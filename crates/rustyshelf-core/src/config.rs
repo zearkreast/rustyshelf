@@ -161,6 +161,12 @@ impl Config {
         str_of(self.raw.get("ui").and_then(|u| u.get("artRegion")), "auto")
     }
 
+    /// Seamless play: Steam's and the stores' games are watched while they run, as a game RustyShelf starts itself
+    /// is. Windows only.
+    pub fn seamless(&self) -> bool {
+        cfg!(windows) && self.raw.get("ui").and_then(|u| u.get("seamless")) != Some(&Value::Bool(false))
+    }
+
     /// The controller's quit combo (Settings → Controller), None when it's off.
     pub fn quit_combo(&self) -> Option<String> {
         let ui = self.raw.get("ui");

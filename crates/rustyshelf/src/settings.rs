@@ -832,11 +832,16 @@ impl Settings {
                 Page { title: "Box art".into(), lead: "RustyShelf can fetch the covers your games don't have yet.".into(), rows }
             }
             Screen::Display => {
-                Page {
-                    title: "Display".into(),
-                    lead: String::new(),
-                    rows: vec![
-                        toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
+                let mut rows = vec![toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start")];
+                if cfg!(windows) {
+                    rows.push(toggle(
+                        "Seamless play",
+                        &["ui", "seamless"],
+                        true,
+                        "Steam, Epic, Ubisoft, EA and Xbox games are followed while they run, as a game RustyShelf starts itself is: playtime, the quit combo and the way back to the shelf. Off: their store looks after them.",
+                    ));
+                }
+                rows.extend([
                         toggle(
                             "Show what I'm playing on Discord",
                             &["ui", "discordPresence"],
@@ -848,8 +853,8 @@ impl Settings {
                             &["ui", "discordAppId"],
                             "The number from your Discord application's page (General Information). Nothing is sent anywhere else: RustyShelf only talks to the Discord app on this computer.",
                         ),
-                    ],
-                }
+                ]);
+                Page { title: "Display".into(), lead: String::new(), rows }
             }
             Screen::Controller => {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];

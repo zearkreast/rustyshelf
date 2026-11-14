@@ -14,6 +14,7 @@ pub mod emucfg;
 pub mod emuname;
 pub mod emusetup;
 pub mod gamelist;
+pub mod gamewatch;
 pub mod history;
 pub mod info;
 pub mod js;

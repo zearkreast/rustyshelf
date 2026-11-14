@@ -1,11 +1,12 @@
 //! Moving along the shelf with keys or a pad, and starting the chosen game.
 
 use std::process::Child;
-use std::sync::mpsc::{channel, Receiver, TryRecvError};
+use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
 use rustyshelf_core::{emucfg, emuname};
+use rustyshelf_core::gamewatch::{self, Event, Spec};
 use rustyshelf_core::history::History;
 use rustyshelf_core::launch::{self, LaunchError};
 use rustyshelf_core::paths;
@@ -70,11 +71,56 @@ pub struct Playing {
     app: bool,
     /// a console game as Discord is told of it: its title from its file, its console's name
     shown: Option<(String, String)>,
+    /// a game Steam or a store started, watched until it ends
+    watched: Option<Watched>,
+}
+
+/// A game RustyShelf didn't start itself, watched on a thread of its own.
+struct Watched {
+    events: Mutex<Receiver<Event>>,
+    /// asks the game to close; the number is how long it has before it's ended by force (ms)
+    close: Sender<u64>,
+    /// its process hasn't shown up yet
+    waiting: bool,
+    store: &'static str,
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+}
+
+impl Watched {
+    fn start(spec: Spec, store: &'static str) -> Watched {
+        let (tx, events) = channel();
+        let (close, asked) = channel::<u64>();
+        std::thread::spawn(move || {
+            let mut world = gamewatch::System;
+            let mut w = gamewatch::Watch::new(spec, now_ms(), std::process::id());
+            while let Some(due) = w.due() {
+                let now = now_ms();
+                let mut events = match asked.try_recv() {
+                    Ok(force_after) => w.close(&mut world, now, force_after),
+                    Err(TryRecvError::Empty) => Vec::new(),
+                    // the shelf let go of it
+                    Err(TryRecvError::Disconnected) => return w.stop(),
+                };
+                if now >= due {
+                    events.extend(w.run(&mut world, now));
+                }
+                for e in events {
+                    let _ = tx.send(e);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(due.saturating_sub(now).clamp(10, 100)));
+            }
+        });
+        Watched { events: Mutex::new(events), close, waiting: true, store }
+    }
 }
 
 /// How long a program has to close by itself once asked (seconds): emulators can take a while writing saves and
 /// shader caches.
 const CLOSE_WAIT: f32 = 8.0;
+const CLOSE_WAIT_MS: u64 = 8000;
 const APP_CLOSE_WAIT: f32 = 2.5;
 
 impl Playing {
@@ -90,7 +136,16 @@ const QUICK_EXIT: f32 = 5.0;
 
 impl Playing {
     pub fn is_starting(&self) -> bool {
-        self.starting.is_some()
+        self.starting.is_some() || self.watched.as_ref().is_some_and(|w| w.waiting)
+    }
+
+    /// A game its store started: watched, with the quit combo listened for while it starts.
+    fn watching(&mut self, title: &str, id: &str, combo: Option<String>, spec: Spec, store: &'static str) {
+        self.title = Some(title.to_string());
+        self.id = id.to_string();
+        self.watch = combo.as_deref().map(|c| Watch::start(c, 0));
+        self.combo = combo;
+        self.watched = Some(Watched::start(spec, store));
     }
 }
 
@@ -134,12 +189,18 @@ pub fn navigate(
     if settings.open || (settings.just_closed && !asked) {
         return;
     }
-    if keys.just_pressed(KeyCode::Escape) && !asked {
+    if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() {
         exit.write(AppExit::Success);
     }
     if playing.title.is_some() {
         // a combo still held from closing the game mustn't count on the shelf
         *held = padwatch::Held::default();
+        // back on the starting screen before a store's game showed up: no longer waited for
+        if let Some(w) = playing.watched.as_ref().filter(|w| w.waiting) {
+            if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pads.iter().any(|p| p.just_pressed(GamepadButton::East)) {
+                let _ = w.close.send(CLOSE_WAIT_MS);
+            }
+        }
         return;
     }
     let LibraryState::Ready(l) = &lib.0 else { return };
@@ -200,17 +261,23 @@ pub fn navigate(
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
     let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
     match (&shelf.kind, &g.source) {
-        // Steam starts it and looks after it; the shelf stays as it is
-        (_, Source::Steam { appid, .. }) => {
-            toast.text = match launch::launch_steam(appid) {
-                Ok(()) => {
-                    plays.0.touch(&g.id);
-                    format!("{} is starting in Steam.", g.title)
-                }
-                Err(e) => e.to_string(),
-            };
-            toast.until = now + 5.0;
-        }
+        // Steam starts it. With Seamless play it's watched as a game RustyShelf started; without, Steam looks after
+        // it and the shelf stays as it is
+        (_, Source::Steam { appid, .. }) => match launch::launch_steam(appid) {
+            Ok(()) if l.config.seamless() => {
+                let spec = Spec { kind: "steam".into(), appid: appid.clone(), dir: g.file.to_string_lossy().into_owned(), exe: String::new(), title: g.title.clone() };
+                playing.watching(&g.title, &g.id, combo, spec, "Steam");
+            }
+            Ok(()) => {
+                plays.0.touch(&g.id);
+                toast.text = format!("{} is starting in Steam.", g.title);
+                toast.until = now + 5.0;
+            }
+            Err(e) => {
+                toast.text = e.to_string();
+                toast.until = now + 5.0;
+            }
+        },
         // a PC game's launch is counted, its time isn't
         (_, Source::Pc(pc)) => match launch::launch_pc(pc) {
             Ok(Some(child)) => {
@@ -218,6 +285,10 @@ pub fn navigate(
                 playing.title = Some(g.title.clone());
                 playing.combo = combo;
                 playing.running(child);
+            }
+            Ok(None) if l.config.seamless() => {
+                let spec = Spec { kind: pc.source.to_string(), appid: String::new(), dir: pc.dir.clone(), exe: pc.exe.clone(), title: g.title.clone() };
+                playing.watching(&g.title, &g.id, combo, spec, crate::hud::store_name(pc.source));
             }
             // its store starts it and looks after it
             Ok(None) => {
@@ -282,9 +353,59 @@ pub fn watch_game(
         let (on, id) = settings.discord();
         discord.0.configure(on, &id);
     }
-    let started = playing.starting.as_ref().map(|rx| rx.lock().unwrap().try_recv());
     let title = playing.title.clone().unwrap_or_default();
     let now = time.elapsed_secs();
+    if playing.watched.is_some() {
+        let p = &mut *playing;
+        let w = p.watched.as_mut().expect("a watched game");
+        let (events, lost): (Vec<Event>, bool) = {
+            let rx = w.events.lock().unwrap();
+            let mut events = Vec::new();
+            let lost = loop {
+                match rx.try_recv() {
+                    Ok(e) => events.push(e),
+                    Err(TryRecvError::Empty) => break false,
+                    Err(TryRecvError::Disconnected) => break true,
+                }
+            };
+            (events, lost)
+        };
+        let mut over = lost;
+        for e in events {
+            match e {
+                Event::Started { pid, exe, .. } => {
+                    info!("Watching {title} (process {pid}, {exe})");
+                    w.waiting = false;
+                    plays.0.start(&p.id);
+                    p.watch = p.combo.as_deref().map(|c| Watch::start(c, pid));
+                }
+                Event::Handover { pid, .. } => p.watch = p.combo.as_deref().map(|c| Watch::start(c, pid)),
+                Event::Ended { cancelled, .. } => {
+                    if !cancelled {
+                        plays.0.end();
+                    }
+                    over = true;
+                }
+                Event::Timeout => {
+                    toast.text = format!("{title} didn't show up. If it's still starting, {} has it now.", w.store);
+                    toast.until = now + 8.0;
+                    over = true;
+                }
+                Event::Forced(_) => warn!("{title} didn't close when asked: ended"),
+            }
+        }
+        if over {
+            *playing = Playing::default();
+        } else if p.closing.is_none() && p.watch.as_mut().is_some_and(|x| x.quit(&pads, time.elapsed().as_millis() as u64)) {
+            info!("Quit combo: closing {title}");
+            let _ = w.close.send(CLOSE_WAIT_MS);
+            p.closing = Some(f32::INFINITY);
+            toast.text = format!("Closing {title}…");
+            toast.until = now + 4.0;
+        }
+        return;
+    }
+    let started = playing.starting.as_ref().map(|rx| rx.lock().unwrap().try_recv());
     match started {
         None | Some(Err(TryRecvError::Empty)) => {}
         Some(Ok(Ok((child, exe, still)))) => {

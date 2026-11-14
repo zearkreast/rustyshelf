@@ -568,6 +568,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   a second: the emulator is asked to close as a click on its X does, and ended if it's still there eight seconds
   later. On Windows the pads are read through XInput while the game is in front, and the combo only counts while the
   game or RustyShelf is; held on the shelf, it closes RustyShelf.
+- Follows a Steam, Epic, Ubisoft, EA or Xbox game while it runs (Seamless play, on Windows, as the Electron app does):
+  the game's own process is found in its install folder, its playtime is kept, the quit combo closes it (never
+  Steam or a store's launcher), and the shelf knows when it has ended. Settings → Display turns it off.
 - Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
@@ -583,7 +586,7 @@ GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sou
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window mode
-and Seamless play are Electron-only too.
+and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
