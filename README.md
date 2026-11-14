@@ -570,6 +570,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   games, ports and recomps that have no cover at all SteamGridDB's best poster, as the Electron app does (their
   titles are sent to SteamGridDB). The key is kept encrypted like the RetroAchievements one, and the lookups are
   kept in the same `data\sgdb-cache.json`.
+- Signs in to ScreenScraper with your own account (Settings → Accounts: username, password, a developer login of
+  your own if you have one, and a check that shows the lookups left today), kept encrypted like the other keys.
+  The lookup itself is the Electron app's (a game matched by its file's checksums, name and size, then by title;
+  the account's limits kept to; the same `data\ss-cache.json`), ready for the Art Studio, which is where its
+  box scans are offered and isn't in the Rust app yet.
 
 - Sets itself up on the first run: it looks for your emulators, games folders, Steam and the streaming apps, shows the
   consoles it found switched on, and lets you change each one's emulator and games folders before the shelf opens.
@@ -628,7 +633,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 **Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
-full box wraps, ScreenScraper, choosing among SteamGridDB's posters), manuals, the open case and the museum, the Home menu over a
+full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), manuals, the open case and the museum, the Home menu over a
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar

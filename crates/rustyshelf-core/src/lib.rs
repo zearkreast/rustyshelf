@@ -46,6 +46,7 @@ pub mod ra;
 pub mod racores;
 pub mod raemu;
 pub mod scanner;
+pub mod screenscraper;
 pub mod seal;
 pub mod settings;
 pub mod shelfview;

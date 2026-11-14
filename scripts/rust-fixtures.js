@@ -827,6 +827,76 @@ async function steamgridFixtures() {
     return out;
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// ---- ScreenScraper (main/screenscraper.js) against a stand-in for the site: a made-up account, games and pictures ----
+async function screenscraperFixtures() {
+  const ss = require('../main/screenscraper'), covers = require('../main/covers');
+  const cdn = 'https://neoclone.screenscraper.fr/api2/mediaJeu.php', media = (type, region, format, more = {}) => ({ type, parent: 'jeu', region, format, url: `${cdn}?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=${type}(${region})`, ...more });
+  const user = { maxthreads: '2', maxrequestspermin: '6000', requeststoday: '5', maxrequestsperday: '20000' };
+  const ok = (r, ssuser = user) => ({ status: 200, text: JSON.stringify({ response: { ssuser, ...r } }) });
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(80, 7)]).toString('base64');
+  const site = {
+    'jeuInfos.php|Zeta Run (USA).sfc': ok({ jeu: { id: '101', medias: [media('box-2D', 'us', 'png'), media('box-2D', 'eu', 'JPG'), media('box-2D-back', 'cus', 'jpeg'), media('box-2D-side', 'jp', 'webp'), media('box-texture', 'wor', 'png'), media('support-2D', 'ss', ''),
+      media('box-2D', 'kr', 'png', { url: 'http://www.screenscraper.fr/medias/4/101/box-2D(kr).png' }), media('box-2D', 'us', 'png', { parent: 'rom' }), media('screenshot', 'us', 'png'), media('box-2D', 'us', 'png', { url: 'https://example.org/mediaJeu.php?media=box-2D' }),
+      media('box-2D', 'A Very Long Region', 'png', { parent: undefined }), null, media('box-2D', 'fr', 'png', { url: '' })] } }),
+    'jeuInfos.php|Omega Quest.sfc': { status: 404, text: '' },
+    'jeuRecherche.php|Omega Quest': ok({ jeux: [{ id: '201', noms: [{ region: 'us', text: 'Omega Quest II' }] }, { id: '202', noms: [{ text: 'Omega no Tabi' }, { text: 'Omega Quest' }], medias: [] }, { id: 0, noms: [{ text: 'Omega Quest' }] }, { id: 203, noms: 'Omega Quest' }] }),
+    'jeuInfos.php|id:202': ok({ jeu: { id: 202, medias: [media('box-2D', 'wor', 'png')] } }),
+    'jeuInfos.php|Nothing Like It.sfc': { status: 200, text: 'Erreur : Rom/Iso/Dossier non trouvée !' }, 'jeuRecherche.php|Nothing Like It': ok({ jeux: [] }),
+    'jeuInfos.php|Tau Racers.sfc': { status: 400, text: 'Erreur : Champ crc, md5 ou sha1 erroné' }, 'jeuRecherche.php|Tau Racers': ok({ jeux: [{ id: 301, noms: [{ text: 'Tau Racers' }], medias: [media('support-2D', 'us', 'png')] }] }),
+    'jeuInfos.php|Sigma (USA).iso': ok({ jeu: { id: '0' } }), 'jeuRecherche.php|Sigma': ok({}),
+    'jeuInfos.php|Phi Folder': ok({ jeu: { id: 'abc', medias: [media('support-2D', 'eu', 'png')] } }),
+    'jeuInfos.php|Rho.sfc': { status: 200, text: 'not json at all' },
+    'ssuserInfos.php|': ok({}),
+    'mediaJeu.php|box-2D(us)': { status: 200, b64: png }, 'mediaJeu.php|box-2D(eu)': { status: 200, b64: Buffer.from('NOMEDIA').toString('base64') }, 'mediaJeu.php|support-2D(ss)': { status: 500, b64: '' }, 'mediaJeu.php|box-texture(wor)': { status: 429, b64: '' },
+  };
+  // what the site says however it's asked, by the name of a mood
+  const moods = { refusedDev: { status: 403, text: 'Erreur de login : Vérifier vos identifiants développeur !' }, refused: { status: 403, text: 'Erreur de login' }, loginWords: { status: 200, text: 'Erreur de login : Vérifier vos identifiants !' }, quota: { status: 430, text: '' }, quotaWords: { status: 200, text: 'Votre quota de scrape est dépassé' },
+    closed: { status: 401, text: '' }, down: { status: 423, text: '' }, blocked: { status: 426, text: '' }, rate: { status: 429, text: '' }, unknown: { status: 431, text: '' }, broken: { status: 500, text: '' }, teapot: { status: 418, text: '' }, junk: { status: 200, text: '{"response":' },
+    empty: { status: 200, text: '{"response":{}}' }, usedUp: ok({}, { ...user, requeststoday: 20000 }), few: ok({}, { maxthreads: 99, maxrequestspermin: 'x', requeststoday: '7' }), offline: 'offline', slow: 'slow' };
+  const asked = []; let mood = '', creds = {};
+  const fetch = async url => {
+    asked.push(url); const u = new URL(url), file = u.pathname.split('/').pop(), q = u.searchParams;
+    const r = mood ? moods[mood] : site[file + '|' + (q.get('gameid') ? 'id:' + q.get('gameid') : q.get('romnom') || q.get('recherche') || q.get('media') || '')] || { status: 404, text: '' };
+    if (r === 'offline') throw new Error('fetch failed'); if (r === 'slow') throw Object.assign(new Error('x'), { name: 'AbortError' });
+    return { status: r.status, ok: r.status >= 200 && r.status < 300, text: async () => r.text, arrayBuffer: async () => Buffer.from(r.b64 || '', 'base64') };
+  };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-ss-')), rel = v => JSON.parse(JSON.stringify(v).split(JSON.stringify(tmp).slice(1, -1)).join('<tmp>').split(JSON.stringify(tmp.toLowerCase()).slice(1, -1)).join('<tmp>'));
+  const start = () => { asked.length = 0; mood = ''; ss.init({ creds: () => creds, dataDir: fs.mkdtempSync(path.join(tmp, 'd')), fetch }); };
+  const disc = Buffer.alloc(64); disc.write('GSGE01', 0, 'latin1');
+  const files = { 'Zeta Run (USA).sfc': Buffer.from('zeta run rom bytes').toString('base64'), 'Omega Quest.sfc': Buffer.from('omega').toString('base64'), 'Nothing Like It.sfc': Buffer.from('n').toString('base64'), 'Tau Racers.sfc': Buffer.from('tau racers').toString('base64'),
+    'Sigma (USA).iso': disc.toString('base64'), 'Rho.sfc': Buffer.from('rho').toString('base64'), 'Empty.sfc': '' };
+  for (const [n, b] of Object.entries(files)) fs.writeFileSync(path.join(tmp, n), Buffer.from(b, 'base64')); fs.mkdirSync(path.join(tmp, 'Phi Folder'));
+  const at = n => path.join(tmp, n), game = (n, title, more = {}) => ({ file: n ? at(n) : '', title, ...more });
+  const games = [['snes', game('Zeta Run (USA).sfc', 'Zeta Run')], ['snes', game('Omega Quest.sfc', 'Omega Quest')], ['snes', game('Nothing Like It.sfc', 'Nothing Like It')], ['snes', game('Tau Racers.sfc', 'Tau Racers')], ['gc', game('Sigma (USA).iso', 'Sigma')],
+    ['sw', game('Phi Folder', 'Phi', { sizeBytes: 12345 })], ['pc', game('Zeta Run (USA).sfc', 'Zeta Run')], ['snes', game('', 'Zeta Run')], ['snes', game('Gone.sfc', '')], ['snes', game('Zeta Run (USA).sfc', 'Zeta Run')], ['snes', game('Rho.sfc', 'Rho')], ['snes', game('Empty.sfc', '')]];
+  const match = (list, g) => covers.matchName(list.map(x => ({ ...x, n: covers.norm(x.name) })), g.title), opts = { match, discId: covers.discId };
+  try {
+    const out = { site, moods, files, games: rel(games) };
+    out.clean = ['http://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(us)', 'https://WWW.ScreenScraper.fr:8443/a b/c.png?SSID=1&x=a%20b+c&Output=xml', 'https://screenscraper.fr/x.png?ssid=1&devid=2',
+      'https://screenscraper.fr/x.png?a=1%20b&c=d+e', 'https://screenscraper.fr/x.png', 'http://www.screenscraper.fr:80/x?q=ü&ssid=1#frag', 'https://screenscraper.fr.example.org/x.png', 'https://notscreenscraper.fr/x.png', 'ftp://screenscraper.fr/x.png', 'screenscraper.fr/x.png', '',
+      'https://screenscraper.fr/' + 'a'.repeat(1480), '  https://screenscraper.fr/x.png?a=b&sspassword=  '].map(u => [u, ss.clean(u)]);
+    out.isMedia = ['https://neoclone.screenscraper.fr/api2/mediaJeu.php?media=box-2D(us)', 'https://screenscraper.fr/api2/MEDIAJEU.PHP', 'https://screenscraper.fr/medias/x.png', 'https://example.org/mediaJeu.php', 'nothing'].map(u => [u, ss.isMedia(u)]);
+    start(); out.noAccount = [await ss.candidates('snes', games[0][1], 'front', opts), await ss.test(), ss.state()];
+    creds = { user: ' made up user ', pass: 'p&ss word' };
+    out.lookups = []; for (const [sys, g] of games) { let r; try { r = await ss._t.lookup(sys, g, opts); } catch (e) { r = { error: e.code, words: e.message }; } out.lookups.push(r); }
+    out.candidates = []; for (const [n, part, canCut] of [[0, 'front', true], [0, 'back', true], [0, 'spine', true], [0, 'spine', false], [0, 'disc', true], [0, 'manual', true], [1, 'front', true], [3, 'disc', true], [5, 'disc', true], [2, 'front', true]]) out.candidates.push([n, part, canCut, await ss.candidates(games[n][0], games[n][1], part, { ...opts, canCut })]);
+    out.unseen = await ss.candidates('nes', games[0][1], 'front', { ...opts, cacheOnly: true });
+    out.test = await ss.test(); out.state = ss.state();
+    const m = out.lookups[0].media, dl = async (u, n) => { const dest = at(n); let r; try { r = await ss.download(u, dest); } catch (e) { r = 'error: ' + e.message; } return [u, r, fs.existsSync(dest) ? fs.readFileSync(dest).toString('base64') : null]; };
+    out.downloads = [await dl('https://screenscraper.fr/medias/x.png', 'a.png'), await dl(m[0].url, 'b.png'), await dl(m[1].url, 'c.jpg'), await dl(m[5].url, 'd.png'), await dl(m[4].url, 'e.png'), await dl(m[0].url, 'f.png')];
+    out.paused = ss.state().paused;
+    const c = ss._t.cacheGet(); out.cache = rel({ games: Object.fromEntries(Object.entries(c.games).map(([k, v]) => [k, [v[0], v[2] === undefined ? null : v[2]]])), hashes: Object.values(c.hashes) });
+    out.asked = [...asked];
+    out.tests = [];
+    for (const [md, cr] of [['refusedDev', {}], ['refusedDev', { devId: 'dev', devPass: 'dp' }], ['refused', { devPass: 'dp' }], ['loginWords', {}], ['quota', {}], ['quotaWords', {}], ['closed', {}], ['down', {}], ['blocked', {}], ['rate', {}], ['unknown', {}], ['broken', {}], ['teapot', {}], ['junk', {}],
+      ['empty', {}], ['usedUp', {}], ['few', {}], ['offline', {}], ['slow', {}], ['', { user: '', pass: '', devId: ' dev ', devPass: 'dp' }], ['', { user: 'only a name' }]]) {
+      creds = { user: 'made up user', pass: 'p&ss word', ...cr }; start(); mood = md;
+      const t = await ss.test(), st = ss.state(), after = await ss.candidates('snes', games[1][1], 'front', opts);
+      out.tests.push({ mood: md, creds: cr, test: t, state: st, after: after.length, asked: [...asked] });
+    }
+    return out;
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -834,6 +904,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');

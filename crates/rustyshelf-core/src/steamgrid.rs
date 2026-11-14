@@ -156,7 +156,7 @@ fn ok_url(v: Option<&Value>, png_only: bool) -> Option<&str> {
     static ANY: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^(?i)https://([a-z0-9-]+\.)*steamgriddb\.com/[^\s"<>]+$"#).unwrap());
     static PNG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^(?i)https://([a-z0-9-]+\.)*steamgriddb\.com/[^\s"<>]+\.png$"#).unwrap());
     let u = v?.as_str()?;
-    (if png_only { &*PNG } else { &*ANY }.is_match(u) && u.encode_utf16().count() < 600).then_some(u)
+    (if png_only { &PNG } else { &ANY }.is_match(u) && u.encode_utf16().count() < 600).then_some(u)
 }
 
 /// The answer's list, when it is one.

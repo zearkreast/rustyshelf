@@ -134,16 +134,6 @@ fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
-/// A value in a URL's query, as a browser's URLSearchParams writes it.
-fn query(pairs: &[(&str, String)]) -> String {
-    let part = |s: &str| s.bytes().map(|b| match b {
-        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'*' | b'-' | b'.' | b'_' => (b as char).to_string(),
-        b' ' => "+".to_string(),
-        _ => format!("%{b:02X}"),
-    }).collect::<String>();
-    pairs.iter().map(|(k, v)| format!("{}={}", part(k), part(v))).collect::<Vec<_>>().join("&")
-}
-
 /// The site's answer when it should be a list: some failures come with 200 and an object that says why.
 fn need(v: &Value) -> Result<&Vec<Value>, String> {
     v.as_array().ok_or_else(|| match v.get("message").and_then(Value::as_str).filter(|m| !m.is_empty()) {
@@ -239,7 +229,7 @@ impl Ra {
         let (user, key) = who.unwrap_or((account.0.as_str(), account.1.as_str()));
         let mut pairs = vec![("z", user.to_string()), ("y", key.to_string())];
         pairs.extend(params.iter().map(|(k, v)| (*k, v.clone())));
-        (self.fetch)(&format!("{API}{endpoint}.php?{}", query(&pairs)))
+        (self.fetch)(&format!("{API}{endpoint}.php?{}", crate::js::query(&pairs)))
     }
 
     /// What `fetch` gives, kept in memory and on disk for `max_age_ms`. When the site can't be reached the last

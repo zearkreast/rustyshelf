@@ -229,6 +229,16 @@ pub fn stem(p: &str) -> String {
     n[..n.len() - e.len()].to_string()
 }
 
+/// A URL's query from its names and values, as a browser's URLSearchParams writes it.
+pub fn query(pairs: &[(&str, String)]) -> String {
+    let part = |s: &str| s.bytes().map(|b| match b {
+        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'*' | b'-' | b'.' | b'_' => (b as char).to_string(),
+        b' ' => "+".to_string(),
+        _ => format!("%{b:02X}"),
+    }).collect::<String>();
+    pairs.iter().map(|(k, v)| format!("{}={}", part(k), part(v))).collect::<Vec<_>>().join("&")
+}
+
 /// JS `+v` (`Number(v)`); None is `undefined`.
 pub fn number(v: Option<&Value>) -> f64 {
     match v {

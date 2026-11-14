@@ -1,9 +1,10 @@
 //! Accounts: RetroAchievements (the account's name and web API key, whether each console's emulator is signed in
-//! to it, and a game's achievements in Details) and the player's SteamGridDB key.
+//! to it, and a game's achievements in Details), the player's SteamGridDB key and their ScreenScraper account.
 
 use std::sync::Arc;
 
 use rustyshelf_core::ra::Ra;
+use rustyshelf_core::screenscraper::{Creds, ScreenScraper};
 use rustyshelf_core::steamgrid::SteamGrid;
 use rustyshelf_core::{raemu, seal};
 
@@ -173,7 +174,42 @@ impl Settings {
             })),
             ..Row::default()
         });
-        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover.".into(), rows }
+        let ss = Creds { user: self.api_key("ssUser"), pass: self.api_key("ssPass"), dev_id: self.api_key("ssDevId"), dev_pass: self.api_key("ssDevPass") };
+        for (label, name, hint, secret) in [
+            ("ScreenScraper username", "ssUser", "Your screenscraper.fr username. Box scans by region for the art sources that use it. Optional, kept encrypted.", false),
+            ("ScreenScraper password", "ssPass", "Your screenscraper.fr password. Kept encrypted, sent only to ScreenScraper.", true),
+            ("ScreenScraper developer ID", "ssDevId", "Only if ScreenScraper gave you a developer login of your own (devid). Left blank, your username is used.", false),
+            ("ScreenScraper developer password", "ssDevPass", "The developer password (devpassword) that goes with your developer ID. Kept encrypted.", true),
+        ] {
+            let now = self.api_key(name);
+            let typed = move |s: &mut Settings| {
+                let old = if secret { String::new() } else { s.api_key(name) };
+                s.edit(label, hint, old, Box::new(move |s: &mut Settings, v: String| s.set_api_key(name, v.trim().to_string())));
+            };
+            rows.push(Row { label: label.into(), value: if now.is_empty() { "(none)".into() } else if secret { "••••••••".into() } else { now }, hint: hint.into(), press: Some(Box::new(typed)), step: None });
+        }
+        rows.push(Row {
+            label: "Check the ScreenScraper account".into(),
+            hint: "Signs in and shows how many lookups the account has left today. ScreenScraper only answers apps registered with it: without a developer login it says so.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let (creds, dir) = (ss.clone(), paths::data_dir(&s.app_root));
+                s.say("Asking ScreenScraper…".into());
+                let (tx, rx) = std::sync::mpsc::channel();
+                s.ra_answer = Some(Mutex::new(rx));
+                std::thread::spawn(move || {
+                    let site = ScreenScraper::new(&dir);
+                    site.set_creds(creds);
+                    let said = match site.test() {
+                        Ok(Some(left)) => Ok(format!("ScreenScraper: working · {left} lookups left today")),
+                        Ok(None) => Ok("ScreenScraper: working".to_string()),
+                        Err(why) => Err(format!("ScreenScraper: {why}")),
+                    };
+                    let _ = tx.send(RaAnswer::Tested(said));
+                });
+            })),
+            ..Row::default()
+        });
+        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover. ScreenScraper: box scans by region.".into(), rows }
     }
 
     /// Asks for the chosen game's achievements (again, when `force`).

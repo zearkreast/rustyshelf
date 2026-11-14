@@ -5526,6 +5526,7 @@ dependencies = [
  "ab_glyph",
  "aes-gcm",
  "base64 0.22.1",
+ "crc32fast",
  "image",
  "md-5",
  "miniz_oxide 0.9.1",
@@ -5542,6 +5543,7 @@ dependencies = [
  "tiny-skia",
  "unicode-normalization",
  "ureq",
+ "url",
 ]
 
 [[package]]

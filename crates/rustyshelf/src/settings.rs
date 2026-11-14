@@ -628,7 +628,7 @@ impl Settings {
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo", Screen::Controller),
-                    open("Accounts", String::new(), "RetroAchievements", Screen::Accounts),
+                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, ScreenScraper", Screen::Accounts),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                     open("System", String::new(), "Search again, emulator setup", Screen::System),

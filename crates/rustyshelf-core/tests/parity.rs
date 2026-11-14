@@ -984,3 +984,113 @@ fn steamgriddb_lookups_match_the_js() {
     assert_eq!(fx["refused"], json!([[], false, []]));
     assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["refusedAsked"]);
 }
+
+#[test]
+fn screenscraper_lookups_match_the_js() {
+    use rustyshelf_core::screenscraper::{clean, is_media, Creds, Got, Rom, ScreenScraper};
+    use serde_json::json;
+    use std::sync::{Arc, Mutex};
+    let fx = fixture("screenscraper.json");
+    for c in fx["clean"].as_array().unwrap() {
+        assert_eq!(clean(c[0].as_str().unwrap()).map_or(Value::Null, Value::from), c[1], "{}", c[0]);
+    }
+    for c in fx["isMedia"].as_array().unwrap() {
+        assert_eq!(json!(is_media(c[0].as_str().unwrap())), c[1], "{}", c[0]);
+    }
+    let b64 = |v: &Value| base64::engine::general_purpose::STANDARD.decode(v.as_str().unwrap_or("")).unwrap();
+    let (asked, mood) = (Arc::new(Mutex::new(Vec::<String>::new())), Arc::new(Mutex::new(String::new())));
+    let start = |dir: &Path, now: &str| {
+        asked.lock().unwrap().clear();
+        *mood.lock().unwrap() = now.to_string();
+        let (site, moods, heard, mood) = (fx["site"].clone(), fx["moods"].clone(), asked.clone(), mood.clone());
+        ScreenScraper::with(
+            dir,
+            Box::new(move |url: &str, _| {
+                heard.lock().unwrap().push(url.to_string());
+                let u = url::Url::parse(url).unwrap();
+                let q = |k: &str| u.query_pairs().find(|p| p.0 == k).map(|p| p.1.into_owned()).filter(|v| !v.is_empty());
+                let what = q("gameid").map(|id| format!("id:{id}")).or_else(|| q("romnom")).or_else(|| q("recherche")).or_else(|| q("media")).unwrap_or_default();
+                let mood = mood.lock().unwrap().clone();
+                let r = if mood.is_empty() { site.get(format!("{}|{what}", u.path_segments().unwrap().next_back().unwrap())) } else { moods.get(&mood) };
+                match r {
+                    None => Ok((404, Vec::new())),
+                    Some(Value::String(s)) => Err(s == "slow"),
+                    Some(r) => Ok((r["status"].as_u64().unwrap() as u16, r["text"].as_str().map_or_else(|| base64::engine::general_purpose::STANDARD.decode(r["b64"].as_str().unwrap_or("")).unwrap(), |t| t.as_bytes().to_vec()))),
+                }
+            }),
+        )
+    };
+    let creds = |c: &Value| {
+        let of = |k: &str, usual: &str| c.get(k).and_then(Value::as_str).unwrap_or(usual).to_string();
+        Creds { user: of("user", "made up user"), pass: of("pass", "p&ss word"), dev_id: of("devId", ""), dev_pass: of("devPass", "") }
+    };
+    let standing = |ss: &ScreenScraper| {
+        let s = ss.standing();
+        json!({ "configured": s.configured, "enabled": s.enabled, "paused": s.paused, "threads": s.threads, "devLogin": s.dev_login })
+    };
+    let tested = |ss: &ScreenScraper| match ss.test() {
+        Ok(left) => json!({ "ok": true, "left": left }),
+        Err(why) => json!({ "ok": false, "error": why }),
+    };
+
+    let tmp = tempfile::tempdir().unwrap();
+    let here = tmp.path().to_string_lossy().into_owned();
+    for (name, bytes) in fx["files"].as_object().unwrap() {
+        fs::write(tmp.path().join(name), b64(bytes)).unwrap();
+    }
+    fs::create_dir(tmp.path().join("Phi Folder")).unwrap();
+    let games: Vec<(String, String, String, u64)> = fx["games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| (g[0].as_str().unwrap().into(), g[1]["file"].as_str().unwrap().replace("<tmp>", &here), g[1]["title"].as_str().unwrap().into(), g[1]["sizeBytes"].as_u64().unwrap_or(0)))
+        .collect();
+    let rom = |n: usize| Rom { file: &games[n].1, title: &games[n].2, size_bytes: games[n].3 };
+    let offered = |ss: &ScreenScraper, n: usize, part: &str, can_cut: bool| Value::from(ss.candidates(&games[n].0, &rom(n), part, false, can_cut).iter().map(|c| c.to_json()).collect::<Vec<_>>());
+
+    let data = tempfile::tempdir().unwrap();
+    let ss = start(data.path(), "");
+    assert_eq!(json!([offered(&ss, 0, "front", true), tested(&ss), standing(&ss)]), fx["noAccount"]);
+    ss.set_creds(Creds { user: " made up user ".into(), pass: "p&ss word".into(), ..Creds::default() });
+    for (n, want) in fx["lookups"].as_array().unwrap().iter().enumerate() {
+        let got = match ss.lookup(&games[n].0, &rom(n), false) {
+            Ok(Some(f)) => json!({ "id": f.id, "media": f.media.iter().map(|m| m.to_json()).collect::<Vec<_>>() }),
+            Ok(None) => Value::Null,
+            Err(t) => json!({ "error": t.code, "words": t.words }),
+        };
+        assert_eq!(&got, want, "{}", games[n].1);
+    }
+    for c in fx["candidates"].as_array().unwrap() {
+        assert_eq!(offered(&ss, c[0].as_u64().unwrap() as usize, c[1].as_str().unwrap(), c[2].as_bool().unwrap()), c[3], "{c}");
+    }
+    assert!(ss.candidates("nes", &rom(0), "front", true, true).is_empty() && fx["unseen"] == json!([]));
+    assert_eq!(tested(&ss), fx["test"]);
+    assert_eq!(standing(&ss), fx["state"]);
+    for (n, d) in fx["downloads"].as_array().unwrap().iter().enumerate() {
+        let dest = tmp.path().join(format!("got{n}"));
+        let how = match ss.download(d[0].as_str().unwrap(), &dest) {
+            Ok(Got::Ok) => "ok".to_string(),
+            Ok(Got::Missing) => "missing".into(),
+            Ok(Got::Busy) => "busy".into(),
+            Err(why) => format!("error: {why}"),
+        };
+        assert_eq!(json!(how), d[1], "{}", d[0]);
+        assert_eq!(fs::read(&dest).ok(), d[2].as_str().map(|_| b64(&d[2])), "{}", d[0]);
+    }
+    assert_eq!(json!(ss.standing().paused), fx["paused"]);
+    assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["asked"]);
+    let kept: Value = serde_json::from_str(&fs::read_to_string(data.path().join("ss-cache.json")).unwrap().replace(&here.to_lowercase(), "<tmp>")).unwrap();
+    let found: serde_json::Map<String, Value> = kept["games"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), json!([v[0], v.get(2)]))).collect();
+    assert_eq!(Value::from(found), fx["cache"]["games"]);
+    assert_eq!(Value::from(kept["hashes"].as_object().unwrap().values().cloned().collect::<Vec<_>>()), fx["cache"]["hashes"]);
+
+    for t in fx["tests"].as_array().unwrap() {
+        let data = tempfile::tempdir().unwrap();
+        let ss = start(data.path(), t["mood"].as_str().unwrap());
+        ss.set_creds(creds(&t["creds"]));
+        let said = json!({ "test": tested(&ss), "state": standing(&ss), "after": ss.candidates(&games[1].0, &rom(1), "front", false, true).len(), "asked": asked.lock().unwrap().clone() });
+        for k in ["test", "state", "after", "asked"] {
+            assert_eq!(said[k], t[k], "{} {} {k}", t["mood"], t["creds"]);
+        }
+    }
+}

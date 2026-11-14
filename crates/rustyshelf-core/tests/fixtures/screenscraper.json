@@ -1,0 +1,1301 @@
+{
+ "site": {
+  "jeuInfos.php|Zeta Run (USA).sfc": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeu\":{\"id\":\"101\",\"medias\":[{\"type\":\"box-2D\",\"parent\":\"jeu\",\"region\":\"us\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(us)\"},{\"type\":\"box-2D\",\"parent\":\"jeu\",\"region\":\"eu\",\"format\":\"JPG\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(eu)\"},{\"type\":\"box-2D-back\",\"parent\":\"jeu\",\"region\":\"cus\",\"format\":\"jpeg\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D-back(cus)\"},{\"type\":\"box-2D-side\",\"parent\":\"jeu\",\"region\":\"jp\",\"format\":\"webp\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D-side(jp)\"},{\"type\":\"box-texture\",\"parent\":\"jeu\",\"region\":\"wor\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-texture(wor)\"},{\"type\":\"support-2D\",\"parent\":\"jeu\",\"region\":\"ss\",\"format\":\"\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=support-2D(ss)\"},{\"type\":\"box-2D\",\"parent\":\"jeu\",\"region\":\"kr\",\"format\":\"png\",\"url\":\"http://www.screenscraper.fr/medias/4/101/box-2D(kr).png\"},{\"type\":\"box-2D\",\"parent\":\"rom\",\"region\":\"us\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(us)\"},{\"type\":\"screenshot\",\"parent\":\"jeu\",\"region\":\"us\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=screenshot(us)\"},{\"type\":\"box-2D\",\"parent\":\"jeu\",\"region\":\"us\",\"format\":\"png\",\"url\":\"https://example.org/mediaJeu.php?media=box-2D\"},{\"type\":\"box-2D\",\"region\":\"A Very Long Region\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(A Very Long Region)\"},null,{\"type\":\"box-2D\",\"parent\":\"jeu\",\"region\":\"fr\",\"format\":\"png\",\"url\":\"\"}]}}}"
+  },
+  "jeuInfos.php|Omega Quest.sfc": {
+   "status": 404,
+   "text": ""
+  },
+  "jeuRecherche.php|Omega Quest": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeux\":[{\"id\":\"201\",\"noms\":[{\"region\":\"us\",\"text\":\"Omega Quest II\"}]},{\"id\":\"202\",\"noms\":[{\"text\":\"Omega no Tabi\"},{\"text\":\"Omega Quest\"}],\"medias\":[]},{\"id\":0,\"noms\":[{\"text\":\"Omega Quest\"}]},{\"id\":203,\"noms\":\"Omega Quest\"}]}}"
+  },
+  "jeuInfos.php|id:202": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeu\":{\"id\":202,\"medias\":[{\"type\":\"box-2D\",\"parent\":\"jeu\",\"region\":\"wor\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(wor)\"}]}}}"
+  },
+  "jeuInfos.php|Nothing Like It.sfc": {
+   "status": 200,
+   "text": "Erreur : Rom/Iso/Dossier non trouvée !"
+  },
+  "jeuRecherche.php|Nothing Like It": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeux\":[]}}"
+  },
+  "jeuInfos.php|Tau Racers.sfc": {
+   "status": 400,
+   "text": "Erreur : Champ crc, md5 ou sha1 erroné"
+  },
+  "jeuRecherche.php|Tau Racers": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeux\":[{\"id\":301,\"noms\":[{\"text\":\"Tau Racers\"}],\"medias\":[{\"type\":\"support-2D\",\"parent\":\"jeu\",\"region\":\"us\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=support-2D(us)\"}]}]}}"
+  },
+  "jeuInfos.php|Sigma (USA).iso": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeu\":{\"id\":\"0\"}}}"
+  },
+  "jeuRecherche.php|Sigma": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"}}}"
+  },
+  "jeuInfos.php|Phi Folder": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"},\"jeu\":{\"id\":\"abc\",\"medias\":[{\"type\":\"support-2D\",\"parent\":\"jeu\",\"region\":\"eu\",\"format\":\"png\",\"url\":\"https://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=support-2D(eu)\"}]}}}"
+  },
+  "jeuInfos.php|Rho.sfc": {
+   "status": 200,
+   "text": "not json at all"
+  },
+  "ssuserInfos.php|": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":\"5\",\"maxrequestsperday\":\"20000\"}}}"
+  },
+  "mediaJeu.php|box-2D(us)": {
+   "status": 200,
+   "b64": "iVBORwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH"
+  },
+  "mediaJeu.php|box-2D(eu)": {
+   "status": 200,
+   "b64": "Tk9NRURJQQ=="
+  },
+  "mediaJeu.php|support-2D(ss)": {
+   "status": 500,
+   "b64": ""
+  },
+  "mediaJeu.php|box-texture(wor)": {
+   "status": 429,
+   "b64": ""
+  }
+ },
+ "moods": {
+  "refusedDev": {
+   "status": 403,
+   "text": "Erreur de login : Vérifier vos identifiants développeur !"
+  },
+  "refused": {
+   "status": 403,
+   "text": "Erreur de login"
+  },
+  "loginWords": {
+   "status": 200,
+   "text": "Erreur de login : Vérifier vos identifiants !"
+  },
+  "quota": {
+   "status": 430,
+   "text": ""
+  },
+  "quotaWords": {
+   "status": 200,
+   "text": "Votre quota de scrape est dépassé"
+  },
+  "closed": {
+   "status": 401,
+   "text": ""
+  },
+  "down": {
+   "status": 423,
+   "text": ""
+  },
+  "blocked": {
+   "status": 426,
+   "text": ""
+  },
+  "rate": {
+   "status": 429,
+   "text": ""
+  },
+  "unknown": {
+   "status": 431,
+   "text": ""
+  },
+  "broken": {
+   "status": 500,
+   "text": ""
+  },
+  "teapot": {
+   "status": 418,
+   "text": ""
+  },
+  "junk": {
+   "status": 200,
+   "text": "{\"response\":"
+  },
+  "empty": {
+   "status": 200,
+   "text": "{\"response\":{}}"
+  },
+  "usedUp": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":\"2\",\"maxrequestspermin\":\"6000\",\"requeststoday\":20000,\"maxrequestsperday\":\"20000\"}}}"
+  },
+  "few": {
+   "status": 200,
+   "text": "{\"response\":{\"ssuser\":{\"maxthreads\":99,\"maxrequestspermin\":\"x\",\"requeststoday\":\"7\"}}}"
+  },
+  "offline": "offline",
+  "slow": "slow"
+ },
+ "files": {
+  "Zeta Run (USA).sfc": "emV0YSBydW4gcm9tIGJ5dGVz",
+  "Omega Quest.sfc": "b21lZ2E=",
+  "Nothing Like It.sfc": "bg==",
+  "Tau Racers.sfc": "dGF1IHJhY2Vycw==",
+  "Sigma (USA).iso": "R1NHRTAxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "Rho.sfc": "cmhv",
+  "Empty.sfc": ""
+ },
+ "games": [
+  [
+   "snes",
+   {
+    "file": "<tmp>/Zeta Run (USA).sfc",
+    "title": "Zeta Run"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Omega Quest.sfc",
+    "title": "Omega Quest"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Nothing Like It.sfc",
+    "title": "Nothing Like It"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Tau Racers.sfc",
+    "title": "Tau Racers"
+   }
+  ],
+  [
+   "gc",
+   {
+    "file": "<tmp>/Sigma (USA).iso",
+    "title": "Sigma"
+   }
+  ],
+  [
+   "sw",
+   {
+    "file": "<tmp>/Phi Folder",
+    "title": "Phi",
+    "sizeBytes": 12345
+   }
+  ],
+  [
+   "pc",
+   {
+    "file": "<tmp>/Zeta Run (USA).sfc",
+    "title": "Zeta Run"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "",
+    "title": "Zeta Run"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Gone.sfc",
+    "title": ""
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Zeta Run (USA).sfc",
+    "title": "Zeta Run"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Rho.sfc",
+    "title": "Rho"
+   }
+  ],
+  [
+   "snes",
+   {
+    "file": "<tmp>/Empty.sfc",
+    "title": ""
+   }
+  ]
+ ],
+ "clean": [
+  [
+   "http://neoclone.screenscraper.fr/api2/mediaJeu.php?devid=d&devpassword=dp&softname=x&ssid=u&sspassword=p&systemeid=4&jeuid=1&media=box-2D(us)",
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29"
+  ],
+  [
+   "https://WWW.ScreenScraper.fr:8443/a b/c.png?SSID=1&x=a%20b+c&Output=xml",
+   "https://www.screenscraper.fr:8443/a%20b/c.png?x=a+b+c"
+  ],
+  [
+   "https://screenscraper.fr/x.png?ssid=1&devid=2",
+   "https://screenscraper.fr/x.png"
+  ],
+  [
+   "https://screenscraper.fr/x.png?a=1%20b&c=d+e",
+   "https://screenscraper.fr/x.png?a=1%20b&c=d+e"
+  ],
+  [
+   "https://screenscraper.fr/x.png",
+   "https://screenscraper.fr/x.png"
+  ],
+  [
+   "http://www.screenscraper.fr:80/x?q=ü&ssid=1#frag",
+   "https://www.screenscraper.fr/x?q=%C3%BC#frag"
+  ],
+  [
+   "https://screenscraper.fr.example.org/x.png",
+   null
+  ],
+  [
+   "https://notscreenscraper.fr/x.png",
+   null
+  ],
+  [
+   "ftp://screenscraper.fr/x.png",
+   null
+  ],
+  [
+   "screenscraper.fr/x.png",
+   null
+  ],
+  [
+   "",
+   null
+  ],
+  [
+   "https://screenscraper.fr/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   null
+  ],
+  [
+   "  https://screenscraper.fr/x.png?a=b&sspassword=  ",
+   "https://screenscraper.fr/x.png?a=b"
+  ]
+ ],
+ "isMedia": [
+  [
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?media=box-2D(us)",
+   true
+  ],
+  [
+   "https://screenscraper.fr/api2/MEDIAJEU.PHP",
+   true
+  ],
+  [
+   "https://screenscraper.fr/medias/x.png",
+   false
+  ],
+  [
+   "https://example.org/mediaJeu.php",
+   false
+  ],
+  [
+   "nothing",
+   false
+  ]
+ ],
+ "noAccount": [
+  [],
+  {
+   "ok": false,
+   "error": "no account"
+  },
+  {
+   "configured": false,
+   "enabled": false,
+   "paused": "",
+   "threads": 1,
+   "devLogin": false
+  }
+ ],
+ "lookups": [
+  {
+   "id": 101,
+   "media": [
+    {
+     "type": "box-2D",
+     "region": "us",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29",
+     "ext": ".png"
+    },
+    {
+     "type": "box-2D",
+     "region": "eu",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28eu%29",
+     "ext": ".jpg"
+    },
+    {
+     "type": "box-2D-back",
+     "region": "cus",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-back%28cus%29",
+     "ext": ".jpg"
+    },
+    {
+     "type": "box-2D-side",
+     "region": "jp",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-side%28jp%29",
+     "ext": ".webp"
+    },
+    {
+     "type": "box-texture",
+     "region": "wor",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-texture%28wor%29",
+     "ext": ".png"
+    },
+    {
+     "type": "support-2D",
+     "region": "ss",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28ss%29",
+     "ext": ".png"
+    },
+    {
+     "type": "box-2D",
+     "region": "kr",
+     "url": "https://www.screenscraper.fr/medias/4/101/box-2D(kr).png",
+     "ext": ".png"
+    },
+    {
+     "type": "box-2D",
+     "region": "a very l",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28A+Very+Long+Region%29",
+     "ext": ".png"
+    }
+   ]
+  },
+  {
+   "id": 202,
+   "media": [
+    {
+     "type": "box-2D",
+     "region": "wor",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28wor%29",
+     "ext": ".png"
+    }
+   ]
+  },
+  null,
+  {
+   "id": 301,
+   "media": [
+    {
+     "type": "support-2D",
+     "region": "us",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28us%29",
+     "ext": ".png"
+    }
+   ]
+  },
+  null,
+  {
+   "id": "abc",
+   "media": [
+    {
+     "type": "support-2D",
+     "region": "eu",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28eu%29",
+     "ext": ".png"
+    }
+   ]
+  },
+  null,
+  null,
+  null,
+  {
+   "id": 101,
+   "media": [
+    {
+     "type": "box-2D",
+     "region": "us",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29",
+     "ext": ".png"
+    },
+    {
+     "type": "box-2D",
+     "region": "eu",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28eu%29",
+     "ext": ".jpg"
+    },
+    {
+     "type": "box-2D-back",
+     "region": "cus",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-back%28cus%29",
+     "ext": ".jpg"
+    },
+    {
+     "type": "box-2D-side",
+     "region": "jp",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-side%28jp%29",
+     "ext": ".webp"
+    },
+    {
+     "type": "box-texture",
+     "region": "wor",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-texture%28wor%29",
+     "ext": ".png"
+    },
+    {
+     "type": "support-2D",
+     "region": "ss",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28ss%29",
+     "ext": ".png"
+    },
+    {
+     "type": "box-2D",
+     "region": "kr",
+     "url": "https://www.screenscraper.fr/medias/4/101/box-2D(kr).png",
+     "ext": ".png"
+    },
+    {
+     "type": "box-2D",
+     "region": "a very l",
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28A+Very+Long+Region%29",
+     "ext": ".png"
+    }
+   ]
+  },
+  {
+   "error": "net",
+   "words": "ScreenScraper sent something unexpected"
+  },
+  null
+ ],
+ "candidates": [
+  [
+   0,
+   "front",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "box-2D",
+     "region": "usa",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Box front · USA"
+    },
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28eu%29",
+     "ext": ".jpg",
+     "source": "screenscraper",
+     "type": "box-2D",
+     "region": "eur",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Box front · Europe"
+    },
+    {
+     "url": "https://www.screenscraper.fr/medias/4/101/box-2D(kr).png",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "box-2D",
+     "region": "",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Box front · KR"
+    },
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28A+Very+Long+Region%29",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "box-2D",
+     "region": "",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Box front · A VERY L"
+    }
+   ]
+  ],
+  [
+   0,
+   "back",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-back%28cus%29",
+     "ext": ".jpg",
+     "source": "screenscraper",
+     "type": "box-2D-back",
+     "region": "usa",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Box back · USA"
+    }
+   ]
+  ],
+  [
+   0,
+   "spine",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-side%28jp%29",
+     "ext": ".webp",
+     "source": "screenscraper",
+     "type": "box-2D-side",
+     "region": "jpn",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Spine · Japan"
+    },
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-texture%28wor%29",
+     "ext": ".jpg",
+     "source": "screenscraper",
+     "type": "box-texture",
+     "region": "world",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Cut from full wrap · World",
+     "cut": "spine",
+     "src": ".png"
+    }
+   ]
+  ],
+  [
+   0,
+   "spine",
+   false,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-side%28jp%29",
+     "ext": ".webp",
+     "source": "screenscraper",
+     "type": "box-2D-side",
+     "region": "jpn",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Spine · Japan"
+    }
+   ]
+  ],
+  [
+   0,
+   "disc",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28ss%29",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "support-2D",
+     "region": "",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Cartridge"
+    }
+   ]
+  ],
+  [
+   0,
+   "manual",
+   true,
+   []
+  ],
+  [
+   1,
+   "front",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28wor%29",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "box-2D",
+     "region": "world",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Box front · World"
+    }
+   ]
+  ],
+  [
+   3,
+   "disc",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28us%29",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "support-2D",
+     "region": "usa",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Cartridge · USA"
+    }
+   ]
+  ],
+  [
+   5,
+   "disc",
+   true,
+   [
+    {
+     "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28eu%29",
+     "ext": ".png",
+     "source": "screenscraper",
+     "type": "support-2D",
+     "region": "eur",
+     "edition": "original",
+     "kind": "scan",
+     "label": "Cartridge · Europe"
+    }
+   ]
+  ],
+  [
+   2,
+   "front",
+   true,
+   []
+  ]
+ ],
+ "unseen": [],
+ "test": {
+  "ok": true,
+  "left": 19995
+ },
+ "state": {
+  "configured": true,
+  "enabled": true,
+  "paused": "",
+  "threads": 2,
+  "devLogin": false
+ },
+ "downloads": [
+  [
+   "https://screenscraper.fr/medias/x.png",
+   "missing",
+   null
+  ],
+  [
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29",
+   "ok",
+   "iVBORwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH"
+  ],
+  [
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28eu%29",
+   "missing",
+   null
+  ],
+  [
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28ss%29",
+   "busy",
+   null
+  ],
+  [
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-texture%28wor%29",
+   "busy",
+   null
+  ],
+  [
+   "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29",
+   "busy",
+   null
+  ]
+ ],
+ "paused": "rate",
+ "cache": {
+  "games": {
+   "snes|<tmp>/zeta run (usa).sfc|18": [
+    101,
+    [
+     {
+      "type": "box-2D",
+      "region": "us",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29",
+      "ext": ".png"
+     },
+     {
+      "type": "box-2D",
+      "region": "eu",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28eu%29",
+      "ext": ".jpg"
+     },
+     {
+      "type": "box-2D-back",
+      "region": "cus",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-back%28cus%29",
+      "ext": ".jpg"
+     },
+     {
+      "type": "box-2D-side",
+      "region": "jp",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D-side%28jp%29",
+      "ext": ".webp"
+     },
+     {
+      "type": "box-texture",
+      "region": "wor",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-texture%28wor%29",
+      "ext": ".png"
+     },
+     {
+      "type": "support-2D",
+      "region": "ss",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28ss%29",
+      "ext": ".png"
+     },
+     {
+      "type": "box-2D",
+      "region": "kr",
+      "url": "https://www.screenscraper.fr/medias/4/101/box-2D(kr).png",
+      "ext": ".png"
+     },
+     {
+      "type": "box-2D",
+      "region": "a very l",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28A+Very+Long+Region%29",
+      "ext": ".png"
+     }
+    ]
+   ],
+   "snes|<tmp>/omega quest.sfc|5": [
+    202,
+    [
+     {
+      "type": "box-2D",
+      "region": "wor",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28wor%29",
+      "ext": ".png"
+     }
+    ]
+   ],
+   "snes|<tmp>/nothing like it.sfc|1": [
+    0,
+    null
+   ],
+   "snes|<tmp>/tau racers.sfc|10": [
+    301,
+    [
+     {
+      "type": "support-2D",
+      "region": "us",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28us%29",
+      "ext": ".png"
+     }
+    ]
+   ],
+   "gc|<tmp>/sigma (usa).iso|64": [
+    0,
+    null
+   ],
+   "sw|<tmp>/phi folder|12345": [
+    "abc",
+    [
+     {
+      "type": "support-2D",
+      "region": "eu",
+      "url": "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28eu%29",
+      "ext": ".png"
+     }
+    ]
+   ],
+   "snes|<tmp>/gone.sfc|0": [
+    0,
+    null
+   ],
+   "snes|<tmp>/empty.sfc|0": [
+    0,
+    null
+   ]
+  },
+  "hashes": [
+   [
+    "601D7804",
+    "7E99547E06E7E6249637162287657B3E",
+    "453DAC88EE35FADFF37AEA4228E30CC3C355B29B"
+   ],
+   [
+    "4A199D3A",
+    "C6D6BD7EBF806F43C76ACC3681703B81",
+    "6021E44B0893DF4915983209E8E0F95BCB20132A"
+   ],
+   [
+    "7808A3D2",
+    "7B8B965AD4BCA0E41AB51DE7B31363A1",
+    "D1854CAE891EC7B29161CCAF79A24B00C274BDAA"
+   ],
+   [
+    "2D0FE6F8",
+    "3AB1B97F12EB971C4B52D00CF13A355D",
+    "313C43C7701530016B7004206E34A70A9BA2D257"
+   ],
+   [
+    "47A25B68",
+    "20175F3978B1A5199EC48F8BE4B52E9C",
+    "A935ECEAADC9B32D1EB216809F3C0721C3C0A6ED"
+   ],
+   [
+    "D81DF84A",
+    "843A28DFDC5B2D5463BA2A7B83FDEC7C",
+    "ECD50CC279429522AE064CA74A3F9D75E79D1783"
+   ]
+  ]
+ },
+ "asked": [
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Zeta+Run+%28USA%29.sfc&romtaille=18&crc=601D7804&md5=7E99547E06E7E6249637162287657B3E&sha1=453DAC88EE35FADFF37AEA4228E30CC3C355B29B",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A",
+  "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&recherche=Omega+Quest",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&gameid=202",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Nothing+Like+It.sfc&romtaille=1&crc=7808A3D2&md5=7B8B965AD4BCA0E41AB51DE7B31363A1&sha1=D1854CAE891EC7B29161CCAF79A24B00C274BDAA",
+  "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&recherche=Nothing+Like+It",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Tau+Racers.sfc&romtaille=10&crc=2D0FE6F8&md5=3AB1B97F12EB971C4B52D00CF13A355D&sha1=313C43C7701530016B7004206E34A70A9BA2D257",
+  "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&recherche=Tau+Racers",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=13&romtype=iso&romnom=Sigma+%28USA%29.iso&romtaille=64&crc=47A25B68&md5=20175F3978B1A5199EC48F8BE4B52E9C&sha1=A935ECEAADC9B32D1EB216809F3C0721C3C0A6ED&serialnum=GSGE01",
+  "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=13&recherche=Sigma",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=225&romtype=dossier&romnom=Phi+Folder&romtaille=12345",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Gone.sfc",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Rho.sfc&romtaille=3&crc=D81DF84A&md5=843A28DFDC5B2D5463BA2A7B83FDEC7C&sha1=ECD50CC279429522AE064CA74A3F9D75E79D1783",
+  "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Empty.sfc",
+  "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+  "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28us%29&softname=RustyShelf&ssid=made+up+user&sspassword=p%26ss+word",
+  "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-2D%28eu%29&softname=RustyShelf&ssid=made+up+user&sspassword=p%26ss+word",
+  "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=support-2D%28ss%29&softname=RustyShelf&ssid=made+up+user&sspassword=p%26ss+word",
+  "https://neoclone.screenscraper.fr/api2/mediaJeu.php?systemeid=4&jeuid=1&media=box-texture%28wor%29&softname=RustyShelf&ssid=made+up+user&sspassword=p%26ss+word"
+ ],
+ "tests": [
+  {
+   "mood": "refusedDev",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "no developer login"
+   },
+   "state": {
+    "configured": true,
+    "enabled": false,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "refusedDev",
+   "creds": {
+    "devId": "dev",
+    "devPass": "dp"
+   },
+   "test": {
+    "ok": false,
+    "error": "developer login not accepted"
+   },
+   "state": {
+    "configured": true,
+    "enabled": false,
+    "paused": "",
+    "threads": 1,
+    "devLogin": true
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&devid=dev&devpassword=dp"
+   ]
+  },
+  {
+   "mood": "refused",
+   "creds": {
+    "devPass": "dp"
+   },
+   "test": {
+    "ok": false,
+    "error": "not accepted"
+   },
+   "state": {
+    "configured": true,
+    "enabled": false,
+    "paused": "",
+    "threads": 1,
+    "devLogin": true
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&devid=made+up+user&devpassword=dp"
+   ]
+  },
+  {
+   "mood": "loginWords",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "no developer login"
+   },
+   "state": {
+    "configured": true,
+    "enabled": false,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "quota",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "Today's ScreenScraper lookups are used up"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "quota",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "quotaWords",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "Today's ScreenScraper lookups are used up"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "quota",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "closed",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper is closed to apps right now"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "closed",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "down",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper is down for now"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "closed",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "blocked",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper has blocked this version of RustyShelf"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "blocked",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "rate",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper asked us to slow down"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "rate",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "unknown",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper: too many unknown games today"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "quota",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "broken",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper answered 500"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A"
+   ]
+  },
+  {
+   "mood": "teapot",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper answered 418"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A"
+   ]
+  },
+  {
+   "mood": "junk",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper sent something unexpected"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A"
+   ]
+  },
+  {
+   "mood": "empty",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "no developer login"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A",
+    "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&recherche=Omega+Quest"
+   ]
+  },
+  {
+   "mood": "usedUp",
+   "creds": {},
+   "test": {
+    "ok": true,
+    "left": 0
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "quota",
+    "threads": 2,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word"
+   ]
+  },
+  {
+   "mood": "few",
+   "creds": {},
+   "test": {
+    "ok": true,
+    "left": null
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 8,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A",
+    "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&recherche=Omega+Quest"
+   ]
+  },
+  {
+   "mood": "offline",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "Couldn't reach ScreenScraper"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A"
+   ]
+  },
+  {
+   "mood": "slow",
+   "creds": {},
+   "test": {
+    "ok": false,
+    "error": "ScreenScraper took too long to answer"
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 1,
+    "devLogin": false
+   },
+   "after": 0,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=made+up+user&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A"
+   ]
+  },
+  {
+   "mood": "",
+   "creds": {
+    "user": "",
+    "pass": "",
+    "devId": " dev ",
+    "devPass": "dp"
+   },
+   "test": {
+    "ok": true,
+    "left": 19995
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 2,
+    "devLogin": true
+   },
+   "after": 1,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=dev&sspassword=dp&devid=dev&devpassword=dp",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=dev&sspassword=dp&devid=dev&devpassword=dp&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A",
+    "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=dev&sspassword=dp&devid=dev&devpassword=dp&systemeid=4&recherche=Omega+Quest",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=dev&sspassword=dp&devid=dev&devpassword=dp&systemeid=4&gameid=202"
+   ]
+  },
+  {
+   "mood": "",
+   "creds": {
+    "user": "only a name"
+   },
+   "test": {
+    "ok": true,
+    "left": 19995
+   },
+   "state": {
+    "configured": true,
+    "enabled": true,
+    "paused": "",
+    "threads": 2,
+    "devLogin": false
+   },
+   "after": 1,
+   "asked": [
+    "https://api.screenscraper.fr/api2/ssuserInfos.php?softname=RustyShelf&output=json&ssid=only+a+name&sspassword=p%26ss+word",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=only+a+name&sspassword=p%26ss+word&systemeid=4&romtype=rom&romnom=Omega+Quest.sfc&romtaille=5&crc=4A199D3A&md5=C6D6BD7EBF806F43C76ACC3681703B81&sha1=6021E44B0893DF4915983209E8E0F95BCB20132A",
+    "https://api.screenscraper.fr/api2/jeuRecherche.php?softname=RustyShelf&output=json&ssid=only+a+name&sspassword=p%26ss+word&systemeid=4&recherche=Omega+Quest",
+    "https://api.screenscraper.fr/api2/jeuInfos.php?softname=RustyShelf&output=json&ssid=only+a+name&sspassword=p%26ss+word&systemeid=4&gameid=202"
+   ]
+  }
+ ]
+}
