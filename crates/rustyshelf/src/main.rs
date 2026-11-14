@@ -9,6 +9,7 @@ mod padwatch;
 mod play;
 mod settings;
 mod shelf;
+mod sound;
 
 use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
@@ -51,6 +52,7 @@ fn main() {
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
         .init_resource::<play::Discord>()
+        .init_resource::<sound::Sounds>()
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
         .init_resource::<settings::Settings>()
@@ -62,6 +64,7 @@ fn main() {
                 play::watch_game,
                 settings::input,
                 play::navigate,
+                sound::run,
                 shelf::build_shelf,
                 shelf::apply_covers,
                 shelf::arrange,

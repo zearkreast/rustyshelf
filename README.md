@@ -574,6 +574,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Keeps a PC game's window the way Details → Window says (for Quiver's, GOG's and HoYoPlay's games, the PC games
   folder's and programs added by hand): borderless takes its frame off and stretches it over its screen while it
   runs, with the Electron app's own helper.
+- Plays the interface's sounds, synthesised as the Electron app's are (the same voices, room and limiter, checked
+  against renders of the Electron app's own engine): Aero, Melody with its built-in songs, and Music box; each shelf
+  in its own key; the five boot sounds. Settings → Sounds has the switch, the volume, the voice and the boot sound.
 - Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
@@ -582,10 +585,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
-**Not yet:** the rest of Settings (sound, themes, accounts; adding several games at once, a folder of games or a
+**Not yet:** the rest of Settings (themes, accounts; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
-GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu over a
+GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the menu music (and your own music and
+songs), the Home menu over a
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
@@ -609,7 +613,8 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Quit | Esc | |
 
 `cargo test --workspace` runs its tests, which compare its title and folder rules against the Electron app's own answers
-(`node scripts/rust-fixtures.js` regenerates those).
+(`node scripts/rust-fixtures.js` regenerates those), and its sounds against the Electron app's sound engine
+(`node scripts/rust-sound-fixtures.js`, which needs Playwright's Chromium, renders the reference sounds).
 
 ## For developers
 

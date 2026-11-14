@@ -131,3 +131,32 @@ fn cues_ask_for_the_voices_the_electron_app_asks_for() {
     assert!(seen > 2000, "only {seen} voices in the fixture");
     assert!(wrong.is_empty(), "{} differ:\n{}", wrong.len(), wrong.iter().take(40).cloned().collect::<Vec<_>>().join("\n"));
 }
+
+/// How long cues take to render (`cargo test -p rustyshelf-core --test cues timing -- --ignored --nocapture`).
+#[test]
+#[ignore]
+fn timing() {
+    let mut sound = Sound::default();
+    for name in ["tick", "tick", "tick", "shelf", "open", "go", "boot"] {
+        let cue = sound.cue(name, 1, 5000.0);
+        let start = std::time::Instant::now();
+        let out = rustyshelf_core::synth::render(&cue.voices, &sound.theme().tone, cue.level, 44_100, 0.7, 3);
+        println!("{name}: {:.1} ms for {:.2} s", start.elapsed().as_secs_f64() * 1000.0, out.left.len() as f64 / 44_100.0);
+    }
+}
+
+/// Writes each voice's cues as WAV files into the folder `CUES_OUT` names, for listening to them.
+#[test]
+#[ignore]
+fn listen() {
+    let dir = std::path::PathBuf::from(std::env::var("CUES_OUT").unwrap());
+    for voice in ["aero", "melody", "musicbox"] {
+        let mut sound = Sound::default();
+        sound.set_theme(voice);
+        for name in ["tick", "shelf", "open", "back", "go", "error", "boot"] {
+            let cue = sound.cue(name, 1, 5000.0);
+            let out = rustyshelf_core::synth::render(&cue.voices, &sound.theme().tone, cue.level, 44_100, 0.7, 3);
+            std::fs::write(dir.join(format!("{voice}-{name}.wav")), out.wav()).unwrap();
+        }
+    }
+}

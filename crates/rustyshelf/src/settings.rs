@@ -59,6 +59,7 @@ enum Screen {
     CustomGame(usize),
     BoxArt,
     Display,
+    Sound,
     Controller,
     System,
     Done,
@@ -149,6 +150,19 @@ pub struct Settings {
     toast: Option<String>,
     /// the Discord switch or id changed since they were last handed over
     pub discord_changed: bool,
+    /// the same for the sound settings
+    pub sound_changed: bool,
+    /// cues to play: a cue's name, and which way a move went
+    pub cues: Vec<(&'static str, i32)>,
+}
+
+/// Settings → Sounds.
+pub struct SoundPrefs {
+    pub on: bool,
+    pub volume: f32,
+    pub voice: String,
+    pub boot: String,
+    pub boot_volume: f32,
 }
 
 impl Default for Settings {
@@ -182,6 +196,8 @@ impl Default for Settings {
             open_emulator: None,
             toast: None,
             discord_changed: true,
+            sound_changed: true,
+            cues: Vec::new(),
         }
     }
 }
@@ -233,6 +249,17 @@ impl Settings {
     }
 
     /// Saves the settings as they are now.
+    pub fn sound(&self) -> SoundPrefs {
+        let number = |path: &[&str], unset: f32| at(&self.cfg, path).and_then(Value::as_f64).map_or(unset, |v| v as f32).clamp(0.0, 1.0);
+        SoundPrefs {
+            on: self.flag(&["ui", "sound"], true),
+            volume: number(&["ui", "volume"], 0.7),
+            voice: self.text(&["ui", "soundTheme"]),
+            boot: Some(self.text(&["ui", "bootSound"])).filter(|b| !b.is_empty()).unwrap_or_else(|| "chime".into()),
+            boot_volume: number(&["ui", "bootVolume"], 1.0),
+        }
+    }
+
     /// A PC game's window mode (Details → Window): "", "borderless" or "windowed".
     pub fn window_mode(&self, id: &str) -> &'static str {
         let mode = self.text(&["games", id, "window"]);
@@ -260,6 +287,10 @@ impl Settings {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
+        } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "bootSound" | "bootVolume")] = path {
+            // heard at once: the boot for its own settings, a chime for the rest
+            self.sound_changed = true;
+            self.cues.push((if key.starts_with("boot") { "boot" } else { "open" }, 1));
         } else if path[0] != "emuSetup" && !matches!(path, ["games", _, "window"]) {
             self.changed = true;
         }
@@ -288,6 +319,7 @@ impl Settings {
             self.load_setup(id);
         }
         self.stack.push((screen, 0));
+        self.cues.push(("open", 1));
         self.note.clear();
         self.asked.clear();
         self.redraw = true;
@@ -341,6 +373,7 @@ impl Settings {
         } else if !self.wizard {
             self.open = false;
         }
+        self.cues.push(("back", 1));
         self.note.clear();
         self.asked.clear();
         self.redraw = true;
@@ -492,6 +525,7 @@ impl Settings {
                     open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
                     open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
                     open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
+                    open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo", Screen::Controller),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
@@ -861,6 +895,53 @@ impl Settings {
                         ),
                 ]);
                 Page { title: "Display".into(), lead: String::new(), rows }
+            }
+            Screen::Sound => {
+                const VOICES: [(&str, &str); 3] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box")];
+                const BOOTS: [(&str, &str); 5] = [("chime", "Chime"), ("crystal", "Crystal"), ("pulse", "Pulse"), ("horizon", "Horizon"), ("keys", "Keys")];
+                let prefs = self.sound();
+                let voice = rustyshelf_core::cues::theme(&prefs.voice).id;
+                let percent = |v: f32| format!("{}%", (v * 100.0).round());
+                // a level in steps of a twentieth
+                let level = |path: &'static [&'static str], now: f32| -> (Press, Step) {
+                    let turn = move |s: &mut Settings, d: i32| {
+                        let v = ((now * 20.0).round() as i32 + d).clamp(0, 20) as f64 / 20.0;
+                        s.set(path, json!(v));
+                    };
+                    (Box::new(move |s: &mut Settings| turn(s, 1)), Box::new(turn))
+                };
+                let pick = |path: &'static [&'static str], list: &'static [(&'static str, &'static str)], now: &str| -> (String, Press, Step) {
+                    let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
+                    let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
+                    (list[at].1.to_string(), Box::new(move |s: &mut Settings| turn(s, 1)), Box::new(turn))
+                };
+                let (volume, volume_step) = level(&["ui", "volume"], prefs.volume);
+                let (boot_volume, boot_volume_step) = level(&["ui", "bootVolume"], prefs.boot_volume);
+                let (voice_name, voice_press, voice_step) = pick(&["ui", "soundTheme"], &VOICES, voice);
+                let (boot_name, boot_press, boot_step) = pick(&["ui", "bootSound"], &BOOTS, &prefs.boot);
+                Page {
+                    title: "Sounds".into(),
+                    lead: String::new(),
+                    rows: vec![
+                        toggle("Interface sounds", &["ui", "sound"], true, "Ticks, whooshes and chimes as you move around."),
+                        Row { label: "Volume".into(), value: percent(prefs.volume), hint: "How loud RustyShelf's own sounds are. Games and apps aren't affected.".into(), press: Some(volume), step: Some(volume_step) },
+                        Row {
+                            label: "Voice".into(),
+                            value: voice_name,
+                            hint: "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright.".into(),
+                            press: Some(voice_press),
+                            step: Some(voice_step),
+                        },
+                        Row { label: "Boot sound".into(), value: boot_name, hint: "The sting that plays as a console's game starts.".into(), press: Some(boot_press), step: Some(boot_step) },
+                        Row {
+                            label: "Boot sound volume".into(),
+                            value: percent(prefs.boot_volume),
+                            hint: "How loud the boot sound plays, on its own: lower it without making the menu sounds quieter. It still follows the overall Volume.".into(),
+                            press: Some(boot_volume),
+                            step: Some(boot_volume_step),
+                        },
+                    ],
+                }
             }
             Screen::Controller => {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];
@@ -1293,7 +1374,11 @@ pub fn input(
     }
     if move_by != 0 && n > 0 {
         let at = &mut s.stack.last_mut().expect("a page").1;
+        let was = *at;
         *at = (*at as i32 + move_by).clamp(0, n as i32 - 1) as usize;
+        if *at != was {
+            s.cues.push(("tick", move_by.signum()));
+        }
         s.asked.clear();
         s.note.clear();
         s.redraw = true;

@@ -194,6 +194,7 @@ pub fn navigate(
     mut settings: ResMut<crate::settings::Settings>,
     mut exit: MessageWriter<AppExit>,
     mut held: Local<padwatch::Held>,
+    mut sounds: ResMut<crate::sound::Sounds>,
 ) {
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
@@ -255,11 +256,13 @@ pub fn navigate(
     if shelf_step != 0 {
         cursor.shelf = (cursor.shelf as i32 + shelf_step).rem_euclid(n_shelves as i32) as usize;
         cursor.game = 0;
+        sounds.play("shelf", shelf_step);
         return;
     }
 
     let shelf = &l.shelves[cursor.shelf];
     let n = shelf.games.len();
+    let was = cursor.game;
     if step != 0 && n > 0 {
         cursor.game = (cursor.game as i32 + step).clamp(0, n as i32 - 1) as usize;
     }
@@ -269,9 +272,13 @@ pub fn navigate(
     if keys.just_pressed(KeyCode::End) {
         cursor.game = n.saturating_sub(1);
     }
+    if cursor.game != was {
+        sounds.play("tick", if cursor.game < was { -1 } else { 1 });
+    }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
     let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
+    sounds.play("go", 1);
     match (&shelf.kind, &g.source) {
         // Steam starts it. With Seamless play it's watched as a game RustyShelf started; without, Steam looks after
         // it and the shelf stays as it is
@@ -287,6 +294,7 @@ pub fn navigate(
             }
             Err(e) => {
                 toast.text = e.to_string();
+                sounds.play("error", 1);
                 toast.until = now + 5.0;
             }
         },
@@ -314,6 +322,7 @@ pub fn navigate(
             }
             Err(e) => {
                 toast.text = e.to_string();
+                sounds.play("error", 1);
                 toast.until = now + 6.0;
             }
         },
@@ -337,6 +346,7 @@ pub fn navigate(
             playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, shelf.name.clone()));
             playing.combo = combo;
             playing.starting = Some(Mutex::new(rx));
+            sounds.play_later("boot", now, 0.7);
         }
         (_, Source::App { path }) => match launch::launch_app(&g.title, path, &l.app_root) {
             Ok(child) => {
@@ -348,6 +358,7 @@ pub fn navigate(
             }
             Err(e) => {
                 toast.text = e.to_string();
+                sounds.play("error", 1);
                 toast.until = now + 6.0;
             }
         },
@@ -363,6 +374,7 @@ pub fn watch_game(
     mut settings: ResMut<crate::settings::Settings>,
     pads: Query<&Gamepad>,
     discord: Res<Discord>,
+    mut sounds: ResMut<crate::sound::Sounds>,
     time: Res<Time>,
 ) {
     if std::mem::take(&mut settings.discord_changed) {
@@ -439,6 +451,7 @@ pub fn watch_game(
         }
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");
+            sounds.play("error", 1);
             toast.text = e.to_string();
             toast.until = now + 6.0;
             *playing = Playing::default();

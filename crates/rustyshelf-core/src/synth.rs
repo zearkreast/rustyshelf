@@ -9,6 +9,9 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::sync::{Arc, LazyLock, Mutex};
 
+use rustfft::num_complex::Complex;
+use rustfft::{Fft, FftPlanner};
+
 /// The level every voice goes through, so the whole set can be nudged together.
 pub const TRIM: f32 = 0.27;
 
@@ -492,39 +495,14 @@ impl Mix {
 
 // ---------- the room ----------
 
-/// An in-place FFT of a power-of-two length; `inverse` leaves the result unscaled.
-fn fft(re: &mut [f32], im: &mut [f32], inverse: bool) {
-    let n = re.len();
-    let mut j = 0;
-    for i in 1..n {
-        let mut bit = n >> 1;
-        while j & bit != 0 {
-            j ^= bit;
-            bit >>= 1;
-        }
-        j |= bit;
-        if i < j {
-            re.swap(i, j);
-            im.swap(i, j);
-        }
-    }
-    let mut len = 2;
-    while len <= n {
-        let ang = 2.0 * std::f64::consts::PI / len as f64 * if inverse { 1.0 } else { -1.0 };
-        let (wr, wi) = (ang.cos(), ang.sin());
-        for start in (0..n).step_by(len) {
-            let (mut cr, mut ci) = (1.0f64, 0.0f64);
-            for k in 0..len / 2 {
-                let (a, b) = (start + k, start + k + len / 2);
-                let (xr, xi) = (re[b] as f64 * cr - im[b] as f64 * ci, re[b] as f64 * ci + im[b] as f64 * cr);
-                re[b] = (re[a] as f64 - xr) as f32;
-                im[b] = (im[a] as f64 - xi) as f32;
-                re[a] = (re[a] as f64 + xr) as f32;
-                im[a] = (im[a] as f64 + xi) as f32;
-                (cr, ci) = (cr * wr - ci * wi, cr * wi + ci * wr);
-            }
-        }
-        len <<= 1;
+/// An FFT of `size`, forward or back, planned once for each.
+fn fft(size: usize, inverse: bool) -> Arc<dyn Fft<f32>> {
+    static PLANS: LazyLock<Mutex<FftPlanner<f32>>> = LazyLock::new(|| Mutex::new(FftPlanner::new()));
+    let mut plans = PLANS.lock().unwrap();
+    if inverse {
+        plans.plan_fft_inverse(size)
+    } else {
+        plans.plan_fft_forward(size)
     }
 }
 
@@ -557,22 +535,38 @@ fn impulse(rate: f32) -> Arc<[Vec<f32>; 2]> {
         .clone()
 }
 
-fn convolve(sig: &[f32], ir: &[f32]) -> Vec<f32> {
-    let size = (sig.len() + ir.len()).next_power_of_two();
-    let load = |x: &[f32]| {
-        let (mut re, mut im) = (vec![0.0f32; size], vec![0.0f32; size]);
-        re[..x.len()].copy_from_slice(x);
-        fft(&mut re, &mut im, false);
-        (re, im)
-    };
-    let ((mut ar, mut ai), (br, bi)) = (load(sig), load(ir));
-    for i in 0..size {
-        (ar[i], ai[i]) = (ar[i] * br[i] - ai[i] * bi[i], ar[i] * bi[i] + ai[i] * br[i]);
+type Spectrum = Arc<Vec<Complex<f32>>>;
+
+fn spectrum_of(sig: &[f32], size: usize) -> Vec<Complex<f32>> {
+    let mut s: Vec<Complex<f32>> = sig.iter().map(|x| Complex::new(*x, 0.0)).collect();
+    s.resize(size, Complex::new(0.0, 0.0));
+    fft(size, false).process(&mut s);
+    s
+}
+
+/// The room's tail for one ear as an FFT of `size` works with it, made once for each size.
+fn tail_spectrum(rate: f32, ch: usize, size: usize) -> Spectrum {
+    type Made = HashMap<(u32, usize, usize), Spectrum>;
+    static MADE: LazyLock<Mutex<Made>> = LazyLock::new(Default::default);
+    if let Some(s) = MADE.lock().unwrap().get(&(rate as u32, ch, size)) {
+        return s.clone();
     }
-    fft(&mut ar, &mut ai, true);
-    ar.truncate(sig.len() + ir.len());
-    ar.iter_mut().for_each(|s| *s /= size as f32);
-    ar
+    let s: Spectrum = Arc::new(spectrum_of(&impulse(rate)[ch], size));
+    MADE.lock().unwrap().insert((rate as u32, ch, size), s.clone());
+    s
+}
+
+/// A signal through the room's tail for one ear.
+fn through_tail(sig: &[f32], rate: f32, ch: usize) -> Vec<f32> {
+    let tail = impulse(rate)[ch].len();
+    let size = (sig.len() + tail).next_power_of_two();
+    let room = tail_spectrum(rate, ch, size);
+    let mut s = spectrum_of(sig, size);
+    for (a, b) in s.iter_mut().zip(room.iter()) {
+        *a *= b;
+    }
+    fft(size, true).process(&mut s);
+    s.iter().take(sig.len() + tail).map(|c| c.re / size as f32).collect()
 }
 
 /// The room every cue shares: a few early reflections placed left and right, and a soft diffuse tail.
@@ -597,7 +591,7 @@ fn room(wet: &[Vec<f32>; 2], rate: f32) -> [Vec<f32>; 2] {
         let mut hc = Biquad::default();
         hc.set(Filter::Lowpass, 3600.0, 1.0, rate);
         let soft: Vec<f32> = wet[ch].iter().map(|s| hc.run(*s)).collect();
-        for (o, s) in out[ch].iter_mut().zip(convolve(&soft, &ir[ch])) {
+        for (o, s) in out[ch].iter_mut().zip(through_tail(&soft, rate, ch)) {
             *o += s * 0.5;
         }
     }
@@ -708,8 +702,13 @@ fn limit(sig: &mut [Vec<f32>; 2], rate: f32) {
                 rate_now = 1.0 - (0.25 / max_attack.max(0.5)).powf(1.0 / attack_frames);
             }
         }
-        let wanted = detector.asin() / (PI / 2.0);
         let level = sig[0][i].abs().max(sig[1][i].abs());
+        // settled and under the threshold, as nearly all of a cue is: nothing to work out
+        if detector == 1.0 && gain == 1.0 && level < curve.threshold {
+            gains[i] = makeup;
+            continue;
+        }
+        let wanted = detector.asin() / (PI / 2.0);
         let attenuation = if level <= 0.0001 { 1.0 } else { curve.shape(level) / level };
         let fall = lin((-db(attenuation)).max(2.0) / sat_release_frames) - 1.0;
         detector = (detector + (attenuation - detector) * if attenuation > detector { fall } else { 1.0 }).min(1.0);
