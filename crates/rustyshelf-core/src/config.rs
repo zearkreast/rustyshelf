@@ -26,6 +26,13 @@ pub struct SystemConfig {
     pub rom_dirs: Vec<String>,
     /// one folder for this console's art instead of the ones beside the games
     pub art_dir: String,
+    /// GameCube: show the console's own startup (the IPL), and keep Dolphin's warnings about it quiet
+    pub use_ipl: bool,
+    pub hide_dolphin_warnings: bool,
+    /// the RetroArch core picked in Settings; empty for the console's own
+    pub ra_core: String,
+    /// PS5: games are started from Kyty's launcher, not straight in its emulator
+    pub via_launcher: bool,
 }
 
 #[derive(Debug)]
@@ -95,7 +102,31 @@ impl Config {
                 .map(|a| a.iter().filter_map(Value::as_str).filter(|d| !d.is_empty()).map(String::from).collect())
                 .unwrap_or_default(),
             art_dir: str_of(get("artDir"), "").to_string(),
+            use_ipl: get("useIpl").and_then(Value::as_bool).unwrap_or(false),
+            hide_dolphin_warnings: get("hideDolphinWarnings").and_then(Value::as_bool).unwrap_or(false),
+            ra_core: str_of(get("raCore"), "").to_string(),
+            via_launcher: get("viaLauncher").and_then(Value::as_bool).unwrap_or(false),
         }
+    }
+
+    /// Settings → RetroArch: the program the retro consoles fall back on, unexpanded.
+    pub fn retroarch(&self) -> String {
+        str_of(self.raw.get("retroarch"), "").trim().to_string()
+    }
+
+    /// A game's own choices (Details), by its id (`<console>:<file>`): `emulator`, `title` …
+    pub fn game(&self, id: &str) -> Option<&Map<String, Value>> {
+        self.raw.get("games").and_then(Value::as_object).and_then(|g| g.get(id)).and_then(Value::as_object)
+    }
+
+    /// The name the player gave a game (Details → Rename).
+    pub fn game_title(&self, id: &str) -> Option<&str> {
+        self.game(id).and_then(|g| g.get("title")).and_then(Value::as_str).filter(|t| !t.is_empty())
+    }
+
+    /// The emulator build a game runs in instead of its console's, unexpanded.
+    pub fn game_emulator(&self, id: &str) -> Option<&str> {
+        self.game(id).and_then(|g| g.get("emulator")).and_then(Value::as_str).filter(|t| !t.is_empty())
     }
 
     /// Settings → Box art → the art library folder, unexpanded; empty when the art sits beside the games.

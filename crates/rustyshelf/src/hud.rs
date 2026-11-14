@@ -117,7 +117,7 @@ pub fn update(
         }
     }
     if let Some(p) = &playing.title {
-        note = format!("Playing {p}. The shelf comes back when it closes.");
+        note = if playing.is_starting() { format!("Starting {p}…") } else { format!("Playing {p}. The shelf comes back when it closes.") };
     }
     if time.elapsed_secs() < toast.until {
         note = toast.text.clone();

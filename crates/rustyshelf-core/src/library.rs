@@ -38,7 +38,7 @@ impl Library {
             .map(|c| (c, config.system(c)))
             .filter(|(_, sc)| sc.enabled && !sc.rom_dirs.is_empty())
             .collect();
-        let shelves = std::thread::scope(|s| {
+        let mut shelves: Vec<Shelf> = std::thread::scope(|s| {
             let jobs: Vec<_> = wanted
                 .into_iter()
                 .map(|(c, sc)| {
@@ -48,6 +48,11 @@ impl Library {
                 .collect();
             jobs.into_iter().filter_map(|j| j.join().ok()).filter(|s| !s.games.is_empty()).collect()
         });
+        for g in shelves.iter_mut().flat_map(|s| s.games.iter_mut()) {
+            if let Some(t) = config.game_title(&g.id) {
+                g.title = t.to_string();
+            }
+        }
         Ok(Library { app_root: app_root.to_path_buf(), config, shelves })
     }
 }

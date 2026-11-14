@@ -35,6 +35,9 @@ pub struct Console {
     pub also_files: Vec<String>,
     #[serde(default)]
     pub ra_core: Option<String>,
+    /// the RetroArch cores Settings offers: [id, name]
+    #[serde(default)]
+    pub ra_cores: Vec<(String, String)>,
     #[serde(default)]
     pub retro: bool,
 }

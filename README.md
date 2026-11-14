@@ -518,14 +518,19 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   packages), unpacked Switch 2 games, PS4 `.pkg` packages shown as not installed, PS5 games, arcade sets named from the
   FinalBurn Neo list, and the names and pictures in a Batocera / RetroBat `gamelist.xml`.
 - Shows them with their box art on a 3D shelf, one console at a time.
-- Starts a game in its emulator with its launch options (an unpacked Switch 2 game in its newest update).
+- Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,
+  else RetroArch with the console's core; with the options the emulator in use takes (a standalone retro emulator,
+  Ryujinx, Dolphin's settings for the session, the GameCube startup), the real Xenia behind Xenia Manager, a PS Vita game
+  by its title id, an unpacked Switch 2 game in its newest update, and a PS5 game with the Kyty launcher's settings.
+- Shows the names you gave games in the Electron app (Details → Rename).
 
 The Xbox 360 title list, the arcade names and the sizes of unpacked Switch 2 games come from the Electron app's `data`
 folder. Until the Electron app has fetched or measured them, games show their file names and no size.
 
 **Not yet:** Settings and the setup wizard, art downloads, Steam and PC games, the open case and the museum, sounds and
-music, the phone companion, Android. Starting a PS5 game with the Kyty launcher's settings, and choosing a Switch 2 build,
-are Electron-only too.
+music, the phone companion, Android. Installing a 3DS `.cia`, choosing a Switch 2 build, downloading a missing RetroArch
+core, and the emulator settings the Electron app adjusts before a game (so the controller's quit combo closes it without
+a question) are Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
