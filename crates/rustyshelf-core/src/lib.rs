@@ -7,6 +7,7 @@ pub mod boxart;
 pub mod collate;
 pub mod config;
 pub mod covers;
+pub mod cues;
 pub mod detect;
 pub mod dirsize;
 pub mod dolphin;

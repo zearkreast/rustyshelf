@@ -29,7 +29,7 @@ fn voice(kind: &str, o: &Value) -> Voice {
                 noise: f("noise"),
                 glide: f("glide"),
                 glide_time: f("glideTime"),
-                sub: f("sub"),
+                under: f("sub"),
                 breath: f("breath"),
             })
         }
@@ -71,7 +71,7 @@ fn voices_sound_as_the_electron_apps_do() {
         let (name, mode) = (case["name"].as_str().unwrap(), case["mode"].as_str().unwrap());
         let voices: Vec<Voice> = case["voices"].as_array().unwrap().iter().map(|v| voice(v[0].as_str().unwrap(), &v[1])).collect();
         // the fixtures were rendered at the interface's own volume
-        let got = render(&voices, &AERO, rate, 0.7, 7);
+        let got = render(&voices, &AERO, 1.0, rate, 0.7, 7);
         let chans = [&got.left, &got.right];
         let level = |window: usize, of: &dyn Fn(&[f32]) -> f32| -> Vec<Vec<f32>> { chans.iter().map(|c| c.chunks(window).map(of).collect()).collect() };
         let peaks = level(441, &|w| w.iter().fold(0.0f32, |m, x| m.max(x.abs())));
@@ -130,6 +130,6 @@ fn voices_sound_as_the_electron_apps_do() {
 fn dump() {
     let voices: Value = serde_json::from_str(&std::fs::read_to_string(std::env::var("SYNTH_VOICES").unwrap()).unwrap()).unwrap();
     let voices: Vec<Voice> = voices.as_array().unwrap().iter().map(|v| voice(v[0].as_str().unwrap(), &v[1])).collect();
-    let got = render(&voices, &AERO, 44_100, 0.7, 7);
+    let got = render(&voices, &AERO, 1.0, 44_100, 0.7, 7);
     std::fs::write(std::env::var("SYNTH_OUT").unwrap(), serde_json::json!({ "l": got.left, "r": got.right }).to_string()).unwrap();
 }

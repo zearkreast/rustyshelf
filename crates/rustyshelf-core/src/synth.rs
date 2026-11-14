@@ -132,7 +132,7 @@ pub struct Hit {
     pub glide: Option<f32>,
     pub glide_time: Option<f32>,
     /// a soft octave below, at this level
-    pub sub: Option<f32>,
+    pub under: Option<f32>,
     pub breath: Option<f32>,
 }
 
@@ -209,6 +209,29 @@ pub enum Voice {
     Swell(Swell),
 }
 
+macro_rules! setters {
+    ($t:ident: $($f:ident),*) => {
+        impl $t {
+            $(pub fn $f(mut self, v: f32) -> Self {
+                self.$f = Some(v);
+                self
+            })*
+        }
+
+        impl From<$t> for Voice {
+            fn from(v: $t) -> Voice {
+                Voice::$t(v)
+            }
+        }
+    };
+}
+
+setters!(Hit: freq, dur, vol, at, pan, verb, bright, thump, attack, noise, glide, glide_time, under, breath);
+setters!(Air: at, dur, vol, freq, sweep_to, q, verb, pan, attack, hold);
+setters!(Fm: freq, at, dur, vol, ratio, index, floor, bright, pan, verb, detune, attack);
+setters!(Pad: at, dur, vol, from, to, open, attack, hold, q, verb);
+setters!(Swell: at, dur, vol, attack, verb);
+
 /// What a voice's own settings leave to the interface's voice (Aero, Melody, Music box).
 #[derive(Debug, Clone, Copy)]
 pub struct Tone {
@@ -280,7 +303,7 @@ impl Mix {
         let (bright, thump) = (or(o.bright, t.bright), o.thump.unwrap_or(t.thump));
         let attack = or(o.attack, if t.attack != 0.0 { t.attack } else { 0.003 });
         let parts = o.partials.unwrap_or(t.partials);
-        let sub = o.sub.unwrap_or(0.0);
+        let sub = o.under.unwrap_or(0.0);
         let longest = parts.iter().map(|p| dur * p.2 + 0.25).fold(if sub > 0.0 { dur + 0.3 } else { 0.0 }, f32::max);
         let n = (longest * rate).ceil() as usize;
         let mut tones = vec![0.0f32; n];
@@ -712,9 +735,9 @@ pub struct Stereo {
     pub right: Vec<f32>,
 }
 
-/// Renders voices into a buffer: mixed, sent through the room, saturated a little, limited, at `volume` (0 to 1).
-/// `seed` picks the noise; the same seed gives the same buffer.
-pub fn render(voices: &[Voice], tone: &Tone, rate: u32, volume: f32, seed: u64) -> Stereo {
+/// Renders voices into a buffer: mixed at `level` (1 as they are), sent through the room, saturated a little,
+/// limited, at `volume` (0 to 1). `seed` picks the noise; the same seed gives the same buffer.
+pub fn render(voices: &[Voice], tone: &Tone, level: f32, rate: u32, volume: f32, seed: u64) -> Stereo {
     let mut mix = Mix { rate: rate as f32, dry: [Vec::new(), Vec::new()], wet: [Vec::new(), Vec::new()], rng: Rng(seed | 1) };
     for v in voices {
         match v {
@@ -724,6 +747,9 @@ pub fn render(voices: &[Voice], tone: &Tone, rate: u32, volume: f32, seed: u64) 
             Voice::Pad(o) => mix.pad(o),
             Voice::Swell(o) => mix.swell(o),
         }
+    }
+    if level != 1.0 {
+        mix.dry.iter_mut().chain(mix.wet.iter_mut()).flatten().for_each(|s| *s *= level);
     }
     let mut out = room(&mix.wet, mix.rate);
     // gentle saturation gives the pure tones a little body without sounding distorted
