@@ -299,7 +299,7 @@ fn clean_env_of(vars: Vec<(String, String)>, extra: Option<Vec<(String, String)>
 }
 
 /// Everything the Electron app decides before it starts a game: the emulator, its options, the file it's handed.
-// TODO: still Electron-only: the Switch 2 build picker and downloading a missing RetroArch core (Windows)
+// TODO: still Electron-only: the Switch 2 build picker
 pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Plan, LaunchError> {
     let id = console.id.as_str();
     let mut exe = choose_emulator(console, sc, game_id, cfg, app_root)?;
@@ -387,11 +387,15 @@ pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cf
     }
     if console.ra_core.is_some() && is_retroarch(&exe) {
         let cid = core_of(console, sc).unwrap_or_default();
-        let Some(core) = retro_core(&exe, &cid) else {
-            let nm = core_name(&cid);
-            return refuse(format!(
-                "RetroArch doesn't have the {nm} core for {con} yet. In RetroArch: Main Menu → Online Updater → Core Downloader → {nm}, then press Play again."
-            ));
+        let nm = core_name(&cid);
+        let fix = format!("In RetroArch: Main Menu → Online Updater → Core Downloader → {nm}, then press Play again.");
+        let core = match retro_core(&exe, &cid) {
+            Some(core) => core,
+            // a missing core is downloaded now, from the same place RetroArch's Online Updater gets it
+            // TODO: the launch screen shows how far the download is (the Electron app's launch:status)
+            None if cfg!(windows) => crate::racores::get(&exe.to_string_lossy(), &cid, &crate::paths::env_var, &mut |_| {})
+                .map_err(|e| LaunchError::Refused(format!("RetroArch doesn't have the {nm} core for {con} yet, and it couldn't be downloaded ({e}). {fix}")))?,
+            None => return refuse(format!("RetroArch doesn't have the {nm} core for {con} yet. {fix}")),
         };
         game_args = format!(r#"-f -L "{}" "{{rom}}""#, core.display());
     }

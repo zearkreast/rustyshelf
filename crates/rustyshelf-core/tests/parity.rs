@@ -399,6 +399,37 @@ fn emulator_settings_change_as_in_the_js() {
             "pcsx2NoConfirm" => Value::from(emucfg::pcsx2_no_confirm(&at(&step[1]), &var)),
             "rpcs3NoConfirm" => Value::from(emucfg::rpcs3_no_confirm(&at(&step[1]))),
             "dolphinQuitPads" => Value::from(emucfg::dolphin_quit_pads(&at(&step[1]), step[2].as_str().unwrap(), &var)),
+            "coresDir" => Value::from(rustyshelf_core::racores::cores_dir(&at(&step[1]), &var)),
+            "bios" => {
+                use rustyshelf_core::racores::{bios, Need, State};
+                let dirs: Vec<String> = step[2].as_array().unwrap().iter().map(&at).collect();
+                bios(step[1].as_str().unwrap(), &dirs).map_or(Value::Null, |b| {
+                    let files: Vec<Value> = b
+                        .files
+                        .iter()
+                        .map(|f| {
+                            let state = match f.state {
+                                State::Ok => "ok",
+                                State::Wrong => "wrong",
+                                State::Missing => "missing",
+                            };
+                            serde_json::json!({ "name": f.name, "region": f.region, "state": state, "where": f.at })
+                        })
+                        .collect();
+                    let need = match b.need {
+                        Need::One => "one",
+                        Need::Required => "req",
+                        Need::Optional => "opt",
+                    };
+                    serde_json::json!({ "need": need, "note": b.note, "ok": b.ok, "files": files })
+                })
+            }
+            "findIpl" => {
+                let ipl = rustyshelf_core::dolphin::find_ipl(&at(&step[1]), &var);
+                let found: Vec<Value> = ipl.found.iter().map(|(r, f)| serde_json::json!({ "region": r, "file": f })).collect();
+                serde_json::json!({ "found": found, "userDir": ipl.user_dir, "usaFolder": ipl.usa_folder })
+            }
+            "ensureIpl" => Value::from(rustyshelf_core::dolphin::ensure_ipl_folder(&at(&step[1]), step[2].as_str().unwrap(), &var).unwrap()),
             "restoreBackups" => {
                 let emus: Vec<(String, String)> = step[1].as_object().unwrap().iter().map(|(k, v)| (k.clone(), at(v))).collect();
                 Value::from(emucfg::restore_backups(&emus, &var))

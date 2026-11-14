@@ -181,6 +181,66 @@
    "[Wiimote1]\nDevice = SDL/2/Third\n"
   ],
   [
+   "ra/retroarch.exe",
+   ""
+  ],
+  [
+   "ra/retroarch.cfg",
+   "x = \"1\"\n libretro_directory = \":\\cores2\"\n"
+  ],
+  [
+   "ra2/retroarch.exe",
+   ""
+  ],
+  [
+   "ra2/retroarch.cfg",
+   "libretro_directory = \"default\"\n"
+  ],
+  [
+   "ra3/retroarch.exe",
+   ""
+  ],
+  [
+   "ra4/retroarch.exe",
+   ""
+  ],
+  [
+   "ra4/retroarch.cfg",
+   "libretro_directory = \"/abs/$&/cores\"\n"
+  ],
+  [
+   "bios/scph5501.bin",
+   "not it"
+  ],
+  [
+   "bios/dc/dc_boot.bin",
+   "x"
+  ],
+  [
+   "bios2/neogeo.zip",
+   ""
+  ],
+  [
+   "bios2/scph5502.bin",
+   "nor this"
+  ],
+  [
+   "dol/User/GC/EUR/IPL.bin",
+   ""
+  ],
+  [
+   "Documents/Dolphin Emulator/GC/USA/IPL.bin",
+   ""
+  ],
+  [
+   "loose/Dolphin.exe",
+   ""
+  ],
+  [
+   "loose/User/GC/JAP/IPL.bin",
+   ""
+  ],
+  [
    "dol5/Dolphin.exe",
    ""
   ],
@@ -711,6 +771,254 @@
     "dol5/User/Config/Hotkeys.ini": "[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Thumb L`&`Thumb R`)\n",
     "dol5/User/Config/Hotkeys.ini.rustyshelf-bak": "[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Start`&`Back`) | (`SDL/0/Gone:Start`&`SDL/0/Gone:Back`)\n"
    }
+  },
+  {
+   "step": [
+    "coresDir",
+    "ra/retroarch.exe"
+   ],
+   "result": "{home}/ra/cores2",
+   "changed": {}
+  },
+  {
+   "step": [
+    "coresDir",
+    "ra2/retroarch.exe"
+   ],
+   "result": "{home}/ra2/cores",
+   "changed": {}
+  },
+  {
+   "step": [
+    "coresDir",
+    "ra3/retroarch.exe"
+   ],
+   "result": "{home}/ra3/cores",
+   "changed": {}
+  },
+  {
+   "step": [
+    "coresDir",
+    "ra4/retroarch.exe"
+   ],
+   "result": "/abs/$&/cores",
+   "changed": {}
+  },
+  {
+   "step": [
+    "bios",
+    "psx",
+    [
+     "bios",
+     "",
+     "bios2"
+    ]
+   ],
+   "result": {
+    "need": "one",
+    "note": "",
+    "ok": false,
+    "files": [
+     {
+      "name": "scph5501.bin",
+      "region": "USA",
+      "state": "wrong",
+      "where": "{home}/bios/scph5501.bin"
+     },
+     {
+      "name": "scph5500.bin",
+      "region": "Japan",
+      "state": "missing",
+      "where": null
+     },
+     {
+      "name": "scph5502.bin",
+      "region": "Europe",
+      "state": "wrong",
+      "where": "{home}/bios2/scph5502.bin"
+     }
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "bios",
+    "neogeo",
+    [
+     "bios",
+     "bios2"
+    ]
+   ],
+   "result": {
+    "need": "req",
+    "note": "in the games folder or the BIOS folder",
+    "ok": true,
+    "files": [
+     {
+      "name": "neogeo.zip",
+      "region": "",
+      "state": "ok",
+      "where": "{home}/bios2/neogeo.zip"
+     }
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "bios",
+    "dreamcast",
+    [
+     "bios"
+    ]
+   ],
+   "result": {
+    "need": "opt",
+    "note": "Flycast runs most games without it",
+    "ok": true,
+    "files": [
+     {
+      "name": "dc/dc_boot.bin",
+      "region": "",
+      "state": "wrong",
+      "where": "{home}/bios/dc/dc_boot.bin"
+     }
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "bios",
+    "atarilynx",
+    [
+     "bios"
+    ]
+   ],
+   "result": {
+    "need": "req",
+    "note": "",
+    "ok": false,
+    "files": [
+     {
+      "name": "lynxboot.img",
+      "region": "",
+      "state": "missing",
+      "where": null
+     }
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "bios",
+    "snes",
+    [
+     "bios"
+    ]
+   ],
+   "result": null,
+   "changed": {}
+  },
+  {
+   "step": [
+    "findIpl",
+    "dol/Dolphin.exe"
+   ],
+   "result": {
+    "found": [
+     {
+      "region": "EUR",
+      "file": "{home}/dol/User/GC/EUR/IPL.bin"
+     },
+     {
+      "region": "USA",
+      "file": "{home}/Documents/Dolphin Emulator/GC/USA/IPL.bin"
+     }
+    ],
+    "userDir": "{home}/dol/User",
+    "usaFolder": "{home}/dol/User/GC/USA"
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "findIpl",
+    "loose/Dolphin.exe"
+   ],
+   "result": {
+    "found": [
+     {
+      "region": "USA",
+      "file": "{home}/Documents/Dolphin Emulator/GC/USA/IPL.bin"
+     },
+     {
+      "region": "JAP",
+      "file": "{home}/loose/User/GC/JAP/IPL.bin"
+     }
+    ],
+    "userDir": "{home}/Documents/Dolphin Emulator",
+    "usaFolder": "{home}/Documents/Dolphin Emulator/GC/USA"
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "findIpl",
+    ""
+   ],
+   "result": {
+    "found": [
+     {
+      "region": "USA",
+      "file": "{home}/Documents/Dolphin Emulator/GC/USA/IPL.bin"
+     }
+    ],
+    "userDir": "{home}/Documents/Dolphin Emulator",
+    "usaFolder": "{home}/Documents/Dolphin Emulator/GC/USA"
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "ensureIpl",
+    "loose/Dolphin.exe",
+    "EUR"
+   ],
+   "result": "{home}/Documents/Dolphin Emulator/GC/EUR",
+   "changed": {}
+  },
+  {
+   "step": [
+    "ensureIpl",
+    "dol/Dolphin.exe",
+    "nope"
+   ],
+   "result": "{home}/dol/User/GC/USA",
+   "changed": {}
+  },
+  {
+   "step": [
+    "findIpl",
+    "loose/Dolphin.exe"
+   ],
+   "result": {
+    "found": [
+     {
+      "region": "USA",
+      "file": "{home}/Documents/Dolphin Emulator/GC/USA/IPL.bin"
+     },
+     {
+      "region": "JAP",
+      "file": "{home}/loose/User/GC/JAP/IPL.bin"
+     }
+    ],
+    "userDir": "{home}/Documents/Dolphin Emulator",
+    "usaFolder": "{home}/Documents/Dolphin Emulator/GC/USA"
+   },
+   "changed": {}
   },
   {
    "step": [

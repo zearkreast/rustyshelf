@@ -385,6 +385,9 @@ const EMUCFG = {
     ['dol2/User/Config/GCPadNew.ini', '[GCPad1]\nDevice = SDL/1/Other\n[GCPad2]\nDevice = SDL/0/Main Pad\n'],
     ['dol3/Dolphin.exe', ''], ['dol3/portable.txt', ''], ['dol3/User/Config/Hotkeys.ini', '[Other]\nx = 1\n'], ['dol3/User/Config/WiimoteNew.ini', '[Wiimote1]\nDevice = SDL/2/Third\n'],
     ['dol4/Dolphin.exe', ''], ['dol4/portable.txt', ''], ['dol4/User/Config/WiimoteNew.ini', '[Wiimote1]\nDevice = SDL/2/Third\n'],
+    ['ra/retroarch.exe', ''], ['ra/retroarch.cfg', 'x = "1"\n libretro_directory = ":\\cores2"\n'], ['ra2/retroarch.exe', ''], ['ra2/retroarch.cfg', 'libretro_directory = "default"\n'], ['ra3/retroarch.exe', ''],
+    ['ra4/retroarch.exe', ''], ['ra4/retroarch.cfg', 'libretro_directory = "/abs/$&/cores"\n'], ['bios/scph5501.bin', 'not it'], ['bios/dc/dc_boot.bin', 'x'], ['bios2/neogeo.zip', ''], ['bios2/scph5502.bin', 'nor this'],
+    ['dol/User/GC/EUR/IPL.bin', ''], ['Documents/Dolphin Emulator/GC/USA/IPL.bin', ''], ['loose/Dolphin.exe', ''], ['loose/User/GC/JAP/IPL.bin', ''],
     ['dol5/Dolphin.exe', ''], ['dol5/portable.txt', ''], ['dol5/User/Config/Hotkeys.ini', '[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Start`&`Back`) | (`SDL/0/Gone:Start`&`SDL/0/Gone:Back`)\n'], ['dol5/User/Config/GCPadNew.ini', '[GCPad1]\nDevice = XInput/0/Gamepad\n'],
   ],
   steps: [['lists', 'pcsx2/pcsx2-qt'], ['lists', 'plain/pcsx2-qt'], ['lists', ''],
@@ -395,10 +398,13 @@ const EMUCFG = {
     ['pcsx2NoConfirm', 'pcsx2/pcsx2-qt'], ['pcsx2NoConfirm', 'plain/pcsx2-qt'], ['rpcs3NoConfirm', 'rpcs3/rpcs3'], ['rpcs3NoConfirm', 'rpcs3b/rpcs3'], ['rpcs3NoConfirm', 'rpcs3c/rpcs3'], ['rpcs3NoConfirm', 'none/rpcs3'],
     ['dolphinQuitPads', 'dol/Dolphin.exe', 'l3+r3'], ['dolphinQuitPads', 'dol/Dolphin.exe', 'back+b'], ['dolphinQuitPads', 'dol/Dolphin.exe', 'nope'], ['dolphinQuitPads', 'dol2/Dolphin.exe', 'lb+rb+start'],
     ['dolphinQuitPads', 'dol3/Dolphin.exe', 'start+back'], ['dolphinQuitPads', 'dol4/Dolphin.exe', 'l3+r3'], ['dolphinQuitPads', 'dol5/Dolphin.exe', 'l3+r3'],
+    ['coresDir', 'ra/retroarch.exe'], ['coresDir', 'ra2/retroarch.exe'], ['coresDir', 'ra3/retroarch.exe'], ['coresDir', 'ra4/retroarch.exe'],
+    ['bios', 'psx', ['bios', '', 'bios2']], ['bios', 'neogeo', ['bios', 'bios2']], ['bios', 'dreamcast', ['bios']], ['bios', 'atarilynx', ['bios']], ['bios', 'snes', ['bios']],
+    ['findIpl', 'dol/Dolphin.exe'], ['findIpl', 'loose/Dolphin.exe'], ['findIpl', ''], ['ensureIpl', 'loose/Dolphin.exe', 'EUR'], ['ensureIpl', 'dol/Dolphin.exe', 'nope'], ['findIpl', 'loose/Dolphin.exe'],
     ['restoreBackups', { gc: 'dol/Dolphin.exe', wii: 'dol2/Dolphin.exe', sw: 'eden/eden', sw2: 'apps/citron.AppImage', ps2: 'pcsx2/pcsx2-qt', ps3: 'rpcs3/rpcs3', x360: '' }]],
 };
-function emucfgFixtures() {
-  const emucfg = require('../main/emucfg');
+async function emucfgFixtures() {
+  const emucfg = require('../main/emucfg'), racores = require('../main/racores'), dolphin = require('../main/dolphin');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-emucfg-')), was = { ...process.env }, at = r => (r ? path.join(home, r) : '');
   for (const [rel, c] of EMUCFG.files) { const p = path.join(home, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, typeof c === 'string' ? c : Buffer.from(c.b64, 'base64')); }
   process.env.HOME = home; for (const k of ['XDG_CONFIG_HOME', 'APPDATA', 'USERPROFILE', 'BS_DOCUMENTS', 'BS_LINUX']) delete process.env[k];
@@ -411,6 +417,10 @@ function emucfgFixtures() {
     else if (what === 'quietEden') result = emucfg.quietEden(at(a));
     else if (what === 'afterExit') result = emucfg.afterExit(a, at(b)) || null;
     else if (what === 'setIni') result = emucfg.setIni(at(a), b, c);
+    else if (what === 'coresDir') result = racores.coresDir(at(a));
+    else if (what === 'bios') result = await racores.bios(a, b.map(at));
+    else if (what === 'findIpl') result = dolphin.findIpl(at(a));
+    else if (what === 'ensureIpl') result = dolphin.ensureIplFolder(at(a), b);
     else if (what === 'restoreBackups') result = emucfg.restoreBackups(Object.fromEntries(Object.entries(a).map(([k, v]) => [k, at(v)])));
     else result = emucfg[what](at(a), b);
     const now = snap(), changed = {};
@@ -466,12 +476,12 @@ async function n3dsFixtures() {
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
-fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(emucfgFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'n3ds.json'), JSON.stringify(await n3dsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'detect.json'), JSON.stringify(await detectFixtures(), null, 1) + '\n');
   console.log('wrote', path.relative(ROOT, OUT));
