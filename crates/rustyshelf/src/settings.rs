@@ -154,6 +154,9 @@ pub struct Settings {
     pub sound_changed: bool,
     /// cues to play: a cue's name, and which way a move went
     pub cues: Vec<(&'static str, i32)>,
+    /// the Songs folder, or the Music folder, was asked to be read again
+    pub reload_songs: bool,
+    pub reload_music: bool,
 }
 
 /// Settings → Sounds.
@@ -166,6 +169,8 @@ pub struct SoundPrefs {
     /// the menu music's track ("off", "own" or a track's name), and its level
     pub music: String,
     pub music_level: f32,
+    /// with the Melody voice, the built-in songs play along with your own
+    pub built_in_songs: bool,
 }
 
 impl Default for Settings {
@@ -201,6 +206,8 @@ impl Default for Settings {
             discord_changed: true,
             sound_changed: true,
             cues: Vec::new(),
+            reload_songs: false,
+            reload_music: false,
         }
     }
 }
@@ -252,6 +259,12 @@ impl Settings {
     }
 
     /// Saves the settings as they are now.
+    /// Says something under the page that's open.
+    pub fn say(&mut self, text: String) {
+        self.note = text;
+        self.redraw = true;
+    }
+
     pub fn sound(&self) -> SoundPrefs {
         let number = |path: &[&str], unset: f32| at(&self.cfg, path).and_then(Value::as_f64).map_or(unset, |v| v as f32).clamp(0.0, 1.0);
         SoundPrefs {
@@ -262,6 +275,7 @@ impl Settings {
             boot_volume: number(&["ui", "bootVolume"], 1.0),
             music: Some(self.text(&["ui", "music"])).filter(|m| !m.is_empty()).unwrap_or_else(|| "off".into()),
             music_level: number(&["ui", "musicLevel"], 0.4),
+            built_in_songs: self.flag(&["ui", "builtInSongs"], true),
         }
     }
 
@@ -294,6 +308,8 @@ impl Settings {
             self.discord_changed = true;
         } else if matches!(path, ["ui", "music" | "musicLevel"]) {
             // the music reads these as it plays
+        } else if matches!(path, ["ui", "builtInSongs"]) {
+            self.sound_changed = true;
         } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "bootSound" | "bootVolume")] = path {
             // heard at once: the boot for its own settings, a chime for the rest
             self.sound_changed = true;
@@ -905,7 +921,7 @@ impl Settings {
             }
             Screen::Sound => {
                 const VOICES: [(&str, &str); 3] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box")];
-                const TRACKS: [(&str, &str); 4] = [("drift", "Drift"), ("night", "Night"), ("glow", "Glow"), ("off", "Off")];
+                const TRACKS: [(&str, &str); 5] = [("drift", "Drift"), ("night", "Night"), ("glow", "Glow"), ("own", "Your music"), ("off", "Off")];
                 const BOOTS: [(&str, &str); 5] = [("chime", "Chime"), ("crystal", "Crystal"), ("pulse", "Pulse"), ("horizon", "Horizon"), ("keys", "Keys")];
                 let prefs = self.sound();
                 let voice = rustyshelf_core::cues::theme(&prefs.voice).id;
@@ -927,13 +943,24 @@ impl Settings {
                 let (boot_volume, boot_volume_step) = level(&["ui", "bootVolume"], prefs.boot_volume);
                 let (voice_name, voice_press, voice_step) = pick(&["ui", "soundTheme"], &VOICES, voice);
                 let (boot_name, boot_press, boot_step) = pick(&["ui", "bootSound"], &BOOTS, &prefs.boot);
-                let playing = rustyshelf_core::music::track(&prefs.music).map_or("off", |t| t.id);
+                let playing = rustyshelf_core::music::track(&prefs.music).map_or(if prefs.music == "own" { "own" } else { "off" }, |t| t.id);
                 let (music_name, music_press, music_step) = pick(&["ui", "music"], &TRACKS, playing);
                 let (music_level, music_level_step) = level(&["ui", "musicLevel"], prefs.music_level);
-                Page {
-                    title: "Sounds".into(),
-                    lead: String::new(),
-                    rows: vec![
+                let open_folder = |label: &str, hint: &str, dir: PathBuf| -> Row {
+                    Row {
+                        label: label.to_string(),
+                        value: "Open".into(),
+                        hint: hint.to_string(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            let _ = std::fs::create_dir_all(&dir);
+                            if let Err(e) = rustyshelf_core::launch::open_folder(&dir) {
+                                s.say(e.to_string());
+                            }
+                        })),
+                        step: None,
+                    }
+                };
+                let mut rows = vec![
                         toggle("Interface sounds", &["ui", "sound"], true, "Ticks, whooshes and chimes as you move around."),
                         Row { label: "Volume".into(), value: percent(prefs.volume), hint: "How loud RustyShelf's own sounds are. Games and apps aren't affected.".into(), press: Some(volume), step: Some(volume_step) },
                         Row {
@@ -943,15 +970,24 @@ impl Settings {
                             press: Some(voice_press),
                             step: Some(voice_step),
                         },
-                        Row {
+                ];
+                if voice == "melody" {
+                    rows.push(toggle("Include the built-in songs", &["ui", "builtInSongs"], true, "With Melody, RustyShelf's own songs play along with any MIDI files in your Songs folder."));
+                    rows.push(open_folder("Songs folder", "Drop .mid files here (piano versions of game themes work great), then press Reload songs.", rustyshelf_core::usermusic::songs_folder(&self.app_root)));
+                    rows.push(Row { label: "Reload songs".into(), hint: "Reads your Songs folder again.".into(), press: Some(Box::new(|s: &mut Settings| s.reload_songs = true)), ..Row::default() });
+                }
+                rows.extend([                        Row {
                             label: "Menu music".into(),
                             value: music_name,
-                            hint: "Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. It goes quiet while a game runs.".into(),
+                            hint: "Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. Your music: the audio files in the Music folder, shuffled. It goes quiet while a game runs.".into(),
                             press: Some(music_press),
                             step: Some(music_step),
                         },
                         Row { label: "Music volume".into(), value: percent(prefs.music_level), hint: "How loud the menu music plays, under RustyShelf's other sounds.".into(), press: Some(music_level), step: Some(music_level_step) },
-                        Row { label: "Boot sound".into(), value: boot_name, hint: "The sting that plays as a console's game starts.".into(), press: Some(boot_press), step: Some(boot_step) },
+                ]);
+                rows.push(open_folder("Music folder", "Drop your own audio files here (mp3, ogg, wav, flac, m4a; sub-folders too), then pick Your music under Menu music and press Reload music.", rustyshelf_core::usermusic::music_folder(&self.app_root)));
+                rows.push(Row { label: "Reload music".into(), hint: "Reads your Music folder again.".into(), press: Some(Box::new(|s: &mut Settings| s.reload_music = true)), ..Row::default() });
+                rows.extend([                        Row { label: "Boot sound".into(), value: boot_name, hint: "The sting that plays as a console's game starts.".into(), press: Some(boot_press), step: Some(boot_step) },
                         Row {
                             label: "Boot sound volume".into(),
                             value: percent(prefs.boot_volume),
@@ -959,8 +995,8 @@ impl Settings {
                             press: Some(boot_volume),
                             step: Some(boot_volume_step),
                         },
-                    ],
-                }
+                ]);
+                Page { title: "Sounds".into(), lead: String::new(), rows }
             }
             Screen::Controller => {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];

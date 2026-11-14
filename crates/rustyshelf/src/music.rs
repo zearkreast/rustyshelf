@@ -4,6 +4,7 @@
 use std::collections::VecDeque;
 use std::num::NonZero;
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -113,14 +114,85 @@ impl Decodable for MusicSource {
 
 enum Ask {
     Play { track: &'static Track, seed: u32, tonic: i32 },
+    /// your own music: these files, shuffled
+    Own { files: Vec<PathBuf>, seed: u32 },
     /// the key the music moves to where its chord loop starts over
     Tonic(i32),
     Stop,
 }
 
+type Decoded = rodio::source::UniformSourceIterator<rodio::Decoder<std::io::BufReader<std::fs::File>>>;
+
+/// Your own music: the files, the order they're played in, and the one that's playing.
+struct Own {
+    files: Vec<PathBuf>,
+    order: Vec<usize>,
+    at: usize,
+    last: Option<usize>,
+    playing: Option<Decoded>,
+    /// files in a row that couldn't be played
+    fails: usize,
+    chance: u32,
+}
+
+impl Own {
+    fn random(&mut self, below: usize) -> usize {
+        self.chance ^= self.chance << 13;
+        self.chance ^= self.chance >> 17;
+        self.chance ^= self.chance << 5;
+        self.chance as usize % below.max(1)
+    }
+
+    /// Opens the next file of the shuffled order; never the same one twice running.
+    fn next(&mut self) {
+        if self.at >= self.order.len() {
+            self.order = (0..self.files.len()).collect();
+            for i in (1..self.order.len()).rev() {
+                let j = self.random(i + 1);
+                self.order.swap(i, j);
+            }
+            if self.order.len() > 1 && Some(self.order[0]) == self.last {
+                let j = 1 + self.random(self.order.len() - 1);
+                self.order.swap(0, j);
+            }
+            self.at = 0;
+        }
+        let which = self.order[self.at];
+        self.at += 1;
+        self.last = Some(which);
+        let opened = std::fs::File::open(&self.files[which]).ok().and_then(|f| rodio::Decoder::try_from(f).ok());
+        self.playing = opened.map(|d| rodio::source::UniformSourceIterator::new(d, NonZero::new(2).expect("two channels"), NonZero::new(RATE).expect("a sample rate")));
+    }
+
+    /// The next samples (left, right, …); None once nothing can be played.
+    fn fill(&mut self, n: usize) -> Option<Vec<f32>> {
+        let mut out = Vec::with_capacity(n);
+        while out.len() < n {
+            match self.playing.as_mut().and_then(Iterator::next) {
+                Some(s) => {
+                    out.push(s);
+                    self.fails = 0;
+                }
+                // the file is over, or it couldn't be played: the next one. Every file failing in a row: no music
+                None => {
+                    if self.playing.take().is_none() {
+                        self.fails += 1;
+                    }
+                    if self.files.is_empty() || self.fails > self.files.len() {
+                        return None;
+                    }
+                    self.next();
+                }
+            }
+        }
+        Some(out)
+    }
+}
+
 /// Writes the music ahead of where it's heard.
 fn write(shared: Arc<Shared>, asked: Receiver<Ask>) {
     let mut playing: Option<(Player, Chain)> = None;
+    let mut own: Option<Own> = None;
     // a track that's left goes quiet over one last block
     let leave = |playing: &mut Option<(Player, Chain)>, shared: &Shared| {
         if let Some((mut player, mut chain)) = playing.take() {
@@ -132,7 +204,12 @@ fn write(shared: Arc<Shared>, asked: Receiver<Ask>) {
     loop {
         loop {
             match asked.try_recv() {
+                Ok(Ask::Own { files, seed }) => {
+                    leave(&mut playing, &shared);
+                    own = Some(Own { files, order: Vec::new(), at: 0, last: None, playing: None, fails: 0, chance: seed | 1 });
+                }
                 Ok(Ask::Play { track, seed, tonic }) => {
+                    own = None;
                     leave(&mut playing, &shared);
                     playing = Some((Player::new(Score::new(track, seed, 0.2, tonic), RATE, u64::from(seed), true), Chain::new(RATE)));
                 }
@@ -141,12 +218,22 @@ fn write(shared: Arc<Shared>, asked: Receiver<Ask>) {
                         player.score().set_tonic(t);
                     }
                 }
-                Ok(Ask::Stop) => leave(&mut playing, &shared),
+                Ok(Ask::Stop) => {
+                    own = None;
+                    leave(&mut playing, &shared);
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => return,
             }
         }
         let room = shared.written.lock().unwrap().len() < AHEAD;
+        if let Some(files) = own.as_mut().filter(|_| room) {
+            match files.fill(BLOCK * 2) {
+                Some(samples) => shared.written.lock().unwrap().extend(samples),
+                None => own = None,
+            }
+            continue;
+        }
         match &mut playing {
             Some((player, chain)) if room => {
                 let [l, r] = chain.run(&player.fill(BLOCK), &[1.0; BLOCK], 1.0);
@@ -161,9 +248,11 @@ fn write(shared: Arc<Shared>, asked: Receiver<Ask>) {
 pub struct Music {
     shared: Arc<Shared>,
     ask: Sender<Ask>,
-    /// the track that's playing
+    /// the track that's playing ("own": your music)
     track: Option<&'static str>,
     tonic: i32,
+    /// your music was asked to be read again
+    pub reload: bool,
 }
 
 impl Default for Music {
@@ -172,7 +261,7 @@ impl Default for Music {
         let (ask, asked) = channel();
         let writer = shared.clone();
         std::thread::spawn(move || write(writer, asked));
-        Music { shared, ask, track: None, tonic: 0 }
+        Music { shared, ask, track: None, tonic: 0, reload: false }
     }
 }
 
@@ -186,30 +275,71 @@ fn start(music: Res<Music>, mut sources: ResMut<Assets<MusicSource>>, mut comman
 
 /// Keeps the music as the settings and the shelf have it: the track, its level, its key; quiet while a game runs
 /// and before the shelf is up, and stepping back for each cue.
-pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, settings: Res<Settings>, lib: Res<LibraryRes>, cursor: Res<Cursor>, playing: Res<Playing>) {
+pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<LibraryRes>, cursor: Res<Cursor>, playing: Res<Playing>) {
+    if std::mem::take(&mut settings.reload_music) {
+        let n = rustyshelf_core::usermusic::music_files(&rustyshelf_core::paths::app_root()).len();
+        settings.say(format!("{n} track{} found", if n == 1 { "" } else { "s" }));
+        music.reload = true;
+    }
     let prefs = settings.sound();
     let shelf = match &lib.0 {
         LibraryState::Ready(l) => l.shelves.get(cursor.shelf),
         _ => None,
     };
-    let wanted = music::track(&prefs.music).filter(|_| prefs.on && prefs.music_level > 0.0 && prefs.volume > 0.0 && playing.title.is_none() && shelf.is_some());
+    let heard = prefs.on && prefs.music_level > 0.0 && prefs.volume > 0.0 && playing.title.is_none() && shelf.is_some();
+    let track = music::track(&prefs.music).filter(|_| heard);
+    let wanted = track.map(|t| t.id).or((heard && prefs.music == "own").then_some("own"));
     let tonic = music::tonic(cues::theme(&prefs.voice).root(), shelf.map_or(0, |s| cues::key_of(&s.id).0));
-    if wanted.map(|t| t.id) != music.track {
-        music.track = wanted.map(|t| t.id);
+    if wanted != music.track || (std::mem::take(&mut music.reload) && wanted == Some("own")) {
+        music.track = wanted;
         music.tonic = tonic;
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.subsec_nanos() ^ d.as_secs() as u32);
-        let _ = music.ask.send(match wanted {
-            Some(track) => Ask::Play { track, seed, tonic },
-            None => Ask::Stop,
+        let _ = music.ask.send(match (track, wanted) {
+            (Some(track), _) => Ask::Play { track, seed, tonic },
+            (None, Some(_)) => Ask::Own { files: rustyshelf_core::usermusic::music_files(&rustyshelf_core::paths::app_root()).into_iter().map(|(_, f)| f).collect(), seed },
+            (None, None) => Ask::Stop,
         });
-    } else if tonic != music.tonic && wanted.is_some() {
+    } else if tonic != music.tonic && track.is_some() {
         music.tonic = tonic;
         let _ = music.ask.send(Ask::Tonic(tonic));
     }
     let mut level = music.shared.level.lock().unwrap();
-    level.to = if wanted.is_some() { prefs.music_level * prefs.volume } else { 0.0 };
-    if let Some((amount, hold)) = sounds.ducked.take() {
+    // (your own files are recordings, quieter by ear than the app's music at the same setting)
+    level.to = match wanted {
+        Some("own") => (prefs.music_level * 1.4 * prefs.volume).min(1.0),
+        Some(_) => prefs.music_level * prefs.volume,
+        None => 0.0,
+    };
+    // the app's own music steps back for a cue; yours plays on
+    if let Some((amount, hold)) = sounds.ducked.take().filter(|_| track.is_some()) {
         level.ducked = 1.0 - amount * 0.6;
         level.until = Instant::now() + Duration::from_secs_f32(hold / 1000.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plays_your_files_and_skips_what_it_cannot() {
+        let dir = std::env::temp_dir().join(format!("rustyshelf-music-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // a second of a made-up tone, as a WAV file at another sample rate; and a file that's no audio at all
+        let tone: Vec<f32> = (0..22_050).map(|i| (i as f32 * 0.05).sin() * 0.5).collect();
+        let wav = rustyshelf_core::synth::Stereo { rate: 22_050, left: tone.clone(), right: tone }.wav();
+        std::fs::write(dir.join("tone.wav"), wav).unwrap();
+        std::fs::write(dir.join("broken.mp3"), b"not music").unwrap();
+        let own = |files: &[&str]| Own { files: files.iter().map(|f| dir.join(f)).collect(), order: Vec::new(), at: 0, last: None, playing: None, fails: 0, chance: 7 };
+
+        let mut both = own(&["broken.mp3", "tone.wav"]);
+        // three seconds: the tone comes round again and again, the broken file never stops it
+        let heard = both.fill(RATE as usize * 2 * 3).expect("music");
+        let loud = heard.iter().filter(|s| s.abs() > 0.1).count();
+        assert!(loud > heard.len() / 2, "{loud} of {} samples carry the tone", heard.len());
+
+        assert!(own(&["broken.mp3"]).fill(1000).is_none());
+        assert!(own(&[]).fill(1000).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

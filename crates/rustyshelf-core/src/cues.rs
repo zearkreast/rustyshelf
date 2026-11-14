@@ -91,13 +91,15 @@ pub fn key_of(shelf: &str) -> (i32, [i32; 5]) {
 }
 
 /// A song of the Melody voice: its tune, the chord under each note, and where each bar starts.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Song {
-    pub name: &'static str,
+    pub name: String,
     pub hue: u32,
-    notes: Vec<i32>,
+    pub notes: Vec<i32>,
     /// the root (0 to 11) and whether it's minor
-    chords: Vec<(i32, bool)>,
-    bars: Vec<usize>,
+    pub chords: Vec<(i32, bool)>,
+    pub bars: Vec<usize>,
+    pub built_in: bool,
 }
 
 /// The built-in songs, written for the app in the style of old console soundtracks: "Chord: notes | Chord: notes".
@@ -147,8 +149,8 @@ fn chord_of(c: &str) -> (i32, bool) {
     ((pitch_class(letter, mark) + 12) % 12, rest.starts_with('m') && !rest.starts_with("maj"))
 }
 
-fn parse(name: &'static str, hue: u32, tune: &str) -> Song {
-    let mut song = Song { name, hue, notes: Vec::new(), chords: Vec::new(), bars: Vec::new() };
+fn parse(name: &str, hue: u32, tune: &str) -> Song {
+    let mut song = Song { name: name.to_string(), hue, notes: Vec::new(), chords: Vec::new(), bars: Vec::new(), built_in: true };
     for bar in tune.split('|') {
         let (chord, body) = bar.split_once(':').unwrap_or((bar, ""));
         let chord = chord_of(chord.trim());
@@ -163,6 +165,159 @@ fn parse(name: &'static str, hue: u32, tune: &str) -> Song {
 
 pub fn built_in_songs() -> Vec<Song> {
     SONGS.iter().map(|(name, hue, tune)| parse(name, *hue, tune)).collect()
+}
+
+/// A standard MIDI file as a song: the top melody line (one note per onset) as the tune, and the bass under it as
+/// the chords. The melody is the part whose notes sit highest and come most often (a tune, not a pad); the drums'
+/// channel is left out.
+pub fn parse_midi(d: &[u8], name: &str) -> Result<Song, &'static str> {
+    const CUT: &str = "The MIDI file is cut short.";
+    const NO_TUNE: &str = "No tune found in this MIDI file.";
+    struct Note {
+        t: u32,
+        ch: u8,
+        n: i32,
+        track: usize,
+    }
+    let u16_at = |o: usize| d.get(o..o + 2).map(|b| u32::from(u16::from_be_bytes([b[0], b[1]])));
+    let u32_at = |o: usize| d.get(o..o + 4).map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    if d.len() < 14 || &d[..4] != b"MThd" {
+        return Err("Not a MIDI file.");
+    }
+    let (tracks, div) = (u16_at(10).ok_or(CUT)? as usize, u16_at(12).ok_or(CUT)?);
+    if div & 0x8000 != 0 {
+        return Err("This MIDI timing format isn't supported.");
+    }
+    let mut p = 8usize.saturating_add(u32_at(4).ok_or(CUT)?);
+    let mut events: Vec<Note> = Vec::new();
+    for track in 0..tracks {
+        if p.saturating_add(8) > d.len() || &d[p..p + 4] != b"MTrk" {
+            break;
+        }
+        let len = u32_at(p + 4).ok_or(CUT)?;
+        let mut q = p + 8;
+        let end = d.len().min(q.saturating_add(len));
+        p = q.saturating_add(len);
+        let (mut t, mut running) = (0u32, 0u8);
+        // a number of any length, seven bits to a byte
+        let number = |q: &mut usize| -> Result<u32, &'static str> {
+            let mut v = 0u32;
+            loop {
+                let b = *d.get(*q).ok_or(CUT)?;
+                *q += 1;
+                v = (v << 7) | u32::from(b & 0x7f);
+                if b & 0x80 == 0 || *q >= end {
+                    return Ok(v);
+                }
+            }
+        };
+        while q < end {
+            t = t.wrapping_add(number(&mut q)?);
+            let mut status = *d.get(q).ok_or(CUT)?;
+            // a data byte: the status before it still stands
+            if status < 0x80 {
+                status = running;
+            } else {
+                q += 1;
+                if status < 0xf0 {
+                    running = status;
+                }
+            }
+            let kind = status & 0xf0;
+            if status == 0xff {
+                q += 1;
+                let len = number(&mut q)? as usize;
+                q = q.saturating_add(len);
+            } else if status == 0xf0 || status == 0xf7 {
+                let len = number(&mut q)? as usize;
+                q = q.saturating_add(len);
+            } else if kind == 0x90 || kind == 0x80 {
+                let (n, v) = (*d.get(q).ok_or(CUT)?, *d.get(q + 1).ok_or(CUT)?);
+                q += 2;
+                if kind == 0x90 && v > 0 {
+                    events.push(Note { t, ch: status & 15, n: i32::from(n), track });
+                }
+            } else if kind == 0xc0 || kind == 0xd0 {
+                q += 1;
+            } else if (0xa0..=0xe0).contains(&kind) {
+                q += 2;
+            } else {
+                break;
+            }
+            if events.len() > 60_000 {
+                break;
+            }
+        }
+    }
+    // channel 10 is drums
+    let tones: Vec<&Note> = events.iter().filter(|e| e.ch != 9).collect();
+    if tones.len() < 8 {
+        return Err(NO_TUNE);
+    }
+    let mut parts: Vec<(usize, Vec<&Note>)> = Vec::new();
+    for e in &tones {
+        let key = e.track * 16 + usize::from(e.ch);
+        match parts.iter_mut().find(|p| p.0 == key) {
+            Some(p) => p.1.push(e),
+            None => parts.push((key, vec![e])),
+        }
+    }
+    let mut best: Option<(usize, f64)> = None;
+    for (key, part) in &parts {
+        if part.len() < 8 {
+            continue;
+        }
+        let mut onsets: Vec<u32> = part.iter().map(|e| e.t).collect();
+        onsets.sort_unstable();
+        onsets.dedup();
+        let mean = part.iter().map(|e| f64::from(e.n)).sum::<f64>() / part.len() as f64;
+        let score = onsets.len() as f64 * ((mean - 40.0).max(0.0) / 30.0).powf(1.5);
+        if best.is_none_or(|b| score > b.1) {
+            best = Some((*key, score));
+        }
+    }
+    let (best, _) = best.ok_or(NO_TUNE)?;
+    let in_best = |e: &Note| e.track * 16 + usize::from(e.ch) == best;
+    // one note per onset: the highest at each moment
+    let mut line: Vec<(u32, i32)> = Vec::new();
+    for e in tones.iter().filter(|e| in_best(e)) {
+        match line.iter_mut().find(|l| l.0 == e.t) {
+            Some(l) => l.1 = l.1.max(e.n),
+            None => line.push((e.t, e.n)),
+        }
+    }
+    line.sort_by_key(|l| l.0);
+    line.truncate(600);
+    // the bass under each note: the lowest other note sounding at it or just before
+    let mut others: Vec<&&Note> = tones.iter().filter(|e| !in_best(e)).collect();
+    others.sort_by_key(|e| e.t);
+    let (mut low_from, mut bass): (usize, Option<i32>) = (0, None);
+    let mut chords = Vec::new();
+    for (t, n) in &line {
+        while low_from < others.len() && i64::from(others[low_from].t) < i64::from(*t) - i64::from(div) {
+            low_from += 1;
+        }
+        if let Some(low) = others[low_from..].iter().take_while(|e| e.t <= *t).map(|e| e.n).min() {
+            bass = Some(low);
+        }
+        chords.push((bass.unwrap_or(*n) % 12, false));
+    }
+    // into a comfortable piano range: the middle of the tune near E5
+    let mean = line.iter().map(|l| f64::from(l.1)).sum::<f64>() / line.len() as f64;
+    let shift = 12 * crate::js::round((76.0 - mean) / 12.0) as i32;
+    let notes = line.iter().map(|l| (l.1 + shift).clamp(48, 96)).collect();
+    let (mut bars, mut last_bar) = (Vec::new(), -1.0f64);
+    for (i, (t, _)) in line.iter().enumerate() {
+        // four beats to a bar
+        let bar = (f64::from(*t) / f64::from(div * 4)).floor();
+        if bar != last_bar {
+            bars.push(i);
+            last_bar = bar;
+        }
+    }
+    // (the first UTF-16 unit of each character, as the Electron app's `charCodeAt(0)` gives it)
+    let hue = name.chars().fold(0u32, |h, c| h.wrapping_mul(31).wrapping_add(u32::from(c.encode_utf16(&mut [0; 2])[0]))) % 360;
+    Ok(Song { name: if name.is_empty() { "Song".into() } else { name.to_string() }, hue, notes, chords, bars, built_in: false })
 }
 
 /// A cue: its voices, the level of the whole (the boot's own volume), and how the menu music steps back for it:
@@ -214,6 +369,8 @@ pub struct Sound {
     last_shelf: f64,
     shelf_run: i32,
     songs: Vec<Song>,
+    /// your own songs, and whether the built-in ones play along with them
+    own_songs: Vec<Song>,
     order: Vec<usize>,
     order_at: usize,
     song: Option<usize>,
@@ -241,6 +398,7 @@ impl Default for Sound {
             last_shelf: 0.0,
             shelf_run: 0,
             songs: built_in_songs(),
+            own_songs: Vec::new(),
             order: Vec::new(),
             order_at: 0,
             song: None,
@@ -273,6 +431,28 @@ impl Sound {
     pub fn set_boot(&mut self, boot: &str, level: f32) {
         self.boot = boot.to_string();
         self.boot_level = level.clamp(0.0, 1.0);
+    }
+
+    /// Your own songs for the Melody voice (the Songs folder's), and whether the built-in ones play along. With
+    /// none of your own the built-in ones play whatever the switch says.
+    pub fn set_songs(&mut self, own: Vec<Song>, with_built_in: bool, now: f64) {
+        self.own_songs = own;
+        let was = self.song().cloned();
+        self.songs = if with_built_in || self.own_songs.is_empty() { built_in_songs() } else { Vec::new() };
+        self.songs.extend(self.own_songs.iter().cloned());
+        self.order.clear();
+        self.order_at = 0;
+        // the song that was playing carries on if it's still there
+        self.song = was.and_then(|w| self.songs.iter().position(|s| *s == w));
+        if self.song.is_none() {
+            self.next_song(now);
+        }
+    }
+
+    /// Whether the built-in songs play along with your own.
+    pub fn with_built_in(&mut self, with: bool, now: f64) {
+        let own = std::mem::take(&mut self.own_songs);
+        self.set_songs(own, with, now);
     }
 
     /// The song the Melody voice is playing.

@@ -46,6 +46,7 @@ pub mod steamart;
 pub mod synth;
 pub mod systems;
 pub mod titles;
+pub mod usermusic;
 pub mod vdf;
 pub mod vita3k;
 pub mod windowmode;

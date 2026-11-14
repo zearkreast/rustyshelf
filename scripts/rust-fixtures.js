@@ -607,6 +607,37 @@ function windowFixtures() {
   return { scripts, modes: ['a', 'b', 'c', 'd', 'e'].map(id => [id, wm.modeOf({ games }, id)]), games };
 }
 fs.writeFileSync(path.join(OUT, 'windowmode.json'), JSON.stringify(windowFixtures(), null, 1) + '\n');
+
+// the Melody voice's songs: the built-in ones as they're read from their text, and MIDI files (made here, with made-up
+// tunes) as songs, or as the files they aren't
+function songFixtures() {
+  global.window = global.window || {};
+  require('../renderer/songs.js');
+  const Songs = global.window.Songs;
+  const vlq = n => { const out = [n & 0x7f]; while ((n >>= 7)) out.unshift((n & 0x7f) | 0x80); return out; };
+  const u16 = n => [n >> 8 & 255, n & 255], u32 = n => [n >>> 24 & 255, n >>> 16 & 255, n >>> 8 & 255, n & 255];
+  const chunk = (id, bytes) => [...Buffer.from(id), ...u32(bytes.length), ...bytes];
+  const file = (div, tracks) => Buffer.from([...chunk('MThd', [...u16(1), ...u16(tracks.length), ...u16(div)]), ...tracks.flatMap(t => chunk('MTrk', t))]);
+  // a tune over a held chord's top notes, with running status, a name, a tempo, a program change and a pitch bend
+  const tune = [72, 74, 76, 79, 76, 74, 72, 67, 69, 72, 76, 81, 79, 76, 74, 72, 71, 74, 79, 83];
+  const melody = [...vlq(0), 0xff, 0x03, 4, ...Buffer.from('Lead'), ...vlq(0), 0xc0, 5, ...vlq(0), 0xe0, 0, 64];
+  tune.forEach((n, i) => { melody.push(...vlq(i ? 0 : 0), ...(i ? [] : [0x90]), n, 90, ...(i % 4 === 0 ? [...vlq(0), n - 5, 80] : []), ...vlq(240), n, 0, ...(i % 4 === 0 ? [...vlq(0), n - 5, 0] : [])); });
+  melody.push(...vlq(0), 0xff, 0x2f, 0);
+  const bass = [...vlq(0), 0xff, 0x51, 3, 7, 161, 32];
+  [48, 53, 55, 45, 50].forEach(n => bass.push(...vlq(0), 0x91, n, 70, ...vlq(960), 0x81, n, 0));
+  bass.push(...vlq(0), 0xf0, ...vlq(3), 1, 2, 0xf7, ...vlq(0), 0xff, 0x2f, 0);
+  const drums = []; for (let i = 0; i < 40; i++) drums.push(...vlq(i ? 120 : 0), 0x99, 36 + (i % 3), 100, ...vlq(0), 0x89, 36 + (i % 3), 0);
+  drums.push(...vlq(0), 0xff, 0x2f, 0);
+  const good = file(480, [melody, bass, drums]);
+  const few = file(480, [[...vlq(0), 0x90, 60, 90, ...vlq(480), 60, 0, ...vlq(0), 0xff, 0x2f, 0]]);
+  const cases = [['Made_Up Theme', good], ['', good], ['Çok kısa 🎵', few], ['not midi', Buffer.from('RIFF....WAVEfmt ')], ['film timing', file(0xe728, [melody])], ['cut short', good.subarray(0, 60)], ['no beat', file(0, [melody, bass])]];
+  const plain = s => ({ name: s.name, hue: s.hue, notes: s.notes, chords: s.chords.map(c => [c.root, !!c.minor]), bars: s.bars, builtIn: !!s.builtIn });
+  return {
+    builtIn: Songs.builtIn.map(plain),
+    midi: cases.map(([name, bytes]) => { let song = null; try { song = plain(Songs.parseMidi(new Uint8Array(bytes), name)); } catch {} return { name, bytes: bytes.toString('base64'), song }; }),
+  };
+}
+fs.writeFileSync(path.join(OUT, 'songs.json'), JSON.stringify(songFixtures()) + '\n');
 fs.writeFileSync(path.join(OUT, 'art.json'), JSON.stringify(artFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');

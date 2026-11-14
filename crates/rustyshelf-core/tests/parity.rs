@@ -659,6 +659,25 @@ fn pictures_go_in_place_as_in_the_js() {
 }
 
 #[test]
+fn songs_match_the_js() {
+    use base64::Engine;
+    use rustyshelf_core::cues::{built_in_songs, parse_midi, Song};
+    let fx = fixture("songs.json");
+    let plain = |s: &Song| serde_json::json!({ "name": s.name, "hue": s.hue, "notes": s.notes, "chords": s.chords, "bars": s.bars, "builtIn": s.built_in });
+    let ours: Vec<Value> = built_in_songs().iter().map(plain).collect();
+    assert_eq!(Value::from(ours), fx["builtIn"]);
+    let mut read = 0;
+    for m in fx["midi"].as_array().unwrap() {
+        let bytes = base64::engine::general_purpose::STANDARD.decode(m["bytes"].as_str().unwrap()).unwrap();
+        let name = m["name"].as_str().unwrap();
+        let got = parse_midi(&bytes, name).ok().map_or(Value::Null, |s| plain(&s));
+        assert_eq!(got, m["song"], "{name}");
+        read += usize::from(!got.is_null());
+    }
+    assert!(read >= 3, "only {read} of the fixture's files are songs");
+}
+
+#[test]
 fn window_mode_matches_the_js() {
     use rustyshelf_core::windowmode::{mode_of, ps_script};
     let fx = fixture("windowmode.json");

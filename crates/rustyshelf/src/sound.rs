@@ -54,7 +54,9 @@ impl Default for Sounds {
                 }
             }
         });
-        Sounds { state: cues::Sound::default(), on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), ducked: None }
+        let mut state = cues::Sound::default();
+        state.set_songs(rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root()).0, true, 0.0);
+        Sounds { state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), ducked: None }
     }
 }
 
@@ -90,6 +92,15 @@ pub fn run(mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<
         sounds.volume = s.volume;
         sounds.state.set_theme(&s.voice);
         sounds.state.set_boot(&s.boot, s.boot_volume);
+        let now = sounds.started.elapsed().as_secs_f64() * 1000.0;
+        sounds.state.with_built_in(s.built_in_songs, now);
+    }
+    if std::mem::take(&mut settings.reload_songs) {
+        let (songs, skipped) = rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root());
+        let found = format!("{} song{} loaded", songs.len(), if songs.len() == 1 { "" } else { "s" });
+        settings.say(if skipped.is_empty() { found } else { format!("{found} · {} couldn't be read", skipped.len()) });
+        let (with, now) = (settings.sound().built_in_songs, sounds.started.elapsed().as_secs_f64() * 1000.0);
+        sounds.state.set_songs(songs, with, now);
     }
     if let LibraryState::Ready(l) = &lib.0 {
         if let Some(shelf) = l.shelves.get(cursor.shelf).filter(|s| s.id != sounds.shelf) {
