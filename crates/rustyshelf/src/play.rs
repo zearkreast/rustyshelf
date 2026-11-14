@@ -189,8 +189,9 @@ impl Surprise {
 pub struct Repeat {
     dir: i32,
     next: f32,
-    /// when Y went down on the pad, until it's let go or has been held long enough
+    /// when Y went down on the pad, until it's let go or has been held long enough; and the left stick's click
     y_since: Option<f32>,
+    stick_since: Option<f32>,
 }
 
 /// seconds Y is held for a favourite
@@ -337,9 +338,19 @@ pub fn navigate(
     }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
-    // R, or a click of the left stick: the Surprise me case rolls, and rolls again
+    // the left stick's click: a tap rolls the Surprise me case, a hold opens Find a game
+    let (stick_down, stick_up) = (pad(GamepadButton::LeftThumb), pads.iter().any(|p| p.just_released(GamepadButton::LeftThumb)));
+    if stick_down {
+        repeat.stick_since = Some(now);
+    }
+    if repeat.stick_since.is_some_and(|since| now - since >= HOLD) {
+        repeat.stick_since = None;
+        return settings.open_find();
+    }
+    let stick_tap = stick_up && repeat.stick_since.take().is_some();
+    // R: the Surprise me case rolls, and rolls again
     let mut roll = false;
-    if keys.just_pressed(KeyCode::KeyR) || pad(GamepadButton::LeftThumb) {
+    if keys.just_pressed(KeyCode::KeyR) || stick_tap {
         match shelf.games.iter().position(|g| tile(g) == Some(Tile::Surprise)) {
             Some(i) => {
                 (cursor.game, cursor.flipped, roll) = (i, false, true);

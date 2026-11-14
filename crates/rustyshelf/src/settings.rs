@@ -25,6 +25,7 @@ use crate::shelf::Cursor;
 
 mod collections;
 mod custom;
+mod find;
 pub mod setup;
 mod text;
 
@@ -71,6 +72,7 @@ enum Screen {
     /// the chosen game's collections, and all of them
     GameCollections,
     Collections,
+    Find,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -151,6 +153,9 @@ pub struct Settings {
     open_emulator: Option<String>,
     /// the page the shelf asked to be opened at
     wanted: Option<Screen>,
+    finding: find::Finding,
+    /// the game Find a game was sent to: its shelf and its id
+    go_to: Option<(String, String)>,
     /// something to say on the shelf once Settings has closed
     toast: Option<String>,
     /// the Discord switch or id changed since they were last handed over
@@ -208,6 +213,8 @@ impl Default for Settings {
             gpu_vendor: None,
             open_emulator: None,
             wanted: None,
+            finding: Default::default(),
+            go_to: None,
             toast: None,
             discord_changed: true,
             sound_changed: true,
@@ -1220,6 +1227,7 @@ impl Settings {
                 let about: String = if about.chars().count() > 420 { format!("{}…", about.chars().take(419).collect::<String>()) } else { about };
                 Page { title: g.title.clone(), lead: about, rows }
             }
+            Screen::Find => self.find_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
                 let rows: Vec<Row> = hidden
@@ -1430,6 +1438,8 @@ pub fn input(
             None
         } else if let Some(page) = s.wanted.take() {
             Some(page)
+        } else if keys.just_pressed(KeyCode::Slash) || (keys.just_pressed(KeyCode::KeyF) && (keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight))) {
+            Some(Screen::Find)
         } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Select) {
             Some(Screen::Root)
         } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
@@ -1456,6 +1466,11 @@ pub fn input(
         }
         if first == Screen::Details && s.chosen.is_none() {
             return;
+        }
+        if first == Screen::Find {
+            if let Some(b) = &base.0 {
+                s.find_from(b, &plays.0);
+            }
         }
         s.open = true;
         s.changed = false;
@@ -1505,6 +1520,8 @@ pub fn input(
         return;
     }
 
+    // Find a game takes what's typed as the title
+    let typing = s.stack.last().is_some_and(|p| p.0 == Screen::Find) && s.find_type(&typed);
     let page = s.page();
     let n = page.rows.len();
     let now = time.elapsed_secs();
@@ -1547,6 +1564,7 @@ pub fn input(
         if let Some(step) = page.rows.get(at).and_then(|r| r.step.as_ref()) {
             step(&mut s, side);
         }
+    } else if typing {
     } else if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South) {
         if let Some(press) = page.rows.get(at).and_then(|r| r.press.as_ref()) {
             press(&mut s);
@@ -1564,6 +1582,25 @@ pub fn input(
     }
     if !s.open {
         s.just_closed = true;
+    }
+    // Find a game's choice: the shelf goes to it, on its own console's shelf
+    if let (Some((shelf, id)), LibraryState::Ready(l)) = (s.go_to.take(), &lib.0) {
+        match l.shelves.iter().position(|sh| sh.id == shelf && sh.from.is_empty()) {
+            Some(i) => {
+                let at = l.shelves[i].games.iter().position(|g| g.id == id);
+                if at.is_none() {
+                    toast.text = "That game isn't shown with the filter that's on. Change it in the shelf's menu (G).".into();
+                    toast.until = time.elapsed_secs() + 6.0;
+                }
+                (cursor.shelf, cursor.land) = (i, at.is_none());
+                cursor.game = at.unwrap_or(0);
+                cursor.flipped = false;
+            }
+            None => {
+                toast.text = "That game's shelf isn't shown.".into();
+                toast.until = time.elapsed_secs() + 5.0;
+            }
+        }
     }
     // a change to what's shown only rearranges the shelves; any other reads them again once Settings closes
     if !s.open && s.changed {

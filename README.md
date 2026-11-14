@@ -604,6 +604,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Has the Home shelf (the twelve games you played last, then your favorites), the All shelf when Settings → Display
   asks for it, and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.
+- Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf
+  are listed as you type, best first, by the Electron app's own rules (capitals, accents and punctuation don't
+  matter); with nothing typed, the games played last. Enter takes the shelf to the one chosen.
 - Has Details (I, or X on the pad): the game's description, release date, developer, publisher, genre, players,
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
@@ -636,6 +639,7 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Sort and filter (the shelf's menu) | G | Menu |
 | Settings | S | View |
 | Surprise me | R | left stick click |
+| Find a game | / | hold the left stick |
 | Quit | Esc | |
 
 `cargo test --workspace` runs its tests, which compare its title and folder rules against the Electron app's own answers

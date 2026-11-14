@@ -651,6 +651,21 @@ function themeFixtures() {
   }
   return { themes: Object.keys(THEMES).map(id => ({ id, name: THEMES[id].name })), alias: THEME_ALIAS, tints };
 }
+// ---- Find a game (renderer/find.js): what each thing typed finds among made-up titles, best first ----
+function findFixtures() {
+  const src = fs.readFileSync(path.join(ROOT, 'renderer', 'find.js'), 'utf8');
+  const norm = /\n  const norm = .*\n/.exec(src)[0], search = /\n  function search\(q\) \{[\s\S]*?\n  \}\n/.exec(src)[0];
+  const { S, run, fold } = new Function(`const S = { list: null, total: 0 }, MAX = 40, RECENT = 12;${norm}${search}return { S, run: search, fold: norm };`)();
+  const games = [['Spider-Man 2', 'PS2', 5], ['Spider-Man: Web of Shadows', 'Wii', 0], ['The Amazing Spider-Man', 'PS3', 9], ['Pokémon: Red', 'Game Boy', 3], ['Pokemon Blue', 'Game Boy', 0], ['Mario & Luigi: Superstar Saga', 'GBA', 2],
+    ['Super Mario Sunshine', 'GameCube', 8], ['Mario Kart: Double Dash!!', 'GameCube', 0], ['Mario Kart Wii', 'Wii', 1], ['Ōkami', 'PS2', 0], ['R-Type Final', 'PS2', 0], ['Final Fantasy X-2', 'PS2', 4], ['FINAL FANTASY XII', 'PS2', 0],
+    ['Zeta Run', 'SNES', 0], ['Zeta Run', 'GameCube', 6], ['Run, Zeta, Run!', 'SNES', 0], ['2064: Read Only Memories', 'PC', 0], ['Half-Life 2', 'PC', 7], ['A Hat in Time', 'PC', 0], ['日本語のゲーム', 'PS2', 0], ['', 'PC', 0]]
+    .map(([title, sys, last], i) => ({ id: 'g' + i, title, sys, last }));
+  for (const g of games) { g.n = fold(g.title); g.c = g.n.replace(/ /g, ''); }
+  S.list = games;
+  const typed = ['', '  ', 'spider', 'Spiderman', 'SPIDER MAN', 'man spider', 'mario', 'kart mario', 'pokemon', 'Pokémon r', 'okami', 'final', 'x2', 'x-2', 'zeta run', 'run zeta', 'r', '2', 'hat', 'a hat', 'luigi and', '&', 'ゲーム', 'nothing here', 'ar'];
+  return { games: games.map(g => ({ id: g.id, title: g.title, shelf: g.sys, last: g.last, folded: g.n })), searches: typed.map(q => { const found = run(q).map(g => g.id); return { typed: q, found, total: S.total }; }) };
+}
+fs.writeFileSync(path.join(OUT, 'find.json'), JSON.stringify(findFixtures(), null, 1) + '\n');
 themeFixtures.song = { hue: null };
 fs.writeFileSync(path.join(OUT, 'themes.json'), JSON.stringify(themeFixtures()) + '\n');
 fs.writeFileSync(path.join(OUT, 'songs.json'), JSON.stringify(songFixtures()) + '\n');

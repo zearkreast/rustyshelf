@@ -731,3 +731,25 @@ fn themes_match_the_js() {
         assert_eq!(themes::halo(id, sh, song), t["halo"].as_f64().unwrap(), "{id} at {sh}");
     }
 }
+
+#[test]
+fn find_matches_the_js() {
+    use rustyshelf_core::find::{fold, search, Entry};
+    let fx = fixture("find.json");
+    let games: Vec<Entry> = fx["games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| {
+            assert_eq!(fold(g["title"].as_str().unwrap()), g["folded"].as_str().unwrap(), "{}", g["title"]);
+            Entry::new(g["id"].as_str().unwrap(), g["title"].as_str().unwrap(), g["shelf"].as_str().unwrap(), g["last"].as_u64().unwrap())
+        })
+        .collect();
+    for s in fx["searches"].as_array().unwrap() {
+        let typed = s["typed"].as_str().unwrap();
+        let (found, total) = search(&games, typed);
+        let ids: Vec<Value> = found.iter().map(|&i| Value::from(games[i].id.clone())).collect();
+        assert_eq!(Value::from(ids), s["found"], "{typed:?}");
+        assert_eq!(total as u64, s["total"].as_u64().unwrap(), "{typed:?}");
+    }
+}

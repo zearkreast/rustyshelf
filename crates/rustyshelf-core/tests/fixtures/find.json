@@ -1,0 +1,382 @@
+{
+ "games": [
+  {
+   "id": "g0",
+   "title": "Spider-Man 2",
+   "shelf": "PS2",
+   "last": 5,
+   "folded": "spider man 2"
+  },
+  {
+   "id": "g1",
+   "title": "Spider-Man: Web of Shadows",
+   "shelf": "Wii",
+   "last": 0,
+   "folded": "spider man web of shadows"
+  },
+  {
+   "id": "g2",
+   "title": "The Amazing Spider-Man",
+   "shelf": "PS3",
+   "last": 9,
+   "folded": "the amazing spider man"
+  },
+  {
+   "id": "g3",
+   "title": "Pokémon: Red",
+   "shelf": "Game Boy",
+   "last": 3,
+   "folded": "pokemon red"
+  },
+  {
+   "id": "g4",
+   "title": "Pokemon Blue",
+   "shelf": "Game Boy",
+   "last": 0,
+   "folded": "pokemon blue"
+  },
+  {
+   "id": "g5",
+   "title": "Mario & Luigi: Superstar Saga",
+   "shelf": "GBA",
+   "last": 2,
+   "folded": "mario and luigi superstar saga"
+  },
+  {
+   "id": "g6",
+   "title": "Super Mario Sunshine",
+   "shelf": "GameCube",
+   "last": 8,
+   "folded": "super mario sunshine"
+  },
+  {
+   "id": "g7",
+   "title": "Mario Kart: Double Dash!!",
+   "shelf": "GameCube",
+   "last": 0,
+   "folded": "mario kart double dash"
+  },
+  {
+   "id": "g8",
+   "title": "Mario Kart Wii",
+   "shelf": "Wii",
+   "last": 1,
+   "folded": "mario kart wii"
+  },
+  {
+   "id": "g9",
+   "title": "Ōkami",
+   "shelf": "PS2",
+   "last": 0,
+   "folded": "okami"
+  },
+  {
+   "id": "g10",
+   "title": "R-Type Final",
+   "shelf": "PS2",
+   "last": 0,
+   "folded": "r type final"
+  },
+  {
+   "id": "g11",
+   "title": "Final Fantasy X-2",
+   "shelf": "PS2",
+   "last": 4,
+   "folded": "final fantasy x 2"
+  },
+  {
+   "id": "g12",
+   "title": "FINAL FANTASY XII",
+   "shelf": "PS2",
+   "last": 0,
+   "folded": "final fantasy xii"
+  },
+  {
+   "id": "g13",
+   "title": "Zeta Run",
+   "shelf": "SNES",
+   "last": 0,
+   "folded": "zeta run"
+  },
+  {
+   "id": "g14",
+   "title": "Zeta Run",
+   "shelf": "GameCube",
+   "last": 6,
+   "folded": "zeta run"
+  },
+  {
+   "id": "g15",
+   "title": "Run, Zeta, Run!",
+   "shelf": "SNES",
+   "last": 0,
+   "folded": "run zeta run"
+  },
+  {
+   "id": "g16",
+   "title": "2064: Read Only Memories",
+   "shelf": "PC",
+   "last": 0,
+   "folded": "2064 read only memories"
+  },
+  {
+   "id": "g17",
+   "title": "Half-Life 2",
+   "shelf": "PC",
+   "last": 7,
+   "folded": "half life 2"
+  },
+  {
+   "id": "g18",
+   "title": "A Hat in Time",
+   "shelf": "PC",
+   "last": 0,
+   "folded": "a hat in time"
+  },
+  {
+   "id": "g19",
+   "title": "日本語のゲーム",
+   "shelf": "PS2",
+   "last": 0,
+   "folded": "日本語のケ ーム"
+  },
+  {
+   "id": "g20",
+   "title": "",
+   "shelf": "PC",
+   "last": 0,
+   "folded": ""
+  }
+ ],
+ "searches": [
+  {
+   "typed": "",
+   "found": [
+    "g2",
+    "g6",
+    "g17",
+    "g14",
+    "g0",
+    "g11",
+    "g3",
+    "g5",
+    "g8"
+   ],
+   "total": 9
+  },
+  {
+   "typed": "  ",
+   "found": [
+    "g2",
+    "g6",
+    "g17",
+    "g14",
+    "g0",
+    "g11",
+    "g3",
+    "g5",
+    "g8"
+   ],
+   "total": 9
+  },
+  {
+   "typed": "spider",
+   "found": [
+    "g0",
+    "g1",
+    "g2"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "Spiderman",
+   "found": [
+    "g0",
+    "g1",
+    "g2"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "SPIDER MAN",
+   "found": [
+    "g0",
+    "g1",
+    "g2"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "man spider",
+   "found": [
+    "g0",
+    "g1",
+    "g2"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "mario",
+   "found": [
+    "g5",
+    "g7",
+    "g8",
+    "g6"
+   ],
+   "total": 4
+  },
+  {
+   "typed": "kart mario",
+   "found": [
+    "g7",
+    "g8"
+   ],
+   "total": 2
+  },
+  {
+   "typed": "pokemon",
+   "found": [
+    "g4",
+    "g3"
+   ],
+   "total": 2
+  },
+  {
+   "typed": "Pokémon r",
+   "found": [
+    "g3"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "okami",
+   "found": [
+    "g9"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "final",
+   "found": [
+    "g11",
+    "g12",
+    "g10"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "x2",
+   "found": [
+    "g11"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "x-2",
+   "found": [
+    "g11"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "zeta run",
+   "found": [
+    "g14",
+    "g13",
+    "g15"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "run zeta",
+   "found": [
+    "g15",
+    "g14",
+    "g13"
+   ],
+   "total": 3
+  },
+  {
+   "typed": "r",
+   "found": [
+    "g10",
+    "g15",
+    "g16",
+    "g3",
+    "g14",
+    "g13",
+    "g5",
+    "g7",
+    "g8",
+    "g0",
+    "g1",
+    "g6",
+    "g2"
+   ],
+   "total": 13
+  },
+  {
+   "typed": "2",
+   "found": [
+    "g16",
+    "g11",
+    "g17",
+    "g0"
+   ],
+   "total": 4
+  },
+  {
+   "typed": "hat",
+   "found": [
+    "g18"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "a hat",
+   "found": [
+    "g18"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "luigi and",
+   "found": [
+    "g5"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "&",
+   "found": [
+    "g5"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "ゲーム",
+   "found": [
+    "g19"
+   ],
+   "total": 1
+  },
+  {
+   "typed": "nothing here",
+   "found": [],
+   "total": 0
+  },
+  {
+   "typed": "ar",
+   "found": [
+    "g5",
+    "g7",
+    "g8",
+    "g15",
+    "g6",
+    "g14",
+    "g13"
+   ],
+   "total": 7
+  }
+ ]
+}

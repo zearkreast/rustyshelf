@@ -239,8 +239,30 @@ fn meta(g: &Game, shelf: &str, ok: &str) -> Vec<String> {
 }
 
 /// The keys the bar shows: for the keyboard, and for a pad.
-const KEYS: [(&[&str], &str); 9] = [(&["Z", "C"], "Letter"), (&["↑", "↓"], "System"), (&["F"], "Flip"), (&["H"], "♥ Favorite"), (&["I"], "Details"), (&["Enter"], "Play"), (&["G"], "Sort"), (&["S"], "Settings"), (&["Esc"], "Exit")];
-const PAD_KEYS: [(&[&str], &str); 8] = [(&["LB", "RB"], "Letter"), (&["LT", "RT"], "System"), (&["Y"], "Flip · hold ♥"), (&["X"], "Details"), (&["A"], "Play"), (&["View"], "Settings"), (&["Menu"], "Sort"), (&["B"], "Back")];
+const KEYS: [(&[&str], &str); 11] = [
+    (&["Z", "C"], "Letter"),
+    (&["↑", "↓"], "System"),
+    (&["F"], "Flip"),
+    (&["H"], "♥ Favorite"),
+    (&["I"], "Details"),
+    (&["Enter"], "Play"),
+    (&["R"], "Shuffle"),
+    (&["/"], "Find"),
+    (&["G"], "Sort"),
+    (&["S"], "Settings"),
+    (&["Esc"], "Exit"),
+];
+const PAD_KEYS: [(&[&str], &str); 9] = [
+    (&["LB", "RB"], "Letter"),
+    (&["LT", "RT"], "System"),
+    (&["Y"], "Flip · hold ♥"),
+    (&["X"], "Details"),
+    (&["A"], "Play"),
+    (&["LS"], "Shuffle · hold Find"),
+    (&["View"], "Settings"),
+    (&["Menu"], "Sort"),
+    (&["B"], "Back"),
+];
 
 /// The date and the time as the Electron app's clock writes them in English: "Sat, Nov 14" and "5:16 PM" (or
 /// "17:16").
