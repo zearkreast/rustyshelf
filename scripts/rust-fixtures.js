@@ -760,11 +760,34 @@ async function raemuFixtures() {
   fs.rmSync(tmp, { recursive: true, force: true });
   return { files, checks, ini: [ini, raemu.parseIni(ini)], cfg: [cfgText, raemu.parseCfg(cfgText)], kinds: ['C:\\Emu\\Dolphin.exe', '/opt/pcsx2-qt', 'RetroArch-Win64/retroarch.exe', 'x/my-retroarch.exe', 'flycast-x64.exe', 'mesen.exe', ''].map(e => [e, raemu.kindOf(e)]) };
 }
+// ---- GameTDB (main/gametdb.js): a made-up database in a zip, the games read from it, and a game's full covers ----
+async function gametdbFixtures() {
+  const zlib = require('zlib'), gametdb = require('../main/gametdb'), { norm } = require('../main/lbindex');
+  const game = (name, type, id, region, title) => `<game name="${name}"><id>${id}</id><type>${type}</type><region>${region}</region><locale lang="EN">\n  <title>${title}</title></locale><locale lang="JA"><title>x</title></locale></game>`;
+  const xml = '<?xml version="1.0"?><datafile>' + [game('Zeta Run (USA)', 'Switch', 'AAAAA', 'NTSC-U', 'Zeta Run'), game('Zeta Run (EUR)', 'Switch', 'AAAAB', 'PAL', 'Zeta Run'), game('Omega &amp; Quest', 'Switch', 'BBBB', 'NTSC-J', 'Omega &amp; Quest: The &quot;Long&quot; Way'),
+    game('Shop title', 'eShop', 'CCCCC', 'NTSC-U', 'Shop Only'), game('No id', 'Switch', 'bad', 'PAL', 'No Id'), game('Everywhere', 'Switch', 'DDDDDD', '', 'Sigma'), game('Korea', 'Switch', 'EEEEE', 'KOR', 'Tau Racers'),
+    '<game name="No English"><id>FFFFF</id><type>Switch</type><region>PAL</region><locale lang="FR"><title>Sans</title></locale></game>', game('3DS one', '3DS', 'GGGG', 'PAL', 'Phi and Rho'), game('New one', 'New3DS', 'HHHH', 'NTSC-U', 'Alpha Tale')].join('\n') + '</datafile>';
+  // a zip of one file, stored or deflated
+  const zip = deflate => { const name = Buffer.from('switchtdb.xml'), raw = Buffer.from(xml), data = deflate ? zlib.deflateRawSync(raw) : raw;
+    const local = Buffer.alloc(30); local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(deflate ? 8 : 0, 8); local.writeUInt32LE(data.length, 18); local.writeUInt32LE(raw.length, 22); local.writeUInt16LE(name.length, 26);
+    const central = Buffer.alloc(46); central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(deflate ? 8 : 0, 10); central.writeUInt32LE(data.length, 20); central.writeUInt32LE(raw.length, 24); central.writeUInt16LE(name.length, 28); central.writeUInt32LE(0, 42);
+    const before = Buffer.concat([local, name, data]), dir = Buffer.concat([central, name]), end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10); end.writeUInt32LE(dir.length, 12); end.writeUInt32LE(before.length, 16);
+    return Buffer.concat([before, dir, end]); };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-tdb-'));
+  gametdb.init({ dir: tmp, norm, download: async () => false });
+  const parsed = { sw: gametdb._t.parse(xml, /^Switch$/), n3ds: gametdb._t.parse(xml, /^(3DS|New3DS)$/) };
+  for (const id of ['sw', 'n3ds']) fs.writeFileSync(path.join(tmp, `gametdb-${id}.json`), JSON.stringify({ v: 1, at: Date.now(), map: parsed[id].map }));
+  const asks = [['sw', ['Zeta Run'], []], ['sw', ['Nothing', 'zeta run!'], ['EN', 'JA']], ['sw', ['Omega and Quest: The Long Way'], ['JA']], ['sw', ['Sigma'], ['EN']], ['sw', ['Tau Racers'], []], ['sw', ['Shop Only'], []], ['n3ds', ['Phi & Rho'], ['FR']], ['n3ds', ['Alpha Tale'], []], ['gc', ['Zeta Run'], []]];
+  const covers = []; for (const [id, names, prefer] of asks) covers.push({ console: id, names, prefer, found: await gametdb.fullCovers(id, names, prefer) });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return { xml, stored: zip(false).toString('base64'), deflated: zip(true).toString('base64'), read: gametdb._t.xmlOf(zip(true)) === xml && gametdb._t.xmlOf(zip(false)) === xml, parsed, covers };
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');

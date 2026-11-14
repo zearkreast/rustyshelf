@@ -875,3 +875,32 @@ fn emulators_retroachievements_standing_matches_the_js() {
         assert_eq!(Value::from(rows), c["rows"]);
     }
 }
+
+#[test]
+fn gametdb_matches_the_js() {
+    use base64::Engine;
+    use rustyshelf_core::gametdb;
+    let fx = fixture("gametdb.json");
+    assert_eq!(fx["read"], true);
+    let xml = fx["xml"].as_str().unwrap();
+    for zip in ["stored", "deflated"] {
+        let bytes = base64::engine::general_purpose::STANDARD.decode(fx[zip].as_str().unwrap()).unwrap();
+        assert_eq!(gametdb::xml_of(&bytes).as_deref(), Some(xml), "{zip}");
+    }
+    assert_eq!(gametdb::xml_of(b"not a zip"), None);
+    let mut maps = std::collections::HashMap::new();
+    for (console, types) in [("sw", &["Switch"][..]), ("n3ds", &["3DS", "New3DS"][..])] {
+        let (map, n) = gametdb::parse(xml, types);
+        assert_eq!(Value::Object(map.clone()), fx["parsed"][console]["map"], "{console}");
+        assert_eq!(n as u64, fx["parsed"][console]["n"].as_u64().unwrap());
+        maps.insert(console, map);
+    }
+    for c in fx["covers"].as_array().unwrap() {
+        let console = c["console"].as_str().unwrap();
+        let names: Vec<String> = c["names"].as_array().unwrap().iter().map(|n| n.as_str().unwrap().to_string()).collect();
+        let prefer: Vec<&str> = c["prefer"].as_array().unwrap().iter().map(|p| p.as_str().unwrap()).collect();
+        let found: Vec<Value> = gametdb::full_covers(maps.get(console).unwrap_or(&serde_json::Map::new()), console, &names, &prefer).iter().map(|f| serde_json::json!({ "url": f.url, "id": f.id, "region": f.region, "kind": f.kind })).collect();
+        assert_eq!(Value::from(found), c["found"], "{names:?}");
+    }
+    assert!(gametdb::has("sw") && gametdb::has("n3ds") && !gametdb::has("sw2"));
+}

@@ -563,7 +563,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   the art of the Steam game with the same name. The shelf shows all of it as soon as it's in.
 - Downloads box art for console games missing a front, a back or a spine, unless box art downloads are off: fronts
   from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
-  downloaded and built once). Each game is looked at once a week at most; a picture that's there is never replaced.
+  downloaded and built once), and where those have none a spine (GameCube, Wii) or a spine and a back (Switch,
+  3DS) cut from GameTDB's full cover scan. Each game is looked at once a week at most; a picture that's there is
+  never replaced.
 
 - Sets itself up on the first run: it looks for your emulators, games folders, Steam and the streaming apps, shows the
   consoles it found switched on, and lets you change each one's emulator and games folders before the shelf opens.
@@ -619,10 +621,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
-**Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures, accounts; adding several games at once, a folder of games or a
+**Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding several games at once, a folder of games or a
 Playnite library), the
-Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
-GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the Home menu over a
+Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
+full box wraps, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the Home menu over a
 running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar

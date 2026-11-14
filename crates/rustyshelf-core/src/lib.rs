@@ -19,6 +19,7 @@ pub mod emuname;
 pub mod emusetup;
 pub mod gamelist;
 pub mod find;
+pub mod gametdb;
 pub mod gamewatch;
 pub mod history;
 pub mod info;

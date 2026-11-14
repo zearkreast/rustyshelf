@@ -7,6 +7,7 @@
 //! replaced moves to `replaced\`, never deleted. The caches are in `data/boxart-cache`, shared with the Electron app.
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -507,10 +508,83 @@ fn launchbox_candidates(shard: &ShardFile, title: &str, kind: &str, region: &str
     c.into_iter().take(6).map(|im| (format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file)), ext_of(&im.file))).collect()
 }
 
+/// A case's front and its spine, each for its height, by console: what a full cover scan is cut by (the Electron
+/// app's main.js CASE, keep in sync).
+fn case_of(console: &str) -> (f32, f32) {
+    match console {
+        "wiiu" => (0.711, 0.058),
+        "ps3" | "ps4" | "ps5" => (0.789, 0.07),
+        "sw" | "sw2" => (0.618, 0.059),
+        "psp" => (0.578, 0.078),
+        "n3ds" => (1.127, 0.112),
+        _ => (0.711, 0.074),
+    }
+}
+
+/// The spine or the back ("back") cut out of a full cover scan (back | spine | front), as a JPEG; None when the
+/// picture isn't one or the fold isn't found.
+pub fn cut_wrap(file: &Path, console: &str, part: &str) -> Option<Vec<u8>> {
+    let img = image::ImageReader::open(file).ok()?.with_guessed_format().ok()?.decode().ok()?;
+    let (front, spine) = case_of(console);
+    let cut = rustyshelf_imgtools::spine::cut_spine(&img, Some(front), Some(spine), if part == "back" { "back" } else { "spine" })?;
+    let mut out = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 92).encode_image(&cut).ok()?;
+    Some(out)
+}
+
+/// Puts a part cut from a full cover in its place, unless it's too small to be one.
+fn place_cut(bytes: &[u8], dir: &Path, base: &str, suffix: &str) -> bool {
+    if bytes.len() <= 1500 || fs::create_dir_all(dir).is_err() {
+        return false;
+    }
+    let incoming = dir.join(format!("{base}{suffix}.incoming-tdb.jpg"));
+    let placed = fs::write(&incoming, bytes).is_ok() && size_of(&incoming).is_some() && place_art(dir, base, suffix, &incoming, ".jpg").is_ok();
+    if !placed {
+        let _ = fs::remove_file(&incoming);
+    }
+    placed
+}
+
+/// A GameCube or Wii game's spine, cut from GameTDB's full cover scan of its disc (found by the id in the disc).
+fn gametdb_spine(console: &str, file: &Path, dir: &Path, base: &str, cache_dir: &Path, region: &str) -> bool {
+    let Some(id) = covers::disc_id(file) else { return false };
+    for r in covers::tdb_regions(&id, region) {
+        for kind in ["coverfullHQ", "coverfull"] {
+            let tmp = cache_dir.join(format!(".tdb-{}-{id}-{r}-{kind}.png", std::process::id()));
+            let got = matches!(download_ex(&format!("https://art.gametdb.com/wii/{kind}/{r}/{id}.png"), &tmp, false), Ok(Outcome::Ok));
+            let placed = got && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine"));
+            let _ = fs::remove_file(&tmp);
+            if placed {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// A Switch or 3DS game's full cover scan from GameTDB (found by its title), downloaded to a file in the cache:
+/// its back and its spine are both cut from it.
+fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str, title: &str, cache_dir: &Path, region: &str, cancel: &AtomicBool) -> Option<PathBuf> {
+    static COUNT: AtomicUsize = AtomicUsize::new(0);
+    let prefer = covers::art_region(region).map_or(&[][..], |r| r.tdb);
+    for c in crate::gametdb::full_covers(map, console, &covers::lookup_names(title), prefer) {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let tmp = cache_dir.join(format!(".tdbfull-{}-{}.jpg", std::process::id(), COUNT.fetch_add(1, Ordering::Relaxed)));
+        // (wide enough to be a whole wrap, not a front on its own)
+        if matches!(download_ex(&c.url, &tmp, false), Ok(Outcome::Ok)) && size_of(&tmp).is_some_and(|(w, h)| w as f32 >= h as f32 * 1.2) {
+            return Some(tmp);
+        }
+        let _ = fs::remove_file(&tmp);
+    }
+    None
+}
+
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
-// TODO: still Electron-only: the Art Studio's styles and locks, sharper scans over low-res pictures, spines cut from a
-// full box wrap, GameTDB, the Super Mario Wiki, SteamGridDB posters and drawn cartridges
+// TODO: still Electron-only: the Art Studio's styles and locks, sharper scans over low-res pictures, spines cut from
+// LaunchBox's full box wraps, the Super Mario Wiki, SteamGridDB posters and drawn cartridges
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
     let Run { art, app_root, cache_dir, kinds, region } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
@@ -533,11 +607,15 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
             }
         }
         let platform = covers::launchbox_platform(id);
+        // Switch / 3DS: GameTDB's games by title, for the backs and spines no other source has
+        let tdb = if crate::gametdb::has(id) && (want("back") || want("spine")) { crate::gametdb::index(cache_dir, id) } else { None };
         let rep = Mutex::new(ConsoleReport { id: id.to_string(), name: sys.console.name.clone(), total: sys.games.len(), ..ConsoleReport::default() });
         let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
         let one = |game: &Game| {
             let (dir, base) = (art.dir_for(sys.config, &game.file, app_root), art_base(&game.file));
             let (mut touched, mut missing) = (false, false);
+            // (downloaded once for both the back and the spine, deleted after)
+            let mut wrap: Option<Option<PathBuf>> = None;
             for (key, suffix) in KINDS {
                 if !want(key) || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir) {
                     continue;
@@ -579,6 +657,16 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                         _ => {}
                     }
                 }
+                let stopped = || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir);
+                // GameCube / Wii spines: GameTDB has a full cover scan for nearly every disc, by its game id
+                if !ok && old.is_none() && key == "spine" && matches!(id, "gc" | "wii") && !stopped() {
+                    ok = gametdb_spine(id, &game.file, &dir, &base, cache_dir, region);
+                }
+                // Switch / 3DS: the spine and the back cut from GameTDB's full cover, found by the game's title
+                if let (false, None, "spine" | "back", Some(map), false) = (ok, &old, key, &tdb, stopped()) {
+                    let full_cover = wrap.get_or_insert_with(|| gametdb_wrap(map, id, &game.title, cache_dir, region, cancel));
+                    ok = full_cover.as_ref().and_then(|f| cut_wrap(f, id, key)).is_some_and(|cut| place_cut(&cut, &dir, &base, suffix));
+                }
                 let mut rep = rep.lock().unwrap();
                 match (ok, key) {
                     (true, "front") => rep.front += 1,
@@ -588,6 +676,9 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                     (false, _) => missing |= old.is_none(),
                 }
                 touched |= ok;
+            }
+            if let Some(Some(f)) = wrap {
+                let _ = fs::remove_file(f);
             }
             let mut rep = rep.lock().unwrap();
             if missing {
@@ -614,4 +705,43 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
     report.cancelled = cancel.load(Ordering::Relaxed);
     report.full = full.into_inner().unwrap();
     report
+}
+
+#[cfg(test)]
+mod wrap_tests {
+    use super::*;
+
+    /// A made-up full cover: a blue back, a dark spine and a red front, in a GameCube case's proportions.
+    #[test]
+    fn a_spine_and_a_back_are_cut_from_a_full_cover() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (h, front, spine) = (400u32, 284u32, 30u32);
+        let wrap = image::RgbImage::from_fn(front * 2 + spine, h, |x, y| {
+            let band = if (y / 20) % 2 == 0 { 30 } else { 0 };
+            if x < front {
+                image::Rgb([20, 40 + band, 200])
+            } else if x < front + spine {
+                // (speckled, as print is: a flat one packs too small to be taken for a picture)
+                let speck = ((x * 7919 + y * 104_729) % 97) as u8;
+                image::Rgb([15 + speck / 2, 15 + speck / 3, 20 + speck / 2])
+            } else {
+                image::Rgb([200, 30 + band, 30])
+            }
+        });
+        let file = tmp.path().join("full.png");
+        wrap.save(&file).unwrap();
+        let size = |bytes: &[u8]| image::load_from_memory(bytes).map(|i| (i.width(), i.height())).unwrap();
+        let cut = cut_wrap(&file, "gc", "spine").expect("a spine");
+        let (w, tall) = size(&cut);
+        assert!(tall >= h - 4 && (spine - 8..=spine + 8).contains(&w), "the spine came out {w} × {tall}");
+        let back = cut_wrap(&file, "gc", "back").expect("a back");
+        assert!((front - 12..=front + 12).contains(&size(&back).0), "the back came out {} wide", size(&back).0);
+        // a front on its own isn't a wrap; a cut too small isn't kept
+        image::RgbImage::new(284, 400).save(tmp.path().join("front.png")).unwrap();
+        assert!(cut_wrap(&tmp.path().join("front.png"), "gc", "spine").is_none());
+        let art = tmp.path().join("art");
+        assert!(place_cut(&cut, &art, "Zeta Run (USA)", "-spine") && art_file(&art, "Zeta Run (USA)", "-spine").is_some());
+        assert!(!place_cut(&[0; 100], &art, "Other", "-spine") && art_file(&art, "Other", "-spine").is_none());
+        assert_eq!((case_of("n3ds"), case_of("sw2"), case_of("nothing")), ((1.127, 0.112), (0.618, 0.059), (0.711, 0.074)));
+    }
 }
