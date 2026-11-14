@@ -6,6 +6,7 @@ pub mod art;
 pub mod collate;
 pub mod config;
 pub mod detect;
+pub mod emucfg;
 pub mod emuname;
 pub mod gamelist;
 pub mod history;

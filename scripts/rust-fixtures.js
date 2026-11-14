@@ -365,9 +365,67 @@ async function detectFixtures() {
   return JSON.parse(JSON.stringify(out).split(home).join('{home}'));
 }
 
+// emulator settings files in a home folder ({home}), and what each step makes of them: [what, ...its arguments]
+const GD = n => 'Paths\\gamedirs\\' + n;
+const EMUCFG = {
+  files: [
+    ['eden/eden', ''], ['eden/user/config/qt-config.ini', '[Core]\r\nx=1\r\n[UI]\r\nconfirmClose=true\r\nconfirmStop = 0\r\nother=1\r\n[Zeta]\r\nconfirmClose=true\r\n'],
+    ['apps/citron.AppImage', ''], ['.config/citron/qt-config.ini', '\uFEFF[UI]\n' + GD('size=5') + '\n' + [1, 2, 3, 4].map(n => GD(n + '\\path=/g' + n)).join('\n') + '\n' + GD('4\\deep_scan=false') + '\n' + GD('5\\path=/g5') + '\nconfirmClose=false\n[Other]\n' + GD('9\\path=/x') + '\n'],
+    ['yuzu/yuzu.exe', ''], ['yuzu/user/config/qt-config.ini', '[Core]\nx=1'], ['wide/eden', ''], ['wide/user/config/qt-config.ini', { b64: Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('[UI]\n', 'utf16le')]).toString('base64') }],
+    ['ansi/suyu', ''], ['ansi/user/config/qt-config.ini', { b64: Buffer.from('[UI]\npath=C:\\Jeux\\\xc9ditions\n', 'latin1').toString('base64') }], ['none/eden', ''],
+    ['ini/b.ini', '; note\n[Core]\nKey=Old\n Other = 1 \nKey2 = same\n[Next]\nKey=x\n'], ['ini/c.ini', '[A]\r\nx = 1'], ['ini/d.ini', '[A]\nx = 1\n\n'],
+    ['pcsx2/pcsx2-qt', ''], ['pcsx2/portable.ini', ''], ['pcsx2/inis/PCSX2.ini', '[UI]\nConfirmShutdown = true\nx = 1\n'], ['Documents/PCSX2/inis/PCSX2.ini', '[Other]\ny = 2\n'], ['plain/pcsx2-qt', ''],
+    ['OneDrive - Made Up/Dokumente/x', ''], ['OneDrive/x', ''], ['OneDriveNot/x', ''],
+    ['rpcs3/rpcs3', ''], ['rpcs3/GuiConfigs/CurrentSettings.ini', '[Meta]\nconfirmationBoxExitGame = true\n[x]\nconfirmationBoxExitGame=true\n'], ['rpcs3b/rpcs3', ''], ['rpcs3b/GuiConfigs/CurrentSettings.ini', '[Other]\na=1'],
+    ['rpcs3c/rpcs3', ''], ['rpcs3c/GuiConfigs/CurrentSettings.ini', '[Meta]\nconfirmationBoxExitGame=false\n'],
+    ['dol/Dolphin.exe', ''], ['dol/portable.txt', ''], ['dol/User/Config/Hotkeys.ini', '[Hotkeys]\r\nDevice = XInput/0/Gamepad\r\nGeneral/Stop = `Back`&`Button B`\r\nGeneral/Open = `F2`\r\n'],
+    ['dol/User/Config/WiimoteNew.ini', '[Wiimote1]\r\nDevice = SDL/0/Pro Controller\r\n[Wiimote2]\r\nDevice = XInput/0/Gamepad\r\n[Wiimote3]\r\nDevice = DInput/0/Keyboard Mouse\r\n[Wiimote4]\r\nDevice = SDL/0/Pro Controller\r\n'],
+    ['dol/User/Config/GCPadNew.ini', '[GCPad1]\nDevice = WGInput/0/Made Up Pad\n'],
+    ['dol2/Dolphin.exe', ''], ['dol2/portable.txt', ''], ['dol2/User/Config/Hotkeys.ini', '[Hotkeys]\nDevice = SDL/0/Main Pad\nGeneral/Stop = `F1` | (`SDL/1/Other:Thumb L`&`SDL/1/Other:Thumb R`) | (`Ctrl` & (`Q`|`W`))\n'],
+    ['dol2/User/Config/GCPadNew.ini', '[GCPad1]\nDevice = SDL/1/Other\n[GCPad2]\nDevice = SDL/0/Main Pad\n'],
+    ['dol3/Dolphin.exe', ''], ['dol3/portable.txt', ''], ['dol3/User/Config/Hotkeys.ini', '[Other]\nx = 1\n'], ['dol3/User/Config/WiimoteNew.ini', '[Wiimote1]\nDevice = SDL/2/Third\n'],
+    ['dol4/Dolphin.exe', ''], ['dol4/portable.txt', ''], ['dol4/User/Config/WiimoteNew.ini', '[Wiimote1]\nDevice = SDL/2/Third\n'],
+    ['dol5/Dolphin.exe', ''], ['dol5/portable.txt', ''], ['dol5/User/Config/Hotkeys.ini', '[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Start`&`Back`) | (`SDL/0/Gone:Start`&`SDL/0/Gone:Back`)\n'], ['dol5/User/Config/GCPadNew.ini', '[GCPad1]\nDevice = XInput/0/Gamepad\n'],
+  ],
+  steps: [['lists', 'pcsx2/pcsx2-qt'], ['lists', 'plain/pcsx2-qt'], ['lists', ''],
+    ['quietEden', 'eden/eden'], ['quietEden', 'eden/eden'], ['quietEden', 'apps/citron.AppImage'], ['quietEden', 'apps/citron.AppImage'], ['afterExit', 'sw', 'apps/citron.AppImage'], ['afterExit', 'gc', 'apps/citron.AppImage'],
+    ['quietEden', 'yuzu/yuzu.exe'], ['quietEden', 'wide/eden'], ['quietEden', 'ansi/suyu'], ['quietEden', 'none/eden'],
+    ['setIni', 'ini/a.ini', 'New', { K: 'v', 'K 2': 'w' }], ['setIni', 'ini/b.ini', 'Core', { Key: 'New', Other: '1', Key2: 'same', Added: 'yes' }], ['setIni', 'ini/b.ini', 'Core', { Key: 'New' }],
+    ['setIni', 'ini/c.ini', 'B', { y: '2' }], ['setIni', 'ini/d.ini', 'B', { y: '2' }], ['setIni', 'ini/d.ini', 'A', { x: '3' }],
+    ['pcsx2NoConfirm', 'pcsx2/pcsx2-qt'], ['pcsx2NoConfirm', 'plain/pcsx2-qt'], ['rpcs3NoConfirm', 'rpcs3/rpcs3'], ['rpcs3NoConfirm', 'rpcs3b/rpcs3'], ['rpcs3NoConfirm', 'rpcs3c/rpcs3'], ['rpcs3NoConfirm', 'none/rpcs3'],
+    ['dolphinQuitPads', 'dol/Dolphin.exe', 'l3+r3'], ['dolphinQuitPads', 'dol/Dolphin.exe', 'back+b'], ['dolphinQuitPads', 'dol/Dolphin.exe', 'nope'], ['dolphinQuitPads', 'dol2/Dolphin.exe', 'lb+rb+start'],
+    ['dolphinQuitPads', 'dol3/Dolphin.exe', 'start+back'], ['dolphinQuitPads', 'dol4/Dolphin.exe', 'l3+r3'], ['dolphinQuitPads', 'dol5/Dolphin.exe', 'l3+r3'],
+    ['restoreBackups', { gc: 'dol/Dolphin.exe', wii: 'dol2/Dolphin.exe', sw: 'eden/eden', sw2: 'apps/citron.AppImage', ps2: 'pcsx2/pcsx2-qt', ps3: 'rpcs3/rpcs3', x360: '' }]],
+};
+function emucfgFixtures() {
+  const emucfg = require('../main/emucfg');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-emucfg-')), was = { ...process.env }, at = r => (r ? path.join(home, r) : '');
+  for (const [rel, c] of EMUCFG.files) { const p = path.join(home, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, typeof c === 'string' ? c : Buffer.from(c.b64, 'base64')); }
+  process.env.HOME = home; for (const k of ['XDG_CONFIG_HOME', 'APPDATA', 'USERPROFILE', 'BS_DOCUMENTS', 'BS_LINUX']) delete process.env[k];
+  const snap = () => { const o = {}; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) { const p = path.join(d, e.name);
+    if (e.isDirectory()) walk(p); else { const b = fs.readFileSync(p), t = b.toString('utf8'); o[path.relative(home, p)] = Buffer.from(t, 'utf8').equals(b) ? t : { b64: b.toString('base64') }; } } }; walk(home); return o; };
+  let before = snap(); const steps = [];
+  for (const step of EMUCFG.steps) {
+    const [what, a, b, c] = step; let result;
+    if (what === 'lists') result = { pcsx2: emucfg.pcsx2Inis(at(a), process.env, true), docs: emucfg.docsDirs(process.env), dolphin: emucfg.dolphinUserDirs(at(a), process.env) };
+    else if (what === 'quietEden') result = emucfg.quietEden(at(a));
+    else if (what === 'afterExit') result = emucfg.afterExit(a, at(b)) || null;
+    else if (what === 'setIni') result = emucfg.setIni(at(a), b, c);
+    else if (what === 'restoreBackups') result = emucfg.restoreBackups(Object.fromEntries(Object.entries(a).map(([k, v]) => [k, at(v)])));
+    else result = emucfg[what](at(a), b);
+    const now = snap(), changed = {};
+    for (const k of new Set([...Object.keys(before), ...Object.keys(now)])) if (JSON.stringify(before[k]) !== JSON.stringify(now[k])) changed[k] = k in now ? now[k] : null;
+    steps.push({ step, result: result === undefined ? null : result, changed }); before = now;
+  }
+  for (const k of Object.keys(process.env)) if (!(k in was)) delete process.env[k]; Object.assign(process.env, was);
+  fs.rmSync(home, { recursive: true, force: true });
+  return JSON.parse(JSON.stringify({ files: EMUCFG.files, steps }).split(home).join('{home}'));
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
+fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(emucfgFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
 steamFixtures().then(async st => {

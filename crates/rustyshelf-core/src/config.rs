@@ -138,6 +138,16 @@ impl Config {
         self.raw.get("pc").and_then(|p| p.get("consoleBox")).and_then(Value::as_bool).unwrap_or(false)
     }
 
+    /// The controller's quit combo (Settings → Controller), None when it's off.
+    pub fn quit_combo(&self) -> Option<String> {
+        let ui = self.raw.get("ui");
+        let get = |k: &str| ui.and_then(|u| u.get(k));
+        if get("quitCombo") == Some(&Value::Bool(false)) {
+            return None;
+        }
+        Some(Some(str_of(get("quitComboKeys"), "")).filter(|k| !k.is_empty()).unwrap_or("l3+r3").to_string())
+    }
+
     /// Settings → RetroArch: the program the retro consoles fall back on, unexpanded.
     pub fn retroarch(&self) -> String {
         str_of(self.raw.get("retroarch"), "").trim().to_string()

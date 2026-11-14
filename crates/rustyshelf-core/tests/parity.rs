@@ -337,3 +337,84 @@ fn setup_finds_what_the_js_finds() {
         same(key, serde_json::json!({ "systems": hits, "retroarch": retroarch }), &fx[key]);
     }
 }
+
+/// Every file under a folder: its text, or `{ b64 }` when it isn't UTF-8.
+#[cfg(target_os = "linux")]
+fn snapshot(root: &Path) -> std::collections::BTreeMap<String, Value> {
+    fn walk(d: &Path, root: &Path, out: &mut std::collections::BTreeMap<String, Value>) {
+        for e in fs::read_dir(d).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, root, out);
+            } else {
+                let b = fs::read(&p).unwrap();
+                let v = match String::from_utf8(b) {
+                    Ok(t) => Value::from(t),
+                    Err(e) => serde_json::json!({ "b64": base64::engine::general_purpose::STANDARD.encode(e.as_bytes()) }),
+                };
+                out.insert(p.strip_prefix(root).unwrap().to_string_lossy().into_owned(), v);
+            }
+        }
+    }
+    let mut out = std::collections::BTreeMap::new();
+    walk(root, root, &mut out);
+    out
+}
+
+// the settings folders looked in are Linux's, and the fixture was written there
+#[cfg(target_os = "linux")]
+#[test]
+fn emulator_settings_change_as_in_the_js() {
+    use rustyshelf_core::emucfg;
+    let fx = fixture("emucfg.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().to_string_lossy().into_owned();
+    for f in fx["files"].as_array().unwrap() {
+        let p = tmp.path().join(f[0].as_str().unwrap());
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        match &f[1] {
+            Value::String(t) => fs::write(&p, t).unwrap(),
+            o => fs::write(&p, base64::engine::general_purpose::STANDARD.decode(o["b64"].as_str().unwrap()).unwrap()).unwrap(),
+        }
+    }
+    let var = |k: &str| (k == "HOME").then(|| home.clone());
+    let at = |rel: &Value| match rel.as_str().unwrap() {
+        "" => String::new(),
+        rel => format!("{home}/{rel}"),
+    };
+    let mut before = snapshot(tmp.path());
+    for (i, case) in fx["steps"].as_array().unwrap().iter().enumerate() {
+        let step = &case["step"];
+        let result = match step[0].as_str().unwrap() {
+            "lists" => serde_json::json!({ "pcsx2": emucfg::pcsx2_inis(&at(&step[1]), &var, true), "docs": emucfg::docs_dirs(&var), "dolphin": emucfg::dolphin_user_dirs(&at(&step[1]), &var) }),
+            "quietEden" => Value::from(emucfg::quiet_eden(&at(&step[1]), &var)),
+            "afterExit" => {
+                emucfg::after_exit(step[1].as_str().unwrap(), &at(&step[2]), &var);
+                Value::Null
+            }
+            "setIni" => {
+                let want: Vec<(&str, &str)> = step[3].as_object().unwrap().iter().map(|(k, v)| (k.as_str(), v.as_str().unwrap())).collect();
+                Value::from(emucfg::set_ini(&at(&step[1]), step[2].as_str().unwrap(), &want).unwrap())
+            }
+            "pcsx2NoConfirm" => Value::from(emucfg::pcsx2_no_confirm(&at(&step[1]), &var)),
+            "rpcs3NoConfirm" => Value::from(emucfg::rpcs3_no_confirm(&at(&step[1]))),
+            "dolphinQuitPads" => Value::from(emucfg::dolphin_quit_pads(&at(&step[1]), step[2].as_str().unwrap(), &var)),
+            "restoreBackups" => {
+                let emus: Vec<(String, String)> = step[1].as_object().unwrap().iter().map(|(k, v)| (k.clone(), at(v))).collect();
+                Value::from(emucfg::restore_backups(&emus, &var))
+            }
+            other => panic!("unknown step {other}"),
+        };
+        let now = snapshot(tmp.path());
+        let mut changed = serde_json::Map::new();
+        for k in before.keys().chain(now.keys()).collect::<std::collections::BTreeSet<_>>() {
+            if before.get(k) != now.get(k) {
+                changed.insert(k.clone(), now.get(k).cloned().unwrap_or(Value::Null));
+            }
+        }
+        let got = serde_json::json!({ "result": result, "changed": changed.into_iter().collect::<std::collections::BTreeMap<_, _>>() });
+        let want = serde_json::json!({ "result": case["result"], "changed": case["changed"].as_object().unwrap().iter().collect::<std::collections::BTreeMap<_, _>>() });
+        assert_eq!(serde_json::to_string_pretty(&got).unwrap().replace(&home, "{home}"), serde_json::to_string_pretty(&want).unwrap(), "step {i}: {step}");
+        before = now;
+    }
+}

@@ -5,7 +5,7 @@ use std::sync::mpsc::{channel, Receiver, TryRecvError};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
-use rustyshelf_core::emuname;
+use rustyshelf_core::{emucfg, emuname};
 use rustyshelf_core::history::History;
 use rustyshelf_core::launch::{self, LaunchError};
 use rustyshelf_core::paths;
@@ -26,7 +26,14 @@ impl Default for Plays {
     }
 }
 
-/// A console game's emulator once it runs, and the name it's shown by.
+/// A console game's emulator while it runs.
+struct Emulator {
+    console: String,
+    exe: String,
+    /// when it started (seconds): one that closes right away wasn't a play
+    at: f32,
+}
+
 type Started = Result<(Child, String), LaunchError>;
 
 /// The game that's starting or running: the shelf waits for it.
@@ -37,8 +44,8 @@ pub struct Playing {
     /// still being started (a PS5 build's options are asked for first, which can take seconds)
     starting: Option<Mutex<Receiver<Started>>>,
     child: Option<Mutex<Child>>,
-    /// a console game's emulator, and when it started (seconds): one that closes right away wasn't a play
-    emulator: Option<(String, f32)>,
+    console: String,
+    emulator: Option<Emulator>,
 }
 
 /// An emulator that closes by itself this soon (a missing BIOS, keys or firmware, bad launch options) wasn't a play.
@@ -163,8 +170,13 @@ pub fn navigate(
         (ShelfKind::Console { console, config }, Source::Rom) => {
             let (tx, rx) = channel();
             let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
+            playing.console = console.id.clone();
             std::thread::spawn(move || {
-                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| Ok((launch::start(&p)?, emuname::label(&p.exe.to_string_lossy()))));
+                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| {
+                    let exe = p.exe.to_string_lossy().into_owned();
+                    emucfg::before_launch(&console.id, &exe, cfg.quit_combo().as_deref(), &paths::env_var);
+                    Ok((launch::start(&p)?, exe))
+                });
                 let _ = tx.send(started);
             });
             playing.title = Some(g.title.clone());
@@ -193,12 +205,12 @@ pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut to
     let now = time.elapsed_secs();
     match started {
         None | Some(Err(TryRecvError::Empty)) => {}
-        Some(Ok(Ok((child, emulator)))) => {
+        Some(Ok(Ok((child, exe)))) => {
             info!("Launched {title}");
             plays.0.start(&playing.id);
             playing.starting = None;
             playing.child = Some(Mutex::new(child));
-            playing.emulator = Some((emulator, now));
+            playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now });
         }
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");
@@ -217,7 +229,12 @@ pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut to
         None => None,
     };
     let Some(code) = exited else { return };
-    match playing.emulator.take() {
+    let emulator = playing.emulator.take();
+    if let Some(e) = &emulator {
+        let (console, exe) = (e.console.clone(), e.exe.clone());
+        std::thread::spawn(move || emucfg::after_exit(&console, &exe, &paths::env_var));
+    }
+    match emulator.map(|e| (emuname::label(&e.exe), e.at)) {
         Some((emulator, at)) if now - at < QUICK_EXIT => {
             plays.0.undo();
             let code = code.filter(|c| *c != 0).map(|c| format!(" (code {c})")).unwrap_or_default();

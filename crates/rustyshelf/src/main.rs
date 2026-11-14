@@ -28,6 +28,7 @@ fn window_mode() -> WindowMode {
 
 fn main() {
     paths::quiet_drive_errors();
+    std::thread::spawn(|| rustyshelf_core::emucfg::init(&paths::env_var));
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {

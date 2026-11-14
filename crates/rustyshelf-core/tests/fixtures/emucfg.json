@@ -1,0 +1,756 @@
+{
+ "files": [
+  [
+   "eden/eden",
+   ""
+  ],
+  [
+   "eden/user/config/qt-config.ini",
+   "[Core]\r\nx=1\r\n[UI]\r\nconfirmClose=true\r\nconfirmStop = 0\r\nother=1\r\n[Zeta]\r\nconfirmClose=true\r\n"
+  ],
+  [
+   "apps/citron.AppImage",
+   ""
+  ],
+  [
+   ".config/citron/qt-config.ini",
+   "﻿[UI]\nPaths\\gamedirs\\size=5\nPaths\\gamedirs\\1\\path=/g1\nPaths\\gamedirs\\2\\path=/g2\nPaths\\gamedirs\\3\\path=/g3\nPaths\\gamedirs\\4\\path=/g4\nPaths\\gamedirs\\4\\deep_scan=false\nPaths\\gamedirs\\5\\path=/g5\nconfirmClose=false\n[Other]\nPaths\\gamedirs\\9\\path=/x\n"
+  ],
+  [
+   "yuzu/yuzu.exe",
+   ""
+  ],
+  [
+   "yuzu/user/config/qt-config.ini",
+   "[Core]\nx=1"
+  ],
+  [
+   "wide/eden",
+   ""
+  ],
+  [
+   "wide/user/config/qt-config.ini",
+   {
+    "b64": "//5bAFUASQBdAAoA"
+   }
+  ],
+  [
+   "ansi/suyu",
+   ""
+  ],
+  [
+   "ansi/user/config/qt-config.ini",
+   {
+    "b64": "W1VJXQpwYXRoPUM6XEpldXhcyWRpdGlvbnMK"
+   }
+  ],
+  [
+   "none/eden",
+   ""
+  ],
+  [
+   "ini/b.ini",
+   "; note\n[Core]\nKey=Old\n Other = 1 \nKey2 = same\n[Next]\nKey=x\n"
+  ],
+  [
+   "ini/c.ini",
+   "[A]\r\nx = 1"
+  ],
+  [
+   "ini/d.ini",
+   "[A]\nx = 1\n\n"
+  ],
+  [
+   "pcsx2/pcsx2-qt",
+   ""
+  ],
+  [
+   "pcsx2/portable.ini",
+   ""
+  ],
+  [
+   "pcsx2/inis/PCSX2.ini",
+   "[UI]\nConfirmShutdown = true\nx = 1\n"
+  ],
+  [
+   "Documents/PCSX2/inis/PCSX2.ini",
+   "[Other]\ny = 2\n"
+  ],
+  [
+   "plain/pcsx2-qt",
+   ""
+  ],
+  [
+   "OneDrive - Made Up/Dokumente/x",
+   ""
+  ],
+  [
+   "OneDrive/x",
+   ""
+  ],
+  [
+   "OneDriveNot/x",
+   ""
+  ],
+  [
+   "rpcs3/rpcs3",
+   ""
+  ],
+  [
+   "rpcs3/GuiConfigs/CurrentSettings.ini",
+   "[Meta]\nconfirmationBoxExitGame = true\n[x]\nconfirmationBoxExitGame=true\n"
+  ],
+  [
+   "rpcs3b/rpcs3",
+   ""
+  ],
+  [
+   "rpcs3b/GuiConfigs/CurrentSettings.ini",
+   "[Other]\na=1"
+  ],
+  [
+   "rpcs3c/rpcs3",
+   ""
+  ],
+  [
+   "rpcs3c/GuiConfigs/CurrentSettings.ini",
+   "[Meta]\nconfirmationBoxExitGame=false\n"
+  ],
+  [
+   "dol/Dolphin.exe",
+   ""
+  ],
+  [
+   "dol/portable.txt",
+   ""
+  ],
+  [
+   "dol/User/Config/Hotkeys.ini",
+   "[Hotkeys]\r\nDevice = XInput/0/Gamepad\r\nGeneral/Stop = `Back`&`Button B`\r\nGeneral/Open = `F2`\r\n"
+  ],
+  [
+   "dol/User/Config/WiimoteNew.ini",
+   "[Wiimote1]\r\nDevice = SDL/0/Pro Controller\r\n[Wiimote2]\r\nDevice = XInput/0/Gamepad\r\n[Wiimote3]\r\nDevice = DInput/0/Keyboard Mouse\r\n[Wiimote4]\r\nDevice = SDL/0/Pro Controller\r\n"
+  ],
+  [
+   "dol/User/Config/GCPadNew.ini",
+   "[GCPad1]\nDevice = WGInput/0/Made Up Pad\n"
+  ],
+  [
+   "dol2/Dolphin.exe",
+   ""
+  ],
+  [
+   "dol2/portable.txt",
+   ""
+  ],
+  [
+   "dol2/User/Config/Hotkeys.ini",
+   "[Hotkeys]\nDevice = SDL/0/Main Pad\nGeneral/Stop = `F1` | (`SDL/1/Other:Thumb L`&`SDL/1/Other:Thumb R`) | (`Ctrl` & (`Q`|`W`))\n"
+  ],
+  [
+   "dol2/User/Config/GCPadNew.ini",
+   "[GCPad1]\nDevice = SDL/1/Other\n[GCPad2]\nDevice = SDL/0/Main Pad\n"
+  ],
+  [
+   "dol3/Dolphin.exe",
+   ""
+  ],
+  [
+   "dol3/portable.txt",
+   ""
+  ],
+  [
+   "dol3/User/Config/Hotkeys.ini",
+   "[Other]\nx = 1\n"
+  ],
+  [
+   "dol3/User/Config/WiimoteNew.ini",
+   "[Wiimote1]\nDevice = SDL/2/Third\n"
+  ],
+  [
+   "dol4/Dolphin.exe",
+   ""
+  ],
+  [
+   "dol4/portable.txt",
+   ""
+  ],
+  [
+   "dol4/User/Config/WiimoteNew.ini",
+   "[Wiimote1]\nDevice = SDL/2/Third\n"
+  ],
+  [
+   "dol5/Dolphin.exe",
+   ""
+  ],
+  [
+   "dol5/portable.txt",
+   ""
+  ],
+  [
+   "dol5/User/Config/Hotkeys.ini",
+   "[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Start`&`Back`) | (`SDL/0/Gone:Start`&`SDL/0/Gone:Back`)\n"
+  ],
+  [
+   "dol5/User/Config/GCPadNew.ini",
+   "[GCPad1]\nDevice = XInput/0/Gamepad\n"
+  ]
+ ],
+ "steps": [
+  {
+   "step": [
+    "lists",
+    "pcsx2/pcsx2-qt"
+   ],
+   "result": {
+    "pcsx2": [
+     "{home}/pcsx2/inis/PCSX2.ini",
+     "{home}/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documenti/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Dokumente/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documentos/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documenten/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Dokumenty/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Mes documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documenti/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Dokumente/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documentos/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documenten/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Dokumenty/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Mes documents/PCSX2/inis/PCSX2.ini",
+     "{home}/.config/PCSX2/inis/PCSX2.ini",
+     "{home}/.var/app/net.pcsx2.PCSX2/config/PCSX2/inis/PCSX2.ini"
+    ],
+    "docs": [
+     "{home}/Documents",
+     "{home}/OneDrive/Documents",
+     "{home}/OneDrive/Documenti",
+     "{home}/OneDrive/Dokumente",
+     "{home}/OneDrive/Documentos",
+     "{home}/OneDrive/Documenten",
+     "{home}/OneDrive/Dokumenty",
+     "{home}/OneDrive/Mes documents",
+     "{home}/OneDrive - Made Up/Documents",
+     "{home}/OneDrive - Made Up/Documenti",
+     "{home}/OneDrive - Made Up/Dokumente",
+     "{home}/OneDrive - Made Up/Documentos",
+     "{home}/OneDrive - Made Up/Documenten",
+     "{home}/OneDrive - Made Up/Dokumenty",
+     "{home}/OneDrive - Made Up/Mes documents"
+    ],
+    "dolphin": [
+     "{home}/Documents/Dolphin Emulator",
+     "{home}/OneDrive/Documents/Dolphin Emulator",
+     "{home}/OneDrive/Documenti/Dolphin Emulator",
+     "{home}/OneDrive/Dokumente/Dolphin Emulator",
+     "{home}/OneDrive/Documentos/Dolphin Emulator",
+     "{home}/OneDrive/Documenten/Dolphin Emulator",
+     "{home}/OneDrive/Dokumenty/Dolphin Emulator",
+     "{home}/OneDrive/Mes documents/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documents/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documenti/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Dokumente/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documentos/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documenten/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Dokumenty/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Mes documents/Dolphin Emulator",
+     "{home}/AppData/Roaming/Dolphin Emulator"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "lists",
+    "plain/pcsx2-qt"
+   ],
+   "result": {
+    "pcsx2": [
+     "{home}/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documenti/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Dokumente/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documentos/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documenten/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Dokumenty/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Mes documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documenti/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Dokumente/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documentos/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documenten/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Dokumenty/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Mes documents/PCSX2/inis/PCSX2.ini",
+     "{home}/.config/PCSX2/inis/PCSX2.ini",
+     "{home}/.var/app/net.pcsx2.PCSX2/config/PCSX2/inis/PCSX2.ini"
+    ],
+    "docs": [
+     "{home}/Documents",
+     "{home}/OneDrive/Documents",
+     "{home}/OneDrive/Documenti",
+     "{home}/OneDrive/Dokumente",
+     "{home}/OneDrive/Documentos",
+     "{home}/OneDrive/Documenten",
+     "{home}/OneDrive/Dokumenty",
+     "{home}/OneDrive/Mes documents",
+     "{home}/OneDrive - Made Up/Documents",
+     "{home}/OneDrive - Made Up/Documenti",
+     "{home}/OneDrive - Made Up/Dokumente",
+     "{home}/OneDrive - Made Up/Documentos",
+     "{home}/OneDrive - Made Up/Documenten",
+     "{home}/OneDrive - Made Up/Dokumenty",
+     "{home}/OneDrive - Made Up/Mes documents"
+    ],
+    "dolphin": [
+     "{home}/Documents/Dolphin Emulator",
+     "{home}/OneDrive/Documents/Dolphin Emulator",
+     "{home}/OneDrive/Documenti/Dolphin Emulator",
+     "{home}/OneDrive/Dokumente/Dolphin Emulator",
+     "{home}/OneDrive/Documentos/Dolphin Emulator",
+     "{home}/OneDrive/Documenten/Dolphin Emulator",
+     "{home}/OneDrive/Dokumenty/Dolphin Emulator",
+     "{home}/OneDrive/Mes documents/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documents/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documenti/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Dokumente/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documentos/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documenten/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Dokumenty/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Mes documents/Dolphin Emulator",
+     "{home}/AppData/Roaming/Dolphin Emulator"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "lists",
+    ""
+   ],
+   "result": {
+    "pcsx2": [
+     "{home}/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documenti/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Dokumente/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documentos/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Documenten/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Dokumenty/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive/Mes documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documents/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documenti/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Dokumente/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documentos/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Documenten/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Dokumenty/PCSX2/inis/PCSX2.ini",
+     "{home}/OneDrive - Made Up/Mes documents/PCSX2/inis/PCSX2.ini",
+     "{home}/.config/PCSX2/inis/PCSX2.ini",
+     "{home}/.var/app/net.pcsx2.PCSX2/config/PCSX2/inis/PCSX2.ini"
+    ],
+    "docs": [
+     "{home}/Documents",
+     "{home}/OneDrive/Documents",
+     "{home}/OneDrive/Documenti",
+     "{home}/OneDrive/Dokumente",
+     "{home}/OneDrive/Documentos",
+     "{home}/OneDrive/Documenten",
+     "{home}/OneDrive/Dokumenty",
+     "{home}/OneDrive/Mes documents",
+     "{home}/OneDrive - Made Up/Documents",
+     "{home}/OneDrive - Made Up/Documenti",
+     "{home}/OneDrive - Made Up/Dokumente",
+     "{home}/OneDrive - Made Up/Documentos",
+     "{home}/OneDrive - Made Up/Documenten",
+     "{home}/OneDrive - Made Up/Dokumenty",
+     "{home}/OneDrive - Made Up/Mes documents"
+    ],
+    "dolphin": [
+     "{home}/Documents/Dolphin Emulator",
+     "{home}/OneDrive/Documents/Dolphin Emulator",
+     "{home}/OneDrive/Documenti/Dolphin Emulator",
+     "{home}/OneDrive/Dokumente/Dolphin Emulator",
+     "{home}/OneDrive/Documentos/Dolphin Emulator",
+     "{home}/OneDrive/Documenten/Dolphin Emulator",
+     "{home}/OneDrive/Dokumenty/Dolphin Emulator",
+     "{home}/OneDrive/Mes documents/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documents/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documenti/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Dokumente/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documentos/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Documenten/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Dokumenty/Dolphin Emulator",
+     "{home}/OneDrive - Made Up/Mes documents/Dolphin Emulator",
+     "{home}/AppData/Roaming/Dolphin Emulator"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "quietEden",
+    "eden/eden"
+   ],
+   "result": true,
+   "changed": {
+    "eden/user/config/qt-config.ini": "[Core]\r\nx=1\r\n[UI]\r\nconfirmClose\\default=false\r\nconfirmStop\\default=false\r\nconfirmClose=false\r\nconfirmStop=2\r\nother=1\r\n[Zeta]\r\nconfirmClose=true\r\n",
+    "eden/user/config/qt-config.ini.rustyshelf-bak": "[Core]\r\nx=1\r\n[UI]\r\nconfirmClose=true\r\nconfirmStop = 0\r\nother=1\r\n[Zeta]\r\nconfirmClose=true\r\n"
+   }
+  },
+  {
+   "step": [
+    "quietEden",
+    "eden/eden"
+   ],
+   "result": true,
+   "changed": {}
+  },
+  {
+   "step": [
+    "quietEden",
+    "apps/citron.AppImage"
+   ],
+   "result": true,
+   "changed": {
+    ".config/citron/qt-config.ini": "﻿[UI]\nconfirmClose\\default=false\nconfirmStop=2\nconfirmStop\\default=false\nPaths\\gamedirs\\size=3\nPaths\\gamedirs\\1\\path=/g1\nPaths\\gamedirs\\2\\path=/g2\nPaths\\gamedirs\\3\\path=/g3\nconfirmClose=false\n[Other]\n",
+    ".config/citron/.rustyshelf-citron-gamedirs.json": "{\"originalSize\":5,\"lines\":[\"Paths\\\\gamedirs\\\\4\\\\path=/g4\",\"Paths\\\\gamedirs\\\\4\\\\deep_scan=false\",\"Paths\\\\gamedirs\\\\5\\\\path=/g5\",\"Paths\\\\gamedirs\\\\9\\\\path=/x\"]}",
+    ".config/citron/qt-config.ini.rustyshelf-bak": "﻿[UI]\nPaths\\gamedirs\\size=5\nPaths\\gamedirs\\1\\path=/g1\nPaths\\gamedirs\\2\\path=/g2\nPaths\\gamedirs\\3\\path=/g3\nPaths\\gamedirs\\4\\path=/g4\nPaths\\gamedirs\\4\\deep_scan=false\nPaths\\gamedirs\\5\\path=/g5\nconfirmClose=false\n[Other]\nPaths\\gamedirs\\9\\path=/x\n"
+   }
+  },
+  {
+   "step": [
+    "quietEden",
+    "apps/citron.AppImage"
+   ],
+   "result": true,
+   "changed": {}
+  },
+  {
+   "step": [
+    "afterExit",
+    "sw",
+    "apps/citron.AppImage"
+   ],
+   "result": null,
+   "changed": {
+    ".config/citron/.rustyshelf-citron-gamedirs.json": null,
+    ".config/citron/qt-config.ini": "﻿[UI]\nconfirmClose\\default=false\nconfirmStop=2\nconfirmStop\\default=false\nPaths\\gamedirs\\size=5\nPaths\\gamedirs\\1\\path=/g1\nPaths\\gamedirs\\2\\path=/g2\nPaths\\gamedirs\\3\\path=/g3\nPaths\\gamedirs\\4\\path=/g4\nPaths\\gamedirs\\4\\deep_scan=false\nPaths\\gamedirs\\5\\path=/g5\nPaths\\gamedirs\\9\\path=/x\nconfirmClose=false\n[Other]\n"
+   }
+  },
+  {
+   "step": [
+    "afterExit",
+    "gc",
+    "apps/citron.AppImage"
+   ],
+   "result": null,
+   "changed": {}
+  },
+  {
+   "step": [
+    "quietEden",
+    "yuzu/yuzu.exe"
+   ],
+   "result": true,
+   "changed": {
+    "yuzu/user/config/qt-config.ini": "[Core]\nx=1\n[UI]\nconfirmClose=false\nconfirmClose\\default=false\nconfirmStop=2\nconfirmStop\\default=false",
+    "yuzu/user/config/qt-config.ini.rustyshelf-bak": "[Core]\nx=1"
+   }
+  },
+  {
+   "step": [
+    "quietEden",
+    "wide/eden"
+   ],
+   "result": false,
+   "changed": {}
+  },
+  {
+   "step": [
+    "quietEden",
+    "ansi/suyu"
+   ],
+   "result": false,
+   "changed": {}
+  },
+  {
+   "step": [
+    "quietEden",
+    "none/eden"
+   ],
+   "result": true,
+   "changed": {
+    ".config/citron/qt-config.ini": "﻿[UI]\nconfirmClose\\default=false\nconfirmStop=2\nconfirmStop\\default=false\nPaths\\gamedirs\\size=3\nPaths\\gamedirs\\1\\path=/g1\nPaths\\gamedirs\\2\\path=/g2\nPaths\\gamedirs\\3\\path=/g3\nconfirmClose=false\n[Other]\n",
+    ".config/citron/.rustyshelf-citron-gamedirs.json": "{\"originalSize\":5,\"lines\":[\"Paths\\\\gamedirs\\\\4\\\\path=/g4\",\"Paths\\\\gamedirs\\\\4\\\\deep_scan=false\",\"Paths\\\\gamedirs\\\\5\\\\path=/g5\",\"Paths\\\\gamedirs\\\\9\\\\path=/x\"]}"
+   }
+  },
+  {
+   "step": [
+    "setIni",
+    "ini/a.ini",
+    "New",
+    {
+     "K": "v",
+     "K 2": "w"
+    }
+   ],
+   "result": true,
+   "changed": {
+    "ini/a.ini": "[New]\nK = v\nK 2 = w\n"
+   }
+  },
+  {
+   "step": [
+    "setIni",
+    "ini/b.ini",
+    "Core",
+    {
+     "Key": "New",
+     "Other": "1",
+     "Key2": "same",
+     "Added": "yes"
+    }
+   ],
+   "result": true,
+   "changed": {
+    "ini/b.ini": "; note\n[Core]\nAdded = yes\nKey = New\n Other = 1 \nKey2 = same\n[Next]\nKey=x\n",
+    "ini/b.ini.rustyshelf-bak": "; note\n[Core]\nKey=Old\n Other = 1 \nKey2 = same\n[Next]\nKey=x\n"
+   }
+  },
+  {
+   "step": [
+    "setIni",
+    "ini/b.ini",
+    "Core",
+    {
+     "Key": "New"
+    }
+   ],
+   "result": false,
+   "changed": {}
+  },
+  {
+   "step": [
+    "setIni",
+    "ini/c.ini",
+    "B",
+    {
+     "y": "2"
+    }
+   ],
+   "result": true,
+   "changed": {
+    "ini/c.ini": "[A]\r\nx = 1\r\n\r\n[B]\r\ny = 2\r\n",
+    "ini/c.ini.rustyshelf-bak": "[A]\r\nx = 1"
+   }
+  },
+  {
+   "step": [
+    "setIni",
+    "ini/d.ini",
+    "B",
+    {
+     "y": "2"
+    }
+   ],
+   "result": true,
+   "changed": {
+    "ini/d.ini": "[A]\nx = 1\n\n\n[B]\ny = 2\n",
+    "ini/d.ini.rustyshelf-bak": "[A]\nx = 1\n\n"
+   }
+  },
+  {
+   "step": [
+    "setIni",
+    "ini/d.ini",
+    "A",
+    {
+     "x": "3"
+    }
+   ],
+   "result": true,
+   "changed": {
+    "ini/d.ini": "[A]\nx = 3\n\n\n[B]\ny = 2\n"
+   }
+  },
+  {
+   "step": [
+    "pcsx2NoConfirm",
+    "pcsx2/pcsx2-qt"
+   ],
+   "result": true,
+   "changed": {
+    "pcsx2/inis/PCSX2.ini": "[UI]\nConfirmShutdown = false\nx = 1\n",
+    "pcsx2/inis/PCSX2.ini.rustyshelf-bak": "[UI]\nConfirmShutdown = true\nx = 1\n"
+   }
+  },
+  {
+   "step": [
+    "pcsx2NoConfirm",
+    "plain/pcsx2-qt"
+   ],
+   "result": true,
+   "changed": {
+    "Documents/PCSX2/inis/PCSX2.ini": "[Other]\ny = 2\n\n[UI]\nConfirmShutdown = false\n",
+    "Documents/PCSX2/inis/PCSX2.ini.rustyshelf-bak": "[Other]\ny = 2\n"
+   }
+  },
+  {
+   "step": [
+    "rpcs3NoConfirm",
+    "rpcs3/rpcs3"
+   ],
+   "result": true,
+   "changed": {
+    "rpcs3/GuiConfigs/CurrentSettings.ini": "[Meta]\nconfirmationBoxExitGame=false\n[x]\nconfirmationBoxExitGame=true\n",
+    "rpcs3/GuiConfigs/CurrentSettings.ini.rustyshelf-bak": "[Meta]\nconfirmationBoxExitGame = true\n[x]\nconfirmationBoxExitGame=true\n"
+   }
+  },
+  {
+   "step": [
+    "rpcs3NoConfirm",
+    "rpcs3b/rpcs3"
+   ],
+   "result": true,
+   "changed": {
+    "rpcs3b/GuiConfigs/CurrentSettings.ini": "[Other]\na=1\n[Meta]\nconfirmationBoxExitGame=false",
+    "rpcs3b/GuiConfigs/CurrentSettings.ini.rustyshelf-bak": "[Other]\na=1"
+   }
+  },
+  {
+   "step": [
+    "rpcs3NoConfirm",
+    "rpcs3c/rpcs3"
+   ],
+   "result": true,
+   "changed": {}
+  },
+  {
+   "step": [
+    "rpcs3NoConfirm",
+    "none/rpcs3"
+   ],
+   "result": false,
+   "changed": {}
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol/Dolphin.exe",
+    "l3+r3"
+   ],
+   "result": true,
+   "changed": {
+    "dol/User/Config/Hotkeys.ini": "[Hotkeys]\r\nDevice = XInput/0/Gamepad\r\nGeneral/Stop = (`Back`&`Button B`) | (`SDL/0/Pro Controller:Thumb L`&`SDL/0/Pro Controller:Thumb R`) | (`WGInput/0/Made Up Pad:Thumb L`&`WGInput/0/Made Up Pad:Thumb R`)\r\nGeneral/Open = `F2`\r\n",
+    "dol/User/Config/Hotkeys.ini.rustyshelf-bak": "[Hotkeys]\r\nDevice = XInput/0/Gamepad\r\nGeneral/Stop = `Back`&`Button B`\r\nGeneral/Open = `F2`\r\n"
+   }
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol/Dolphin.exe",
+    "back+b"
+   ],
+   "result": true,
+   "changed": {
+    "dol/User/Config/Hotkeys.ini": "[Hotkeys]\r\nDevice = XInput/0/Gamepad\r\nGeneral/Stop = (`Back`&`Button B`) | (`SDL/0/Pro Controller:Back`&`SDL/0/Pro Controller:Button E`) | (`WGInput/0/Made Up Pad:Back`&`WGInput/0/Made Up Pad:Button B`)\r\nGeneral/Open = `F2`\r\n"
+   }
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol/Dolphin.exe",
+    "nope"
+   ],
+   "result": false,
+   "changed": {}
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol2/Dolphin.exe",
+    "lb+rb+start"
+   ],
+   "result": true,
+   "changed": {
+    "dol2/User/Config/Hotkeys.ini": "[Hotkeys]\nDevice = SDL/0/Main Pad\nGeneral/Stop = (`F1` | (`Ctrl` & (`Q`|`W`))) | (`SDL/1/Other:Shoulder L`&`SDL/1/Other:Shoulder R`&`SDL/1/Other:Start`)\n",
+    "dol2/User/Config/Hotkeys.ini.rustyshelf-bak": "[Hotkeys]\nDevice = SDL/0/Main Pad\nGeneral/Stop = `F1` | (`SDL/1/Other:Thumb L`&`SDL/1/Other:Thumb R`) | (`Ctrl` & (`Q`|`W`))\n"
+   }
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol3/Dolphin.exe",
+    "start+back"
+   ],
+   "result": true,
+   "changed": {
+    "dol3/User/Config/Hotkeys.ini": "[Other]\nx = 1\n\n[Hotkeys]\nGeneral/Stop = (`Start`&`Back`) | (`SDL/2/Third:Start`&`SDL/2/Third:Back`)\n",
+    "dol3/User/Config/Hotkeys.ini.rustyshelf-bak": "[Other]\nx = 1\n"
+   }
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol4/Dolphin.exe",
+    "l3+r3"
+   ],
+   "result": false,
+   "changed": {}
+  },
+  {
+   "step": [
+    "dolphinQuitPads",
+    "dol5/Dolphin.exe",
+    "l3+r3"
+   ],
+   "result": true,
+   "changed": {
+    "dol5/User/Config/Hotkeys.ini": "[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Thumb L`&`Thumb R`)\n",
+    "dol5/User/Config/Hotkeys.ini.rustyshelf-bak": "[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Start`&`Back`) | (`SDL/0/Gone:Start`&`SDL/0/Gone:Back`)\n"
+   }
+  },
+  {
+   "step": [
+    "restoreBackups",
+    {
+     "gc": "dol/Dolphin.exe",
+     "wii": "dol2/Dolphin.exe",
+     "sw": "eden/eden",
+     "sw2": "apps/citron.AppImage",
+     "ps2": "pcsx2/pcsx2-qt",
+     "ps3": "rpcs3/rpcs3",
+     "x360": ""
+    }
+   ],
+   "result": [
+    "{home}/dol/User/Config/Hotkeys.ini",
+    "{home}/dol2/User/Config/Hotkeys.ini",
+    "{home}/eden/user/config/qt-config.ini",
+    "{home}/.config/citron/qt-config.ini",
+    "{home}/pcsx2/inis/PCSX2.ini",
+    "{home}/Documents/PCSX2/inis/PCSX2.ini",
+    "{home}/rpcs3/GuiConfigs/CurrentSettings.ini"
+   ],
+   "changed": {
+    ".config/citron/.rustyshelf-citron-gamedirs.json": null,
+    ".config/citron/qt-config.ini": "﻿[UI]\nPaths\\gamedirs\\size=5\nPaths\\gamedirs\\1\\path=/g1\nPaths\\gamedirs\\2\\path=/g2\nPaths\\gamedirs\\3\\path=/g3\nPaths\\gamedirs\\4\\path=/g4\nPaths\\gamedirs\\4\\deep_scan=false\nPaths\\gamedirs\\5\\path=/g5\nconfirmClose=false\n[Other]\nPaths\\gamedirs\\9\\path=/x\n",
+    ".config/citron/qt-config.ini.rustyshelf-bak": null,
+    "Documents/PCSX2/inis/PCSX2.ini": "[Other]\ny = 2\n",
+    "Documents/PCSX2/inis/PCSX2.ini.rustyshelf-bak": null,
+    "dol/User/Config/Hotkeys.ini": "[Hotkeys]\r\nDevice = XInput/0/Gamepad\r\nGeneral/Stop = `Back`&`Button B`\r\nGeneral/Open = `F2`\r\n",
+    "dol/User/Config/Hotkeys.ini.rustyshelf-bak": null,
+    "dol2/User/Config/Hotkeys.ini": "[Hotkeys]\nDevice = SDL/0/Main Pad\nGeneral/Stop = `F1` | (`SDL/1/Other:Thumb L`&`SDL/1/Other:Thumb R`) | (`Ctrl` & (`Q`|`W`))\n",
+    "dol2/User/Config/Hotkeys.ini.rustyshelf-bak": null,
+    "eden/user/config/qt-config.ini": "[Core]\r\nx=1\r\n[UI]\r\nconfirmClose=true\r\nconfirmStop = 0\r\nother=1\r\n[Zeta]\r\nconfirmClose=true\r\n",
+    "eden/user/config/qt-config.ini.rustyshelf-bak": null,
+    "pcsx2/inis/PCSX2.ini": "[UI]\nConfirmShutdown = true\nx = 1\n",
+    "pcsx2/inis/PCSX2.ini.rustyshelf-bak": null,
+    "rpcs3/GuiConfigs/CurrentSettings.ini": "[Meta]\nconfirmationBoxExitGame = true\n[x]\nconfirmationBoxExitGame=true\n",
+    "rpcs3/GuiConfigs/CurrentSettings.ini.rustyshelf-bak": null
+   }
+  }
+ ]
+}
