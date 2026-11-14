@@ -68,6 +68,12 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
     }
     // a console's shelf with nothing to show (its games all hidden) isn't shown
     lib.shelves.retain(|s| !s.games.is_empty());
+    // your own order of the shelves (ui.shelfOrder); the ones it doesn't name keep theirs, after the rest
+    let order: Vec<&str> = ui.and_then(|u| u.get("shelfOrder")).and_then(|o| o.as_array()).map(|o| o.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
+    if !order.is_empty() {
+        let place: std::collections::HashMap<String, usize> = lib.shelves.iter().enumerate().map(|(i, s)| (s.id.clone(), order.iter().position(|o| *o == s.id).unwrap_or(1000 + i))).collect();
+        lib.shelves.sort_by_key(|s| place[&s.id]);
+    }
     // Home, All and the collections come first, in their own order
     let mut shelves = rustyshelf_core::shelfview::mixed_shelves(&base.shelves, base.config.raw().get("ui"), history);
     shelves.append(&mut lib.shelves);
@@ -183,6 +189,8 @@ pub enum Art {
     Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32>, seed: Option<u32> },
     /// the cover of one of the shelf's own cases
     Tile { look: Box<Look>, tile: Tile },
+    /// a picture in greys, this bright and with this much contrast: a game that isn't installed
+    Grey(Box<Art>, f32, f32),
     Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
     /// a spine painted `width` × `height` pixels, two to a pixel of the shelf: `edge` is the case's border there
     Spine { look: Box<Look>, title: String, label: String, width: u32, height: u32, edge: f32 },
@@ -195,6 +203,7 @@ impl Art {
             Art::File(p) => p.clone(),
             Art::Front { look, title, region, hue, seed, .. } => PathBuf::from(format!("drawn:{}|f|{title}|{region}|{hue:?}|{seed:?}", look.id)),
             Art::Tile { look, tile } => PathBuf::from(format!("drawn:{}|t|{tile:?}", look.id)),
+            Art::Grey(of, bright, contrast) => PathBuf::from(format!("grey:{bright}:{contrast}:{}", of.key().display())),
             Art::Back { look, title, facts, blurb } => {
                 let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).collect();
                 PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
@@ -210,6 +219,15 @@ impl Art {
             Art::Front { look, title, region, scene, hue, seed } => drawn(rustyshelf_core::drawn::front_from(look, title, region, *scene, *hue, seed.unwrap_or_else(|| rustyshelf_core::drawn::hash(title)))),
             Art::Tile { look, tile: Tile::Surprise } => drawn(rustyshelf_core::drawn::surprise(look)),
             Art::Tile { look, .. } => drawn(rustyshelf_core::drawn::add_games(look)),
+            // CSS's grayscale(1) brightness(b) contrast(c)
+            Art::Grey(of, bright, contrast) => of.make().map(|(w, h, mut rgba)| {
+                for px in rgba.as_chunks_mut::<4>().0 {
+                    let grey = 0.2126 * f32::from(px[0]) + 0.7152 * f32::from(px[1]) + 0.0722 * f32::from(px[2]);
+                    let v = ((grey * bright / 255.0 - 0.5) * contrast + 0.5).clamp(0.0, 1.0);
+                    px[..3].fill((v * 255.0).round() as u8);
+                }
+                (w, h, rgba)
+            }),
             Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
             Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
         }

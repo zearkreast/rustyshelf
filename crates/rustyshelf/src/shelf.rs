@@ -42,7 +42,7 @@ const MIRROR_TOP: f32 = 0.11;
 const WHITE: f32 = 0.7;
 
 /// Which game is chosen, on which shelf.
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct Cursor {
     pub shelf: usize,
     pub game: usize,
@@ -50,6 +50,14 @@ pub struct Cursor {
     pub built: Option<usize>,
     /// the chosen case shows its back
     pub flipped: bool,
+    /// a shelf just come to: its first game is chosen (past the shelf's own cases) when it's stood up
+    pub land: bool,
+}
+
+impl Default for Cursor {
+    fn default() -> Self {
+        Cursor { shelf: 0, game: 0, built: None, flipped: false, land: true }
+    }
 }
 
 /// The hue the floor, the halo and the tabs are lit in: the theme's, for the shelf's colour under the chosen case.
@@ -347,6 +355,7 @@ pub struct Kit {
     /// the pale strip of floor that mirrors a case
     strip: Handle<StandardMaterial>,
     mirror: Handle<Mesh>,
+    heart: Handle<StandardMaterial>,
     /// the case the plastic and the light were painted for
     made_for: (f32, f32),
 }
@@ -425,6 +434,7 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
         shade: [clear(&mut materials, Color::WHITE), clear(&mut materials, Color::WHITE), clear(&mut materials, Color::WHITE)],
         strip: materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, cull_mode: None, double_sided: true, ..default() }),
         mirror: meshes.add(mirror()),
+        heart: clear(&mut materials, Color::WHITE),
         made_for: (0.0, 0.0),
     });
 }
@@ -487,6 +497,7 @@ pub fn measure(
             }
         };
         wear(&kit.rim, picture(&mut images, rim_picture(now.bw, now.bh)));
+        wear(&kit.heart, picture(&mut images, rustyshelf_core::drawn::heart(104)));
         // the curve of a spine, as style.css and setup.css shade it (.f-left::after chosen and not, .f-right::after)
         for (m, css) in kit.shade.iter().zip([
             "linear-gradient(90deg,rgba(0,0,0,.15),rgba(255,255,255,.14) 45%,rgba(0,0,0,.2))",
@@ -576,7 +587,11 @@ pub fn build_shelf(
     covers.waiting.clear();
     let shelf = &library.shelves[cursor.shelf];
     cursor.built = Some(cursor.shelf);
+    if std::mem::take(&mut cursor.land) {
+        cursor.game = shelf.games.iter().position(|g| !matches!(g.source, Source::Tile(_))).unwrap_or(0);
+    }
     cursor.game = cursor.game.min(shelf.games.len().saturating_sub(1));
+    let favourites: Vec<&str> = library.config.raw().get("ui").and_then(|u| u.get("favorites")).and_then(|f| f.as_array()).map(|f| f.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
     cursor.flipped = false;
     surprise.pick = None;
 
@@ -603,6 +618,9 @@ pub fn build_shelf(
             _ => None,
         };
         let (cover, hue) = cover_of(g, &own.id, &look);
+        // a game that isn't installed stands in greys (style.css .slot.notinst)
+        let grey = |art: Art, bright: f32, contrast: f32| if g.not_installed { Art::Grey(Box::new(art), bright, contrast) } else { art };
+        let cover = grey(cover, 0.55, 0.9);
         let front_key = cover.key();
         covers.want(cover.clone(), (front.clone(), sheet_w / sheet_h), &loader, &mut materials);
         covers.want(cover, (mirrored.clone(), sheet_w / sheet_h), &loader, &mut materials);
@@ -613,7 +631,7 @@ pub fn build_shelf(
             _ => look.spine_band.as_ref().map_or(String::new(), |b| b.label.clone()),
         };
         let drawn = Art::Spine { look: Box::new(look.clone()), title: g.title.clone(), label, width: (stage.bh * d * 2.0).round().max(2.0) as u32, height: (stage.bh * 2.0).round().max(2.0) as u32, edge: edge * stage.bh };
-        covers.want(drawn, (spine.clone(), 0.0), &loader, &mut materials);
+        covers.want(grey(drawn, 0.6, 1.0), (spine.clone(), 0.0), &loader, &mut materials);
         let mut late = vec![(
             match g.art.back.clone() {
                 Some(path) => Art::File(path),
@@ -627,7 +645,7 @@ pub fn build_shelf(
         // a picture of the spine lies over the painted one, stretched to the sheet
         let spine_art = g.art.spine.clone().map(|path| {
             let sheet = materials.add(StandardMaterial { base_color: Color::NONE, unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
-            late.push((Art::File(path), (sheet.clone(), 0.0)));
+            late.push((grey(Art::File(path), 0.6, 1.0), (sheet.clone(), 0.0)));
             sheet
         });
 
@@ -684,6 +702,11 @@ pub fn build_shelf(
                 }
                 let floor = -0.5 - 3.0 / stage.bh;
                 b.spawn((OnChosen, Mesh3d(kit.mirror.clone()), MeshMaterial3d(mirrored), Transform::from_xyz(sheet_x, floor - edge, d / 2.0).with_scale(Vec3::new(sheet_w, sheet_h, 1.0)), Visibility::Hidden));
+                // a favourite's heart, in the corner of its cover: 26px across, 8px in
+                if favourites.contains(&g.id.as_str()) {
+                    let (size, inset) = (26.0 / stage.bh, 21.0 / stage.bh);
+                    b.spawn((mesh(), MeshMaterial3d(kit.heart.clone()), Transform::from_xyz(w / 2.0 - inset, 0.5 - inset, d / 2.0 + 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
+                }
                 // every case: a pale strip of floor under it
                 b.spawn((mesh(), MeshMaterial3d(kit.strip.clone()), Transform::from_xyz(0.0, floor - 0.19, d / 2.0).with_scale(Vec3::new(w, 0.38, 1.0))));
             });

@@ -526,6 +526,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
   A shelf has the Electron app's own cases among its games: Surprise me (Enter or R lands on a game, Enter again
   plays it), Open with the console's emulator, and Add games on a shelf that has none and at the end of Custom.
+  A favourite wears its heart, a game that isn't installed stands in greys, and the shelves keep the order given
+  them in the Electron app's Settings.
   A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
   under the console's band, and a back with four small scenes, its description and what Details knows of it.
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,

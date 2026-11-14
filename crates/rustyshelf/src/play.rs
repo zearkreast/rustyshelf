@@ -273,7 +273,7 @@ pub fn navigate(
         - (keys.just_pressed(KeyCode::ArrowUp) || keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::PageUp) || pad(GamepadButton::LeftTrigger2)) as i32;
     if shelf_step != 0 {
         cursor.shelf = (cursor.shelf as i32 + shelf_step).rem_euclid(n_shelves as i32) as usize;
-        cursor.game = 0;
+        cursor.land = true;
         sounds.play("shelf", shelf_step);
         return;
     }

@@ -665,6 +665,18 @@ pub fn add_games(look: &Look) -> Picture {
     picture(c)
 }
 
+/// The mark in the corner of a favourite's cover: a heart on a dark disc, `size` pixels across.
+pub fn heart(size: u32) -> Picture {
+    let mut c = Canvas { pix: Pixmap::new(size.max(1), size.max(1)).expect("a mark's size"), clip: None, t: Transform::identity() };
+    let s = size as f32;
+    c.fill(circle(s / 2.0, s / 2.0, s / 2.0), &solid(rgba(10, 10, 16, 0.75)));
+    let (face, tall) = (Face::Lexend(0), s * 14.0 / 26.0);
+    let f = font_for(face, '♥');
+    let rise = (f.ascent_unscaled() + f.descent_unscaled()) / 2.0 * tall / f.units_per_em().unwrap_or(1000.0);
+    c.text(face, "♥", tall, s / 2.0, s / 2.0 + rise, 0.5, &solid(rgba(0xff, 0x5c, 0x8a, 1.0)));
+    picture(c)
+}
+
 /// A case's spine as the shelf shows it when there's no picture of it: the printed sheet inside the case's border,
 /// the console's band at the top and the title running down it. `width` × `height` pixels, `scale` of them to a
 /// pixel of the shelf's own measure; `edge`: the border at the top and bottom, in that measure.
