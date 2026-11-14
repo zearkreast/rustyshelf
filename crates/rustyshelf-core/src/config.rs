@@ -53,6 +53,12 @@ impl std::fmt::Display for LoadError {
 
 impl std::error::Error for LoadError {}
 
+/// Launch options an older version saved as the default, which load as today's default (main/config.js OLD_DEFAULTS:
+/// keep in sync).
+fn old_default(console_id: &str, args: &str) -> bool {
+    matches!(console_id, "gc" | "wii") && args == r#"-b -e "{rom}""#
+}
+
 fn str_of<'a>(v: Option<&'a Value>, default: &'a str) -> &'a str {
     v.and_then(Value::as_str).unwrap_or(default)
 }
@@ -95,7 +101,7 @@ impl Config {
         SystemConfig {
             enabled: get("enabled").and_then(Value::as_bool).unwrap_or(true),
             emulator: str_of(get("emulator"), "").to_string(),
-            game_args: str_of(get("gameArgs"), &console.game_args).to_string(),
+            game_args: Some(str_of(get("gameArgs"), &console.game_args)).filter(|a| !old_default(&console.id, a)).unwrap_or(&console.game_args).to_string(),
             emulator_args: str_of(get("emulatorArgs"), &console.emulator_args).to_string(),
             rom_dirs: get("romDirs")
                 .and_then(Value::as_array)
@@ -166,6 +172,14 @@ mod tests {
         assert_eq!(s.rom_dirs, vec!["/g"]);
         assert_eq!(s.game_args, gc.game_args);
         assert_eq!(cfg.library_roots(), vec!["/g"]);
+    }
+
+    #[test]
+    fn old_default_launch_options() {
+        let cfg = Config::parse(r#"{"systems":{"gc":{"gameArgs":"-b -e \"{rom}\""},"wii":{"gameArgs":"-e \"{rom}\""}}}"#).unwrap();
+        let (gc, wii) = (systems().console("gc").unwrap(), systems().console("wii").unwrap());
+        assert_eq!(cfg.system(gc).game_args, gc.game_args);
+        assert_eq!(cfg.system(wii).game_args, r#"-e "{rom}""#);
     }
 
     #[test]
