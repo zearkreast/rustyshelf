@@ -545,8 +545,12 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   names (once), the size of unpacked Switch 2 games and of PC games' folders, and, unless box art downloads are off,
   the covers and store info Steam's own cache doesn't have. With box art downloads on, the other stores' games get
   the art of the Steam game with the same name. The shelf shows all of it as soon as it's in.
+- Downloads box art for console games missing a front, a back or a spine, unless box art downloads are off: fronts
+  from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
+  downloaded and built once). Each game is looked at once a week at most; a picture that's there is never replaced.
 
-**Not yet:** Settings and the setup wizard, art downloads, the open case and the museum, sounds and music, the Home menu
+**Not yet:** Settings and the setup wizard, the Art Studio and the art sources behind it (sharper scans over low-res
+pictures, spines cut from a full box wrap, GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu
 over a running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't
 started yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window
 mode and Seamless play are Electron-only too. Finding emulators and games folders, "Set up for me" and the settings
