@@ -48,6 +48,7 @@ pub mod steam;
 pub mod steamart;
 pub mod synth;
 pub mod systems;
+pub mod themefx;
 pub mod themes;
 pub mod titles;
 pub mod usermusic;

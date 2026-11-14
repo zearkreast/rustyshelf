@@ -16,6 +16,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rustyshelf_core::drawn::Picture;
 use rustyshelf_core::looks::{self, Rgba};
+use rustyshelf_core::themefx as themes_fx;
 use rustyshelf_core::themes;
 
 use crate::loading::{to_image, Art, ArtLoader, LibraryRes, LibraryState};
@@ -52,7 +53,11 @@ pub struct Cursor {
 
 /// The hue the floor, the halo and the tabs are lit in: the theme's, for the shelf's colour under the chosen case.
 #[derive(Resource, Default)]
-pub struct Lit(pub f32);
+pub struct Lit {
+    pub glow: f32,
+    /// the shelf's own colour there, before the theme turns it
+    pub shelf: f32,
+}
 
 /// The window and a case on the shelf, in CSS pixels (app.js measure()).
 #[derive(Resource, Clone, Copy, PartialEq, Default)]
@@ -132,11 +137,13 @@ pub struct OnChosen;
 #[derive(Component)]
 pub struct ShelfCamera;
 
-/// The backdrop's two pictures (the one fading in over the other) and the glow behind the chosen case.
+/// The backdrop's two pictures (the one fading in over the other), what moves over them in the theme, and the glow
+/// behind the chosen case.
 #[derive(Component)]
 pub enum Behind {
     Old,
     New,
+    Moving,
     Halo,
 }
 
@@ -401,6 +408,7 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
         children![
             (Behind::Old, whole(), ImageNode::default().with_color(Color::NONE)),
             (Behind::New, whole(), ImageNode::default().with_color(Color::NONE)),
+            (Behind::Moving, whole(), ImageNode::default().with_color(Color::NONE)),
             (Behind::Halo, Node { position_type: PositionType::Absolute, ..default() }, ImageNode::default().with_color(Color::NONE)),
         ],
     ));
@@ -778,8 +786,8 @@ pub fn backdrop(
     // the shelf's colour walks a little from its first case to its last (app.js shelfHue)
     let along = cursor.game as f64 / (shelf.games.len().max(2) - 1) as f64;
     let sh = f64::from(looks::look(&shelf.id).hue.unwrap_or(own)) + (along * 2.0 - 1.0) * 16.0;
-    lit_in.0 = themes::halo(&theme, sh, None) as f32;
-    let lit_hue = lit_in.0;
+    (lit_in.glow, lit_in.shelf) = (themes::halo(&theme, sh, None) as f32, sh as f32);
+    let lit_hue = lit_in.glow;
     // a backdrop of soft colours is painted small and stretched
     let part = if themes::fine(&theme) { window.scale_factor().min(1.5) } else { 0.25 };
     let wanted = Wanted { theme: theme.clone(), sh: (sh * 2.0).round() / 2.0, hue: f64::from(own), cover, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
@@ -807,7 +815,7 @@ pub fn backdrop(
     back.halo = (w, h);
     for (which, mut image, mut node) in &mut behind {
         match which {
-            Behind::Old => {}
+            Behind::Old | Behind::Moving => {}
             Behind::New => image.color = Color::srgba(1.0, 1.0, 1.0, fade),
             Behind::Halo => {
                 if repaint {
@@ -827,4 +835,118 @@ pub fn backdrop(
             }
         }
     }
+}
+
+/// A frame of the theme's moving layer to draw.
+struct Tick {
+    theme: String,
+    dt: f32,
+    hue: f32,
+    /// the layer's size in pixels, how many of them go to a pixel of the window, and how far down it the floor is
+    size: (u32, u32),
+    scale: f32,
+    floor: f32,
+}
+
+/// What moves behind the shelf in the theme, drawn off the frame thirty times a second.
+#[derive(Resource)]
+pub struct Moving {
+    ask: Sender<Tick>,
+    done: Mutex<Receiver<Picture>>,
+    /// a frame is being drawn
+    busy: bool,
+    last: f32,
+    image: Option<Handle<Image>>,
+}
+
+/// As many pixels as the layer is drawn with at most: a larger window's is drawn smaller and stretched.
+const MOVING_PIXELS: f32 = 1280.0 * 720.0;
+
+impl Default for Moving {
+    fn default() -> Self {
+        let (ask, ticks) = channel::<Tick>();
+        let (finished, done) = channel();
+        std::thread::spawn(move || {
+            // light over a dark backdrop comes out stronger in linear light than in the browser: its alpha, taken down
+            let dimmer: Vec<u8> = (0..256).map(|a| ((a as f32 / 255.0).powf(1.6) * 255.0).round() as u8).collect();
+            let mut made: Option<(themes_fx::Layer, (u32, u32), String, Vec<u8>)> = None;
+            while let Ok(tick) = ticks.recv() {
+                if made.as_ref().is_none_or(|m| m.1 != tick.size || m.2 != tick.theme) {
+                    let layer = match made.take() {
+                        Some((layer, size, ..)) if size == tick.size => layer,
+                        _ => themes_fx::Layer::new(tick.size.0, tick.size.1, tick.scale, tick.floor, tick.hue),
+                    };
+                    made = Some((layer, tick.size, tick.theme.clone(), themes::corners(&tick.theme, tick.size.0, tick.size.1)));
+                }
+                let Some((layer, _, _, corners)) = made.as_mut() else { continue };
+                let mut p = layer.frame(&tick.theme, tick.dt, tick.hue, 200.0);
+                // the theme's dark corners lie over what moves
+                for (px, light) in p.rgba.as_chunks_mut::<4>().0.iter_mut().zip(corners.iter()) {
+                    if px[3] > 0 {
+                        for c in &mut px[..3] {
+                            *c = ((u16::from(*c) * u16::from(*light) + 127) / 255) as u8;
+                        }
+                        px[3] = dimmer[usize::from(px[3])];
+                    }
+                }
+                if finished.send(p).is_err() {
+                    return;
+                }
+            }
+        });
+        Moving { ask, done: Mutex::new(done), busy: false, last: 0.0, image: None }
+    }
+}
+
+/// Draws the theme's moving layer on, while the shelf is the thing on screen.
+pub fn moving(
+    time: Res<Time>,
+    stage: Res<Stage>,
+    lit: Res<Lit>,
+    settings: Res<crate::settings::Settings>,
+    playing: Res<crate::play::Playing>,
+    mut moving: ResMut<Moving>,
+    mut images: ResMut<Assets<Image>>,
+    mut behind: Query<(&Behind, &mut ImageNode)>,
+) {
+    let Some((_, mut node)) = behind.iter_mut().find(|(which, _)| matches!(which, Behind::Moving)) else { return };
+    let theme = settings.theme();
+    if !themes_fx::moves(&theme) || stage.bh <= 0.0 {
+        node.color = Color::NONE;
+        return;
+    }
+    let now = time.elapsed_secs();
+    let frame = moving.done.lock().ok().and_then(|done| done.try_iter().last());
+    if let Some(p) = frame {
+        moving.busy = false;
+        let mut image = Image::new(
+            bevy::render::render_resource::Extent3d { width: p.width, height: p.height, depth_or_array_layers: 1 },
+            bevy::render::render_resource::TextureDimension::D2,
+            p.rgba,
+            bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::RENDER_WORLD,
+        );
+        // Arcade is made of pixels
+        if theme == "arcade" {
+            image.sampler = bevy::image::ImageSampler::nearest();
+        }
+        let handle = images.add(image);
+        node.image = handle.clone();
+        node.color = Color::WHITE;
+        moving.image = Some(handle);
+    }
+    if moving.busy || playing.title.is_some() || now - moving.last < 1.0 / 30.0 {
+        return;
+    }
+    let part = (MOVING_PIXELS / (stage.w * stage.h)).sqrt().min(1.0);
+    let tick = Tick {
+        theme,
+        dt: (now - moving.last).min(0.1),
+        hue: lit.shelf,
+        size: ((stage.w * part).round() as u32, (stage.h * part).round() as u32),
+        scale: part,
+        floor: (stage.h * EYE_Y + stage.bh / 2.0 - 10.0) / stage.h,
+    };
+    moving.last = now;
+    moving.busy = moving.ask.send(tick).is_ok();
 }

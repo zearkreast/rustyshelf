@@ -406,7 +406,7 @@ pub fn top(
     }
     // the bar takes the colour of the glow behind the shelf (setup.css: color-mix of the glow at .62 and the glass)
     if let Ok((_, mut bg, mut border)) = tabs.single_mut() {
-        let glow = Color::hsl(lit.0.rem_euclid(360.0), 0.95, 0.62).to_srgba();
+        let glow = Color::hsl(lit.glow.rem_euclid(360.0), 0.95, 0.62).to_srgba();
         let mix = |part: f32, with: [f32; 4]| {
             let (a, b) = (part * 0.62, (1.0 - part) * with[3]);
             Color::srgba((a * glow.red + b * with[0]) / (a + b), (a * glow.green + b * with[1]) / (a + b), (a * glow.blue + b * with[2]) / (a + b), a + b)

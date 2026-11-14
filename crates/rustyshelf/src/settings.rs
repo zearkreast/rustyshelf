@@ -333,8 +333,8 @@ impl Settings {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
-        } else if matches!(path, ["ui", "music" | "musicLevel"]) {
-            // the music reads these as it plays
+        } else if matches!(path, ["ui", "music" | "musicLevel" | "theme" | "clock" | "clock24"]) {
+            // the music and the shelf read these as they go
         } else if matches!(path, ["ui", "builtInSongs"]) {
             self.sound_changed = true;
         } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "bootSound" | "bootVolume")] = path {
@@ -925,7 +925,32 @@ impl Settings {
                 Page { title: "Box art".into(), lead: "RustyShelf can fetch the covers your games don't have yet.".into(), rows }
             }
             Screen::Display => {
+                // one of a list, by its saved name: Enter and right go on to the next, left back
+                let choice = |label: &str, path: &'static [&'static str], list: Vec<(String, String)>, now: &str, hint: &str| -> Row {
+                    let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
+                    let value = list[at].1.clone();
+                    let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
+                    let again = turn.clone();
+                    Row { label: label.to_string(), value, hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+                };
+                let named = |list: &[(&str, &str)]| list.iter().map(|(id, name)| (id.to_string(), name.to_string())).collect::<Vec<_>>();
+                let clock = self.text(&["ui", "clock"]);
                 let mut rows = vec![
+                    choice(
+                        "Theme",
+                        &["ui", "theme"],
+                        rustyshelf_core::themes::themes().into_iter().map(|t| (t.id, t.name)).collect(),
+                        &self.theme(),
+                        "The colour and mood behind your shelves. Close Settings to see it on your shelf.",
+                    ),
+                    choice(
+                        "Clock",
+                        &["ui", "clock"],
+                        named(&[("full", "Day, date and time"), ("time", "Time only"), ("off", "Hidden")]),
+                        if clock == "time" || clock == "off" { &clock } else { "full" },
+                        "What shows in the top corner of the shelf.",
+                    ),
+                    toggle("24-hour clock", &["ui", "clock24"], false, "Shows 18:30 instead of 6:30 PM."),
                     toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
                     toggle("All games shelf", &["ui", "allShelf"], false, "A shelf with your complete collection in alphabetical order."),
                 ];

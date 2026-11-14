@@ -520,9 +520,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Shows them with their box art on the shelf as the Electron app lays it out, one console at a time: the chosen
   game's case forward in the middle, the others in two angled stacks beside it with their spines out, each in its
   console's own case (the Electron app's table of case shapes and colours), under the same plastic shine and glow.
-  Behind them is the colour theme's backdrop (the theme set in the Electron app's Settings; all eighteen are painted,
-  without their moving parts yet), in the console's colour and washed with the chosen cover's, the floor mirroring
-  the cases. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
+  Behind them is the colour theme's backdrop (Settings → Display → Theme; all eighteen, with what moves in them:
+  Spectrum's ribbons and dust, Arcade's stars and mountains, Aurora's curtains and the rest), in the console's
+  colour and washed with the chosen cover's, the floor mirroring the cases. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
   title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
   A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
   under the console's band, and a back with four small scenes, its description and what Details knows of it.
@@ -604,7 +604,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
 
-**Not yet:** the rest of Settings (themes, accounts; adding several games at once, a folder of games or a
+**Not yet:** the rest of Settings (custom themes, the Artwork and Blur themes' pictures, accounts; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
 GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, the Home menu over a

@@ -260,6 +260,25 @@ pub fn fine(id: &str) -> bool {
     matches!(id_of(id), "arcade" | "cube" | "blueshift" | "swirl" | "pocket" | "walnut" | "forest" | "crt" | "vhs" | "synth")
 }
 
+/// The dark corners every theme has over its backdrop (style.css .vignette, Midnight's own).
+fn corners_css(id: &str) -> &'static str {
+    match id {
+        "midnight" => "radial-gradient(ellipse at 50% 45%,transparent 35%,rgba(0,0,0,.85))",
+        _ => "radial-gradient(ellipse 80% 70% at 50% 42%,transparent 35%,rgba(0,0,0,.5) 100%),linear-gradient(to bottom,rgba(0,0,0,.25),transparent 20%,transparent 62%,rgba(0,0,0,.5))",
+    }
+}
+
+/// How much light the theme's dark corners leave at each pixel of a picture `width` × `height` (255: all of it),
+/// for what's drawn between the backdrop and them.
+pub fn corners(id: &str, width: u32, height: u32) -> Vec<u8> {
+    let id = id_of(id);
+    let mut c = crate::cssbg::Canvas::new(width, height, 1.0);
+    let whole = (0.0, 0.0, width as f32, height as f32);
+    c.paint("#fff", whole, 1.0);
+    c.paint(corners_css(id), whole, strengths(id).1);
+    c.picture().rgba.as_chunks::<4>().0.iter().map(|px| px[0]).collect()
+}
+
 /// The size of the chosen game's cover as the backdrop takes its colours: `SWATCH.0` × `SWATCH.1` pixels.
 pub const SWATCH: (usize, usize) = (18, 24);
 
@@ -306,11 +325,7 @@ pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, cover: Option<&[
         c.paint("repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)", whole, 1.0);
         c.paint("radial-gradient(ellipse 120% 100% at 50% 50%,transparent 60%,rgba(0,0,0,.55))", whole, 1.0);
     }
-    let dark = match id {
-        "midnight" => "radial-gradient(ellipse at 50% 45%,transparent 35%,rgba(0,0,0,.85))",
-        _ => "radial-gradient(ellipse 80% 70% at 50% 42%,transparent 35%,rgba(0,0,0,.5) 100%),linear-gradient(to bottom,rgba(0,0,0,.25),transparent 20%,transparent 62%,rgba(0,0,0,.5))",
-    };
-    c.paint(dark, whole, corners);
+    c.paint(corners_css(id), whole, corners);
     let wide = (stage.w * 1.4).min(1400.0);
     c.paint(
         &format!("radial-gradient(ellipse 18% 26% at 50% 16%,{},transparent 75%),radial-gradient(ellipse 55% 34% at 50% 26%,rgba(0,0,0,.55),transparent 72%)", glow(id, sh, song)),

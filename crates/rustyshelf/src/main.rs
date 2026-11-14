@@ -54,6 +54,7 @@ fn main() {
         .init_resource::<shelf::Stage>()
         .init_resource::<shelf::Lit>()
         .init_resource::<shelf::Backdrop>()
+        .init_resource::<shelf::Moving>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
         .init_resource::<play::Discord>()
@@ -77,7 +78,7 @@ fn main() {
                 shelf::build_shelf,
                 shelf::apply_covers,
                 shelf::arrange,
-                shelf::backdrop,
+                (shelf::backdrop, shelf::moving).chain(),
                 (hud::update, hud::top, hud::hints, settings::draw).chain(),
             )
                 .chain(),
