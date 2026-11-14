@@ -167,8 +167,10 @@ pub struct Settings {
     open_emulator: Option<String>,
     /// the page the shelf asked to be opened at
     wanted: Option<Screen>,
-    /// the Home menu is up: the keys and the pads are its own
+    /// the Home menu or the manual reader is up: the keys and the pads are its own
     pub keys_taken: bool,
+    /// a manual to be opened in the reader: its pages
+    pub manual: Option<Vec<PathBuf>>,
     moves: moving::Moves,
     update: update::Update,
     adding: addgames::Adding,
@@ -242,6 +244,7 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             keys_taken: false,
+            manual: None,
             moves: Default::default(),
             update: Default::default(),
             adding: Default::default(),
@@ -1302,6 +1305,32 @@ impl Settings {
                 ];
                 if let Some(line) = self.achievements_line() {
                     rows.push(open("Achievements", line, "Your RetroAchievements for this game", Screen::Achievements));
+                }
+                if !g.art.manual.is_empty() {
+                    let pages = g.art.manual.clone();
+                    rows.push(Row {
+                        label: "Read the manual".into(),
+                        value: format!("{} pages", pages.len()),
+                        hint: "Opens the game's manual as a booklet".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            s.manual = Some(pages.clone());
+                            s.open = false;
+                            s.redraw = true;
+                        })),
+                        step: None,
+                    });
+                } else if let Some(pdf) = g.art.manual_pdf.clone() {
+                    rows.push(Row {
+                        label: "Open the manual".into(),
+                        value: "PDF".into(),
+                        hint: "Opens the game's manual in the program this PC reads PDFs with".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            if let Err(e) = rustyshelf_core::launch::open_folder(&pdf) {
+                                s.say(e.to_string());
+                            }
+                        })),
+                        step: None,
+                    });
                 }
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());

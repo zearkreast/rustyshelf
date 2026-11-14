@@ -11,6 +11,7 @@ mod music;
 mod osk;
 mod padwatch;
 mod play;
+mod reader;
 mod settings;
 mod shelf;
 mod sound;
@@ -71,14 +72,16 @@ fn main() {
         .init_resource::<hud::Prompts>()
         .init_resource::<settings::Settings>()
         .init_resource::<home::Home>()
+        .init_resource::<reader::Reader>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup).chain())
         .add_systems(
             Update,
             (
                 loading::poll_library,
                 play::watch_game,
                 home::run,
+                reader::run,
                 settings::input,
                 play::navigate,
                 sound::run,

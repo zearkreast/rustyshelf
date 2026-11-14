@@ -646,6 +646,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Tells you the newest release when asked (Settings → System → Check for a new version), comparing versions
   as the Electron app does, and opens its page; nothing is downloaded or installed, and it doesn't ask by
   itself at start yet, since the releases are still the Electron app's.
+- Reads a game's manual (Details → Read the manual) when its pages are beside its box art, where the Electron
+  app keeps them: the cover on its own, then the pages in pairs like an open booklet, ← → to turn. A manual
+  kept as a PDF opens in the PC's own PDF reader. Finding and downloading manuals is still the Electron app's.
 - Has the Home menu (Settings → Controller turns it off, or makes it a centred card). Over a running game, Guide
   on the pad (or View held on its own for a second) pauses the game with its emulator's own hotkey and brings
   RustyShelf forward with Resume, Save state, Load state, Screenshot, Power (Sleep, Restart, Shut down) and Quit
@@ -657,7 +660,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 **Not yet:** the rest of Settings (making a custom theme from a picture, Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
-full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), manuals, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), finding and downloading manuals, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput, the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
