@@ -1,0 +1,617 @@
+// Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
+// Boxshelf's main/covers.js and main/spreads.js (sizeOf), as RustyShelf has them.
+//! Downloading box art. Front covers come from the libretro thumbnail library (names match No-Intro file names);
+//! backs, spines, discs, and the fronts libretro doesn't have, from the LaunchBox Games Database. Neither needs an
+//! account. A picture is saved next to the games in `<games folder>\covers` (or the art library) as
+//! `<game file name>.png`, `-back.jpg`, `-spine.jpg`, `-disc.png`. A picture that's there is kept; one that's
+//! replaced moves to `replaced\`, never deleted. The caches are in `data/boxart-cache`, shared with the Electron app.
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, UNIX_EPOCH};
+
+use serde_json::{json, Value};
+
+use crate::art::{art_base, ArtLibrary};
+use crate::config::SystemConfig;
+use crate::covers::{self, LibretroNames};
+use crate::js;
+use crate::lbindex::{self, GameImage, ShardFile, ShardsMeta};
+use crate::paths::is_file;
+use crate::scanner::Game;
+use crate::steamart::is_image;
+use crate::systems::Console;
+
+/// The index format: a different one is built again (main/covers.js IDX_V).
+const IDX_V: u32 = 8;
+/// The XML is deleted once indexed, so a rebuild means the ~110 MB download again.
+const IDX_DAYS: f64 = 60.0;
+const LB_ZIP: &str = "https://gamesdb.launchbox-app.com/Metadata.zip";
+const DAY: f64 = 86_400_000.0;
+/// The picture types, as the scanner reads them; Linux tells "Game.PNG" from "Game.png".
+const ART_EXT: [&str; 4] = ["png", "jpg", "jpeg", "webp"];
+/// The parts of a game's box and the end of each one's file name.
+pub const KINDS: [(&str, &str); 4] = [("front", ""), ("back", "-back"), ("spine", "-spine"), ("disc", "-disc")];
+const REPLACED: &str = "replaced";
+
+fn user_agent() -> String {
+    format!("RustyShelf/{}", env!("CARGO_PKG_VERSION"))
+}
+
+fn now() -> u64 {
+    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+}
+
+fn ext_forms() -> Vec<String> {
+    ART_EXT.iter().flat_map(|e| [e.to_string(), e.to_uppercase()]).collect()
+}
+
+// ---------- pictures on disk ----------
+
+fn jpeg_size(h: &[u8]) -> Option<(u32, u32)> {
+    let be16 = |o: usize| u32::from(u16::from_be_bytes([h[o], h[o + 1]]));
+    let mut o = 2;
+    while o + 9 < h.len() {
+        if h[o] != 0xff {
+            o += 1;
+            continue;
+        }
+        let m = h[o + 1];
+        if m == 0xd8 || m == 0x01 || (0xd0..=0xd7).contains(&m) {
+            o += 2;
+            continue;
+        }
+        // a frame header (not a Huffman table, JPEG extension or arithmetic conditioning)
+        if (0xc0..=0xcf).contains(&m) && !matches!(m, 0xc4 | 0xc8 | 0xcc) {
+            return Some((be16(o + 7), be16(o + 5)));
+        }
+        o += 2 + be16(o + 2) as usize;
+    }
+    None
+}
+
+/// A picture's width and height from its header (PNG, JPEG); None for other formats.
+pub fn size_of(file: &Path) -> Option<(u32, u32)> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(file).ok()?;
+    let mut read = |n: u64| {
+        let mut b = Vec::new();
+        std::io::Seek::rewind(&mut f).ok()?;
+        (&mut f).take(n).read_to_end(&mut b).ok()?;
+        Some(b)
+    };
+    let h = read(4096)?;
+    if h.len() >= 24 && h.starts_with(b"\x89PNG") {
+        let be32 = |o: usize| u32::from_be_bytes(h[o..o + 4].try_into().unwrap());
+        return Some((be32(16), be32(20)));
+    }
+    if !h.starts_with(&[0xff, 0xd8]) {
+        return None;
+    }
+    // a frame header behind big EXIF / ICC blocks gets a second, longer look
+    match jpeg_size(&h) {
+        None if h.len() == 4096 => jpeg_size(&read(65536)?),
+        z => z,
+    }
+}
+
+/// The picture a game has for one part, whichever type it is.
+pub fn art_file(dir: &Path, base: &str, suffix: &str) -> Option<PathBuf> {
+    let forms = if cfg!(target_os = "linux") { ext_forms() } else { ART_EXT.iter().map(|e| e.to_string()).collect() };
+    forms.iter().map(|e| dir.join(format!("{base}{suffix}.{e}"))).find(|f| is_file(f))
+}
+
+fn same_path(a: &Path, b: &Path) -> bool {
+    crate::art::resolve(a).to_string_lossy().to_lowercase() == crate::art::resolve(b).to_string_lossy().to_lowercase()
+}
+
+/// A stamp for a replaced picture's name: the time, to the millisecond, with dashes.
+fn art_stamp() -> String {
+    let ms = now();
+    let (days, rest) = ((ms / 86_400_000) as i64, ms % 86_400_000);
+    // civil date from days since 1970 (Howard Hinnant's algorithm)
+    let z = days + 719_468;
+    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}-{d:02}-{:02}-{:02}-{:02}-{:03}", rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60, rest % 1000)
+}
+
+/// Puts a new picture in place. It's already on disk (`src`, under a temporary name the scanner ignores, in the same
+/// folder). Every older picture of that kind moves to `replaced\` as `<base><suffix> (<stamp>).<ext>`, then `src` is
+/// renamed in; if a step fails the moved ones go back, so a game is never left without its picture. `replaced\`
+/// holds each distinct picture once: an older copy with the very bytes of one just moved there goes. Returns the
+/// picture's file and the files moved.
+pub fn place_art(dir: &Path, base: &str, suffix: &str, src: &Path, ext: &str) -> std::io::Result<(PathBuf, Vec<PathBuf>)> {
+    let (dest, old, stamp) = (dir.join(format!("{base}{suffix}{ext}")), dir.join(REPLACED), art_stamp());
+    let mut moved: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut put = || -> std::io::Result<()> {
+        for e in ext_forms() {
+            let f = dir.join(format!("{base}{suffix}.{e}"));
+            // on Windows "Game.PNG" is the same file as "Game.png", already moved
+            if !is_file(&f) || same_path(&f, src) {
+                continue;
+            }
+            let mut to = old.join(format!("{base}{suffix} ({stamp}).{e}"));
+            let mut i = 2;
+            // two in one millisecond: never over an earlier one
+            while to.symlink_metadata().is_ok() {
+                to = old.join(format!("{base}{suffix} ({stamp}-{i}).{e}"));
+                i += 1;
+            }
+            std::fs::create_dir_all(&old)?;
+            std::fs::rename(&f, &to)?;
+            moved.push((f, to));
+        }
+        if !same_path(src, &dest) {
+            std::fs::rename(src, &dest)?;
+        }
+        Ok(())
+    };
+    if let Err(e) = put() {
+        for (f, to) in moved.iter().rev() {
+            let _ = std::fs::rename(to, f);
+        }
+        return Err(e);
+    }
+    // a fresh date: cached thumbnails of the old picture aren't reused
+    if let Ok(f) = std::fs::File::options().write(true).open(&dest) {
+        let _ = f.set_modified(std::time::SystemTime::now());
+    }
+    if !moved.is_empty() {
+        let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+        let others: Vec<PathBuf> = covers::replaced_for(&names, base, suffix).into_iter().map(|(n, _)| old.join(n)).filter(|f| !moved.iter().any(|m| same_path(&m.1, f))).collect();
+        for (_, to) in &moved {
+            let Ok(bytes) = std::fs::read(to) else { continue };
+            let twin = others.iter().find(|o| o.metadata().is_ok_and(|m| m.len() == bytes.len() as u64) && std::fs::read(o).is_ok_and(|b| b == bytes));
+            if let Some(twin) = twin {
+                let _ = std::fs::remove_file(twin);
+            }
+        }
+    }
+    Ok((dest, moved.into_iter().map(|m| m.1).collect()))
+}
+
+// ---------- downloads ----------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Outcome {
+    Ok,
+    /// it isn't there (a 404, or too small to be a picture)
+    Missing,
+    /// worth another day: the server is busy, or answered with something that isn't a picture
+    Busy,
+}
+
+/// Downloads a picture (`zip`: a .zip instead). A timeout, a dropped connection or a server error is tried once more
+/// after a moment; a second network error is an Err (offline).
+pub fn download_ex(url: &str, dest: &Path, zip: bool) -> Result<Outcome, String> {
+    let mut tries = 0;
+    loop {
+        tries += 1;
+        let (status, buf) = match crate::net::get(url, Duration::from_secs(45), 256 << 20, &user_agent()) {
+            Ok(r) => r,
+            Err(_) if tries == 1 => {
+                std::thread::sleep(Duration::from_millis(1200));
+                continue;
+            }
+            Err(e) => return Err(e),
+        };
+        if (200..300).contains(&status) {
+            if buf.len() < 1024 {
+                return Ok(Outcome::Missing);
+            }
+            // a 200 that isn't a picture (a Wi-Fi sign-in page, a CDN error page) is never saved as the cover
+            if if zip { !buf.starts_with(b"PK\x03\x04") } else { !is_image(&buf) } {
+                return Ok(Outcome::Busy);
+            }
+            let part = PathBuf::from(format!("{}.part", dest.display()));
+            let saved = dest.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|()| std::fs::write(&part, &buf)).and_then(|()| std::fs::rename(&part, dest));
+            return match saved {
+                Ok(()) => Ok(Outcome::Ok),
+                Err(e) => {
+                    let _ = std::fs::remove_file(&part);
+                    Err(if e.kind() == std::io::ErrorKind::StorageFull { "disk full".into() } else { e.to_string() })
+                }
+            };
+        }
+        if status >= 500 || status == 429 {
+            if tries == 1 {
+                std::thread::sleep(Duration::from_millis(1200));
+                continue;
+            }
+            return Ok(Outcome::Busy);
+        }
+        // a 403 / 401 is often a CDN's passing block: not remembered as "not there"
+        return Ok(if status == 404 || status == 410 { Outcome::Missing } else { Outcome::Busy });
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fetched {
+    Placed,
+    /// no sharper than the picture it would replace
+    Same,
+    /// the drive is full
+    Full,
+    Failed,
+}
+
+/// Downloads into a temporary name and keeps it only if it's a picture and, when replacing one (`compare`), clearly
+/// sharper than it.
+pub fn fetch_into(url: &str, dir: &Path, base: &str, suffix: &str, ext: &str, old: Option<&Path>, compare: bool) -> Fetched {
+    let tmp = dir.join(format!("{base}{suffix}.incoming{ext}"));
+    let longest = |f: &Path| size_of(f).map(|z| z.0.max(z.1));
+    let result = (|| -> Result<Fetched, String> {
+        if download_ex(url, &tmp, false)? != Outcome::Ok {
+            return Ok(Fetched::Failed);
+        }
+        if let Some(old) = old.filter(|_| compare) {
+            let (a, b) = (longest(old), longest(&tmp));
+            if b.is_none() || a.is_some_and(|a| f64::from(b.unwrap_or(0)) < f64::from(a) * 1.15) {
+                let _ = std::fs::remove_file(&tmp);
+                return Ok(Fetched::Same);
+            }
+        }
+        place_art(dir, base, suffix, &tmp, ext).map_err(|e| if e.kind() == std::io::ErrorKind::StorageFull { "disk full".to_string() } else { e.to_string() })?;
+        Ok(Fetched::Placed)
+    })();
+    result.unwrap_or_else(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        if e == "disk full" {
+            Fetched::Full
+        } else {
+            Fetched::Failed
+        }
+    })
+}
+
+// ---------- libretro's list ----------
+
+/// The names of a console's box art in libretro's thumbnail library, kept for a week in
+/// `boxart-cache/libretro-<console>.json`. None when the console isn't there or the list can't be fetched.
+pub fn libretro_names(cache_dir: &Path, console_id: &str) -> Option<LibretroNames> {
+    static HREF: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r#"(?i)href="([^"]+?\.png)""#).unwrap());
+    let sys = covers::libretro_system(console_id)?;
+    let file = cache_dir.join(format!("libretro-{console_id}.json"));
+    let strings = |v: &Value| v.as_array().map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>());
+    let cached: Option<Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
+    if let Some(names) = cached.as_ref().filter(|c| now() as f64 - js::number(c.get("at")) < 7.0 * DAY).and_then(|c| strings(&c["names"])) {
+        return Some(LibretroNames::new(names));
+    }
+    let url = format!("https://thumbnails.libretro.com/{}/Named_Boxarts/", js::encode_uri_component(sys));
+    let (status, html) = crate::net::get(&url, Duration::from_secs(30), 64 << 20, &user_agent()).ok()?;
+    if !(200..300).contains(&status) {
+        return None;
+    }
+    let html = String::from_utf8_lossy(&html);
+    let names: Vec<String> = HREF.captures_iter(&html).filter_map(|m| js::decode_uri_component(&m[1])).map(|n| n[..n.len() - 4].to_string()).collect();
+    // an empty page (a layout change, an error page) isn't worth remembering for a week
+    if !names.is_empty() {
+        let _ = std::fs::create_dir_all(cache_dir).and_then(|()| std::fs::write(&file, json!({ "at": now(), "names": names }).to_string()));
+    }
+    Some(LibretroNames::new(names))
+}
+
+// ---------- the LaunchBox index ----------
+
+/// The LaunchBox index, read one console at a time from its part (`launchbox-<platform>.json`, a few MB each).
+pub struct Index {
+    cache_dir: PathBuf,
+    shards: HashMap<String, Option<ShardFile>>,
+}
+
+impl Index {
+    /// One platform's games and their pictures.
+    pub fn platform(&mut self, plat: &str) -> Option<&ShardFile> {
+        let dir = &self.cache_dir;
+        self.shards.entry(plat.to_string()).or_insert_with(|| std::fs::read(lbindex::shard_file_name(dir, plat)).ok().and_then(|b| serde_json::from_slice(&b).ok())).as_ref()
+    }
+}
+
+fn all_platforms() -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let consoles = crate::systems::systems().consoles.iter().filter_map(|c| covers::launchbox_platform(&c.id));
+    for p in consoles.chain(covers::pc_box_platforms().iter().map(|p| p.1.as_str())) {
+        if !out.iter().any(|x| x == p) {
+            out.push(p.to_string());
+        }
+    }
+    out
+}
+
+fn index_file(cache_dir: &Path) -> PathBuf {
+    cache_dir.join("launchbox-index.json")
+}
+
+/// The split's details, when it's the split of the index file that's there (its stamp is that file's date).
+fn shard_meta(cache_dir: &Path) -> Option<ShardsMeta> {
+    let stamp = index_file(cache_dir).metadata().and_then(|m| m.modified()).ok()?.duration_since(UNIX_EPOCH).ok()?.as_millis() as u64;
+    let m: ShardsMeta = serde_json::from_slice(&std::fs::read(cache_dir.join("launchbox-shards.json")).ok()?).ok()?;
+    (m.stamp != 0 && m.stamp == stamp).then_some(m)
+}
+
+/// The split of the index by console, made from the single file when it isn't there yet.
+fn ensure_shards(cache_dir: &Path) -> Option<ShardsMeta> {
+    shard_meta(cache_dir).or_else(|| {
+        let f = index_file(cache_dir);
+        is_file(&f).then(|| lbindex::split_index_file(&f, cache_dir).ok()).flatten()?;
+        shard_meta(cache_dir)
+    })
+}
+
+/// The index if it's on disk already: never downloads or builds it. An older one past its 60 days still serves.
+pub fn ready_index(cache_dir: &Path) -> Option<Index> {
+    ensure_shards(cache_dir).filter(|m| m.v >= 8).map(|_| Index { cache_dir: cache_dir.to_path_buf(), shards: HashMap::new() })
+}
+
+/// A Metadata.xml that's all there: it ends with `</LaunchBox>`.
+fn xml_whole(xml: &Path) -> bool {
+    use std::io::{Read, Seek, SeekFrom};
+    let Ok(mut f) = std::fs::File::open(xml) else { return false };
+    let n = f.metadata().map_or(0, |m| m.len());
+    let mut b = Vec::new();
+    f.seek(SeekFrom::Start(n.saturating_sub(512))).is_ok() && f.read_to_end(&mut b).is_ok() && String::from_utf8_lossy(&b).trim_end().ends_with("</LaunchBox>")
+}
+
+fn run(cmd: &str, args: &[&str], env: &[(&str, &str)]) -> bool {
+    let mut c = std::process::Command::new(cmd);
+    c.args(args).envs(env.iter().copied()).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut c, 0x0800_0000); // CREATE_NO_WINDOW
+    c.status().is_ok_and(|s| s.success())
+}
+
+/// Unpacks Metadata.xml into a folder of its own and moves it in only when complete: a cut-off unpack leaves nothing
+/// that's later trusted as a fresh one.
+fn unpack(zip: &Path, cache_dir: &Path) -> Result<(), String> {
+    let tmp = cache_dir.join(format!(".unpack-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let (z, t) = (zip.to_string_lossy().into_owned(), tmp.to_string_lossy().into_owned());
+    let done = if cfg!(windows) {
+        // paths go in through the environment, never into the command text
+        run("tar", &["-xf", &z, "-C", &t, "Metadata.xml"], &[])
+            || run("powershell", &["-NoProfile", "-Command", "Expand-Archive -LiteralPath $env:BS_ZIP -DestinationPath $env:BS_DIR -Force"], &[("BS_ZIP", &z), ("BS_DIR", &t)])
+    } else {
+        // GNU tar can't read a .zip
+        run("unzip", &["-o", "-q", &z, "Metadata.xml", "-d", &t], &[])
+            || run("bsdtar", &["-xf", &z, "-C", &t, "Metadata.xml"], &[])
+            || run("python3", &["-c", "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extract('Metadata.xml', sys.argv[2])", &z, &t], &[])
+    };
+    let from = tmp.join("Metadata.xml");
+    let result = if done && is_file(&from) { std::fs::rename(&from, cache_dir.join("Metadata.xml")).map_err(|e| e.to_string()) } else { Err("Couldn't unpack the LaunchBox database.".to_string()) };
+    let _ = std::fs::remove_dir_all(&tmp);
+    result
+}
+
+/// The index, downloaded and built if there's none, it's of another format, misses a platform or is over 60 days
+/// old. `progress`: what's going on, for the screen.
+pub fn launchbox_index(cache_dir: &Path, progress: &mut dyn FnMut(&str)) -> Result<Index, String> {
+    let (zip, xml, idx) = (cache_dir.join("Metadata.zip"), cache_dir.join("Metadata.xml"), index_file(cache_dir));
+    let plats = all_platforms();
+    let fresh = |m: &ShardsMeta| m.v == IDX_V && now() as f64 - (m.at as f64) < IDX_DAYS * DAY && plats.iter().all(|p| m.plats.contains(p));
+    if ensure_shards(cache_dir).is_some_and(|m| fresh(&m)) {
+        let _ = std::fs::remove_file(&xml);
+        return Ok(Index { cache_dir: cache_dir.to_path_buf(), shards: HashMap::new() });
+    }
+    let age = |f: &Path| f.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).map(|d| d.as_millis() as f64);
+    // a Metadata.xml left by a build that was cut short: read it rather than download it again, unless it's cut off
+    if !(is_file(&xml) && age(&xml).is_some_and(|a| a < 30.0 * DAY) && xml_whole(&xml)) {
+        progress("Downloading the LaunchBox game database (one time, about a minute)…");
+        std::fs::create_dir_all(cache_dir).map_err(|e| e.to_string())?;
+        let part = cache_dir.join("Metadata.zip.part");
+        let got = crate::net::download(LB_ZIP, &part, Duration::from_secs(600), &mut |pct| progress(&format!("Downloading the LaunchBox game database… {pct}%"))).and_then(|()| std::fs::rename(&part, &zip).map_err(|e| e.to_string()));
+        if let Err(e) = got {
+            let _ = std::fs::remove_file(&part);
+            return Err(format!("LaunchBox database: {e}"));
+        }
+        progress("Unpacking the game database…");
+        let unpacked = unpack(&zip, cache_dir);
+        let _ = std::fs::remove_file(&zip);
+        unpacked?;
+    }
+    progress("Reading the game database… 0%");
+    let built = lbindex::build_index_file(&xml, &idx, &plats, IDX_V, Some(cache_dir), |pct| progress(&format!("Reading the game database… {pct}%"))).map_err(|e| e.to_string());
+    // the 500 MB XML is only needed while the index is built
+    let _ = std::fs::remove_file(&xml);
+    built?;
+    ready_index(cache_dir).ok_or_else(|| "Couldn't read the LaunchBox index.".to_string())
+}
+
+// ---------- a download run ----------
+
+/// Where a run's pictures go and what it fetches.
+pub struct Run<'a> {
+    pub art: &'a ArtLibrary,
+    pub app_root: &'a Path,
+    /// `data/boxart-cache`
+    pub cache_dir: &'a Path,
+    /// "front", "back", "spine", "disc"; "redo-<part>" fetches a part again
+    pub kinds: &'a [&'a str],
+    /// Settings → Box art region
+    pub region: &'a str,
+}
+
+/// A console and the games of it to look at.
+pub struct Wanted<'a> {
+    pub console: &'a Console,
+    pub config: &'a SystemConfig,
+    pub games: Vec<&'a Game>,
+}
+
+/// What a run did for one console.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ConsoleReport {
+    pub id: String,
+    pub name: String,
+    pub total: usize,
+    pub front: usize,
+    pub back: usize,
+    pub spine: usize,
+    pub disc: usize,
+    /// games that had everything asked for already
+    pub had: usize,
+    /// games still missing a part
+    pub missed: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Report {
+    pub systems: Vec<ConsoleReport>,
+    pub cancelled: bool,
+    pub launchbox_error: Option<String>,
+    /// the art folders on a drive that ran out of space: nothing more was tried there
+    pub full: Vec<PathBuf>,
+}
+
+/// The picture types auto-fetch falls back on when a game has no scan of the part itself (main/covers.js
+/// OLD_FALLBACK).
+fn fallback(kind: &str) -> &'static [&'static str] {
+    match kind {
+        "Box - Front" => &["Fanart - Box - Front", "Steam Poster"],
+        "Box - Back" => &["Fanart - Box - Back"],
+        "Disc" => &["Cart - Front", "Fanart - Cart - Front", "Fanart - Disc"],
+        _ => &[],
+    }
+}
+
+fn ext_of(file: &str) -> String {
+    let e = js::extname(file).to_lowercase();
+    if matches!(e.as_str(), ".png" | ".jpg" | ".jpeg" | ".webp") {
+        e
+    } else {
+        ".jpg".into()
+    }
+}
+
+/// A game's pictures of one LaunchBox type and its fallbacks, the best first: at most six addresses with the type of
+/// file each is.
+fn launchbox_candidates(shard: &ShardFile, title: &str, kind: &str, region: &str) -> Vec<(String, String)> {
+    static BUNDLE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\s(?:\+|&|and)\s").unwrap());
+    let of = |title: &str| -> Vec<&GameImage> {
+        let Some(g) = covers::launchbox_match(&shard.games, &shard.images, title) else { return Vec::new() };
+        let imgs = shard.images.get(&g.id).map_or(&[][..], Vec::as_slice);
+        std::iter::once(kind).chain(fallback(kind).iter().copied()).flat_map(|t| covers::pick_images(imgs, t, region)).collect()
+    };
+    let mut c = of(title);
+    // compilations ("A + B"): borrow from the first game in the bundle
+    if c.is_empty() && BUNDLE.is_match(title) {
+        c = of(BUNDLE.split(title).next().unwrap_or(""));
+    }
+    c.into_iter().take(6).map(|im| (format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file)), ext_of(&im.file))).collect()
+}
+
+/// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
+/// games finish; setting `cancel` stops after the games in flight.
+// TODO: still Electron-only: the Art Studio's styles and locks, sharper scans over low-res pictures, spines cut from a
+// full box wrap, GameTDB, the Super Mario Wiki, SteamGridDB posters and drawn cartridges
+pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
+    let Run { art, app_root, cache_dir, kinds, region } = *run;
+    let region = if covers::art_region(region).is_some() { region } else { "auto" };
+    let want = |k: &str| kinds.contains(&k) || kinds.contains(&format!("redo-{k}").as_str());
+    let redo = |k: &str| kinds.contains(&format!("redo-{k}").as_str());
+    let mut report = Report::default();
+    let mut index: Option<Mutex<Index>> = None;
+    let full: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+    for sys in systems.iter().filter(|s| !s.games.is_empty()) {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let id = sys.console.id.as_str();
+        progress(&sys.console.name, 0, sys.games.len());
+        let names = if want("front") { libretro_names(cache_dir, id) } else { None };
+        if index.is_none() && report.launchbox_error.is_none() {
+            match launchbox_index(cache_dir, &mut |stage| progress(stage, 0, 0)) {
+                Ok(i) => index = Some(Mutex::new(i)),
+                Err(e) => report.launchbox_error = Some(e),
+            }
+        }
+        let platform = covers::launchbox_platform(id);
+        let rep = Mutex::new(ConsoleReport { id: id.to_string(), name: sys.console.name.clone(), total: sys.games.len(), ..ConsoleReport::default() });
+        let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
+        let one = |game: &Game| {
+            let (dir, base) = (art.dir_for(sys.config, &game.file, app_root), art_base(&game.file));
+            let (mut touched, mut missing) = (false, false);
+            for (key, suffix) in KINDS {
+                if !want(key) || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir) {
+                    continue;
+                }
+                let old = art_file(&dir, &base, suffix);
+                if old.is_some() && !redo(key) {
+                    continue;
+                }
+                let kind = match key {
+                    "front" => "Box - Front",
+                    "back" => "Box - Back",
+                    "spine" => "Box - Spine",
+                    _ => "Disc",
+                };
+                // libretro first for a front: its names match file names best
+                let mut cands: Vec<(String, String)> = Vec::new();
+                if key == "front" {
+                    let hit = names.as_ref().and_then(|n| n.find(&game.file, &game.title, &game.region, region));
+                    cands.extend(hit.and_then(|h| covers::libretro_url(id, &h)).map(|u| (u, ".png".to_string())));
+                }
+                if let (Some(index), Some(plat)) = (&index, platform) {
+                    let mut index = index.lock().unwrap();
+                    cands.extend(index.platform(plat).map(|shard| launchbox_candidates(shard, &game.title, kind, region)).unwrap_or_default());
+                }
+                let mut ok = false;
+                for (url, ext) in &cands {
+                    if cancel.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    match fetch_into(url, &dir, &base, suffix, ext, old.as_deref(), false) {
+                        Fetched::Placed => {
+                            ok = true;
+                            break;
+                        }
+                        Fetched::Full => {
+                            full.lock().unwrap().push(dir.clone());
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+                let mut rep = rep.lock().unwrap();
+                match (ok, key) {
+                    (true, "front") => rep.front += 1,
+                    (true, "back") => rep.back += 1,
+                    (true, "spine") => rep.spine += 1,
+                    (true, _) => rep.disc += 1,
+                    (false, _) => missing |= old.is_none(),
+                }
+                touched |= ok;
+            }
+            let mut rep = rep.lock().unwrap();
+            if missing {
+                rep.missed.push(game.title.clone());
+            } else if !touched {
+                rep.had += 1;
+            }
+            progress(&sys.console.name, done.fetch_add(1, Ordering::Relaxed) + 1, sys.games.len());
+        };
+        // four games at a time
+        std::thread::scope(|s| {
+            for _ in 0..sys.games.len().min(4) {
+                s.spawn(|| loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    if i >= sys.games.len() || cancel.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    one(sys.games[i]);
+                });
+            }
+        });
+        report.systems.push(rep.into_inner().unwrap());
+    }
+    report.cancelled = cancel.load(Ordering::Relaxed);
+    report.full = full.into_inner().unwrap();
+    report
+}

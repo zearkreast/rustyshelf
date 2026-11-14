@@ -159,6 +159,20 @@ impl ArtLibrary {
         Some(lib.join(format!("{} ({place})", lib_name(&r))))
     }
 
+    /// Where a game's art goes: the console's own art folder, else with an art library the games folder's `covers`
+    /// folder in it, else `<games folder>\covers`.
+    pub fn dir_for(&self, sc: &SystemConfig, file: &Path, app_root: &Path) -> PathBuf {
+        if !sc.art_dir.is_empty() {
+            return PathBuf::from(expand(&sc.art_dir, app_root));
+        }
+        let inside = |d: &&String| {
+            let (f, d) = (resolve(file).to_string_lossy().to_lowercase(), resolve(Path::new(d)).to_string_lossy().to_lowercase());
+            f.starts_with(&if d.ends_with(std::path::MAIN_SEPARATOR) { d } else { format!("{d}{}", std::path::MAIN_SEPARATOR) })
+        };
+        let root = sc.rom_dirs.iter().find(inside).map(PathBuf::from).unwrap_or_else(|| file.parent().unwrap_or(Path::new("")).to_path_buf());
+        self.folder(&root).unwrap_or(root).join("covers")
+    }
+
     /// The folders a console's art is looked for in, first match wins.
     pub fn dirs_for(&self, sc: &SystemConfig, app_root: &Path) -> Vec<PathBuf> {
         let mut out = Vec::new();

@@ -3,6 +3,7 @@
 
 pub mod arcade;
 pub mod art;
+pub mod boxart;
 pub mod collate;
 pub mod config;
 pub mod covers;

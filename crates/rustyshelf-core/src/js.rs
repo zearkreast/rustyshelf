@@ -137,6 +137,37 @@ fn split_prefix(p: &str) -> (String, &str) {
     (String::new(), p)
 }
 
+/// JS `encodeURI(s)`: as `encode_uri_component`, with an address's own marks kept.
+pub fn encode_uri(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || b"-_.!~*'();/?:@&=+$,#".contains(&b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// JS `decodeURIComponent(s)`; None where JS throws (a `%` without two hex digits, bytes that aren't UTF-8).
+pub fn decode_uri_component(s: &str) -> Option<String> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = std::str::from_utf8(b.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 /// node's `path.normalize`, without the trailing separator it keeps.
 pub fn normalize(p: &str) -> PathBuf {
     let (prefix, rest) = split_prefix(p);
@@ -336,6 +367,8 @@ mod tests {
         let keys: Vec<&str> = entries(o.as_object().unwrap()).iter().map(|e| e.0.as_str()).collect();
         assert_eq!(keys, ["2", "10", "b", "01"]);
         assert_eq!(encode_uri_component("a b:c/é'(x)"), "a%20b%3Ac%2F%C3%A9'(x)");
+        assert_eq!(encode_uri("Box - Front/a b&é#1.jpg"), "Box%20-%20Front/a%20b&%C3%A9#1.jpg");
+        assert_eq!((decode_uri_component("a%20b%C3%A9%2f"), decode_uri_component("%zz"), decode_uri_component("%E9"), decode_uri_component("50%")), (Some("a bé/".into()), None, None, None));
         assert_eq!((number(Some(&json!(" 12.5 "))), number(Some(&json!(""))), number(Some(&json!("0x10"))), number(Some(&json!([7]))), number(Some(&json!(true)))), (12.5, 0.0, 16.0, 7.0, 1.0));
         assert!(number(Some(&json!("inf"))).is_nan() && number(None).is_nan() && number(Some(&json!("1a"))).is_nan());
         assert_eq!((round(2.5), round(-2.5), round(1.4)), (3.0, -2.0, 1.0));

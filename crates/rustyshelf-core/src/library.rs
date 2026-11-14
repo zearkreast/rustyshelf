@@ -294,7 +294,58 @@ pub fn upkeep(lib: &Library) -> bool {
         }
     }
     changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
-    changed | steam_fill(lib, &data_dir)
+    changed |= steam_fill(lib, &data_dir);
+    changed | auto_covers(lib, &data_dir)
+}
+
+/// Box art for the console games missing a front, a back or a spine, unless box art downloads are off. Each game is
+/// looked at once a week at most (`data/cover-checks.json`: game id → when): one cover that doesn't exist anywhere
+/// mustn't send its console round at every start. True when a picture came in.
+fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
+    const WEEK: f64 = 7.0 * 86_400_000.0;
+    if lib.config.auto_covers() == Some(false) {
+        return false;
+    }
+    let file = data_dir.join("cover-checks.json");
+    let mut memo = match std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
+        Some(Value::Object(m)) => m,
+        _ => serde_json::Map::new(),
+    };
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    // a made back or spine still wants a real scan
+    let incomplete = |g: &Game| g.art.front.is_none() || g.art.back.is_none() || g.art.made_back || g.art.spine.is_none() || g.art.made_spine;
+    let mut wanted = Vec::new();
+    for shelf in &lib.shelves {
+        let ShelfKind::Console { console, config } = &shelf.kind else { continue };
+        if config.rom_dirs.is_empty() {
+            continue;
+        }
+        let mut games = Vec::new();
+        for g in shelf.games.iter().filter(|g| g.source == Source::Rom && incomplete(g)) {
+            if memo.get(&g.id).is_some_and(|at| js::truthy(Some(at)) && (now as f64 - js::number(Some(at))) < WEEK) {
+                continue;
+            }
+            memo.insert(g.id.clone(), Value::from(now));
+            games.push(g);
+        }
+        if !games.is_empty() {
+            wanted.push(crate::boxart::Wanted { console, config, games });
+        }
+    }
+    if wanted.is_empty() {
+        return false;
+    }
+    let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    let cache = data_dir.join("boxart-cache");
+    let run = crate::boxart::Run { art: &art, app_root: &lib.app_root, cache_dir: &cache, kinds: &["front", "back", "spine", "disc"], region: lib.config.art_region() };
+    let report = crate::boxart::download(&run, &wanted, &|_, _, _| {}, &cancel);
+    // saved once the run has finished: a run cut short mustn't skip these games for a week
+    let tmp = data_dir.join("cover-checks.json.tmp");
+    if std::fs::write(&tmp, Value::Object(memo).to_string()).is_ok() {
+        let _ = std::fs::rename(&tmp, &file);
+    }
+    report.systems.iter().any(|r| r.front + r.back + r.spine + r.disc > 0)
 }
 
 /// Covers, heroes and store info for the PC shelf's games that have none, from Steam's store: its own games, and

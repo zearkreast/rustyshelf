@@ -550,6 +550,31 @@ function artFixtures() {
   return out;
 }
 
+// pictures put in place over older ones (the stamps in replaced\ are the time: written here as STAMP), and picture
+// sizes read from made-up headers
+function jpegHead(w, h, pad) { const apps = []; for (let left = pad; left > 0; left -= 60000) { const n = Math.min(left, 60000), app = Buffer.alloc(4 + n); app[0] = 0xff; app[1] = 0xe1; app.writeUInt16BE(n + 2, 2); apps.push(app); }
+  const sof = Buffer.from([0xff, 0xc0, 0, 17, 8, h >> 8, h & 255, w >> 8, w & 255, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]);
+  return Buffer.concat([Buffer.from([0xff, 0xd8]), ...apps, Buffer.from([0xff, 0xc4, 0, 4, 0, 0]), sof, Buffer.alloc(32)]); }
+function pngHead(w, h) { const b = Buffer.alloc(40); Buffer.from('\x89PNG\r\n\x1a\n', 'latin1').copy(b); b.writeUInt32BE(13, 8); b.write('IHDR', 12, 'latin1'); b.writeUInt32BE(w, 16); b.writeUInt32BE(h, 20); return b; }
+const PLACE = {
+  files: [['Zeta.png', 'A'], ['Zeta.JPG', 'B'], ['Zeta-back.jpg', 'back'], ['Zeta.incoming.png', 'C'], ['replaced/Zeta (2020-01-01-00-00-00-000).png', 'A'], ['replaced/Zeta (2019-01-01-00-00-00-000).jpg', 'older'], ['replaced/Zeta-back (2020-01-01-00-00-00-000).jpg', 'A'],
+    ['Zeta-back.incoming.jpg', 'D'], ['Omega.webp', 'W'], ['Omega.tmp.webp', 'X'], ['Tau-spine.incoming.jpg', 'T']],
+  steps: [['Zeta', '', 'Zeta.incoming.png', '.png'], ['Zeta', '-back', 'Zeta-back.incoming.jpg', '.jpg'], ['Omega', '', 'Omega.webp', '.webp'], ['Omega', '', 'Omega.tmp.webp', '.webp'], ['Tau', '-spine', 'Tau-spine.incoming.jpg', '.jpg'], ['Gone', '', 'nope.png', '.png']],
+  sizes: [['a.png', pngHead(640, 480)], ['b.jpg', jpegHead(1200, 1700, 10)], ['c.jpg', jpegHead(300, 200, 5000)], ['d.webp', Buffer.from('RIFF\0\0\0\0WEBPVP8 ', 'latin1')], ['e.png', pngHead(1, 1).subarray(0, 20)], ['f.jpg', Buffer.from([0xff, 0xd8, 0xff, 0xd9])], ['g.jpg', jpegHead(9, 9, 70000)]],
+};
+async function placeFixtures() {
+  const covers = require('../main/covers'), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-place-'));
+  for (const [f, t] of PLACE.files) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), t); }
+  const stamp = s => s.replace(/\((?!20(?:19|20)-)\d{4}(?:-\d+){6}(-\d+)?\)/g, '(STAMP$1)'), rel = f => stamp(path.relative(dir, f));
+  const snap = () => { const o = {}; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else o[rel(f)] = fs.readFileSync(f, 'latin1'); } }; walk(dir); return Object.fromEntries(Object.entries(o).sort()); };
+  const steps = [];
+  for (const [base, suffix, src, ext] of PLACE.steps) { let result; try { const r = await covers.placeArt(dir, base, suffix, path.join(dir, src), ext); result = { dest: rel(r.dest), moved: r.moved.map(rel) }; } catch (e) { result = { error: true }; }
+    steps.push({ step: [base, suffix, src, ext], result, files: snap() }); }
+  const sizes = PLACE.sizes.map(([n, b]) => { fs.writeFileSync(path.join(dir, n), b); return [n, b.toString('base64'), covers.sizeOf(path.join(dir, n))]; });
+  fs.rmSync(dir, { recursive: true, force: true });
+  return { files: PLACE.files, steps, sizes };
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
@@ -559,6 +584,7 @@ fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), nul
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'n3ds.json'), JSON.stringify(await n3dsFixtures(), null, 1) + '\n');

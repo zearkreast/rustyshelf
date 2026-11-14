@@ -613,3 +613,47 @@ fn box_art_matches_as_in_the_js() {
         assert_eq!(serde_json::json!(found), c["found"], "replaced pictures of {}{}", c["base"], c["suffix"]);
     }
 }
+
+// a picture's type in capitals is another file only where names keep their case, as where the fixture was written
+#[cfg(target_os = "linux")]
+#[test]
+fn pictures_go_in_place_as_in_the_js() {
+    use rustyshelf_core::boxart::{place_art, size_of};
+    let fx = fixture("place.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path();
+    for f in fx["files"].as_array().unwrap() {
+        let p = dir.join(f[0].as_str().unwrap());
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, f[1].as_str().unwrap()).unwrap();
+    }
+    // the stamps in replaced\ are the time
+    let stamp = regex::Regex::new(r"\((?:[013-9][0-9]{3}|2[1-9][0-9]{2}|20[03-9][0-9]|202[1-9])(?:-[0-9]+){6}(-[0-9]+)?\)").unwrap();
+    let rel = |f: &Path| stamp.replace_all(&f.strip_prefix(dir).unwrap().to_string_lossy(), "(STAMP$1)").into_owned();
+    let snapshot = || {
+        fn walk(d: &Path, out: &mut Vec<std::path::PathBuf>) {
+            for e in fs::read_dir(d).unwrap().flatten() {
+                match e.path() {
+                    p if p.is_dir() => walk(&p, out),
+                    p => out.push(p),
+                }
+            }
+        }
+        let mut files = Vec::new();
+        walk(dir, &mut files);
+        files.iter().map(|f| (rel(f), String::from_utf8_lossy(&fs::read(f).unwrap()).into_owned())).collect::<std::collections::BTreeMap<_, _>>()
+    };
+    for case in fx["steps"].as_array().unwrap() {
+        let s = &case["step"];
+        let result = match place_art(dir, s[0].as_str().unwrap(), s[1].as_str().unwrap(), &dir.join(s[2].as_str().unwrap()), s[3].as_str().unwrap()) {
+            Ok((dest, moved)) => serde_json::json!({ "dest": rel(&dest), "moved": moved.iter().map(|m| rel(m)).collect::<Vec<_>>() }),
+            Err(_) => serde_json::json!({ "error": true }),
+        };
+        assert_eq!((&result, serde_json::json!(snapshot())), (&case["result"], case["files"].clone()), "placing {s}");
+    }
+    for s in fx["sizes"].as_array().unwrap() {
+        let f = dir.join(s[0].as_str().unwrap());
+        fs::write(&f, base64::engine::general_purpose::STANDARD.decode(s[1].as_str().unwrap()).unwrap()).unwrap();
+        assert_eq!(serde_json::json!(size_of(&f).map(|z| [z.0, z.1])), s[2], "the size of {}", s[0]);
+    }
+}

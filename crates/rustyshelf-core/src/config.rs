@@ -143,6 +143,11 @@ impl Config {
         self.raw.get("ui").and_then(|u| u.get("autoCovers")).and_then(Value::as_bool)
     }
 
+    /// Settings → Box art region: "auto", "usa", "eur" or "jpn".
+    pub fn art_region(&self) -> &str {
+        str_of(self.raw.get("ui").and_then(|u| u.get("artRegion")), "auto")
+    }
+
     /// The controller's quit combo (Settings → Controller), None when it's off.
     pub fn quit_combo(&self) -> Option<String> {
         let ui = self.raw.get("ui");

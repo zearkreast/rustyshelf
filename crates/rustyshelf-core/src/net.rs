@@ -26,6 +26,20 @@ fn failure(e: ureq::Error) -> Failure {
     }
 }
 
+/// A page's status and bytes (at most `max` of them), whatever the status. An error is the network's, not the
+/// server's: offline, a timeout, a dropped connection.
+pub fn get(url: &str, wait: Duration, max: usize, user_agent: &str) -> Result<(u16, Vec<u8>), Failure> {
+    let res = match AGENT.get(url).set("User-Agent", user_agent).timeout(wait).call() {
+        Ok(r) => r,
+        Err(ureq::Error::Status(code, _)) => return Ok((code, Vec::new())),
+        Err(e) => return Err(failure(e)),
+    };
+    let status = res.status();
+    let mut b = Vec::new();
+    res.into_reader().take(max as u64).read_to_end(&mut b).map_err(|e| e.to_string())?;
+    Ok((status, b))
+}
+
 /// A page's bytes, at most `max` of them; None when the server says it isn't there (404, 403).
 pub fn get_bytes(url: &str, wait: Duration, max: usize) -> Result<Option<Vec<u8>>, Failure> {
     let res = match AGENT.get(url).timeout(wait).call() {
