@@ -27,6 +27,7 @@ mod accounts;
 mod collections;
 mod custom;
 mod find;
+mod moving;
 pub mod setup;
 mod text;
 
@@ -117,6 +118,8 @@ enum Pick {
     ArtLibrary,
     ArtDir(String),
     CustomGame,
+    ExportTo,
+    ImportFrom,
 }
 
 #[derive(Resource)]
@@ -159,6 +162,7 @@ pub struct Settings {
     wanted: Option<Screen>,
     /// the Home menu is up: the keys and the pads are its own
     pub keys_taken: bool,
+    moves: moving::Moves,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -229,6 +233,7 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             keys_taken: false,
+            moves: Default::default(),
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -589,6 +594,8 @@ impl Settings {
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
             Pick::ArtDir(id) => self.set(&["systems", &id, "artDir"], json!(p)),
             Pick::CustomGame => self.add_custom(&p),
+            Pick::ExportTo => self.export_to(path),
+            Pick::ImportFrom => self.import_from(path),
         }
     }
 
@@ -652,7 +659,7 @@ impl Settings {
                     open("Accounts", String::new(), "RetroAchievements, SteamGridDB, ScreenScraper", Screen::Accounts),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
-                    open("System", String::new(), "Search again, emulator setup", Screen::System),
+                    open("System", String::new(), "Search again, emulator setup, export and import everything", Screen::System),
                     Row { label: "Back to the shelf".into(), press: Some(Box::new(|s: &mut Settings| s.back())), ..Row::default() },
                 ],
             },
@@ -1192,7 +1199,10 @@ impl Settings {
                         })),
                         ..Row::default()
                     },
-                ],
+                ]
+                .into_iter()
+                .chain(self.moving_rows())
+                .collect(),
             },
             Screen::Shelf => {
                 let sort = self.text(&["ui", "sort"]);
@@ -1596,6 +1606,7 @@ pub fn input(
     }
     s.poll_core();
     s.poll_ra();
+    s.poll_moves();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;

@@ -1181,3 +1181,123 @@ fn home_menu_behaves_as_the_page_does() {
         }
     }
 }
+
+#[test]
+fn exports_and_imports_match_the_js() {
+    use rustyshelf_core::dataexport::{export_all, export_size, import_all, Control, Copied, Install, Target};
+    use serde_json::json;
+    use std::path::PathBuf;
+    use std::sync::atomic::Ordering;
+    let fx = fixture("dataexport.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_string_lossy().into_owned();
+    let at = |rel: &str| tmp.path().join(rel);
+    let here = |v: &Value| -> Value { serde_json::from_str(&v.to_string().replace("<tmp>", serde_json::to_string(&root).unwrap().trim_matches('"'))).unwrap() };
+    let there = |text: String| text.replace(&root, "<tmp>");
+    for (rel, body) in fx["tree"].as_object().unwrap() {
+        let (file, body) = (at(rel), body.as_str().unwrap());
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, if rel.ends_with("config.json") { here(&serde_json::from_str(body).unwrap()).to_string() } else { body.to_string() }).unwrap();
+    }
+    for d in ["out", "out2"] {
+        fs::create_dir(at(d)).unwrap();
+    }
+    fn walk(dir: &Path, rel: &str, out: &mut serde_json::Map<String, Value>, there: &dyn Fn(String) -> String) {
+        let mut entries: Vec<_> = fs::read_dir(dir).unwrap().flatten().collect();
+        entries.sort_by_key(|e| e.file_name());
+        for e in entries {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let r = if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") };
+            if e.path().is_dir() {
+                walk(&e.path(), &r, out, there);
+            } else if name != "manifest.json" {
+                let r = if name.starts_with("config-before-import-") { r.replace(&name, "config-before-import.json") } else { r };
+                out.insert(r, json!(there(fs::read_to_string(e.path()).unwrap())));
+            }
+        }
+    }
+    let listing = |dir: &Path| {
+        let mut out = serde_json::Map::new();
+        walk(dir, "", &mut out, &there);
+        Value::Object(out)
+    };
+    let art_dirs = |_: &str, sc: &Value| -> Vec<PathBuf> {
+        let own = sc["artDir"].as_str().filter(|d| !d.is_empty()).map(PathBuf::from);
+        let beside = sc["romDirs"].as_array().into_iter().flatten().filter_map(Value::as_str).flat_map(|d| [Path::new(d).join("covers"), Path::new(d).join("media").join("covers"), Path::new(d).join("boxart")]);
+        own.into_iter().chain(beside).collect()
+    };
+    // the settings name the made-up folder four times: their size is told as it would be under the fixture's
+    let longer = 4 * (root.len() as i64 - fx["tmpLength"].as_i64().unwrap());
+    let sized = |bytes: u64| if bytes > 100 { bytes as i64 - longer } else { bytes as i64 };
+    let copied = |c: &Copied| json!({ "copied": c.copied, "copiedBytes": sized(c.copied_bytes), "unchanged": c.unchanged });
+    let merged = |mut a: Value, b: Value| {
+        a.as_object_mut().unwrap().extend(b.as_object().unwrap().clone());
+        a
+    };
+    let cfg = here(&fx["cfg"]);
+    let (a, a_data, lib) = (at("A"), at("A/data"), at("Lib"));
+    let install = Install { app_root: &a, data_dir: &a_data, cfg: &cfg, art_dirs: &art_dirs, art_lib: Some(&lib) };
+    let control = Control::default();
+
+    let (bytes, files) = export_size(&install);
+    assert_eq!(json!({ "bytes": sized(bytes), "files": files }), fx["size"]);
+    let mut steps = Vec::new();
+    let r = export_all(&install, &at("out"), "9.9.9", &control, &mut |i, of, label| steps.push(json!([i, of, label])), &mut |_| {}).unwrap();
+    let exported = |r: &rustyshelf_core::dataexport::Exported| merged(json!({ "files": r.files, "parts": r.parts, "updated": r.updated }), copied(&r.copied));
+    let manifest = |dir: &Path| {
+        let mut m: Value = serde_json::from_str(&there(fs::read_to_string(dir.join("manifest.json")).unwrap())).unwrap();
+        let o = m.as_object_mut().unwrap();
+        assert!(o.remove("at").is_some_and(|at| at.as_str().is_some_and(|at| at.len() == 24 && at.ends_with('Z'))));
+        let first = o.remove("first").is_some();
+        o.insert("first".into(), json!(first));
+        m
+    };
+    assert_eq!(exported(&r), fx["first"]["result"]);
+    assert!(r.dir.file_name().unwrap().to_string_lossy().starts_with("RustyShelf export 20") && fx["first"]["named"] == true);
+    assert_eq!(Value::from(steps), fx["first"]["steps"]);
+    assert_eq!(manifest(&r.dir), fx["first"]["manifest"]);
+    assert_eq!(listing(&r.dir), fx["first"]["holds"]);
+    // the manifest is written as the Electron app writes it
+    assert!(fs::read_to_string(r.dir.join("manifest.json")).unwrap().starts_with("{\n  \"app\": \"RustyShelf\",\n  \"version\": \"9.9.9\",\n  \"at\": \""));
+
+    let again = export_all(&install, &at("out"), "9.9.9", &control, &mut |_, _, _| {}, &mut |_| {}).unwrap();
+    assert_eq!((exported(&again), &again.dir), (fx["again"].clone(), &r.dir));
+    fs::write(at("A/Library/Games/covers/Phi.png"), "new cover").unwrap();
+    fs::write(at("A/themes/gc/logo.png"), "changed logo").unwrap();
+    let mut last = None;
+    let changed = export_all(&install, &r.dir, "9.9.9", &control, &mut |_, _, _| {}, &mut |p| last = Some(p.clone())).unwrap();
+    assert_eq!(exported(&changed), fx["changed"]["result"]);
+    assert_eq!(manifest(&r.dir), fx["changed"]["manifest"]);
+    assert_eq!(listing(&r.dir), fx["changed"]["holds"]);
+    let last = last.unwrap();
+    assert_eq!((last.bytes, last.files, last.copied), (last.of, last.of_files, 2));
+
+    let stopped = Control::default();
+    stopped.cancelled.store(true, Ordering::Relaxed);
+    assert_eq!(json!(export_all(&install, &at("out2"), "9.9.9", &stopped, &mut |_, _, _| {}, &mut |_| {}).unwrap_err()), fx["cancelled"]);
+    assert_eq!(json!(export_all(&install, &at("nowhere"), "9.9.9", &control, &mut |_, _, _| {}, &mut |_| {}).unwrap_err()), fx["noFolder"]);
+
+    for d in ["Games/gc/covers", "Games/gc/manuals", "Games/gc/boxart", "Games/snes/covers"] {
+        fs::remove_dir_all(at(d)).unwrap();
+    }
+    let imported = |r: &rustyshelf_core::dataexport::Imported| merged(json!({ "parts": r.parts, "skipped": r.skipped.iter().map(|s| there(s.clone())).collect::<Vec<_>>() }), copied(&r.copied));
+    let (b, b_data) = (at("B"), at("B/data"));
+    let b_cfg: Value = serde_json::from_str(&fs::read_to_string(at("B/data/config.json")).unwrap()).unwrap();
+    let im = import_all(&r.dir, &Target { app_root: &b, data_dir: &b_data, art_dirs: &art_dirs, art_lib: None, cfg: &b_cfg }, &control, &mut |_, _, _| {}, &mut |_| {}).unwrap();
+    assert_eq!(imported(&im), fx["imported"]["result"]);
+    assert_eq!(listing(&b), fx["imported"]["b"]);
+    assert_eq!(listing(&at("Games")), fx["imported"]["games"]);
+
+    fs::remove_dir_all(at("Games")).unwrap();
+    let (c, c_data, c_lib) = (at("C"), at("C/data"), at("LibC"));
+    let c_cfg: Value = serde_json::from_str(&fs::read_to_string(at("C/data/config.json")).unwrap()).unwrap();
+    let target = Target { app_root: &c, data_dir: &c_data, art_dirs: &art_dirs, art_lib: Some(&c_lib), cfg: &c_cfg };
+    let im = import_all(&r.dir, &target, &control, &mut |_, _, _| {}, &mut |_| {}).unwrap();
+    assert_eq!(imported(&im), fx["elsewhere"]["result"]);
+    assert_eq!(listing(&c), fx["elsewhere"]["c"]);
+    assert_eq!(listing(&at("Other")), fx["elsewhere"]["other"]);
+    assert_eq!(listing(&c_lib), fx["elsewhere"]["lib"]);
+    assert_eq!(json!(import_all(&at("Other"), &target, &control, &mut |_, _, _| {}, &mut |_| {}).unwrap_err()), fx["notOne"]);
+    fs::write(at("Other/manifest.json"), r#"{"app":"Something else"}"#).unwrap();
+    assert_eq!(json!(import_all(&at("Other"), &target, &control, &mut |_, _, _| {}, &mut |_| {}).unwrap_err()), fx["notOurs"]);
+}

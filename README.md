@@ -629,6 +629,12 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Has Details (I, or X on the pad): the game's description, release date, developer, publisher, genre, players,
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
+- Exports and imports everything (Settings → System), as the Electron app does and in the same layout, so an
+  export made by either app goes into the other: the settings, the downloads (art, manuals, the box art
+  database) and the art kept next to your games, into one folder with a manifest. The page says how big the
+  export will be, shows the copy as it goes, and can pause or cancel it; exporting into a folder that already
+  holds an export copies only what's new or changed. An import replaces files of the same name, keeps the
+  settings there were as a backup file, and starts RustyShelf again.
 - Has the Home menu (Settings → Controller turns it off, or makes it a centred card). Over a running game, Guide
   on the pad (or View held on its own for a second) pauses the game with its emulator's own hotkey and brings
   RustyShelf forward with Resume, Save state, Load state, Screenshot, Power (Sleep, Restart, Shut down) and Quit

@@ -134,6 +134,11 @@ impl ArtLibrary {
         ArtLibrary { root, roots }
     }
 
+    /// The library's own folder, when there is one.
+    pub fn root(&self) -> Option<&Path> {
+        self.root.as_deref()
+    }
+
     fn plain(&self, lib: &Path, games: &Path) -> PathBuf {
         lib.join(lib_name(&resolve(games)))
     }

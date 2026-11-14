@@ -908,6 +908,53 @@ function homekeysFixtures() {
     for (const o of overrides) keys.push({ system: sys, exe, overrides: o === undefined ? null : o, keys: hm.hotkeysFor(sys, exe, o) });
   return { kinds, keys };
 }
+// ---- Export everything / Import everything (main/dataexport.js) over a made-up install: what an export holds, an
+// update of it, and what an import puts where ----
+async function dataexportFixtures() {
+  const dx = require('../main/dataexport');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-dx-')), at = (...p) => path.join(tmp, ...p);
+  const artDirs = sc => [sc && sc.artDir, ...((sc && sc.romDirs) || []).flatMap(d => [path.join(d, 'covers'), path.join(d, 'media', 'covers'), path.join(d, 'boxart')])].filter(Boolean);
+  const cfg = { systems: { gc: { romDirs: ['<tmp>/Games/gc'] }, psx: { romDirs: ['<tmp>/Games/psx-gone'] }, snes: { romDirs: ['<tmp>/Games/snes'], artDir: '<tmp>/A/Library/own' } } };
+  const tree = { 'A/data/config.json': JSON.stringify(cfg), 'A/data/boxart-cache/launchbox-made-up.json': '{"big":1}', 'A/data/Local Storage/leveldb/000003.log': 'ui', 'A/data/Cache/Cache_Data/f_000001': 'x', 'A/data/Cookies': 'x', 'A/data/Cookies-journal': 'x',
+    'A/data/legendary/user.json': '{"token":"made up"}', 'A/data/rustyshelf.log': 'x', 'A/data/companion.json': '{"pair":"made up"}', 'A/data/Preferences': 'x', 'A/data/part.tmp': 'x', 'A/data/pc-covers/zeta.jpg': 'cover', 'A/data/sub/Cache/kept.bin': 'kept',
+    'A/Library/Games/covers/Zeta Run.png': 'cover', 'A/Library/own/Omega Quest.png': 'own', 'A/themes/gc/logo.png': 'logo', 'A/Custom themes/mine/theme.json': '{}', 'A/Songs/tune.mid': 'notes', 'A/Other/left.txt': 'not exported',
+    'Lib/gc/covers/Sigma.png': 'in the library', 'Games/gc/Zeta Run (USA).iso': 'game', 'Games/gc/covers/Zeta Run (USA).png': 'beside', 'Games/gc/manuals/Zeta Run (USA)/1.jpg': 'page', 'Games/gc/boxart/Tau.png': 'boxart', 'Games/snes/Omega Quest.sfc': 'game',
+    'Games/snes/covers/Omega Quest.png': 'snes beside', 'B/data/config.json': '{"systems":{}}', 'Other/gc/keep.txt': 'x', 'C/data/config.json': JSON.stringify({ systems: { gc: { romDirs: ['<tmp>/Other/gc'] } } }) };
+  const here = v => JSON.parse(JSON.stringify(v).split('<tmp>').join(JSON.stringify(tmp).slice(1, -1))), there = v => JSON.parse(JSON.stringify(v).split(JSON.stringify(tmp).slice(1, -1)).join('<tmp>'));
+  for (const [rel, body] of Object.entries(tree)) { fs.mkdirSync(path.dirname(at(rel)), { recursive: true }); fs.writeFileSync(at(rel), rel.endsWith('config.json') ? JSON.stringify(here(JSON.parse(body))) : body); }
+  for (const d of ['out', 'out2']) fs.mkdirSync(at(d));
+  // every file under a folder, with what's in it (a settings backup under one name, whenever it was made)
+  const listing = root => { const out = {}; const walk = (d, rel) => { for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : 1)) { const f = path.join(d, e.name), r = rel ? rel + '/' + e.name : e.name;
+    if (e.isDirectory()) walk(f, r); else if (e.name !== 'manifest.json') out[r.replace(/config-before-import-[^/]*\.json$/, 'config-before-import.json')] = there(fs.readFileSync(f, 'utf8')); } }; walk(root, ''); return out; };
+  const plain = r => { const { dir, bytes, from, ...rest } = r; return there(rest); };
+  const base = { appRoot: at('A'), dataDir: at('A', 'data'), cfg: here(cfg), artDirsFor: artDirs, artLib: at('Lib'), version: '9.9.9' };
+  try {
+    // (tmpLength: the settings name this made-up folder four times, so their size goes with its name's length)
+    const out = { tree, cfg, tmpLength: tmp.length };
+    out.size = await dx.exportSize(base);
+    const steps = [], r = await dx.exportAll({ ...base, dest: at('out'), onStep: st => steps.push([st.i, st.of, st.label]) });
+    const manifest = () => { const { at: _when, first, ...m } = JSON.parse(fs.readFileSync(path.join(r.dir, 'manifest.json'), 'utf8')); return there({ ...m, first: !!first }); };
+    out.first = { result: plain(r), named: /^RustyShelf export \d{4}-\d\d-\d\d \d\d-\d\d$/.test(path.basename(r.dir)), steps, manifest: manifest(), holds: listing(r.dir) };
+    out.again = plain(await dx.exportAll({ ...base, dest: at('out') }));
+    fs.writeFileSync(at('A/Library/Games/covers/Phi.png'), 'new cover'); fs.writeFileSync(at('A/themes/gc/logo.png'), 'changed logo');
+    out.changed = { result: plain(await dx.exportAll({ ...base, dest: r.dir })), manifest: manifest(), holds: listing(r.dir) };
+    let said = ''; try { await dx.exportAll({ ...base, dest: at('out2'), control: { cancelled: true } }); } catch (e) { said = e.message; } out.cancelled = said;
+    try { await dx.exportAll({ ...base, dest: at('nowhere') }); } catch (e) { out.noFolder = e.message; }
+    // a second PC: the same games folder, the art beside the games gone
+    for (const d of ['Games/gc/covers', 'Games/gc/manuals', 'Games/gc/boxart', 'Games/snes/covers']) fs.rmSync(at(d), { recursive: true });
+    const im = await dx.importAll({ src: r.dir, appRoot: at('B'), dataDir: at('B', 'data'), artDirsFor: artDirs, artLib: '', readCfg: () => JSON.parse(fs.readFileSync(at('B/data/config.json'), 'utf8')) });
+    out.imported = { result: plain(im), b: listing(at('B')), games: listing(at('Games')) };
+    // a third: no such games folder; its GameCube games are somewhere else, its other consoles nowhere
+    fs.rmSync(at('Games'), { recursive: true });
+    const c0 = JSON.parse(fs.readFileSync(at('C/data/config.json'), 'utf8'));
+    const im2 = await dx.importAll({ src: r.dir, appRoot: at('C'), dataDir: at('C', 'data'), artDirsFor: artDirs, artLib: at('LibC'), readCfg: () => c0 });
+    out.elsewhere = { result: plain(im2), c: listing(at('C')), other: listing(at('Other')), lib: fs.existsSync(at('LibC')) ? listing(at('LibC')) : null };
+    try { await dx.importAll({ src: at('Other'), appRoot: at('C'), dataDir: at('C', 'data'), artDirsFor: artDirs }); } catch (e) { out.notOne = e.message; }
+    fs.writeFileSync(at('Other/manifest.json'), '{"app":"Something else"}');
+    try { await dx.importAll({ src: at('Other'), appRoot: at('C'), dataDir: at('C', 'data'), artDirsFor: artDirs }); } catch (e) { out.notOurs = e.message; }
+    return out;
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -915,6 +962,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'dataexport.json'), JSON.stringify(await dataexportFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
