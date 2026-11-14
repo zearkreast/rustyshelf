@@ -1,6 +1,7 @@
 // Writes crates/rustyshelf-core/tests/fixtures/synth.json: voices rendered by the Electron app's own sound engine
 // (renderer/sound.js, in a headless Chromium through Playwright), for the Rust engine's tests to be compared with;
-// cues.json: the voices every cue asks that engine for; and music.json: what the menu music asks to be played.
+// cues.json: the voices every cue asks that engine for; music.json: what the menu music asks to be played; and
+// drawn.json: the covers renderer/covers.js draws for games without box art.
 //   node scripts/rust-sound-fixtures.js
 // Every case starts on a render quantum, after a lead-in: an offline limiter starts closed and takes a moment to open,
 // and an oscillator started inside a quantum plays its first samples at the wrong pitch.
@@ -10,6 +11,7 @@ const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..');
 const MUSIC_OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'music.json');
+const DRAWN_OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'drawn.json');
 const CUES_OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'cues.json');
 const OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'synth.json');
 const RATE = 44100, LEAD_FRAMES = 22016, AHEAD = 264; // (the limiter's 6 ms look-ahead)
@@ -128,7 +130,40 @@ const CASES = [
     sounds.push({ track, seed, shelf, rms });
     await pg.close();
   }
-  await browser.close();
   fs.writeFileSync(MUSIC_OUT, JSON.stringify({ start: .05, seconds: 240, scores, sounds }) + '\n');
+
+  // ---- the covers drawn for games without box art (renderer/covers.js), as a coarse grid of their colours ----
+  const looks = JSON.parse(fs.readFileSync(path.join(ROOT, 'crates', 'rustyshelf-core', 'data', 'looks.json'), 'utf8')).style;
+  const face = (family, weight, file) => `@font-face{font-family:"${family}";font-weight:${weight};src:url(data:font/woff2;base64,${fs.readFileSync(path.join(ROOT, 'renderer', 'fonts', file)).toString('base64')})}`;
+  const css = [face('Lilita One', 400, 'lilita-one-latin-400-normal.woff2'), face('Bungee', 400, 'bungee-latin-400-normal.woff2'), face('Audiowide', 400, 'audiowide-latin-400-normal.woff2'),
+    face('Lexend', 400, 'lexend-latin-400-normal.woff2'), face('Lexend', 500, 'lexend-latin-500-normal.woff2'), face('Lexend', 700, 'lexend-latin-700-normal.woff2')].join('');
+  const pg = await browser.newPage(); await pg.setContent(`<html><head><style>${css}</style></head><body></body></html>`);
+  await pg.addScriptTag({ content: fs.readFileSync(path.join(ROOT, 'renderer', 'covers.js'), 'utf8') });
+  // made-up titles, picked so that every scene and every title font comes up
+  const TITLES = ['Zeta Run', 'Omega Quest: The Long Way Home', 'Beta Kart', 'Sigma', 'Tau Racers Deluxe Edition', 'Phi and Rho', 'Alpha Tale', 'Gamma Force', 'Delta Squadron 2', 'Kappa Nights', 'Lambda', 'Iota Garden', 'Theta Drift', 'Mu Stadium'];
+  const wanted = [...TITLES.map((title, i) => ({ look: ['gc', 'snes', 'n3ds', 'pc', 'sw', 'ps2', 'psx', 'gba'][i % 8], title, region: i % 3 ? '' : 'usa', side: 'front' })),
+    { look: 'media', title: 'Made Up Player', region: '', side: 'front', scene: 'media' },
+    { look: 'gc', title: 'Zeta Run', side: 'back', facts: [['Region', 'USA'], ['File', 'ISO · 1.4 GB'], ['Emulator', 'Dolphin']], blurb: 'A made-up game about running, written to try the back of a drawn cover on for size.' },
+    { look: 'snes', title: 'Omega Quest: The Long Way Home', side: 'back', facts: [['Region', 'Europe']], blurb: '' }];
+  const covers = await pg.evaluate(async ({ wanted, looks }) => {
+    await Promise.all(['400 20px "Lilita One"', '400 20px Bungee', '400 20px Audiowide', '400 20px Lexend', '500 20px Lexend', '700 20px Lexend'].map(f => document.fonts.load(f)));
+    const out = [];
+    for (const w of wanted) {
+      const seed = window.Covers.hash(w.title), game = { title: w.title, seed, hue: seed % 360, region: w.region, scene: w.scene };
+      const url = w.side === 'back' ? window.Covers.back(looks[w.look], game, w.facts, w.blurb) : window.Covers.front(looks[w.look], game);
+      const im = new Image(); im.src = url; await im.decode();
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      const d = x.getImageData(0, 0, im.width, im.height).data, cell = 20, grid = [];
+      for (let gy = 0; gy + cell <= im.height; gy += cell) for (let gx = 0; gx + cell <= im.width; gx += cell) {
+        const sum = [0, 0, 0]; for (let py = gy; py < gy + cell; py++) for (let px = gx; px < gx + cell; px++) { const o = (py * im.width + px) * 4; sum[0] += d[o]; sum[1] += d[o + 1]; sum[2] += d[o + 2]; }
+        grid.push(sum.map(v => Math.round(v / (cell * cell))));
+      }
+      out.push({ ...w, width: im.width, height: im.height, cell, grid });
+    }
+    return out;
+  }, { wanted, looks });
+  await browser.close();
+  fs.writeFileSync(DRAWN_OUT, JSON.stringify({ covers }) + '\n');
+  console.log('wrote', path.relative(ROOT, DRAWN_OUT), `(${covers.length} covers)`);
   console.log('wrote', path.relative(ROOT, MUSIC_OUT), `(${scores.length} scores)`);
 })().catch(e => { console.error(e); process.exit(1); });

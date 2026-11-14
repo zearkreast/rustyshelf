@@ -520,6 +520,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Shows them with their box art on a 3D shelf, one console at a time, each game in its console's own case (the
   Electron app's table of case shapes and colours: keep cases, jewel cases, card boxes, the shorter handheld ones)
   against that console's backdrop. F turns the chosen case round to its back cover; its spine shows on its side.
+  A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
+  under the console's band, and a back with four small scenes, its description and what Details knows of it.
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,
   else RetroArch with the console's core; with the options the emulator in use takes (a standalone retro emulator,
   Ryujinx, Dolphin's settings for the session, the GameCube startup), the real Xenia behind Xenia Manager, a PS Vita game
@@ -683,7 +685,7 @@ narrow it down.
 [LaunchBox Games Database](https://gamesdb.launchbox-app.com), [GameTDB](https://www.gametdb.com).
 **Manuals:** [Internet Archive](https://archive.org) collections and [GamesDatabase.org](https://www.gamesdatabase.org).
 Box art and manuals are © their publishers.
-**Fonts:** SIL Open Font License (see `renderer\fonts\LICENSES`).
+**Fonts:** SIL Open Font License (see `renderer\fonts\LICENSES`; the Rust app's copies and their licences are in `crates\rustyshelf-core\assets\fonts`).
 **PC games:** [legendary](https://github.com/derrod/legendary) and [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher).
 **Bundled libraries** and their licences: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 

@@ -11,6 +11,7 @@ pub mod cues;
 pub mod detect;
 pub mod dirsize;
 pub mod dolphin;
+pub mod drawn;
 pub mod emucfg;
 pub mod emuname;
 pub mod emusetup;

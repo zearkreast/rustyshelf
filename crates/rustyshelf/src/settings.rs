@@ -1231,11 +1231,24 @@ fn last_played(ms: u64) -> String {
 
 /// What Details says of a game, a name and a value a line.
 fn facts(c: &Chosen) -> Vec<(String, String)> {
-    let g = &c.game;
+    facts_of(&c.game, &c.emulator, c.plays)
+}
+
+/// The emulator a shelf's games run in, by name; nothing for a shelf without one.
+pub fn emulator_of(shelf: &rustyshelf_core::library::Shelf) -> String {
+    match &shelf.kind {
+        ShelfKind::Console { config, .. } if !config.emulator.is_empty() => emuname::label(&config.emulator),
+        ShelfKind::Console { console, .. } => console.emulator_name.clone(),
+        _ => String::new(),
+    }
+}
+
+/// What's known of a game, a name and a value a line: `emulator` is what runs it, `plays` its plays.
+pub fn facts_of(g: &Game, emulator: &str, plays: Option<Played>) -> Vec<(String, String)> {
     let i = g.info.clone().unwrap_or_default();
     let mut rows: Vec<(&str, String)> = Vec::new();
     let hours = |ms: u64| format!("{:.1} hours", ms as f64 / 3_600_000.0);
-    let playtime = match c.plays {
+    let playtime = match plays {
         Some(p) if p.ms > 0 => hours(p.ms),
         Some(p) if p.count > 0 => format!("Started {} time{}", p.count, if p.count == 1 { "" } else { "s" }),
         _ => "Not played yet".into(),
@@ -1268,16 +1281,16 @@ fn facts(c: &Chosen) -> Vec<(String, String)> {
             let discs = if g.discs.len() > 1 { format!("{} discs", g.discs.len()) } else { String::new() };
             let file: Vec<String> = [g.ext.to_uppercase(), crate::hud::size(g.size_bytes), discs].into_iter().filter(|x| !x.is_empty()).collect();
             rows.push(("File", file.join(" · ")));
-            rows.push(("Emulator", c.emulator.clone()));
+            rows.push(("Emulator", emulator.to_string()));
             rows.push(("Playtime", playtime));
-            rows.push(("Last played", last_played(c.plays.map_or(0, |p| p.last))));
+            rows.push(("Last played", last_played(plays.map_or(0, |p| p.last))));
         }
         Source::Steam { appid, .. } => {
             if let Some(m) = i.metacritic.filter(|m| *m != 0.0) {
                 rows.push(("Metacritic", format!("{m} / 100")));
             }
             rows.push(("Playtime", playtime));
-            rows.push(("Last played", last_played(c.plays.map_or(0, |p| p.last))));
+            rows.push(("Last played", last_played(plays.map_or(0, |p| p.last))));
             if g.size_bytes > 0 {
                 rows.push(("Install size", crate::hud::size(g.size_bytes)));
             }
@@ -1350,11 +1363,7 @@ pub fn input(
             if let Some(shelf) = l.shelves.get(cursor.shelf) {
                 // on a mixed shelf, the game's own shelf says what runs it
                 let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
-                let emulator = match &own.kind {
-                    ShelfKind::Console { config, .. } if !config.emulator.is_empty() => emuname::label(&config.emulator),
-                    ShelfKind::Console { console, .. } => console.emulator_name.clone(),
-                    _ => String::new(),
-                };
+                let emulator = emulator_of(own);
                 s.chosen = shelf.games.get(cursor.game).map(|g| Chosen { emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
             }
         }

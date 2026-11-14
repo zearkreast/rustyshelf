@@ -5309,6 +5309,7 @@ dependencies = [
 name = "rustyshelf-core"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "base64 0.22.1",
  "md-5",
  "quick-xml 0.42.0",
@@ -5319,6 +5320,7 @@ dependencies = [
  "sha1",
  "sha2",
  "tempfile",
+ "tiny-skia",
  "unicode-normalization",
  "ureq",
 ]

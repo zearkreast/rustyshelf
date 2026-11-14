@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::config::LoadError;
 use rustyshelf_core::library::Library;
+use rustyshelf_core::looks::Look;
 
 /// Box art is shown at most this tall: plenty for a box on a TV, and a few hundred covers stay within GPU memory.
 const ART_HEIGHT: u32 = 512;
@@ -145,23 +146,53 @@ pub struct Decoded {
     pub image: Option<(u32, u32, Vec<u8>)>,
 }
 
+/// A picture for a case: one on disk, or one drawn for a game that has none.
+pub enum Art {
+    File(PathBuf),
+    Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32> },
+    Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
+}
+
+impl Art {
+    /// What the picture goes by once it's made: a file's own path, or all that a drawn one is drawn from.
+    pub fn key(&self) -> PathBuf {
+        match self {
+            Art::File(p) => p.clone(),
+            Art::Front { look, title, region, hue, .. } => PathBuf::from(format!("drawn:{}|f|{title}|{region}|{hue:?}", look.id)),
+            Art::Back { look, title, facts, blurb } => {
+                let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).collect();
+                PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
+            }
+        }
+    }
+
+    fn make(&self) -> Option<(u32, u32, Vec<u8>)> {
+        let drawn = |p: rustyshelf_core::drawn::Picture| Some((p.width, p.height, p.rgba));
+        match self {
+            Art::File(p) => decode(p),
+            Art::Front { look, title, region, scene, hue } => drawn(rustyshelf_core::drawn::front(look, title, region, *scene, *hue)),
+            Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct ArtLoader {
-    tx: Sender<PathBuf>,
+    tx: Sender<Art>,
     rx: Mutex<Receiver<Decoded>>,
 }
 
 impl ArtLoader {
     pub fn start() -> ArtLoader {
-        let (req_tx, req_rx) = channel::<PathBuf>();
+        let (req_tx, req_rx) = channel::<Art>();
         let (done_tx, done_rx) = channel();
         let req_rx = std::sync::Arc::new(Mutex::new(req_rx));
         for _ in 0..thread::available_parallelism().map_or(2, |n| n.get().clamp(2, 6)) {
             let (req_rx, done_tx) = (req_rx.clone(), done_tx.clone());
             thread::spawn(move || loop {
-                let Ok(path) = req_rx.lock().unwrap().recv() else { return };
-                let image = decode(&path);
-                if done_tx.send(Decoded { path, image }).is_err() {
+                let Ok(art) = req_rx.lock().unwrap().recv() else { return };
+                let image = art.make();
+                if done_tx.send(Decoded { path: art.key(), image }).is_err() {
                     return;
                 }
             });
@@ -169,8 +200,8 @@ impl ArtLoader {
         ArtLoader { tx: req_tx, rx: Mutex::new(done_rx) }
     }
 
-    pub fn request(&self, path: PathBuf) {
-        let _ = self.tx.send(path);
+    pub fn request(&self, art: Art) {
+        let _ = self.tx.send(art);
     }
 
     pub fn finished(&self) -> Vec<Decoded> {

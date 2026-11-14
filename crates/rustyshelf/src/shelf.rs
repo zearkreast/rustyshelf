@@ -10,7 +10,7 @@ use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 use rustyshelf_core::looks::{self, Rgba};
 
-use crate::loading::{to_image, ArtLoader, LibraryRes, LibraryState};
+use crate::loading::{to_image, Art, ArtLoader, LibraryRes, LibraryState};
 
 /// A keep case's height; a console's own case may be shorter.
 const BOX_H: f32 = 0.95;
@@ -36,10 +36,8 @@ pub struct GameBox {
     w: f32,
     h: f32,
     x: f32,
-    /// its back and its spine, shown once it's chosen: each one's picture, and the sheet it goes on
-    back: Option<(PathBuf, Handle<StandardMaterial>, f32)>,
-    spine: Option<(PathBuf, Handle<StandardMaterial>, f32)>,
-    asked: bool,
+    /// its back and its spine, asked for once it's chosen: each one's picture, and the sheet it goes on
+    late: Vec<(Art, Sheet)>,
 }
 
 #[derive(Component)]
@@ -61,15 +59,16 @@ pub struct Covers {
 
 impl Covers {
     /// Puts a picture on a sheet: at once when it's loaded, else when it arrives.
-    fn want(&mut self, path: PathBuf, sheet: Sheet, loader: &ArtLoader, materials: &mut Assets<StandardMaterial>) {
-        match self.loaded.get(&path) {
+    fn want(&mut self, art: Art, sheet: Sheet, loader: &ArtLoader, materials: &mut Assets<StandardMaterial>) {
+        let key = art.key();
+        match self.loaded.get(&key) {
             Some(Some((img, aspect))) => show(materials, &sheet, img, *aspect),
             Some(None) => {}
             None => {
-                if !self.waiting.contains_key(&path) {
-                    loader.request(path.clone());
+                if !self.waiting.contains_key(&key) {
+                    loader.request(art);
                 }
-                self.waiting.entry(path).or_default().push(sheet);
+                self.waiting.entry(key).or_default().push(sheet);
             }
         }
     }
@@ -88,6 +87,15 @@ fn show(materials: &mut Assets<StandardMaterial>, sheet: &Sheet, img: &Handle<Im
     m.base_color = Color::WHITE;
     m.base_color_texture = Some(img.clone());
     m.uv_transform = bevy::math::Affine2::from_scale_angle_translation(scale, 0.0, offset);
+}
+
+/// The colour a media app's drawn cover is made around, for the apps that have their own.
+fn app_hue(app: &str) -> Option<f32> {
+    match app {
+        "stremio" => Some(265.0),
+        "nuvio" => Some(200.0),
+        _ => None,
+    }
 }
 
 fn color(c: Rgba) -> Color {
@@ -138,6 +146,7 @@ pub fn build_shelf(
     mut cursor: ResMut<Cursor>,
     mut covers: ResMut<Covers>,
     loader: Res<ArtLoader>,
+    plays: Res<crate::play::Plays>,
     old: Query<Entity, Or<(With<GameBox>, With<ShelfPart>)>>,
     mut glow: Query<&mut PointLight, With<Glow>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -186,7 +195,8 @@ pub fn build_shelf(
     let mut cases: HashMap<String, Handle<StandardMaterial>> = HashMap::new();
     for (i, g) in shelf.games.iter().enumerate() {
         // on Home, All or a collection each game keeps its own shelf's case
-        let look = looks::look_for(shelf.from.get(i).map_or(shelf.id.as_str(), String::as_str), g);
+        let own = shelf.from.get(i).and_then(|id| library.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+        let look = looks::look_for(&own.id, g);
         let h = BOX_H * look.h.unwrap_or(1.0);
         let (w, d, edge) = (h * look.shape().0, h * look.shape().1, h * look.shape().2);
         // the printed sheet inside the case's border; one that wraps runs to the spine's side
@@ -198,20 +208,31 @@ pub fn build_shelf(
         let front = sheet(placeholder_color(&g.title), &mut materials);
         let back = sheet(paper, &mut materials);
         let spine = sheet(look.spine_band.as_ref().map_or(paper, |b| color(b.bg)), &mut materials);
-        if let Some(path) = g.art.front.clone() {
-            covers.want(path, (front.clone(), sheet_w / sheet_h), &loader, &mut materials);
+        // a game without box art gets a cover drawn from its title, and a back to match
+        let app = matches!(g.source, rustyshelf_core::scanner::Source::App { .. });
+        let hue = g.id.strip_prefix("app-").filter(|_| app).and_then(app_hue);
+        let cover = match g.art.front.clone() {
+            Some(path) => Art::File(path),
+            None => Art::Front { look: Box::new(look.clone()), title: g.title.clone(), region: g.region.clone(), scene: app.then_some("media"), hue },
+        };
+        covers.want(cover, (front.clone(), sheet_w / sheet_h), &loader, &mut materials);
+        let mut late = Vec::new();
+        late.push((
+            match g.art.back.clone() {
+                Some(path) => Art::File(path),
+                None => {
+                    let facts = crate::settings::facts_of(g, &crate::settings::emulator_of(own), rustyshelf_core::shelfview::played(g, &plays.0));
+                    Art::Back { look: Box::new(look.clone()), title: g.title.clone(), facts: facts.into_iter().take(5).collect(), blurb: g.info.as_ref().and_then(|i| i.overview.clone()).unwrap_or_default() }
+                }
+            },
+            (back.clone(), sheet_w / sheet_h),
+        ));
+        if let Some(path) = g.art.spine.clone() {
+            late.push((Art::File(path), (spine.clone(), d / sheet_h)));
         }
         commands
             .spawn((
-                GameBox {
-                    index: i,
-                    w,
-                    h,
-                    x: 0.0,
-                    back: g.art.back.clone().map(|p| (p, back.clone(), sheet_w / sheet_h)),
-                    spine: g.art.spine.clone().map(|p| (p, spine.clone(), d / sheet_h)),
-                    asked: false,
-                },
+                GameBox { index: i, w, h, x: 0.0, late },
                 Transform::default(),
                 Visibility::default(),
             ))
@@ -252,10 +273,9 @@ pub fn apply_covers(
         }
         covers.loaded.insert(d.path, done);
     }
-    for mut b in boxes.iter_mut().filter(|b| b.index == cursor.game && !b.asked) {
-        b.asked = true;
-        for (path, mat, shape) in b.back.iter().chain(b.spine.iter()) {
-            covers.want(path.clone(), (mat.clone(), *shape), &loader, &mut materials);
+    for mut b in boxes.iter_mut().filter(|b| b.index == cursor.game && !b.late.is_empty()) {
+        for (art, sheet) in std::mem::take(&mut b.late) {
+            covers.want(art, sheet, &loader, &mut materials);
         }
     }
 }
