@@ -288,6 +288,17 @@ impl Settings {
         rustyshelf_core::windowmode::MODES.into_iter().find(|m| *m == mode).unwrap_or("")
     }
 
+    /// The shelf's colour theme.
+    pub fn theme(&self) -> String {
+        rustyshelf_core::themes::id_of(&self.text(&["ui", "theme"])).to_string()
+    }
+
+    /// How much larger than usual the cases stand: Settings' size for every shelf, by the shelf's own.
+    pub fn box_scale(&self, shelf: &str) -> f32 {
+        let number = |path: &[&str]| at(&self.cfg, path).and_then(Value::as_f64).filter(|v| *v > 0.0).map_or(1.0, |v| v as f32);
+        number(&["ui", "boxScale"]) * number(&["ui", "shelfScale", shelf])
+    }
+
     /// Whether what's played is shown on Discord, and the application id it's shown under.
     pub fn discord(&self) -> (bool, String) {
         (self.flag(&["ui", "discordPresence"], false), self.text(&["ui", "discordAppId"]))

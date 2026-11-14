@@ -51,6 +51,8 @@ fn main() {
         .insert_resource(loading::ArtLoader::start())
         .init_resource::<shelf::Cursor>()
         .init_resource::<shelf::Covers>()
+        .init_resource::<shelf::Stage>()
+        .init_resource::<shelf::Backdrop>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
         .init_resource::<play::Discord>()
@@ -69,9 +71,11 @@ fn main() {
                 play::navigate,
                 sound::run,
                 music::run,
+                shelf::measure,
                 shelf::build_shelf,
                 shelf::apply_covers,
                 shelf::arrange,
+                shelf::backdrop,
                 hud::update,
                 settings::draw,
             )

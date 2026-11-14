@@ -517,9 +517,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   That includes Xbox 360 games named by their title id (disc images, extracted games, Games on Demand and Arcade
   packages), unpacked Switch 2 games, PS4 `.pkg` packages shown as not installed, PS5 games, arcade sets named from the
   FinalBurn Neo list, and the names and pictures in a Batocera / RetroBat `gamelist.xml`.
-- Shows them with their box art on a 3D shelf, one console at a time, each game in its console's own case (the
-  Electron app's table of case shapes and colours: keep cases, jewel cases, card boxes, the shorter handheld ones)
-  against that console's backdrop. F turns the chosen case round to its back cover; its spine shows on its side.
+- Shows them with their box art on the shelf as the Electron app lays it out, one console at a time: the chosen
+  game's case forward in the middle, the others in two angled stacks beside it with their spines out, each in its
+  console's own case (the Electron app's table of case shapes and colours), under the same plastic shine and glow.
+  Behind them is the colour theme's backdrop (the theme set in the Electron app's Settings; all eighteen are painted,
+  without their moving parts yet), in the console's colour. F turns the chosen case round to its back cover.
   A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
   under the console's band, and a back with four small scenes, its description and what Details knows of it.
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,

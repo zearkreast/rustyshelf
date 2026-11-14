@@ -554,42 +554,76 @@ impl Tile {
     }
 }
 
-/// The background painted `width` × `height` pixels, `scale` pixels to a CSS pixel. A layer that can't be read is
-/// left out.
-pub fn paint(css: &str, width: u32, height: u32, scale: f32) -> Picture {
-    let (w, h) = (width as f32 / scale, height as f32 / scale);
-    let tiles: Vec<Tile> = split(css, ',').into_iter().rev().filter_map(layer).filter_map(|l| Tile::new(&l, w, h, scale)).collect();
-    let mut rgba = vec![0u8; (width * height * 4) as usize];
-    let row = |y: usize, out: &mut [u8]| {
-        for (x, px) in out.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-            let (cx, cy) = ((x as f32 + 0.5) / scale, (y as f32 + 0.5) / scale);
-            let mut sum = [0.0f32; 4];
-            for t in &tiles {
-                let c = t.at(cx, cy);
-                if c[3] > 0.0 {
-                    let keep = 1.0 - c[3];
-                    sum = std::array::from_fn(|i| c[i] + sum[i] * keep);
+/// A picture being painted: backgrounds go onto it one over another, blended as a browser blends them.
+pub struct Canvas {
+    width: u32,
+    height: u32,
+    /// pixels to a CSS pixel
+    scale: f32,
+    px: Vec<Premul>,
+}
+
+impl Canvas {
+    /// A clear canvas of `width` × `height` pixels, `scale` of them to a CSS pixel.
+    pub fn new(width: u32, height: u32, scale: f32) -> Canvas {
+        Canvas { width, height, scale, px: vec![[0.0; 4]; (width * height) as usize] }
+    }
+
+    /// Paints a background over what's there, into the box `(x, y, w, h)` in CSS pixels, `opacity` strong. A layer
+    /// that can't be read is left out.
+    pub fn paint(&mut self, css: &str, (x, y, w, h): (f32, f32, f32, f32), opacity: f32) {
+        let scale = self.scale;
+        let tiles: Vec<Tile> = split(css, ',').into_iter().rev().filter_map(layer).filter_map(|l| Tile::new(&l, w, h, scale)).collect();
+        if tiles.is_empty() || self.width == 0 || self.height == 0 {
+            return;
+        }
+        let edge = |v: f32, most: u32| ((v * scale).round().max(0.0) as u32).min(most) as usize;
+        let (left, right, top, bottom) = (edge(x, self.width), edge(x + w, self.width), edge(y, self.height), edge(y + h, self.height));
+        if left >= right || top >= bottom {
+            return;
+        }
+        let row = |py: usize, line: &mut [Premul]| {
+            for (i, px) in line[left..right].iter_mut().enumerate() {
+                let (cx, cy) = (((left + i) as f32 + 0.5) / scale - x, (py as f32 + 0.5) / scale - y);
+                let mut sum = [0.0f32; 4];
+                for t in &tiles {
+                    let c = t.at(cx, cy);
+                    if c[3] > 0.0 {
+                        let keep = 1.0 - c[3];
+                        sum = std::array::from_fn(|i| c[i] + sum[i] * keep);
+                    }
                 }
+                let keep = 1.0 - sum[3] * opacity;
+                *px = std::array::from_fn(|i| sum[i] * opacity + px[i] * keep);
             }
-            let a = sum[3];
-            let byte = |v: f32| (v * 255.0 + 0.5).clamp(0.0, 255.0) as u8;
-            *px = if a > 0.0 { [byte(sum[0] / a), byte(sum[1] / a), byte(sum[2] / a), byte(a)] } else { [0; 4] };
-        }
-    };
-    let stride = width as usize * 4;
-    let threads = std::thread::available_parallelism().map_or(1, |n| n.get()).min(height.max(1) as usize);
-    let rows_each = (height as usize).div_ceil(threads.max(1)).max(1);
-    std::thread::scope(|s| {
-        for (i, band) in rgba.chunks_mut(stride * rows_each).enumerate() {
-            let row = &row;
-            s.spawn(move || {
-                for (j, line) in band.chunks_exact_mut(stride).enumerate() {
-                    row(i * rows_each + j, line);
-                }
-            });
-        }
-    });
-    Picture { width, height, rgba }
+        };
+        let stride = self.width as usize;
+        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+        let rows_each = (bottom - top).div_ceil(threads).max(1);
+        std::thread::scope(|s| {
+            for (i, band) in self.px[top * stride..bottom * stride].chunks_mut(stride * rows_each).enumerate() {
+                let row = &row;
+                s.spawn(move || {
+                    for (j, line) in band.chunks_exact_mut(stride).enumerate() {
+                        row(top + i * rows_each + j, line);
+                    }
+                });
+            }
+        });
+    }
+
+    pub fn picture(&self) -> Picture {
+        let byte = |v: f32| (v * 255.0 + 0.5).clamp(0.0, 255.0) as u8;
+        let rgba = self.px.iter().flat_map(|c| if c[3] > 0.0 { [byte(c[0] / c[3]), byte(c[1] / c[3]), byte(c[2] / c[3]), byte(c[3])] } else { [0; 4] }).collect();
+        Picture { width: self.width, height: self.height, rgba }
+    }
+}
+
+/// The background painted `width` × `height` pixels, `scale` pixels to a CSS pixel.
+pub fn paint(css: &str, width: u32, height: u32, scale: f32) -> Picture {
+    let mut c = Canvas::new(width, height, scale);
+    c.paint(css, (0.0, 0.0, width as f32 / scale, height as f32 / scale), 1.0);
+    c.picture()
 }
 
 #[cfg(test)]
@@ -620,6 +654,12 @@ mod tests {
         assert_eq!(p.rgba[(3 * 8 + 3) * 4], 255);
         assert_eq!(p.rgba[0], 0);
         // half the pixels, the same picture
+        // one background over another, in a box of its own, half as strong
+        let mut c = Canvas::new(4, 2, 1.0);
+        c.paint("#000", (0.0, 0.0, 4.0, 2.0), 1.0);
+        c.paint("linear-gradient(90deg,#fff,#fff)", (2.0, 1.0, 2.0, 1.0), 0.5);
+        let p = c.picture();
+        assert_eq!((p.rgba[0], p.rgba[2 * 4], p.rgba[(4 + 1) * 4], p.rgba[(4 + 2) * 4]), (0, 0, 0, 128));
         let p = paint("linear-gradient(90deg,#fff 0 50%,#000 50%)", 4, 1, 0.5);
         assert_eq!(p.rgba.chunks(4).map(|c| c[0]).collect::<Vec<_>>(), [255, 255, 0, 0]);
         // a picture, stretched over the right half

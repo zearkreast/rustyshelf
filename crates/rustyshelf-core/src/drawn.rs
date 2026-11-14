@@ -151,7 +151,7 @@ fn line(a: (f32, f32), b: (f32, f32)) -> Option<Path> {
 /// The fonts of the Electron app's own covers, and one with far more letters for what they lack.
 struct Fonts {
     title: [FontRef<'static>; 3],
-    lexend: [FontRef<'static>; 4],
+    lexend: [FontRef<'static>; 5],
     wide: FontRef<'static>,
 }
 
@@ -164,6 +164,7 @@ static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
             font(include_bytes!("../assets/fonts/Lexend-Medium.ttf")),
             font(include_bytes!("../assets/fonts/Lexend-Bold.ttf")),
             font(include_bytes!("../assets/fonts/Lexend-ExtraBold.ttf")),
+            font(include_bytes!("../assets/fonts/Lexend-SemiBold.ttf")),
         ],
         wide: font(include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf")),
     }
@@ -173,7 +174,7 @@ static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
 enum Face {
     /// one of the three title fonts
     Title(usize),
-    /// Lexend at a weight: 0 regular, 1 medium, 2 bold, 3 extra bold
+    /// Lexend at a weight: 0 regular, 1 medium, 2 bold, 3 extra bold, 4 semibold
     Lexend(usize),
 }
 
@@ -181,7 +182,7 @@ enum Face {
 fn font_for(face: Face, c: char) -> &'static FontRef<'static> {
     let own = match face {
         Face::Title(i) => &FONTS.title[i % 3],
-        Face::Lexend(w) => &FONTS.lexend[w.min(3)],
+        Face::Lexend(w) => &FONTS.lexend[w.min(4)],
     };
     if own.glyph_id(c).0 != 0 {
         own
@@ -576,4 +577,60 @@ pub fn back(look: &Look, title: &str, facts: &[(String, String)], blurb: &str) -
         y += 22.0;
     }
     picture(c)
+}
+
+/// A case's spine as the shelf shows it when there's no picture of it: the printed sheet inside the case's border,
+/// the console's band at the top and the title running down it. `width` × `height` pixels, `scale` of them to a
+/// pixel of the shelf's own measure; `edge`: the border at the top and bottom, in that measure.
+pub fn spine(look: &Look, title: &str, label: &str, width: u32, height: u32, edge: f32, scale: f32) -> Picture {
+    let mut c = Canvas { pix: Pixmap::new(width.max(1), height.max(1)).expect("a spine's size"), clip: None, t: Transform::from_scale(scale, scale) };
+    let (w, h) = (width as f32 / scale, height as f32 / scale);
+    let opaque = |c: crate::looks::Rgba| if c[3] < 1.0 { look.paper() } else { c };
+    c.rect(0.0, 0.0, w, h, &solid(of(opaque(look.case_color))));
+    let sheet = h - 2.0 * edge;
+    c.rect(0.0, edge, w, sheet, &solid(of(look.paper())));
+    let mut top = edge;
+    if let Some(b) = &look.spine_band {
+        let tall = sheet * 0.09;
+        c.rect(0.0, top, w, tall, &solid(of(b.bg)));
+        let (face, size) = (Face::Lexend(2), w * 0.3);
+        // letters .02em apart, the line on the middle of the band
+        let f = font_for(face, 'H');
+        let k = size / f.units_per_em().unwrap_or(1000.0);
+        let wide = text_width(face, label, size) + size * 0.02 * label.chars().count() as f32;
+        let mut pen = (w - wide) / 2.0;
+        let base = top + tall / 2.0 + (f.ascent_unscaled() + f.descent_unscaled()) / 2.0 * k * 0.72;
+        for ch in label.chars() {
+            let one = ch.to_string();
+            c.fill(text_path(face, &one, size, pen, base), &solid(of(b.fg)));
+            pen += text_width(face, &one, size) + size * 0.02;
+        }
+        top += tall;
+    }
+    let (face, size) = (Face::Lexend(4), w * 0.46);
+    let room = (sheet - (top - edge)).min(sheet * 0.88) - 16.0;
+    let mut shown = title.to_string();
+    if text_width(face, &shown, size) > room {
+        while !shown.is_empty() && text_width(face, &format!("{shown}…"), size) > room {
+            shown.pop();
+        }
+        shown = format!("{}…", shown.trim_end());
+    }
+    let f = font_for(face, 'H');
+    let middle = (f.ascent_unscaled() + f.descent_unscaled()) / 2.0 * size / f.units_per_em().unwrap_or(1000.0);
+    // turned a quarter: it reads from the top down, the letters' tops to the right
+    if let Some(p) = text_path(face, &shown, size, 0.0, 0.0).and_then(|p| p.transform(Transform::from_row(0.0, 1.0, -1.0, 0.0, w / 2.0 - middle, top + 8.0))) {
+        c.fill(Some(p), &solid(of(look.spine_ink)));
+    }
+    let mut out = picture(c);
+    // the curve of the spine, as the Electron app shades it
+    let shade = crate::cssbg::paint("linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,.05) 18%,rgba(255,255,255,.12) 50%,rgba(0,0,0,.05) 82%,rgba(0,0,0,.3))", width.max(1), height.max(1), scale);
+    for (px, over) in out.rgba.as_chunks_mut::<4>().0.iter_mut().zip(shade.rgba.as_chunks::<4>().0) {
+        let a = f32::from(over[3]) / 255.0;
+        for i in 0..3 {
+            px[i] = (f32::from(over[i]) * a + f32::from(px[i]) * (1.0 - a)).round() as u8;
+        }
+        px[3] = 255;
+    }
+    out
 }

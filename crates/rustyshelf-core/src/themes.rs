@@ -220,3 +220,69 @@ pub fn tint(id: &str, sh: f64, hue: f64, song: Option<f64>) -> String {
         ),
     }
 }
+
+/// The window the backdrop is painted for, in CSS pixels: its size, and the height of a case on the shelf.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stage {
+    pub w: f32,
+    pub h: f32,
+    pub case_h: f32,
+}
+
+/// How strong the floor's glow, the dark corners and the glow behind the chosen case are in a theme (the Electron
+/// app's style.css and themes-extra.css, keep in sync).
+fn strengths(id: &str) -> (f32, f32, f32) {
+    match id_of(id) {
+        "midnight" => (0.25, 1.0, 1.0),
+        "keys" | "arcade" => (0.4, 1.0, 1.0),
+        "blur" => (0.3, 1.0, 1.0),
+        "cube" | "blueshift" | "synth" => (0.42, 1.0, 1.0),
+        "swirl" | "walnut" | "forest" => (0.34, 1.0, 1.0),
+        "crt" | "vhs" => (0.34, 0.5, 1.0),
+        "pocket" => (0.28, 1.0, 0.5),
+        "oled" => (0.16, 0.0, 0.45),
+        _ => (1.0, 1.0, 1.0),
+    }
+}
+
+/// How strong the glow behind the chosen case is in a theme.
+pub fn halo_strength(id: &str) -> f32 {
+    strengths(id).2
+}
+
+/// The glow's colour, as the floor and the glow behind the chosen case take it.
+pub fn glow(id: &str, sh: f64, song: Option<f64>) -> String {
+    hsl(halo(id, sh, song), 95, 62, "0.62")
+}
+
+/// Whether a theme's backdrop has patterns too fine to be painted small and stretched.
+pub fn fine(id: &str) -> bool {
+    matches!(id_of(id), "arcade" | "cube" | "blueshift" | "swirl" | "pocket" | "walnut" | "forest" | "crt" | "vhs" | "synth")
+}
+
+/// Everything that lies still behind the shelf, painted `width` × `height` pixels: the theme's backdrop, its dark
+/// corners, and the floor's glow under the cases.
+pub fn backdrop(id: &str, sh: f64, hue: f64, song: Option<f64>, stage: Stage, width: u32, height: u32) -> crate::drawn::Picture {
+    let id = id_of(id);
+    let (floor, corners, _) = strengths(id);
+    let whole = (0.0, 0.0, stage.w, stage.h);
+    let mut c = crate::cssbg::Canvas::new(width, height, width as f32 / stage.w);
+    c.paint("#07070c", whole, 1.0);
+    c.paint(&tint(id, sh, hue, song), whole, 1.0);
+    if id == "arcade" {
+        c.paint("repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)", whole, 1.0);
+        c.paint("radial-gradient(ellipse 120% 100% at 50% 50%,transparent 60%,rgba(0,0,0,.55))", whole, 1.0);
+    }
+    let dark = match id {
+        "midnight" => "radial-gradient(ellipse at 50% 45%,transparent 35%,rgba(0,0,0,.85))",
+        _ => "radial-gradient(ellipse 80% 70% at 50% 42%,transparent 35%,rgba(0,0,0,.5) 100%),linear-gradient(to bottom,rgba(0,0,0,.25),transparent 20%,transparent 62%,rgba(0,0,0,.5))",
+    };
+    c.paint(dark, whole, corners);
+    let wide = (stage.w * 1.4).min(1400.0);
+    c.paint(
+        &format!("radial-gradient(ellipse 18% 26% at 50% 16%,{},transparent 75%),radial-gradient(ellipse 55% 34% at 50% 26%,rgba(0,0,0,.55),transparent 72%)", glow(id, sh, song)),
+        ((stage.w - wide) / 2.0, stage.h * 0.42 + stage.case_h / 2.0 - 10.0, wide, 160.0),
+        floor,
+    );
+    c.picture()
+}

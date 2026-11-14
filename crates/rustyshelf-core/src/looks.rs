@@ -40,6 +40,9 @@ pub struct Look {
     /// the sheet runs on round the spine: no border on that side
     #[serde(default, deserialize_with = "flag")]
     pub wrap: bool,
+    /// how round its corners are, for its width
+    #[serde(default)]
+    pub rc: Option<f32>,
     #[serde(deserialize_with = "css")]
     pub case_color: Rgba,
     #[serde(deserialize_with = "css")]
@@ -55,14 +58,49 @@ pub struct Look {
     pub tint: [Rgba; 2],
     #[serde(deserialize_with = "css")]
     pub glow: Rgba,
+    /// the colour its shelf's backdrop is washed in; a shelf without one takes the chosen game's
     #[serde(default)]
-    pub hue: f32,
+    pub hue: Option<f32>,
 }
+
+/// A case on the shelf, each measure for its height.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Shape {
+    pub depth: f32,
+    /// the border of case round the printed sheet
+    pub edge: f32,
+    /// the border on the spine's side: none where the sheet runs on round the spine
+    pub edge_in: f32,
+    /// the corners' radius
+    pub rc: f32,
+}
+
+/// The consoles whose games open into the app's one keep case model (the Electron app's renderer/inspect3d.js
+/// KEEP_CASES without its CASE_MODELS, keep in sync): their cases stand on the shelf in that model's shape.
+const KEEP_CASE: [&str; 9] = ["ps3", "ps4", "ps5", "xbox", "x360", "xboxone", "sw", "sw2", "psp"];
 
 impl Look {
     /// A case's width, thickness and border, each for its height.
     pub fn shape(&self) -> (f32, f32, f32) {
         (self.ratio, self.ratio * self.depth, self.ratio * self.edge)
+    }
+
+    /// The case as it stands on the shelf `shelf`, the one its game opens from.
+    pub fn on_shelf(&self, shelf: &str) -> Shape {
+        if KEEP_CASE.contains(&shelf) {
+            return Shape { depth: 0.066, edge: 0.024, edge_in: 0.0, rc: 0.02 };
+        }
+        let edge = self.ratio * self.edge;
+        Shape { depth: self.ratio * self.depth, edge, edge_in: if self.wrap { 0.0 } else { edge }, rc: self.ratio * self.rc.unwrap_or(0.03) }
+    }
+
+    /// The printed sheet's colour where no art covers it: white behind a clear case, else the case's own.
+    pub fn paper(&self) -> Rgba {
+        if self.id == "sw" || self.case_color[3] < 1.0 || self.case_side[3] < 1.0 {
+            [1.0, 1.0, 1.0, 1.0]
+        } else {
+            self.case_color
+        }
     }
 }
 
@@ -160,5 +198,11 @@ mod tests {
         let boxed = look_for("pc", &Game { box_plat: Some("gc".into()), ..steam });
         assert_eq!((boxed.id.as_str(), boxed.edge, boxed.spine_band.map(|b| b.label)), ("gc", 0.0, Some("PC".into())));
         assert_eq!(look_for("gc", &Game::default()).edge, 0.022);
+
+        let on = gc.on_shelf("gc");
+        assert!((on.depth - 0.07476).abs() < 1e-6 && on.edge == on.edge_in && (on.rc - 0.712 * 0.03).abs() < 1e-6);
+        assert_eq!(look("ps3").on_shelf("ps3"), Shape { depth: 0.066, edge: 0.024, edge_in: 0.0, rc: 0.02 });
+        assert_eq!(look("x360").on_shelf("home").edge_in, 0.0);
+        assert_eq!((look("sw").paper(), gc.paper()), ([1.0; 4], gc.case_color));
     }
 }

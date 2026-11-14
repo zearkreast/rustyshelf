@@ -151,6 +151,8 @@ pub enum Art {
     File(PathBuf),
     Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32> },
     Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
+    /// a spine painted `width` × `height` pixels, two to a pixel of the shelf: `edge` is the case's border there
+    Spine { look: Box<Look>, title: String, label: String, width: u32, height: u32, edge: f32 },
 }
 
 impl Art {
@@ -163,6 +165,7 @@ impl Art {
                 let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).collect();
                 PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
             }
+            Art::Spine { look, title, label, width, height, edge } => PathBuf::from(format!("drawn:{}|s|{title}|{label}|{width}x{height}|{edge}", look.id)),
         }
     }
 
@@ -172,6 +175,7 @@ impl Art {
             Art::File(p) => decode(p),
             Art::Front { look, title, region, scene, hue } => drawn(rustyshelf_core::drawn::front(look, title, region, *scene, *hue)),
             Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
+            Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
         }
     }
 }
