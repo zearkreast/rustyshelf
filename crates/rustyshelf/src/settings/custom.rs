@@ -6,7 +6,7 @@ use rustyshelf_core::pcgames;
 
 use super::*;
 
-fn base36(mut n: u128) -> String {
+pub(super) fn base36(mut n: u128) -> String {
     const DIGITS: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
     let mut out = Vec::new();
     loop {

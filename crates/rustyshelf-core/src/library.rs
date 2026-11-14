@@ -26,6 +26,8 @@ pub enum ShelfKind {
     Pc,
     /// the Media shelf
     Apps,
+    /// a shelf that mixes the others' games: Home, All, a collection
+    Mixed,
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +37,8 @@ pub struct Shelf {
     pub name: String,
     pub kind: ShelfKind,
     pub games: Vec<Game>,
+    /// on a mixed shelf, the shelf each game is from; empty on the others
+    pub from: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -213,6 +217,7 @@ impl Library {
                         name: c.name.clone(),
                         games: if sc.rom_dirs.is_empty() { Vec::new() } else { scanner::scan(c, &sc, &dirs, data) },
                         kind: ShelfKind::Console { console: Box::new(c.clone()), config: sc },
+                        from: Vec::new(),
                     })
                 })
                 .collect();
@@ -254,14 +259,14 @@ impl Library {
             let Some(games) = moved.remove(&c.id) else { continue };
             match shelves.iter_mut().find(|s| s.id == c.id) {
                 Some(shelf) => shelf.games.extend(games),
-                None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) } }),
+                None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) }, from: Vec::new() }),
             }
         }
         shelves.retain(|s| !s.games.is_empty());
         for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom)] {
             if !games.is_empty() {
                 games.sort_by(|a, b| compare_plain(&a.title, &b.title));
-                shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games });
+                shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games, from: Vec::new() });
             }
         }
         let apps: Vec<Game> = systems()
@@ -274,7 +279,7 @@ impl Library {
             })
             .collect();
         if !apps.is_empty() {
-            shelves.push(Shelf { id: "media".into(), name: "Media".into(), kind: ShelfKind::Apps, games: apps });
+            shelves.push(Shelf { id: "media".into(), name: "Media".into(), kind: ShelfKind::Apps, games: apps, from: Vec::new() });
         }
         Ok(Library { app_root: app_root.to_path_buf(), config, shelves })
     }

@@ -589,6 +589,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.
+- Has the Home shelf (the twelve games you played last, then your favorites), the All shelf when Settings → Display
+  asks for it, and your collections (Details → Collections puts a game on shelves of your own; Settings →
+  Collections renames and deletes them), each game starting as it does on its own shelf.
 - Has Details (D, or X on the pad): the game's description, release date, developer, publisher, genre, players,
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.

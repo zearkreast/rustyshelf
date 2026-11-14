@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use crate::collate::compare_exact;
 use crate::history::{History, Played};
+use crate::library::{Shelf, ShelfKind};
 use crate::scanner::{Game, Source};
 
 /// The orders a shelf can be in, with the name each has in the menu (renderer/app.js SORTS).
@@ -141,6 +142,51 @@ pub fn arrange(shelf_id: &str, games: &[Game], view: &View, history: &History) -
     shown
 }
 
+/// The shelves that mix the others' games, which come before them: Home (the twelve games played last, the latest
+/// first, then the favourites by title), All (every game by title, when the settings ask for it) and your
+/// collections (each one's games in the order they were added). They keep their own order whatever the shelves'
+/// order and filter are; hidden games aren't on them. Home is there once it has a game, a collection too.
+pub fn mixed_shelves(shelves: &[Shelf], ui: Option<&Value>, history: &History) -> Vec<Shelf> {
+    let view = View::from_ui(ui);
+    let all: Vec<(&Game, &str)> = shelves.iter().filter(|s| !matches!(s.kind, ShelfKind::Mixed)).flat_map(|s| s.games.iter().map(move |g| (g, s.id.as_str()))).filter(|(g, _)| !view.hidden.contains(&g.id)).collect();
+    let mixed = |id: String, name: String, games: Vec<(&Game, &str)>| Shelf { id, name, kind: ShelfKind::Mixed, from: games.iter().map(|(_, s)| s.to_string()).collect(), games: games.into_iter().map(|(g, _)| g.clone()).collect() };
+    let mut out = Vec::new();
+
+    let last = |g: &Game| history.get(&g.id).filter(|p| p.count > 0).map(|p| p.last);
+    let mut home: Vec<(&Game, &str)> = all.iter().copied().filter(|(g, _)| last(g).is_some()).collect();
+    home.sort_by_key(|(g, _)| std::cmp::Reverse(last(g)));
+    home.truncate(12);
+    let recent: HashSet<&str> = home.iter().map(|(g, _)| g.id.as_str()).collect();
+    let mut favorites: Vec<(&Game, &str)> = all.iter().copied().filter(|(g, _)| view.favorites.contains(&g.id) && !recent.contains(g.id.as_str())).collect();
+    favorites.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
+    home.extend(favorites);
+    if !home.is_empty() {
+        out.push(mixed("home".into(), "Home".into(), home));
+    }
+
+    if ui.and_then(|u| u.get("allShelf")) == Some(&Value::Bool(true)) {
+        let mut seen = HashSet::new();
+        let mut every: Vec<(&Game, &str)> = all.iter().copied().filter(|(g, _)| seen.insert(g.id.as_str())).collect();
+        every.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
+        if !every.is_empty() {
+            out.push(mixed("all".into(), "All".into(), every));
+        }
+    }
+
+    // (a game that's on two shelves under one id is taken from the later one)
+    let by_id: HashMap<&str, (&Game, &str)> = all.iter().map(|x| (x.0.id.as_str(), *x)).collect();
+    for c in ui.and_then(|u| u.get("collections")).and_then(Value::as_array).into_iter().flatten() {
+        let (Some(id), Some(ids)) = (c.get("id").and_then(Value::as_str).filter(|i| !i.is_empty()), c.get("ids").and_then(Value::as_array)) else { continue };
+        let games: Vec<(&Game, &str)> = ids.iter().filter_map(|i| by_id.get(i.as_str()?).copied()).collect();
+        if games.is_empty() {
+            continue;
+        }
+        let name = c.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or("Collection");
+        out.push(mixed(format!("col-{id}"), name.to_string(), games));
+    }
+    out
+}
+
 /// The heading a game sits under in the order chosen ("M", "1998", "This week", "★ 4+"); None for a custom order.
 pub fn group_of(g: &Game, sort: &str, history: &History, now_ms: u64) -> Option<String> {
     let info = g.info.clone().unwrap_or_default();
@@ -184,6 +230,34 @@ mod tests {
 
     fn game(id: &str, title: &str, year: Option<&str>, genres: Option<&str>, rating: Option<f64>) -> Game {
         Game { id: id.into(), title: title.into(), info: Some(Info { year: year.map(String::from), genres: genres.map(String::from), rating, players: Some("1-4".into()), ..Info::default() }), ..Game::default() }
+    }
+
+    #[test]
+    fn home_all_and_collections() {
+        let tmp = tempfile::tempdir().unwrap();
+        // b played last, then d, then a; c started and taken back (no count)
+        std::fs::write(tmp.path().join("history.json"), r#"{"a":{"count":2,"ms":5,"last":100},"b":{"count":1,"ms":0,"last":900},"d":{"count":1,"ms":9,"last":500},"c":{"count":0,"ms":0,"last":950}}"#).unwrap();
+        let history = History::load(tmp.path());
+        let shelf = |id: &str, games: Vec<Game>| Shelf { id: id.into(), name: id.to_uppercase(), kind: ShelfKind::Pc, games, from: Vec::new() };
+        let plain = |id: &str, title: &str| game(id, title, None, None, None);
+        let shelves = vec![shelf("gc", vec![plain("a", "Alpha"), plain("b", "beta"), plain("h", "Hidden")]), shelf("pc", vec![plain("c", "Gamma"), plain("d", "Delta"), plain("e", "Épsilon"), plain("f", "Zeta")])];
+        let ui = serde_json::json!({ "favorites": ["f", "e", "d"], "hidden": ["h"], "allShelf": true,
+            "collections": [{ "id": "c1", "name": "Couch", "ids": ["f", "gone", "a"] }, { "id": "c2", "name": "Empty", "ids": ["gone"] }, { "id": "", "name": "No id", "ids": ["a"] }, { "id": "c3", "ids": ["b"] }] });
+        let mixed = mixed_shelves(&shelves, Some(&ui), &history);
+        let shown: Vec<(&str, &str, Vec<&str>, Vec<&str>)> = mixed.iter().map(|s| (s.id.as_str(), s.name.as_str(), s.games.iter().map(|g| g.id.as_str()).collect(), s.from.iter().map(String::as_str).collect())).collect();
+        assert_eq!(
+            shown,
+            [
+                // played last first, then the favourites that aren't there yet, by title
+                ("home", "Home", vec!["b", "d", "a", "e", "f"], vec!["gc", "pc", "gc", "pc", "pc"]),
+                ("all", "All", vec!["a", "b", "d", "e", "c", "f"], vec!["gc", "gc", "pc", "pc", "pc", "pc"]),
+                ("col-c1", "Couch", vec!["f", "a"], vec!["pc", "gc"]),
+                ("col-c3", "Collection", vec!["b"], vec!["gc"]),
+            ]
+        );
+        assert!(mixed.iter().all(|s| matches!(s.kind, ShelfKind::Mixed)));
+        // nothing played, no favourite, no All shelf asked for: no shelf of the kind
+        assert!(mixed_shelves(&shelves, Some(&serde_json::json!({})), &History::default()).is_empty());
     }
 
     #[test]

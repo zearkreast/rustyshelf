@@ -168,6 +168,10 @@ pub fn update(
             if let Some(g) = shelf.games.get(cursor.game) {
                 title = g.title.clone();
                 det = format!("{}  ·  {} of {}", details(g), cursor.game + 1, shelf.games.len());
+                // on Home, All or a collection: the shelf it's from first
+                if let Some(own) = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)) {
+                    det = format!("{}  ·  {det}", own.name);
+                }
             }
         }
     }

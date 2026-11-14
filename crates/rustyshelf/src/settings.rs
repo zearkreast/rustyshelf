@@ -23,6 +23,7 @@ use crate::hud::Face;
 use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
+mod collections;
 mod custom;
 pub mod setup;
 mod text;
@@ -67,11 +68,13 @@ enum Screen {
     Shelf,
     Details,
     Hidden,
+    /// the chosen game's collections, and all of them
+    GameCollections,
+    Collections,
 }
 
 /// The game the shelf's menu or Details was opened on.
 struct Chosen {
-    shelf: String,
     /// the emulator its shelf names
     emulator: String,
     game: Game,
@@ -302,7 +305,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -551,6 +554,7 @@ impl Settings {
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo", Screen::Controller),
+                    open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                     open("System", String::new(), "Search again, emulator setup", Screen::System),
                     Row { label: "Back to the shelf".into(), press: Some(Box::new(|s: &mut Settings| s.back())), ..Row::default() },
@@ -808,6 +812,8 @@ impl Settings {
                 Page { title: "Emulator & advanced".into(), lead: format!("{name}'s own tools, how RustyShelf starts it, and the rarely-needed settings for {}.", c.name), rows }
             }
             Screen::EmuSetup(id) => self.setup_page(id),
+            Screen::GameCollections => self.game_collections_page(),
+            Screen::Collections => self.collections_page(),
             Screen::Custom => self.custom_page(),
             Screen::CustomGame(i) => self.custom_game_page(*i),
             Screen::Pc => {
@@ -895,7 +901,10 @@ impl Settings {
                 Page { title: "Box art".into(), lead: "RustyShelf can fetch the covers your games don't have yet.".into(), rows }
             }
             Screen::Display => {
-                let mut rows = vec![toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start")];
+                let mut rows = vec![
+                    toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
+                    toggle("All games shelf", &["ui", "allShelf"], false, "A shelf with your complete collection in alphabetical order."),
+                ];
                 if cfg!(windows) {
                     rows.push(toggle(
                         "Seamless play",
@@ -1111,6 +1120,7 @@ impl Settings {
                         })),
                         ..Row::default()
                     },
+                    open("Collections", String::new(), "This game on shelves of your own", Screen::GameCollections),
                 ];
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());
@@ -1338,12 +1348,14 @@ pub fn input(
         s.chosen = None;
         if let LibraryState::Ready(l) = &lib.0 {
             if let Some(shelf) = l.shelves.get(cursor.shelf) {
-                let emulator = match &shelf.kind {
+                // on a mixed shelf, the game's own shelf says what runs it
+                let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+                let emulator = match &own.kind {
                     ShelfKind::Console { config, .. } if !config.emulator.is_empty() => emuname::label(&config.emulator),
                     ShelfKind::Console { console, .. } => console.emulator_name.clone(),
                     _ => String::new(),
                 };
-                s.chosen = shelf.games.get(cursor.game).map(|g| Chosen { shelf: shelf.id.clone(), emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
+                s.chosen = shelf.games.get(cursor.game).map(|g| Chosen { emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
             }
         }
         if let Some(b) = &base.0 {
@@ -1475,15 +1487,7 @@ pub fn input(
         s.rearranged = false;
         if let (Some(b), Some(cfg)) = (base.0.as_mut(), Config::from_value(&s.cfg)) {
             b.config = cfg;
-            let fresh = loading::shown(b, &plays.0);
-            let keep = s.chosen.as_ref().map(|c| (c.shelf.clone(), c.game.id.clone()));
-            if let Some((shelf, game)) = keep {
-                cursor.shelf = fresh.shelves.iter().position(|sh| sh.id == shelf).unwrap_or(cursor.shelf.min(fresh.shelves.len().saturating_sub(1)));
-                let games = fresh.shelves.get(cursor.shelf).map_or(&[][..], |sh| sh.games.as_slice());
-                cursor.game = games.iter().position(|g| g.id == game).unwrap_or(cursor.game.min(games.len().saturating_sub(1)));
-            }
-            cursor.built = None;
-            lib.0 = LibraryState::Ready(fresh);
+            loading::reshow(&mut lib, b, &plays.0, &mut cursor);
         }
     }
 }

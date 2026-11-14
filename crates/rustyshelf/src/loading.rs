@@ -38,7 +38,32 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
         let order = arrange(&shelf.id, &shelf.games, &view, history);
         shelf.games = order.into_iter().map(|i| shelf.games[i].clone()).collect();
     }
+    // Home, All and the collections come first, in their own order
+    let mut shelves = rustyshelf_core::shelfview::mixed_shelves(&base.shelves, base.config.raw().get("ui"), history);
+    shelves.append(&mut lib.shelves);
+    lib.shelves = shelves;
     lib
+}
+
+/// The shelves were asked to be shown again: a game was played (Home changes with it).
+#[derive(Resource, Default)]
+pub struct Reshow(pub bool);
+
+/// Shows the shelves again from the library as it was read, the cursor staying on its shelf and its game where
+/// they're still shown.
+pub fn reshow(lib: &mut LibraryRes, base: &Library, history: &rustyshelf_core::history::History, cursor: &mut crate::shelf::Cursor) {
+    let keep = match &lib.0 {
+        LibraryState::Ready(l) => l.shelves.get(cursor.shelf).map(|s| (s.id.clone(), s.games.get(cursor.game).map(|g| g.id.clone()))),
+        _ => None,
+    };
+    let fresh = shown(base, history);
+    if let Some((shelf, game)) = keep {
+        cursor.shelf = fresh.shelves.iter().position(|s| s.id == shelf).unwrap_or(cursor.shelf.min(fresh.shelves.len().saturating_sub(1)));
+        let games = fresh.shelves.get(cursor.shelf).map_or(&[][..], |s| s.games.as_slice());
+        cursor.game = game.and_then(|id| games.iter().position(|g| g.id == id)).unwrap_or(cursor.game.min(games.len().saturating_sub(1)));
+    }
+    cursor.built = None;
+    lib.0 = LibraryState::Ready(fresh);
 }
 
 /// The library being read again behind the shelf, after its lists or sizes changed.
@@ -53,7 +78,19 @@ pub fn start_library() -> LibraryRes {
     LibraryRes(LibraryState::Loading(Mutex::new(rx)))
 }
 
-pub fn poll_library(mut lib: ResMut<LibraryRes>, mut base: ResMut<Base>, plays: Res<crate::play::Plays>, mut refresh: ResMut<Refresh>, mut cursor: ResMut<crate::shelf::Cursor>) {
+pub fn poll_library(
+    mut lib: ResMut<LibraryRes>,
+    mut base: ResMut<Base>,
+    plays: Res<crate::play::Plays>,
+    mut refresh: ResMut<Refresh>,
+    mut again: ResMut<Reshow>,
+    mut cursor: ResMut<crate::shelf::Cursor>,
+) {
+    if std::mem::take(&mut again.0) {
+        if let (Some(b), LibraryState::Ready(_)) = (&base.0, &lib.0) {
+            reshow(&mut lib, b, &plays.0, &mut cursor);
+        }
+    }
     if let LibraryState::Loading(rx) = &lib.0 {
         let got = rx.lock().unwrap().try_recv();
         match got {

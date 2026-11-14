@@ -279,7 +279,9 @@ pub fn navigate(
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
     let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
     sounds.play("go", 1);
-    match (&shelf.kind, &g.source) {
+    // a game on Home, All or a collection starts as it does on its own shelf
+    let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+    match (&own.kind, &g.source) {
         // Steam starts it. With Seamless play it's watched as a game RustyShelf started; without, Steam looks after
         // it and the shelf stays as it is
         (_, Source::Steam { appid, .. }) => match launch::launch_steam(appid) {
@@ -343,7 +345,7 @@ pub fn navigate(
             playing.title = Some(g.title.clone());
             playing.id = g.id.clone();
             let file = g.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, shelf.name.clone()));
+            playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, own.name.clone()));
             playing.combo = combo;
             playing.starting = Some(Mutex::new(rx));
             sounds.play_later("boot", now, 0.7);
@@ -362,7 +364,7 @@ pub fn navigate(
                 toast.until = now + 6.0;
             }
         },
-        (ShelfKind::Pc | ShelfKind::Apps, Source::Rom) => {}
+        (ShelfKind::Pc | ShelfKind::Apps | ShelfKind::Mixed, Source::Rom) => {}
     }
 }
 
@@ -375,6 +377,7 @@ pub fn watch_game(
     pads: Query<&Gamepad>,
     discord: Res<Discord>,
     mut sounds: ResMut<crate::sound::Sounds>,
+    mut again: ResMut<crate::loading::Reshow>,
     time: Res<Time>,
 ) {
     if std::mem::take(&mut settings.discord_changed) {
@@ -424,6 +427,7 @@ pub fn watch_game(
         }
         if over {
             *playing = Playing::default();
+            again.0 = true;
         } else if p.closing.is_none() && p.watch.as_mut().is_some_and(|x| x.quit(&pads, time.elapsed().as_millis() as u64)) {
             info!("Quit combo: closing {title}");
             let _ = w.close.send(CLOSE_WAIT_MS);
@@ -503,4 +507,5 @@ pub fn watch_game(
         _ => plays.0.end(),
     }
     *playing = Playing::default();
+    again.0 = true;
 }
