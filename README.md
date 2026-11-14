@@ -629,12 +629,20 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Has Details (I, or X on the pad): the game's description, release date, developer, publisher, genre, players,
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
+- Has the Home menu (Settings → Controller turns it off, or makes it a centred card). Over a running game, Guide
+  on the pad (or View held on its own for a second) pauses the game with its emulator's own hotkey and brings
+  RustyShelf forward with Resume, Save state, Load state, Screenshot, Power (Sleep, Restart, Shut down) and Quit
+  to shelf: only what that emulator can do, by the Electron app's table of hotkeys and the console's own over
+  it. What's chosen goes back to the game's window as those hotkeys; Quit, Restart and Shut down need the button
+  held. On the shelf, Home or P (or Guide) opens it with the Home shelf, Settings and Power. Unlike the Electron
+  app's, it's drawn in RustyShelf's own window in front of the paused game, not over the game's picture, so a
+  saved state is confirmed by the emulator's own message.
 
 **Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding several games at once, a folder of games or a
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
-full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), manuals, the open case and the museum, the Home menu over a
-running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
+full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), manuals, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+doesn't show as XInput, the phone
 companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
@@ -659,12 +667,14 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Settings | S | View |
 | Surprise me | R | left stick click |
 | Find a game | / | hold the left stick |
+| Home menu | Home / P | Guide (over a game: Guide, or hold View) |
 | Quit | Esc | |
 
 `cargo test --workspace` runs its tests, which compare its title and folder rules against the Electron app's own answers
 (`node scripts/rust-fixtures.js` regenerates those), its sounds and drawn covers against the Electron app's own
-(`node scripts/rust-sound-fixtures.js`), and its painting of the themes' backdrops against Chromium's
-(`node scripts/rust-paint-fixtures.js`); the last two need Playwright's Chromium.
+(`node scripts/rust-sound-fixtures.js`), its painting of the themes' backdrops against Chromium's
+(`node scripts/rust-paint-fixtures.js`), and its Home menu against the Electron app's page
+(`node scripts/rust-home-fixtures.js`); the last three need Playwright's Chromium.
 
 ## For developers
 

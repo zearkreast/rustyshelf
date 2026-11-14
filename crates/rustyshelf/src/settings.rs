@@ -157,6 +157,8 @@ pub struct Settings {
     open_emulator: Option<String>,
     /// the page the shelf asked to be opened at
     wanted: Option<Screen>,
+    /// the Home menu is up: the keys and the pads are its own
+    pub keys_taken: bool,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -226,6 +228,7 @@ impl Default for Settings {
             gpu_vendor: None,
             open_emulator: None,
             wanted: None,
+            keys_taken: false,
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -327,6 +330,24 @@ impl Settings {
     /// Asks for a console's page (its emulator and games folders), from its shelf's "Add games" case.
     pub fn open_console(&mut self, id: &str) {
         self.wanted = Some(Screen::Console(id.to_string()));
+    }
+
+    /// The Home menu: whether it's on, whether it's the centred card, whether the right face button confirms,
+    /// and whose letters the buttons carry.
+    pub fn home_menu(&self) -> (bool, bool, bool, rustyshelf_core::homemenu::Glyphs) {
+        use rustyshelf_core::homemenu::Glyphs;
+        let glyphs = match self.text(&["ui", "buttons"]).as_str() {
+            "ps" => Glyphs::Ps,
+            "nintendo" => Glyphs::Nintendo,
+            _ => Glyphs::Xbox,
+        };
+        let confirm = self.text(&["ui", "confirmButton"]);
+        (self.flag(&["ui", "homeMenu"], true), self.text(&["ui", "homeLayout"]) == "center", confirm == "b" || (confirm != "a" && glyphs == Glyphs::Nintendo), glyphs)
+    }
+
+    /// Asks for Settings' first page, from the Home menu.
+    pub fn open_root(&mut self) {
+        self.wanted = Some(Screen::Root);
     }
 
     /// Asks for the Custom games page, from the Custom shelf's "Add games" case.
@@ -627,7 +648,7 @@ impl Settings {
                     open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
-                    open("Controller", String::new(), "The quit combo", Screen::Controller),
+                    open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
                     open("Accounts", String::new(), "RetroAchievements, SteamGridDB, ScreenScraper", Screen::Accounts),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
@@ -1135,6 +1156,18 @@ impl Settings {
                     rows: vec![
                         toggle("Quit combo", &["ui", "quitCombo"], true, "Held on the pad, it closes the game and brings the shelf back"),
                         Row { label: "Buttons".into(), value: COMBOS[at].1.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)), ..Row::default() },
+                        toggle("Home menu", &["ui", "homeMenu"], true, "Guide (or View held) over a running game pauses it and brings up Resume, Save and Load state, Screenshot, Power and Quit to shelf; on the shelf, Home or P opens it"),
+                        {
+                            let center = self.text(&["ui", "homeLayout"]) == "center";
+                            let turn = move |s: &mut Settings| s.set(&["ui", "homeLayout"], json!(if center { "side" } else { "center" }));
+                            Row {
+                                label: "Home menu layout".into(),
+                                value: if center { "Centred card" } else { "Side panel" }.into(),
+                                hint: "A panel at the left edge, or a card in the middle of the screen".into(),
+                                press: Some(Box::new(turn)),
+                                step: Some(Box::new(move |s: &mut Settings, _| turn(s))),
+                            }
+                        },
                     ],
                 }
             }
@@ -1458,6 +1491,9 @@ pub fn input(
     let typed: Vec<_> = typed.read().cloned().collect();
     if s.gpu_vendor.is_none() {
         s.gpu_vendor = adapter.map(|a| a.vendor);
+    }
+    if s.keys_taken {
+        return;
     }
     if !s.open {
         if let Some(text) = s.toast.take() {

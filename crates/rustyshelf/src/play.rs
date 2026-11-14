@@ -75,6 +75,11 @@ pub struct Playing {
     watched: Option<Watched>,
     /// keeps a PC game's window borderless while it runs
     borderless: Option<Helper>,
+    /// the game's process, once it's there
+    pub pid: Option<u32>,
+    /// Home was asked for on a pad while the game is in front; and the Home menu asked for the game to be closed
+    pub home_pressed: bool,
+    pub close_asked: bool,
 }
 
 /// A helper program that runs beside the game and goes when the game does.
@@ -136,10 +141,17 @@ const CLOSE_WAIT_MS: u64 = 8000;
 const APP_CLOSE_WAIT: f32 = 2.5;
 
 impl Playing {
-    /// The game's process is there: the quit combo is listened for.
+    /// The game's process is there: the quit combo and Home are listened for.
     fn running(&mut self, child: Child) {
-        self.watch = self.combo.as_deref().map(|combo| Watch::start(combo, child.id()));
+        self.watch = Some(Watch::start(self.combo.as_deref(), child.id()));
+        self.pid = Some(child.id());
         self.child = Some(Mutex::new(child));
+    }
+
+    /// The console the running game is on and its emulator's program, when it's a console's game; and whether
+    /// it's a streaming app.
+    pub fn running_in(&self) -> (Option<(&str, &str)>, bool) {
+        (self.emulator.as_ref().map(|e| (e.console.as_str(), e.exe.as_str())), self.app)
     }
 }
 
@@ -155,7 +167,7 @@ impl Playing {
     fn watching(&mut self, title: &str, id: &str, combo: Option<String>, spec: Spec, store: &'static str) {
         self.title = Some(title.to_string());
         self.id = id.to_string();
-        self.watch = combo.as_deref().map(|c| Watch::start(c, 0));
+        self.watch = Some(Watch::start(combo.as_deref(), 0));
         self.combo = combo;
         self.watched = Some(Watched::start(spec, store));
     }
@@ -219,8 +231,8 @@ pub fn navigate(
 ) {
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
-    // Settings has the keys while it's open
-    if settings.open || (settings.just_closed && !asked) {
+    // Settings has the keys while it's open, and so has the Home menu
+    if settings.open || settings.keys_taken || (settings.just_closed && !asked) {
         return;
     }
     if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() {
@@ -303,7 +315,8 @@ pub fn navigate(
             };
         }
     }
-    if keys.just_pressed(KeyCode::Home) {
+    // (with the Home menu on, Home opens it)
+    if keys.just_pressed(KeyCode::Home) && !settings.home_menu().0 {
         cursor.game = 0;
     }
     if keys.just_pressed(KeyCode::End) {
@@ -502,6 +515,9 @@ pub fn watch_game(
     }
     let title = playing.title.clone().unwrap_or_default();
     let now = time.elapsed_secs();
+    if playing.watch.as_mut().is_some_and(|w| w.home(&pads, time.elapsed().as_millis() as u64)) {
+        playing.home_pressed = true;
+    }
     if playing.watched.is_some() {
         let p = &mut *playing;
         let w = p.watched.as_mut().expect("a watched game");
@@ -524,9 +540,13 @@ pub fn watch_game(
                     info!("Watching {title} (process {pid}, {exe})");
                     w.waiting = false;
                     plays.0.start(&p.id);
-                    p.watch = p.combo.as_deref().map(|c| Watch::start(c, pid));
+                    p.watch = Some(Watch::start(p.combo.as_deref(), pid));
+                    p.pid = Some(pid);
                 }
-                Event::Handover { pid, .. } => p.watch = p.combo.as_deref().map(|c| Watch::start(c, pid)),
+                Event::Handover { pid, .. } => {
+                    p.watch = Some(Watch::start(p.combo.as_deref(), pid));
+                    p.pid = Some(pid);
+                }
                 Event::Ended { cancelled, .. } => {
                     if !cancelled {
                         plays.0.end();
@@ -544,8 +564,8 @@ pub fn watch_game(
         if over {
             *playing = Playing::default();
             again.0 = true;
-        } else if p.closing.is_none() && p.watch.as_mut().is_some_and(|x| x.quit(&pads, time.elapsed().as_millis() as u64)) {
-            info!("Quit combo: closing {title}");
+        } else if p.closing.is_none() && (p.watch.as_mut().is_some_and(|x| x.quit(&pads, time.elapsed().as_millis() as u64)) | std::mem::take(&mut p.close_asked)) {
+            info!("Closing {title}");
             let _ = w.close.send(CLOSE_WAIT_MS);
             p.closing = Some(f32::INFINITY);
             toast.text = format!("Closing {title}…");
@@ -580,10 +600,10 @@ pub fn watch_game(
     }
     let pid = playing.child.as_ref().map(|c| c.lock().unwrap().id());
     if let Some(pid) = pid {
-        let held = playing.watch.as_mut().is_some_and(|w| w.quit(&pads, time.elapsed().as_millis() as u64));
+        let held = playing.watch.as_mut().is_some_and(|w| w.quit(&pads, time.elapsed().as_millis() as u64)) | std::mem::take(&mut playing.close_asked);
         match playing.closing {
             None if held => {
-                info!("Quit combo: closing {title}");
+                info!("Closing {title}");
                 launch::close_program(pid, false);
                 playing.closing = Some(now + if playing.app { APP_CLOSE_WAIT } else { CLOSE_WAIT });
                 toast.text = format!("Closing {title}…");

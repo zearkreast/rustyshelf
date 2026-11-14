@@ -266,7 +266,7 @@ const PAD_KEYS: [(&[&str], &str); 9] = [
 
 /// The date and the time as the Electron app's clock writes them in English: "Sat, Nov 14" and "5:16 PM" (or
 /// "17:16").
-fn clock(now: chrono::DateTime<chrono::Local>, day_too: bool, twenty_four: bool) -> (String, String) {
+pub fn clock(now: chrono::DateTime<chrono::Local>, day_too: bool, twenty_four: bool) -> (String, String) {
     let date = if day_too { now.format("%a, %b %-d").to_string() } else { String::new() };
     (date, if twenty_four { now.format("%H:%M").to_string() } else { now.format("%-I:%M %p").to_string() })
 }

@@ -4,6 +4,7 @@
 
 mod boot;
 mod cheevos;
+mod home;
 mod hud;
 mod loading;
 mod music;
@@ -69,13 +70,15 @@ fn main() {
         .init_resource::<cheevos::Cheevos>()
         .init_resource::<hud::Prompts>()
         .init_resource::<settings::Settings>()
+        .init_resource::<home::Home>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup).chain())
         .add_systems(
             Update,
             (
                 loading::poll_library,
                 play::watch_game,
+                home::run,
                 settings::input,
                 play::navigate,
                 sound::run,
@@ -85,7 +88,7 @@ fn main() {
                 (shelf::apply_covers, shelf::reveal).chain(),
                 shelf::arrange,
                 (shelf::customs, shelf::backdrop, shelf::moving).chain(),
-                (cheevos::run, hud::update, hud::top, hud::hints, settings::draw, boot::run).chain(),
+                (cheevos::run, hud::update, hud::top, hud::hints, settings::draw, boot::run, home::draw).chain(),
             )
                 .chain(),
         )
