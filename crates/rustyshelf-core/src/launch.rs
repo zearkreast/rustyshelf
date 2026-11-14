@@ -462,6 +462,29 @@ pub fn emulator_plan(console_id: &str, emulator: &str, emulator_args: &str, app_
     Ok(Plan { exe, args: build_args(emulator_args, ""), env })
 }
 
+/// Asks a running program to close, as a click on its X does (its saves and settings are written); `force` ends it
+/// and everything it started, for one that didn't close when asked.
+pub fn close_program(pid: u32, force: bool) {
+    let mut cmd;
+    if cfg!(windows) {
+        cmd = Command::new("taskkill");
+        cmd.args(["/PID", &pid.to_string()]);
+        if force {
+            cmd.args(["/T", "/F"]);
+        }
+        #[cfg(windows)]
+        std::os::windows::process::CommandExt::creation_flags(&mut cmd, 0x0800_0000); // CREATE_NO_WINDOW
+    } else {
+        // the process group it was started as: a Flatpak's launcher, an AppImage's runtime and the emulator itself
+        cmd = Command::new("kill");
+        cmd.args([if force { "-KILL" } else { "-TERM" }, "--", &format!("-{pid}")]);
+    }
+    cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    if let Ok(mut child) = cmd.spawn() {
+        std::thread::spawn(move || child.wait());
+    }
+}
+
 /// Shows a folder in the system's file manager.
 pub fn open_folder(dir: &Path) -> Result<(), LaunchError> {
     let mut cmd = Command::new(if cfg!(windows) { "explorer" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" });
@@ -584,6 +607,19 @@ pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn a_started_program_closes_when_asked() {
+        let plan = Plan { exe: PathBuf::from("/bin/sleep"), args: vec!["30".into()], env: None };
+        let mut child = start(&plan).unwrap();
+        close_program(child.id(), false);
+        let asked = std::time::Instant::now();
+        while child.try_wait().unwrap().is_none() {
+            assert!(asked.elapsed().as_secs() < 10, "still running");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
 
     #[test]
     fn args() {

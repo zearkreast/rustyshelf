@@ -32,6 +32,7 @@ pub mod pccovers;
 pub mod pcfolder;
 pub mod pcgames;
 pub mod pkg;
+pub mod presence;
 pub mod racores;
 pub mod scanner;
 pub mod settings;

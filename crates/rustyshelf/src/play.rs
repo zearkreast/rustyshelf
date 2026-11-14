@@ -9,10 +9,12 @@ use rustyshelf_core::{emucfg, emuname};
 use rustyshelf_core::history::History;
 use rustyshelf_core::launch::{self, LaunchError};
 use rustyshelf_core::paths;
+use rustyshelf_core::presence::Presence;
 use rustyshelf_core::library::ShelfKind;
 use rustyshelf_core::scanner::Source;
 
 use crate::hud::Toast;
+use crate::padwatch::{self, Watch};
 use crate::loading::{LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
@@ -23,6 +25,16 @@ pub struct Plays(pub History);
 impl Default for Plays {
     fn default() -> Self {
         Plays(History::load(&paths::data_dir(&paths::app_root())))
+    }
+}
+
+/// What Discord shows of the game being played.
+#[derive(Resource)]
+pub struct Discord(Presence);
+
+impl Default for Discord {
+    fn default() -> Self {
+        Discord(Presence::start(&paths::env_var))
     }
 }
 
@@ -49,6 +61,28 @@ pub struct Playing {
     child: Option<Mutex<Child>>,
     console: String,
     emulator: Option<Emulator>,
+    /// the quit combo, when it's on
+    combo: Option<String>,
+    watch: Option<Watch>,
+    /// asked to close: when it's ended by force if it's still there (seconds)
+    closing: Option<f32>,
+    /// a streaming app: it's given less time to close
+    app: bool,
+    /// a console game as Discord is told of it: its title from its file, its console's name
+    shown: Option<(String, String)>,
+}
+
+/// How long a program has to close by itself once asked (seconds): emulators can take a while writing saves and
+/// shader caches.
+const CLOSE_WAIT: f32 = 8.0;
+const APP_CLOSE_WAIT: f32 = 2.5;
+
+impl Playing {
+    /// The game's process is there: the quit combo is listened for.
+    fn running(&mut self, child: Child) {
+        self.watch = self.combo.as_deref().map(|combo| Watch::start(combo, child.id()));
+        self.child = Some(Mutex::new(child));
+    }
 }
 
 /// An emulator that closes by itself this soon (a missing BIOS, keys or firmware, bad launch options) wasn't a play.
@@ -65,7 +99,8 @@ pub fn open_alone(playing: &mut Playing, console: &str, name: String, plan: &lau
     let exe = plan.exe.to_string_lossy().into_owned();
     emucfg::before_launch(console, &exe, quit_combo, &paths::env_var);
     let child = launch::start(plan)?;
-    *playing = Playing { title: Some(name), child: Some(Mutex::new(child)), emulator: Some(Emulator { console: console.to_string(), exe, at: now, alone: true }), ..Playing::default() };
+    *playing = Playing { title: Some(name), combo: quit_combo.map(String::from), emulator: Some(Emulator { console: console.to_string(), exe, at: now, alone: true }), ..Playing::default() };
+    playing.running(child);
     Ok(())
 }
 
@@ -91,6 +126,7 @@ pub fn navigate(
     mut toast: ResMut<Toast>,
     mut settings: ResMut<crate::settings::Settings>,
     mut exit: MessageWriter<AppExit>,
+    mut held: Local<padwatch::Held>,
 ) {
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
@@ -102,9 +138,16 @@ pub fn navigate(
         exit.write(AppExit::Success);
     }
     if playing.title.is_some() {
+        // a combo still held from closing the game mustn't count on the shelf
+        *held = padwatch::Held::default();
         return;
     }
     let LibraryState::Ready(l) = &lib.0 else { return };
+    let combo = l.config.quit_combo();
+    // held on the shelf, the quit combo closes RustyShelf
+    if combo.as_deref().is_some_and(|c| padwatch::held_here(&mut held, &pads, padwatch::mask(c), time.elapsed().as_millis() as u64)) {
+        exit.write(AppExit::Success);
+    }
     if l.shelves.is_empty() {
         return;
     }
@@ -173,7 +216,8 @@ pub fn navigate(
             Ok(Some(child)) => {
                 plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
-                playing.child = Some(Mutex::new(child));
+                playing.combo = combo;
+                playing.running(child);
             }
             // its store starts it and looks after it
             Ok(None) => {
@@ -202,13 +246,18 @@ pub fn navigate(
             });
             playing.title = Some(g.title.clone());
             playing.id = g.id.clone();
+            let file = g.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, shelf.name.clone()));
+            playing.combo = combo;
             playing.starting = Some(Mutex::new(rx));
         }
         (_, Source::App { path }) => match launch::launch_app(&g.title, path, &l.app_root) {
             Ok(child) => {
                 plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
-                playing.child = Some(Mutex::new(child));
+                playing.combo = combo;
+                playing.app = true;
+                playing.running(child);
             }
             Err(e) => {
                 toast.text = e.to_string();
@@ -220,7 +269,19 @@ pub fn navigate(
 }
 
 /// The shelf takes input again once the emulator has closed, or if it didn't start.
-pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut toast: ResMut<Toast>, mut settings: ResMut<crate::settings::Settings>, time: Res<Time>) {
+pub fn watch_game(
+    mut playing: ResMut<Playing>,
+    mut plays: ResMut<Plays>,
+    mut toast: ResMut<Toast>,
+    mut settings: ResMut<crate::settings::Settings>,
+    pads: Query<&Gamepad>,
+    discord: Res<Discord>,
+    time: Res<Time>,
+) {
+    if std::mem::take(&mut settings.discord_changed) {
+        let (on, id) = settings.discord();
+        discord.0.configure(on, &id);
+    }
     let started = playing.starting.as_ref().map(|rx| rx.lock().unwrap().try_recv());
     let title = playing.title.clone().unwrap_or_default();
     let now = time.elapsed_secs();
@@ -232,8 +293,11 @@ pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut to
                 settings.set_pending(list);
             }
             plays.0.start(&playing.id);
+            if let Some((title, shelf)) = &playing.shown {
+                discord.0.set_game(title, shelf);
+            }
             playing.starting = None;
-            playing.child = Some(Mutex::new(child));
+            playing.running(child);
             playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now, alone: false });
         }
         Some(Ok(Err(e))) => {
@@ -244,6 +308,26 @@ pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut to
         }
         Some(Err(TryRecvError::Disconnected)) => *playing = Playing::default(),
     }
+    let pid = playing.child.as_ref().map(|c| c.lock().unwrap().id());
+    if let Some(pid) = pid {
+        let held = playing.watch.as_mut().is_some_and(|w| w.quit(&pads, time.elapsed().as_millis() as u64));
+        match playing.closing {
+            None if held => {
+                info!("Quit combo: closing {title}");
+                launch::close_program(pid, false);
+                playing.closing = Some(now + if playing.app { APP_CLOSE_WAIT } else { CLOSE_WAIT });
+                toast.text = format!("Closing {title}…");
+                toast.until = now + 4.0;
+            }
+            // a "really quit?" question (or anything else) is holding it open
+            Some(by) if now >= by => {
+                warn!("{title} didn't close when asked: ended");
+                launch::close_program(pid, true);
+                playing.closing = Some(f32::INFINITY);
+            }
+            _ => {}
+        }
+    }
     let exited = match &playing.child {
         Some(c) => match c.lock().unwrap().try_wait() {
             Ok(None) => None,
@@ -253,6 +337,7 @@ pub fn watch_game(mut playing: ResMut<Playing>, mut plays: ResMut<Plays>, mut to
         None => None,
     };
     let Some(code) = exited else { return };
+    discord.0.clear();
     let emulator = playing.emulator.take();
     if let Some(e) = &emulator {
         let (console, exe) = (e.console.clone(), e.exe.clone());

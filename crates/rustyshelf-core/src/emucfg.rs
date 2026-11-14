@@ -355,7 +355,7 @@ fn real_docs(var: Var) -> Option<String> {
     #[cfg(windows)]
     {
         static ASKED: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-        return ASKED
+        ASKED
             .get_or_init(|| {
                 let mut cmd = std::process::Command::new("reg");
                 cmd.args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders", "/v", "Personal"]);
@@ -365,7 +365,7 @@ fn real_docs(var: Var) -> Option<String> {
                 let dir = LINE.captures(&String::from_utf8_lossy(&out.stdout)).map(|c| c[1].trim().to_string())?;
                 Some(crate::paths::expand(&dir, Path::new(""))).filter(|d| !d.is_empty())
             })
-            .clone();
+            .clone()
     }
     #[cfg(not(windows))]
     None

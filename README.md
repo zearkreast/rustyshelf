@@ -564,6 +564,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   first run's switch): the controller, the Home menu's hotkeys, one BIOS folder, a graphics preset and no quit
   questions for RetroArch, Dolphin, DuckStation, PCSX2 and PPSSPP, each file backed up first, with Undo. The page
   also shows the console's RetroArch core (and downloads it) and checks its BIOS files.
+- Closes a running game with the quit combo (L3 + R3 unless Settings → Controller says otherwise), held for about
+  a second: the emulator is asked to close as a click on its X does, and ended if it's still there eight seconds
+  later. On Windows the pads are read through XInput while the game is in front, and the combo only counts while the
+  game or RustyShelf is; held on the shelf, it closes RustyShelf.
+- Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
 - Has the shelf's menu (M, or Y on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.
@@ -575,7 +580,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 Playnite library), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from a full box wrap,
 GameTDB, ScreenScraper, SteamGridDB), manuals, the open case and the museum, sounds and music, the Home menu over a
-running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
+running game (and the quit combo on Nintendo and PlayStation pads that Windows doesn't show as XInput), the phone
+companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window mode
 and Seamless play are Electron-only too.
 

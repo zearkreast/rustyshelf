@@ -5,6 +5,7 @@
 mod hud;
 mod loading;
 mod osk;
+mod padwatch;
 mod play;
 mod settings;
 mod shelf;
@@ -49,6 +50,7 @@ fn main() {
         .init_resource::<shelf::Covers>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
+        .init_resource::<play::Discord>()
         .init_resource::<play::Repeat>()
         .init_resource::<hud::Toast>()
         .init_resource::<settings::Settings>()

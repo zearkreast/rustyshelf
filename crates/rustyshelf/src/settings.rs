@@ -147,6 +147,8 @@ pub struct Settings {
     open_emulator: Option<String>,
     /// something to say on the shelf once Settings has closed
     toast: Option<String>,
+    /// the Discord switch or id changed since they were last handed over
+    pub discord_changed: bool,
 }
 
 impl Default for Settings {
@@ -179,6 +181,7 @@ impl Default for Settings {
             gpu_vendor: None,
             open_emulator: None,
             toast: None,
+            discord_changed: true,
         }
     }
 }
@@ -230,6 +233,11 @@ impl Settings {
     }
 
     /// Saves the settings as they are now.
+    /// Whether what's played is shown on Discord, and the application id it's shown under.
+    pub fn discord(&self) -> (bool, String) {
+        (self.flag(&["ui", "discordPresence"], false), self.text(&["ui", "discordAppId"]))
+    }
+
     fn save(&mut self) {
         let Some(cfg) = Config::from_value(&self.cfg) else { return };
         self.cfg = Value::Object(cfg.raw().clone());
@@ -244,6 +252,8 @@ impl Settings {
         // what's shown of the shelves, not what's on them
         if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort"]) {
             self.rearranged = true;
+        } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
+            self.discord_changed = true;
         } else if path[0] != "emuSetup" {
             self.changed = true;
         }
@@ -822,7 +832,24 @@ impl Settings {
                 Page { title: "Box art".into(), lead: "RustyShelf can fetch the covers your games don't have yet.".into(), rows }
             }
             Screen::Display => {
-                Page { title: "Display".into(), lead: String::new(), rows: vec![toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start")] }
+                Page {
+                    title: "Display".into(),
+                    lead: String::new(),
+                    rows: vec![
+                        toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
+                        toggle(
+                            "Show what I'm playing on Discord",
+                            &["ui", "discordPresence"],
+                            false,
+                            "While a game runs, your Discord profile says \"Playing <title>\". It needs a Discord application id (below): make one free at discord.com/developers, and paste its id.",
+                        ),
+                        self.typed(
+                            "Discord application ID",
+                            &["ui", "discordAppId"],
+                            "The number from your Discord application's page (General Information). Nothing is sent anywhere else: RustyShelf only talks to the Discord app on this computer.",
+                        ),
+                    ],
+                }
             }
             Screen::Controller => {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];
