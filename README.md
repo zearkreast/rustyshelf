@@ -544,12 +544,15 @@ covers Steam itself doesn't keep, and which Steam game a store game's name belon
 `data` folder. Until the Electron app has fetched or measured them, games show their file names, no size and no such
 cover.
 
-**Not yet:** Settings and the setup wizard, art downloads, the open case and the museum, sounds
-and music, the Home menu over a running game, the phone companion. On Linux, Epic's games and Windows programs (through
-Wine / Proton) aren't started yet, and Android isn't built: the rewrite goes to Windows first. Installing a 3DS `.cia`,
-choosing a Switch 2 build, downloading a missing RetroArch core, a PC game's window mode, Seamless play, and the emulator
-settings the Electron app adjusts before a game (so the controller's quit combo closes it without a question) are
-Electron-only too.
+- Does what the Electron app does around a launch: Eden and its forks, PCSX2 and RPCS3 stop asking before they close,
+  Dolphin's Stop hotkey takes the quit combo from every controller, a 3DS `.cia` is installed into Azahar the first
+  time it's played, and on Windows a RetroArch core that's missing is downloaded.
+
+**Not yet:** Settings and the setup wizard, art downloads, the open case and the museum, sounds and music, the Home menu
+over a running game, the phone companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't
+started yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, a PC game's window
+mode and Seamless play are Electron-only too. Finding emulators and games folders, "Set up for me" and the settings
+file's rules are ported and tested, but nothing in the app uses them until Settings is there.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

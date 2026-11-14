@@ -430,6 +430,30 @@ fn emulator_settings_change_as_in_the_js() {
                 serde_json::json!({ "found": found, "userDir": ipl.user_dir, "usaFolder": ipl.usa_folder })
             }
             "ensureIpl" => Value::from(rustyshelf_core::dolphin::ensure_ipl_folder(&at(&step[1]), step[2].as_str().unwrap(), &var).unwrap()),
+            what @ ("setupPlan" | "setupApply" | "setupUndo" | "setupStatus") => {
+                use rustyshelf_core::emusetup::{kind_of, Options, Setup};
+                let setup = Setup { data_dir: tmp.path().join("app/data"), app_root: tmp.path().join("app"), var: &var };
+                let exe = at(&step[1]);
+                let opts = |o: &Value| Options { graphics: o["graphics"].as_str().unwrap_or("").to_string(), bios_dir: String::new() };
+                let pairs = |l: &[(&str, &str)]| serde_json::json!(l.iter().map(|(g, why)| serde_json::json!([g, why])).collect::<Vec<_>>());
+                match what {
+                    "setupPlan" => kind_of(&exe).map_or(Value::Null, |k| {
+                        let p = setup.plan(k, &exe, &opts(&step[2]));
+                        let changes: Vec<Value> = p.changes.iter().map(|c| serde_json::json!({ "group": c.group, "file": c.file, "cfg": c.cfg, "section": c.section, "key": c.key, "value": c.value })).collect();
+                        serde_json::json!({ "ok": p.ok, "why": p.why, "changes": changes, "skipped": pairs(&p.skipped), "groups": p.groups })
+                    }),
+                    "setupApply" => {
+                        let on: Vec<(&str, bool)> = step[2].as_object().unwrap().iter().map(|(k, v)| (k.as_str(), v.as_bool().unwrap())).collect();
+                        let r = setup.apply(&exe, &on, &opts(&step[3]), 1_700_000_000_000);
+                        serde_json::json!({ "ok": r.ok, "why": r.why, "applied": r.applied, "skipped": pairs(&r.skipped), "files": r.files })
+                    }
+                    "setupUndo" => Value::from(setup.undo(&exe)),
+                    _ => setup.status(&exe, 1_700_000_000_000).map_or(Value::Null, |st| {
+                        serde_json::json!({ "kind": st.kind.id(), "name": st.kind.name(), "ready": st.ready, "file": st.file, "used": st.used,
+                            "done": st.done.map(|(at, groups)| serde_json::json!({ "at": at, "groups": groups })), "groups": st.groups, "skipped": pairs(&st.skipped), "biosDir": st.bios_dir })
+                    }),
+                }
+            }
             "restoreBackups" => {
                 let emus: Vec<(String, String)> = step[1].as_object().unwrap().iter().map(|(k, v)| (k.clone(), at(v))).collect();
                 Value::from(emucfg::restore_backups(&emus, &var))
@@ -445,7 +469,9 @@ fn emulator_settings_change_as_in_the_js() {
         }
         let got = serde_json::json!({ "result": result, "changed": changed.into_iter().collect::<std::collections::BTreeMap<_, _>>() });
         let want = serde_json::json!({ "result": case["result"], "changed": case["changed"].as_object().unwrap().iter().collect::<std::collections::BTreeMap<_, _>>() });
-        assert_eq!(serde_json::to_string_pretty(&got).unwrap().replace(&home, "{home}"), serde_json::to_string_pretty(&want).unwrap(), "step {i}: {step}");
+        // a key in emu-setup.json is the program in lower case
+        let got = serde_json::to_string_pretty(&got).unwrap().replace(&home, "{home}").replace(&home.to_lowercase(), "{home}");
+        assert_eq!(got, serde_json::to_string_pretty(&want).unwrap(), "step {i}: {step}");
         before = now;
     }
 }

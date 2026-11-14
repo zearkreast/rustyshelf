@@ -241,6 +241,62 @@
    ""
   ],
   [
+   "duck/duckstation-qt-x64-ReleaseLTCG.exe",
+   ""
+  ],
+  [
+   "duck/portable.txt",
+   ""
+  ],
+  [
+   "duck/settings.ini",
+   "[Main]\nConfirmPowerOff = true\n[Pad1]\nType = AnalogController\nUp = Keyboard/W\n[BIOS]\nSearchDirectory = mybios\n"
+  ],
+  [
+   "duck/mybios/scph1001.bin",
+   ""
+  ],
+  [
+   "duck2/duckstation.exe",
+   ""
+  ],
+  [
+   "duck2/portable.txt",
+   ""
+  ],
+  [
+   "duck2/settings.ini",
+   "﻿[Pad1]\r\nType = X\r\nCross = SDL-1/A\r\nCross = Keyboard/X\r\n=odd\r\n"
+  ],
+  [
+   "none2/duckstation.exe",
+   ""
+  ],
+  [
+   "psp/PPSSPPWindows64.exe",
+   ""
+  ],
+  [
+   "psp/memstick/PSP/SYSTEM/ppsspp.ini",
+   "[Graphics]\nInternalResolution = 1\n"
+  ],
+  [
+   "app/BIOS/readme.txt",
+   ""
+  ],
+  [
+   "app/BIOS/SCPH-39001.bin",
+   ""
+  ],
+  [
+   "app/BIOS/ps2-0230a.bin",
+   ""
+  ],
+  [
+   "app/data/x",
+   ""
+  ],
+  [
    "dol5/Dolphin.exe",
    ""
   ],
@@ -1058,6 +1114,1700 @@
     "pcsx2/inis/PCSX2.ini.rustyshelf-bak": null,
     "rpcs3/GuiConfigs/CurrentSettings.ini": "[Meta]\nconfirmationBoxExitGame = true\n[x]\nconfirmationBoxExitGame=true\n",
     "rpcs3/GuiConfigs/CurrentSettings.ini.rustyshelf-bak": null
+   }
+  },
+  {
+   "step": [
+    "setupPlan",
+    "ra/retroarch.exe",
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "changes": [
+     {
+      "group": "quit",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "confirm_quit",
+      "value": "false"
+     },
+     {
+      "group": "quit",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "quit_press_twice",
+      "value": "false"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_save_state",
+      "value": "f2"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_load_state",
+      "value": "f4"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_screenshot",
+      "value": "f8"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_autodetect_enable",
+      "value": "true"
+     },
+     {
+      "group": "bios",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "system_directory",
+      "value": "{home}/app/BIOS"
+     },
+     {
+      "group": "resume",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "savestate_auto_save",
+      "value": "true"
+     },
+     {
+      "group": "resume",
+      "file": "{home}/ra/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "savestate_auto_load",
+      "value": "true"
+     }
+    ],
+    "skipped": [],
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios",
+     "resume"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupStatus",
+    "ra/retroarch.exe"
+   ],
+   "result": {
+    "kind": "retroarch",
+    "name": "RetroArch",
+    "ready": true,
+    "file": "{home}/ra/retroarch.cfg",
+    "used": false,
+    "done": null,
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios",
+     "resume"
+    ],
+    "skipped": [],
+    "biosDir": "{home}/ra/system"
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "ra/retroarch.exe",
+    {},
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios"
+    ],
+    "skipped": [],
+    "files": [
+     "{home}/ra/retroarch.cfg"
+    ]
+   },
+   "changed": {
+    "ra/retroarch.cfg": "x = \"1\"\n libretro_directory = \":\\cores2\"\nconfirm_quit = \"false\"\nquit_press_twice = \"false\"\ninput_save_state = \"f2\"\ninput_load_state = \"f4\"\ninput_screenshot = \"f8\"\ninput_autodetect_enable = \"true\"\nsystem_directory = \"{home}/app/BIOS\"\n",
+    "app/data/emu-setup.json": "{\n \"retroarch|{home}/ra/retroarch.exe\": {\n  \"kind\": \"retroarch\",\n  \"exe\": \"{home}/ra/retroarch.exe\",\n  \"files\": [\n   \"{home}/ra/retroarch.cfg\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "ra/retroarch.cfg.rustyshelf-bak": "x = \"1\"\n libretro_directory = \":\\cores2\"\n"
+   }
+  },
+  {
+   "step": [
+    "setupApply",
+    "ra/retroarch.exe",
+    {
+     "resume": true,
+     "quit": false
+    },
+    {
+     "graphics": "pretty"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "hotkeys",
+     "controller",
+     "resume"
+    ],
+    "skipped": [
+     [
+      "bios",
+      "its system folder already has BIOS files"
+     ]
+    ],
+    "files": [
+     "{home}/ra/retroarch.cfg"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"retroarch|{home}/ra/retroarch.exe\": {\n  \"kind\": \"retroarch\",\n  \"exe\": \"{home}/ra/retroarch.exe\",\n  \"files\": [\n   \"{home}/ra/retroarch.cfg\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"resume\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "ra/retroarch.cfg": "x = \"1\"\n libretro_directory = \":\\cores2\"\nconfirm_quit = \"false\"\nquit_press_twice = \"false\"\ninput_save_state = \"f2\"\ninput_load_state = \"f4\"\ninput_screenshot = \"f8\"\ninput_autodetect_enable = \"true\"\nsystem_directory = \"{home}/app/BIOS\"\nsavestate_auto_save = \"true\"\nsavestate_auto_load = \"true\"\n"
+   }
+  },
+  {
+   "step": [
+    "setupStatus",
+    "ra/retroarch.exe"
+   ],
+   "result": {
+    "kind": "retroarch",
+    "name": "RetroArch",
+    "ready": true,
+    "file": "{home}/ra/retroarch.cfg",
+    "used": false,
+    "done": {
+     "at": 1700000000000,
+     "groups": [
+      "quit",
+      "hotkeys",
+      "controller",
+      "bios",
+      "resume"
+     ]
+    },
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "resume"
+    ],
+    "skipped": [
+     [
+      "bios",
+      "its system folder already has BIOS files"
+     ]
+    ],
+    "biosDir": "{home}/app/BIOS"
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupUndo",
+    "ra/retroarch.exe"
+   ],
+   "result": [
+    "{home}/ra/retroarch.cfg"
+   ],
+   "changed": {
+    "app/data/emu-setup.json": "{}",
+    "ra/retroarch.cfg": "x = \"1\"\n libretro_directory = \":\\cores2\"\n",
+    "ra/retroarch.cfg.rustyshelf-bak": null
+   }
+  },
+  {
+   "step": [
+    "setupUndo",
+    "ra/retroarch.exe"
+   ],
+   "result": [],
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupPlan",
+    "ra3/retroarch.exe",
+    {
+     "graphics": "fast"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "changes": [
+     {
+      "group": "quit",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "confirm_quit",
+      "value": "false"
+     },
+     {
+      "group": "quit",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "quit_press_twice",
+      "value": "false"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_save_state",
+      "value": "f2"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_load_state",
+      "value": "f4"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_screenshot",
+      "value": "f8"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "input_autodetect_enable",
+      "value": "true"
+     },
+     {
+      "group": "bios",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "system_directory",
+      "value": "{home}/app/BIOS"
+     },
+     {
+      "group": "resume",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "savestate_auto_save",
+      "value": "true"
+     },
+     {
+      "group": "resume",
+      "file": "{home}/ra3/retroarch.cfg",
+      "cfg": true,
+      "section": "",
+      "key": "savestate_auto_load",
+      "value": "true"
+     }
+    ],
+    "skipped": [],
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios",
+     "resume"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "ra3/retroarch.exe",
+    {
+     "bios": false
+    },
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "quit",
+     "hotkeys",
+     "controller"
+    ],
+    "skipped": [],
+    "files": [
+     "{home}/ra3/retroarch.cfg"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"retroarch|{home}/ra3/retroarch.exe\": {\n  \"kind\": \"retroarch\",\n  \"exe\": \"{home}/ra3/retroarch.exe\",\n  \"files\": [\n   \"{home}/ra3/retroarch.cfg\"\n  ],\n  \"created\": [\n   \"{home}/ra3/retroarch.cfg\"\n  ],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "ra3/retroarch.cfg": "confirm_quit = \"false\"\nquit_press_twice = \"false\"\ninput_save_state = \"f2\"\ninput_load_state = \"f4\"\ninput_screenshot = \"f8\"\ninput_autodetect_enable = \"true\"\n"
+   }
+  },
+  {
+   "step": [
+    "setupUndo",
+    "ra3/retroarch.exe"
+   ],
+   "result": [
+    "{home}/ra3/retroarch.cfg"
+   ],
+   "changed": {
+    "app/data/emu-setup.json": "{}",
+    "ra3/retroarch.cfg": null
+   }
+  },
+  {
+   "step": [
+    "setupPlan",
+    "duck/duckstation-qt-x64-ReleaseLTCG.exe",
+    {
+     "graphics": "fast"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "changes": [
+     {
+      "group": "quit",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Main",
+      "key": "ConfirmPowerOff",
+      "value": "false"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "TogglePause",
+      "value": "Keyboard/Space"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "SaveSelectedSaveState",
+      "value": "Keyboard/F2"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "LoadSelectedSaveState",
+      "value": "Keyboard/F1"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "Screenshot",
+      "value": "Keyboard/F10"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Type",
+      "value": "AnalogController"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Up",
+      "value": "SDL-0/DPadUp"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Right",
+      "value": "SDL-0/DPadRight"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Down",
+      "value": "SDL-0/DPadDown"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Left",
+      "value": "SDL-0/DPadLeft"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Triangle",
+      "value": "SDL-0/Y"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Circle",
+      "value": "SDL-0/B"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Cross",
+      "value": "SDL-0/A"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Square",
+      "value": "SDL-0/X"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Select",
+      "value": "SDL-0/Back"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Start",
+      "value": "SDL-0/Start"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L1",
+      "value": "SDL-0/LeftShoulder"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R1",
+      "value": "SDL-0/RightShoulder"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L2",
+      "value": "SDL-0/+LeftTrigger"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R2",
+      "value": "SDL-0/+RightTrigger"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L3",
+      "value": "SDL-0/LeftStick"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R3",
+      "value": "SDL-0/RightStick"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LUp",
+      "value": "SDL-0/-LeftY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LDown",
+      "value": "SDL-0/+LeftY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LLeft",
+      "value": "SDL-0/-LeftX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LRight",
+      "value": "SDL-0/+LeftX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RUp",
+      "value": "SDL-0/-RightY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RDown",
+      "value": "SDL-0/+RightY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RLeft",
+      "value": "SDL-0/-RightX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RRight",
+      "value": "SDL-0/+RightX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LargeMotor",
+      "value": "SDL-0/LargeMotor"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "SmallMotor",
+      "value": "SDL-0/SmallMotor"
+     },
+     {
+      "group": "graphics",
+      "file": "{home}/duck/settings.ini",
+      "cfg": false,
+      "section": "GPU",
+      "key": "ResolutionScale",
+      "value": "1"
+     }
+    ],
+    "skipped": [
+     [
+      "bios",
+      "its BIOS folder already has files"
+     ]
+    ],
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "graphics"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "duck/duckstation-qt-x64-ReleaseLTCG.exe",
+    {},
+    {
+     "graphics": "fast"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "graphics"
+    ],
+    "skipped": [
+     [
+      "bios",
+      "its BIOS folder already has files"
+     ]
+    ],
+    "files": [
+     "{home}/duck/settings.ini",
+     "{home}/duck/settings.ini",
+     "{home}/duck/settings.ini",
+     "{home}/duck/settings.ini"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "duck/settings.ini": "[Main]\nConfirmPowerOff = false\n[Pad1]\nRight = SDL-0/DPadRight\nDown = SDL-0/DPadDown\nLeft = SDL-0/DPadLeft\nTriangle = SDL-0/Y\nCircle = SDL-0/B\nCross = SDL-0/A\nSquare = SDL-0/X\nSelect = SDL-0/Back\nStart = SDL-0/Start\nL1 = SDL-0/LeftShoulder\nR1 = SDL-0/RightShoulder\nL2 = SDL-0/+LeftTrigger\nR2 = SDL-0/+RightTrigger\nL3 = SDL-0/LeftStick\nR3 = SDL-0/RightStick\nLUp = SDL-0/-LeftY\nLDown = SDL-0/+LeftY\nLLeft = SDL-0/-LeftX\nLRight = SDL-0/+LeftX\nRUp = SDL-0/-RightY\nRDown = SDL-0/+RightY\nRLeft = SDL-0/-RightX\nRRight = SDL-0/+RightX\nLargeMotor = SDL-0/LargeMotor\nSmallMotor = SDL-0/SmallMotor\nType = AnalogController\nUp = SDL-0/DPadUp\n[BIOS]\nSearchDirectory = mybios\n\n[Hotkeys]\nTogglePause = Keyboard/Space\nSaveSelectedSaveState = Keyboard/F2\nLoadSelectedSaveState = Keyboard/F1\nScreenshot = Keyboard/F10\n\n[GPU]\nResolutionScale = 1\n",
+    "duck/settings.ini.rustyshelf-bak": "[Main]\nConfirmPowerOff = true\n[Pad1]\nType = AnalogController\nUp = Keyboard/W\n[BIOS]\nSearchDirectory = mybios\n"
+   }
+  },
+  {
+   "step": [
+    "setupStatus",
+    "duck/duckstation-qt-x64-ReleaseLTCG.exe"
+   ],
+   "result": {
+    "kind": "duckstation",
+    "name": "DuckStation",
+    "ready": true,
+    "file": "{home}/duck/settings.ini",
+    "used": false,
+    "done": {
+     "at": 1700000000000,
+     "groups": [
+      "quit",
+      "hotkeys",
+      "controller",
+      "graphics"
+     ]
+    },
+    "groups": [
+     "quit",
+     "hotkeys",
+     "graphics"
+    ],
+    "skipped": [
+     [
+      "controller",
+      "a controller is already mapped"
+     ],
+     [
+      "bios",
+      "its BIOS folder already has files"
+     ]
+    ],
+    "biosDir": "{home}/duck/mybios"
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupPlan",
+    "duck2/duckstation.exe",
+    {
+     "graphics": "weird"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "changes": [
+     {
+      "group": "quit",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Main",
+      "key": "ConfirmPowerOff",
+      "value": "false"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "TogglePause",
+      "value": "Keyboard/Space"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "SaveSelectedSaveState",
+      "value": "Keyboard/F2"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "LoadSelectedSaveState",
+      "value": "Keyboard/F1"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "Screenshot",
+      "value": "Keyboard/F10"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Type",
+      "value": "AnalogController"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Up",
+      "value": "SDL-0/DPadUp"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Right",
+      "value": "SDL-0/DPadRight"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Down",
+      "value": "SDL-0/DPadDown"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Left",
+      "value": "SDL-0/DPadLeft"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Triangle",
+      "value": "SDL-0/Y"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Circle",
+      "value": "SDL-0/B"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Cross",
+      "value": "SDL-0/A"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Square",
+      "value": "SDL-0/X"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Select",
+      "value": "SDL-0/Back"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Start",
+      "value": "SDL-0/Start"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L1",
+      "value": "SDL-0/LeftShoulder"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R1",
+      "value": "SDL-0/RightShoulder"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L2",
+      "value": "SDL-0/+LeftTrigger"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R2",
+      "value": "SDL-0/+RightTrigger"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L3",
+      "value": "SDL-0/LeftStick"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R3",
+      "value": "SDL-0/RightStick"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LUp",
+      "value": "SDL-0/-LeftY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LDown",
+      "value": "SDL-0/+LeftY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LLeft",
+      "value": "SDL-0/-LeftX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LRight",
+      "value": "SDL-0/+LeftX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RUp",
+      "value": "SDL-0/-RightY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RDown",
+      "value": "SDL-0/+RightY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RLeft",
+      "value": "SDL-0/-RightX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RRight",
+      "value": "SDL-0/+RightX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LargeMotor",
+      "value": "SDL-0/LargeMotor"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "SmallMotor",
+      "value": "SDL-0/SmallMotor"
+     },
+     {
+      "group": "bios",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "BIOS",
+      "key": "SearchDirectory",
+      "value": "{home}/app/BIOS"
+     },
+     {
+      "group": "graphics",
+      "file": "{home}/duck2/settings.ini",
+      "cfg": false,
+      "section": "GPU",
+      "key": "ResolutionScale",
+      "value": "2"
+     }
+    ],
+    "skipped": [],
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios",
+     "graphics"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "duck2/duckstation.exe",
+    {
+     "controller": false,
+     "hotkeys": false,
+     "quit": false,
+     "graphics": false
+    },
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "bios"
+    ],
+    "skipped": [],
+    "files": [
+     "{home}/duck2/settings.ini"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"duckstation|{home}/duck2/duckstation.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck2/duckstation.exe\",\n  \"files\": [\n   \"{home}/duck2/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"bios\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "duck2/settings.ini": "﻿[Pad1]\r\nType = X\r\nCross = SDL-1/A\r\nCross = Keyboard/X\r\n=odd\r\n\r\n[BIOS]\r\nSearchDirectory = {home}/app/BIOS\r\n",
+    "duck2/settings.ini.rustyshelf-bak": "﻿[Pad1]\r\nType = X\r\nCross = SDL-1/A\r\nCross = Keyboard/X\r\n=odd\r\n"
+   }
+  },
+  {
+   "step": [
+    "setupUndo",
+    "duck2/duckstation.exe"
+   ],
+   "result": [
+    "{home}/duck2/settings.ini"
+   ],
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "duck2/settings.ini": "﻿[Pad1]\r\nType = X\r\nCross = SDL-1/A\r\nCross = Keyboard/X\r\n=odd\r\n",
+    "duck2/settings.ini.rustyshelf-bak": null
+   }
+  },
+  {
+   "step": [
+    "setupPlan",
+    "pcsx2/pcsx2-qt",
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "changes": [
+     {
+      "group": "quit",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "UI",
+      "key": "ConfirmShutdown",
+      "value": "false"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "TogglePause",
+      "value": "Keyboard/Space"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "SaveStateToSlot",
+      "value": "Keyboard/F1"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "LoadStateFromSlot",
+      "value": "Keyboard/F3"
+     },
+     {
+      "group": "hotkeys",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Hotkeys",
+      "key": "Screenshot",
+      "value": "Keyboard/F8"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Type",
+      "value": "DualShock2"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Up",
+      "value": "SDL-0/DPadUp"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Right",
+      "value": "SDL-0/DPadRight"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Down",
+      "value": "SDL-0/DPadDown"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Left",
+      "value": "SDL-0/DPadLeft"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Triangle",
+      "value": "SDL-0/Y"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Circle",
+      "value": "SDL-0/B"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Cross",
+      "value": "SDL-0/A"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Square",
+      "value": "SDL-0/X"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Select",
+      "value": "SDL-0/Back"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "Start",
+      "value": "SDL-0/Start"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L1",
+      "value": "SDL-0/LeftShoulder"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R1",
+      "value": "SDL-0/RightShoulder"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L2",
+      "value": "SDL-0/+LeftTrigger"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R2",
+      "value": "SDL-0/+RightTrigger"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "L3",
+      "value": "SDL-0/LeftStick"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "R3",
+      "value": "SDL-0/RightStick"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LUp",
+      "value": "SDL-0/-LeftY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LDown",
+      "value": "SDL-0/+LeftY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LLeft",
+      "value": "SDL-0/-LeftX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LRight",
+      "value": "SDL-0/+LeftX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RUp",
+      "value": "SDL-0/-RightY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RDown",
+      "value": "SDL-0/+RightY"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RLeft",
+      "value": "SDL-0/-RightX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "RRight",
+      "value": "SDL-0/+RightX"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "LargeMotor",
+      "value": "SDL-0/LargeMotor"
+     },
+     {
+      "group": "controller",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Pad1",
+      "key": "SmallMotor",
+      "value": "SDL-0/SmallMotor"
+     },
+     {
+      "group": "bios",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Folders",
+      "key": "Bios",
+      "value": "{home}/app/BIOS"
+     },
+     {
+      "group": "bios",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "Filenames",
+      "key": "BIOS",
+      "value": "SCPH-39001.bin"
+     },
+     {
+      "group": "graphics",
+      "file": "{home}/pcsx2/inis/PCSX2.ini",
+      "cfg": false,
+      "section": "EmuCore/GS",
+      "key": "upscale_multiplier",
+      "value": "2"
+     }
+    ],
+    "skipped": [],
+    "groups": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios",
+     "graphics"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "pcsx2/pcsx2-qt",
+    {},
+    {
+     "graphics": "pretty"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "quit",
+     "hotkeys",
+     "controller",
+     "bios",
+     "graphics"
+    ],
+    "skipped": [],
+    "files": [
+     "{home}/pcsx2/inis/PCSX2.ini",
+     "{home}/pcsx2/inis/PCSX2.ini",
+     "{home}/pcsx2/inis/PCSX2.ini",
+     "{home}/pcsx2/inis/PCSX2.ini",
+     "{home}/pcsx2/inis/PCSX2.ini",
+     "{home}/pcsx2/inis/PCSX2.ini"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"pcsx2|{home}/pcsx2/pcsx2-qt\": {\n  \"kind\": \"pcsx2\",\n  \"exe\": \"{home}/pcsx2/pcsx2-qt\",\n  \"files\": [\n   \"{home}/pcsx2/inis/PCSX2.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "pcsx2/inis/PCSX2.ini": "[UI]\nConfirmShutdown = false\nx = 1\n\n[Hotkeys]\nTogglePause = Keyboard/Space\nSaveStateToSlot = Keyboard/F1\nLoadStateFromSlot = Keyboard/F3\nScreenshot = Keyboard/F8\n\n[Pad1]\nType = DualShock2\nUp = SDL-0/DPadUp\nRight = SDL-0/DPadRight\nDown = SDL-0/DPadDown\nLeft = SDL-0/DPadLeft\nTriangle = SDL-0/Y\nCircle = SDL-0/B\nCross = SDL-0/A\nSquare = SDL-0/X\nSelect = SDL-0/Back\nStart = SDL-0/Start\nL1 = SDL-0/LeftShoulder\nR1 = SDL-0/RightShoulder\nL2 = SDL-0/+LeftTrigger\nR2 = SDL-0/+RightTrigger\nL3 = SDL-0/LeftStick\nR3 = SDL-0/RightStick\nLUp = SDL-0/-LeftY\nLDown = SDL-0/+LeftY\nLLeft = SDL-0/-LeftX\nLRight = SDL-0/+LeftX\nRUp = SDL-0/-RightY\nRDown = SDL-0/+RightY\nRLeft = SDL-0/-RightX\nRRight = SDL-0/+RightX\nLargeMotor = SDL-0/LargeMotor\nSmallMotor = SDL-0/SmallMotor\n\n[Folders]\nBios = {home}/app/BIOS\n\n[Filenames]\nBIOS = SCPH-39001.bin\n\n[EmuCore/GS]\nupscale_multiplier = 3\n",
+    "pcsx2/inis/PCSX2.ini.rustyshelf-bak": "[UI]\nConfirmShutdown = true\nx = 1\n"
+   }
+  },
+  {
+   "step": [
+    "setupPlan",
+    "dol/Dolphin.exe",
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "changes": [
+     {
+      "group": "graphics",
+      "file": "{home}/dol/User/Config/GFX.ini",
+      "cfg": false,
+      "section": "Settings",
+      "key": "InternalResolution",
+      "value": "2"
+     }
+    ],
+    "skipped": [
+     [
+      "controller",
+      "a controller is already mapped"
+     ]
+    ],
+    "groups": [
+     "graphics"
+    ]
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "dol/Dolphin.exe",
+    {},
+    {}
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "graphics"
+    ],
+    "skipped": [
+     [
+      "controller",
+      "a controller is already mapped"
+     ]
+    ],
+    "files": [
+     "{home}/dol/User/Config/GFX.ini"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"pcsx2|{home}/pcsx2/pcsx2-qt\": {\n  \"kind\": \"pcsx2\",\n  \"exe\": \"{home}/pcsx2/pcsx2-qt\",\n  \"files\": [\n   \"{home}/pcsx2/inis/PCSX2.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"dolphin|{home}/dol/dolphin.exe\": {\n  \"kind\": \"dolphin\",\n  \"exe\": \"{home}/dol/Dolphin.exe\",\n  \"files\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"created\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "dol/User/Config/GFX.ini": "[Settings]\nInternalResolution = 2\n"
+   }
+  },
+  {
+   "step": [
+    "setupApply",
+    "dol3/Dolphin.exe",
+    {},
+    {
+     "graphics": "pretty"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "controller",
+     "graphics"
+    ],
+    "skipped": [],
+    "files": [
+     "{home}/dol3/User/Config/GCPadNew.ini",
+     "{home}/dol3/User/Config/Dolphin.ini",
+     "{home}/dol3/User/Config/GFX.ini"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"pcsx2|{home}/pcsx2/pcsx2-qt\": {\n  \"kind\": \"pcsx2\",\n  \"exe\": \"{home}/pcsx2/pcsx2-qt\",\n  \"files\": [\n   \"{home}/pcsx2/inis/PCSX2.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"dolphin|{home}/dol/dolphin.exe\": {\n  \"kind\": \"dolphin\",\n  \"exe\": \"{home}/dol/Dolphin.exe\",\n  \"files\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"created\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"dolphin|{home}/dol3/dolphin.exe\": {\n  \"kind\": \"dolphin\",\n  \"exe\": \"{home}/dol3/Dolphin.exe\",\n  \"files\": [\n   \"{home}/dol3/User/Config/GCPadNew.ini\",\n   \"{home}/dol3/User/Config/Dolphin.ini\",\n   \"{home}/dol3/User/Config/GFX.ini\"\n  ],\n  \"created\": [\n   \"{home}/dol3/User/Config/GCPadNew.ini\",\n   \"{home}/dol3/User/Config/Dolphin.ini\",\n   \"{home}/dol3/User/Config/GFX.ini\"\n  ],\n  \"groups\": [\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "dol3/User/Config/Dolphin.ini": "[Core]\nSIDevice0 = 6\n",
+    "dol3/User/Config/GCPadNew.ini": "[GCPad1]\nDevice = XInput/0/Gamepad\nButtons/A = `Button A`\nButtons/B = `Button B`\nButtons/X = `Button X`\nButtons/Y = `Button Y`\nButtons/Z = `Shoulder R`\nButtons/Start = `Start`\nMain Stick/Up = `Left Y+`\nMain Stick/Down = `Left Y-`\nMain Stick/Left = `Left X-`\nMain Stick/Right = `Left X+`\nC-Stick/Up = `Right Y+`\nC-Stick/Down = `Right Y-`\nC-Stick/Left = `Right X-`\nC-Stick/Right = `Right X+`\nTriggers/L = `Trigger L`\nTriggers/R = `Trigger R`\nTriggers/L-Analog = `Trigger L`\nTriggers/R-Analog = `Trigger R`\nD-Pad/Up = `Pad N`\nD-Pad/Down = `Pad S`\nD-Pad/Left = `Pad W`\nD-Pad/Right = `Pad E`\nRumble/Motor = `Motor L` | `Motor R`\n",
+    "dol3/User/Config/GFX.ini": "[Settings]\nInternalResolution = 3\n"
+   }
+  },
+  {
+   "step": [
+    "setupStatus",
+    "dol3/Dolphin.exe"
+   ],
+   "result": {
+    "kind": "dolphin",
+    "name": "Dolphin",
+    "ready": true,
+    "file": "{home}/dol3/User/Config/Dolphin.ini",
+    "used": false,
+    "done": {
+     "at": 1700000000000,
+     "groups": [
+      "controller",
+      "graphics"
+     ]
+    },
+    "groups": [
+     "graphics"
+    ],
+    "skipped": [
+     [
+      "controller",
+      "a controller is already mapped"
+     ]
+    ],
+    "biosDir": null
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupUndo",
+    "dol3/Dolphin.exe"
+   ],
+   "result": [
+    "{home}/dol3/User/Config/GCPadNew.ini",
+    "{home}/dol3/User/Config/Dolphin.ini",
+    "{home}/dol3/User/Config/GFX.ini"
+   ],
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"pcsx2|{home}/pcsx2/pcsx2-qt\": {\n  \"kind\": \"pcsx2\",\n  \"exe\": \"{home}/pcsx2/pcsx2-qt\",\n  \"files\": [\n   \"{home}/pcsx2/inis/PCSX2.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"dolphin|{home}/dol/dolphin.exe\": {\n  \"kind\": \"dolphin\",\n  \"exe\": \"{home}/dol/Dolphin.exe\",\n  \"files\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"created\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "dol3/User/Config/Dolphin.ini": null,
+    "dol3/User/Config/GCPadNew.ini": null,
+    "dol3/User/Config/GFX.ini": null
+   }
+  },
+  {
+   "step": [
+    "setupApply",
+    "psp/PPSSPPWindows64.exe",
+    {},
+    {
+     "graphics": "pretty"
+    }
+   ],
+   "result": {
+    "ok": true,
+    "why": "",
+    "applied": [
+     "graphics"
+    ],
+    "skipped": [],
+    "files": [
+     "{home}/psp/memstick/PSP/SYSTEM/ppsspp.ini"
+    ]
+   },
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"duckstation|{home}/duck/duckstation-qt-x64-releaseltcg.exe\": {\n  \"kind\": \"duckstation\",\n  \"exe\": \"{home}/duck/duckstation-qt-x64-ReleaseLTCG.exe\",\n  \"files\": [\n   \"{home}/duck/settings.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"pcsx2|{home}/pcsx2/pcsx2-qt\": {\n  \"kind\": \"pcsx2\",\n  \"exe\": \"{home}/pcsx2/pcsx2-qt\",\n  \"files\": [\n   \"{home}/pcsx2/inis/PCSX2.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"dolphin|{home}/dol/dolphin.exe\": {\n  \"kind\": \"dolphin\",\n  \"exe\": \"{home}/dol/Dolphin.exe\",\n  \"files\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"created\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"ppsspp|{home}/psp/ppssppwindows64.exe\": {\n  \"kind\": \"ppsspp\",\n  \"exe\": \"{home}/psp/PPSSPPWindows64.exe\",\n  \"files\": [\n   \"{home}/psp/memstick/PSP/SYSTEM/ppsspp.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "psp/memstick/PSP/SYSTEM/ppsspp.ini": "[Graphics]\nInternalResolution = 4\n",
+    "psp/memstick/PSP/SYSTEM/ppsspp.ini.rustyshelf-bak": "[Graphics]\nInternalResolution = 1\n"
+   }
+  },
+  {
+   "step": [
+    "setupPlan",
+    "eden/eden",
+    {}
+   ],
+   "result": null,
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "eden/eden",
+    {},
+    {}
+   ],
+   "result": {
+    "ok": false,
+    "why": "not one RustyShelf can set up yet",
+    "applied": [],
+    "skipped": [],
+    "files": []
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupStatus",
+    "eden/eden"
+   ],
+   "result": null,
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupPlan",
+    "none2/duckstation.exe",
+    {}
+   ],
+   "result": {
+    "ok": false,
+    "why": "open DuckStation once first",
+    "changes": [],
+    "skipped": [],
+    "groups": []
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "none2/duckstation.exe",
+    {},
+    {}
+   ],
+   "result": {
+    "ok": false,
+    "why": "open DuckStation once first",
+    "applied": [],
+    "skipped": [],
+    "files": []
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupStatus",
+    "none2/duckstation.exe"
+   ],
+   "result": {
+    "kind": "duckstation",
+    "name": "DuckStation",
+    "ready": false,
+    "file": null,
+    "used": false,
+    "done": null,
+    "groups": [],
+    "skipped": [],
+    "biosDir": null
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupApply",
+    "gone/pcsx2.exe",
+    {},
+    {}
+   ],
+   "result": {
+    "ok": false,
+    "why": "the emulator isn't there any more",
+    "applied": [],
+    "skipped": [],
+    "files": []
+   },
+   "changed": {}
+  },
+  {
+   "step": [
+    "setupUndo",
+    "duck/duckstation-qt-x64-ReleaseLTCG.exe"
+   ],
+   "result": [
+    "{home}/duck/settings.ini"
+   ],
+   "changed": {
+    "app/data/emu-setup.json": "{\n \"pcsx2|{home}/pcsx2/pcsx2-qt\": {\n  \"kind\": \"pcsx2\",\n  \"exe\": \"{home}/pcsx2/pcsx2-qt\",\n  \"files\": [\n   \"{home}/pcsx2/inis/PCSX2.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"quit\",\n   \"hotkeys\",\n   \"controller\",\n   \"bios\",\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"dolphin|{home}/dol/dolphin.exe\": {\n  \"kind\": \"dolphin\",\n  \"exe\": \"{home}/dol/Dolphin.exe\",\n  \"files\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"created\": [\n   \"{home}/dol/User/Config/GFX.ini\"\n  ],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n },\n \"ppsspp|{home}/psp/ppssppwindows64.exe\": {\n  \"kind\": \"ppsspp\",\n  \"exe\": \"{home}/psp/PPSSPPWindows64.exe\",\n  \"files\": [\n   \"{home}/psp/memstick/PSP/SYSTEM/ppsspp.ini\"\n  ],\n  \"created\": [],\n  \"groups\": [\n   \"graphics\"\n  ],\n  \"at\": 1700000000000\n }\n}",
+    "duck/settings.ini": "[Main]\nConfirmPowerOff = true\n[Pad1]\nType = AnalogController\nUp = Keyboard/W\n[BIOS]\nSearchDirectory = mybios\n",
+    "duck/settings.ini.rustyshelf-bak": null
    }
   }
  ]

@@ -388,6 +388,9 @@ const EMUCFG = {
     ['ra/retroarch.exe', ''], ['ra/retroarch.cfg', 'x = "1"\n libretro_directory = ":\\cores2"\n'], ['ra2/retroarch.exe', ''], ['ra2/retroarch.cfg', 'libretro_directory = "default"\n'], ['ra3/retroarch.exe', ''],
     ['ra4/retroarch.exe', ''], ['ra4/retroarch.cfg', 'libretro_directory = "/abs/$&/cores"\n'], ['bios/scph5501.bin', 'not it'], ['bios/dc/dc_boot.bin', 'x'], ['bios2/neogeo.zip', ''], ['bios2/scph5502.bin', 'nor this'],
     ['dol/User/GC/EUR/IPL.bin', ''], ['Documents/Dolphin Emulator/GC/USA/IPL.bin', ''], ['loose/Dolphin.exe', ''], ['loose/User/GC/JAP/IPL.bin', ''],
+    ['duck/duckstation-qt-x64-ReleaseLTCG.exe', ''], ['duck/portable.txt', ''], ['duck/settings.ini', '[Main]\nConfirmPowerOff = true\n[Pad1]\nType = AnalogController\nUp = Keyboard/W\n[BIOS]\nSearchDirectory = mybios\n'], ['duck/mybios/scph1001.bin', ''],
+    ['duck2/duckstation.exe', ''], ['duck2/portable.txt', ''], ['duck2/settings.ini', '\uFEFF[Pad1]\r\nType = X\r\nCross = SDL-1/A\r\nCross = Keyboard/X\r\n=odd\r\n'], ['none2/duckstation.exe', ''],
+    ['psp/PPSSPPWindows64.exe', ''], ['psp/memstick/PSP/SYSTEM/ppsspp.ini', '[Graphics]\nInternalResolution = 1\n'], ['app/BIOS/readme.txt', ''], ['app/BIOS/SCPH-39001.bin', ''], ['app/BIOS/ps2-0230a.bin', ''], ['app/data/x', ''],
     ['dol5/Dolphin.exe', ''], ['dol5/portable.txt', ''], ['dol5/User/Config/Hotkeys.ini', '[Hotkeys]\nDevice = XInput/0/Gamepad\nGeneral/Stop = (`Start`&`Back`) | (`SDL/0/Gone:Start`&`SDL/0/Gone:Back`)\n'], ['dol5/User/Config/GCPadNew.ini', '[GCPad1]\nDevice = XInput/0/Gamepad\n'],
   ],
   steps: [['lists', 'pcsx2/pcsx2-qt'], ['lists', 'plain/pcsx2-qt'], ['lists', ''],
@@ -401,13 +404,22 @@ const EMUCFG = {
     ['coresDir', 'ra/retroarch.exe'], ['coresDir', 'ra2/retroarch.exe'], ['coresDir', 'ra3/retroarch.exe'], ['coresDir', 'ra4/retroarch.exe'],
     ['bios', 'psx', ['bios', '', 'bios2']], ['bios', 'neogeo', ['bios', 'bios2']], ['bios', 'dreamcast', ['bios']], ['bios', 'atarilynx', ['bios']], ['bios', 'snes', ['bios']],
     ['findIpl', 'dol/Dolphin.exe'], ['findIpl', 'loose/Dolphin.exe'], ['findIpl', ''], ['ensureIpl', 'loose/Dolphin.exe', 'EUR'], ['ensureIpl', 'dol/Dolphin.exe', 'nope'], ['findIpl', 'loose/Dolphin.exe'],
-    ['restoreBackups', { gc: 'dol/Dolphin.exe', wii: 'dol2/Dolphin.exe', sw: 'eden/eden', sw2: 'apps/citron.AppImage', ps2: 'pcsx2/pcsx2-qt', ps3: 'rpcs3/rpcs3', x360: '' }]],
+    ['restoreBackups', { gc: 'dol/Dolphin.exe', wii: 'dol2/Dolphin.exe', sw: 'eden/eden', sw2: 'apps/citron.AppImage', ps2: 'pcsx2/pcsx2-qt', ps3: 'rpcs3/rpcs3', x360: '' }],
+    ['setupPlan', 'ra/retroarch.exe', {}], ['setupStatus', 'ra/retroarch.exe'], ['setupApply', 'ra/retroarch.exe', {}, {}], ['setupApply', 'ra/retroarch.exe', { resume: true, quit: false }, { graphics: 'pretty' }], ['setupStatus', 'ra/retroarch.exe'],
+    ['setupUndo', 'ra/retroarch.exe'], ['setupUndo', 'ra/retroarch.exe'], ['setupPlan', 'ra3/retroarch.exe', { graphics: 'fast' }], ['setupApply', 'ra3/retroarch.exe', { bios: false }, {}], ['setupUndo', 'ra3/retroarch.exe'],
+    ['setupPlan', 'duck/duckstation-qt-x64-ReleaseLTCG.exe', { graphics: 'fast' }], ['setupApply', 'duck/duckstation-qt-x64-ReleaseLTCG.exe', {}, { graphics: 'fast' }], ['setupStatus', 'duck/duckstation-qt-x64-ReleaseLTCG.exe'],
+    ['setupPlan', 'duck2/duckstation.exe', { graphics: 'weird' }], ['setupApply', 'duck2/duckstation.exe', { controller: false, hotkeys: false, quit: false, graphics: false }, {}], ['setupUndo', 'duck2/duckstation.exe'],
+    ['setupPlan', 'pcsx2/pcsx2-qt', {}], ['setupApply', 'pcsx2/pcsx2-qt', {}, { graphics: 'pretty' }], ['setupPlan', 'dol/Dolphin.exe', {}], ['setupApply', 'dol/Dolphin.exe', {}, {}], ['setupApply', 'dol3/Dolphin.exe', {}, { graphics: 'pretty' }],
+    ['setupStatus', 'dol3/Dolphin.exe'], ['setupUndo', 'dol3/Dolphin.exe'], ['setupApply', 'psp/PPSSPPWindows64.exe', {}, { graphics: 'pretty' }], ['setupPlan', 'eden/eden', {}], ['setupApply', 'eden/eden', {}, {}], ['setupStatus', 'eden/eden'],
+    ['setupPlan', 'none2/duckstation.exe', {}], ['setupApply', 'none2/duckstation.exe', {}, {}], ['setupStatus', 'none2/duckstation.exe'], ['setupApply', 'gone/pcsx2.exe', {}, {}], ['setupUndo', 'duck/duckstation-qt-x64-ReleaseLTCG.exe']],
 };
 async function emucfgFixtures() {
-  const emucfg = require('../main/emucfg'), racores = require('../main/racores'), dolphin = require('../main/dolphin');
+  const emucfg = require('../main/emucfg'), racores = require('../main/racores'), dolphin = require('../main/dolphin'), emusetup = require('../main/emusetup');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-emucfg-')), was = { ...process.env }, at = r => (r ? path.join(home, r) : '');
   for (const [rel, c] of EMUCFG.files) { const p = path.join(home, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, typeof c === 'string' ? c : Buffer.from(c.b64, 'base64')); }
-  process.env.HOME = home; for (const k of ['XDG_CONFIG_HOME', 'APPDATA', 'USERPROFILE', 'BS_DOCUMENTS', 'BS_LINUX']) delete process.env[k];
+  process.env.HOME = home; for (const k of ['XDG_CONFIG_HOME', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'BS_DOCUMENTS', 'BS_LINUX']) delete process.env[k];
+  emusetup.init({ dataDir: path.join(home, 'app', 'data'), appRoot: path.join(home, 'app') }); const realNow = Date.now; Date.now = () => 1700000000000; // (what's written of the time is the same each run)
+  const plan = p => ({ ok: p.ok, why: p.why || '', changes: p.changes.map(c => ({ group: c.group, file: c.file, cfg: c.fmt === 'cfg', section: c.section || '', key: c.key, value: c.value })), skipped: (p.skipped || []).map(x => [x.group, x.why]), groups: p.groups || [] });
   const snap = () => { const o = {}; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) { const p = path.join(d, e.name);
     if (e.isDirectory()) walk(p); else { const b = fs.readFileSync(p), t = b.toString('utf8'); o[path.relative(home, p)] = Buffer.from(t, 'utf8').equals(b) ? t : { b64: b.toString('base64') }; } } }; walk(home); return o; };
   let before = snap(); const steps = [];
@@ -421,15 +433,19 @@ async function emucfgFixtures() {
     else if (what === 'bios') result = await racores.bios(a, b.map(at));
     else if (what === 'findIpl') result = dolphin.findIpl(at(a));
     else if (what === 'ensureIpl') result = dolphin.ensureIplFolder(at(a), b);
+    else if (what === 'setupPlan') { const k = emusetup.kindOf(at(a)); result = k ? plan(emusetup.plan(k, at(a), b)) : null; }
+    else if (what === 'setupApply') { const r = emusetup.apply(at(a), b, c); result = { ok: r.ok, why: r.why || '', applied: r.applied || [], skipped: (r.skipped || []).map(x => [x.group, x.why]), files: r.files || [] }; }
+    else if (what === 'setupUndo') result = emusetup.undo(at(a)).restored;
+    else if (what === 'setupStatus') { const r = emusetup.status(at(a)); result = r.supported ? { kind: r.kind, name: r.name, ready: r.ready, file: r.file, used: r.used, done: r.done, groups: r.groups, skipped: r.skipped.map(x => [x.group, x.why]), biosDir: r.biosDir } : null; }
     else if (what === 'restoreBackups') result = emucfg.restoreBackups(Object.fromEntries(Object.entries(a).map(([k, v]) => [k, at(v)])));
     else result = emucfg[what](at(a), b);
     const now = snap(), changed = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(now)])) if (JSON.stringify(before[k]) !== JSON.stringify(now[k])) changed[k] = k in now ? now[k] : null;
     steps.push({ step, result: result === undefined ? null : result, changed }); before = now;
   }
-  for (const k of Object.keys(process.env)) if (!(k in was)) delete process.env[k]; Object.assign(process.env, was);
+  Date.now = realNow; for (const k of Object.keys(process.env)) if (!(k in was)) delete process.env[k]; Object.assign(process.env, was);
   fs.rmSync(home, { recursive: true, force: true });
-  return JSON.parse(JSON.stringify({ files: EMUCFG.files, steps }).split(home).join('{home}'));
+  return JSON.parse(JSON.stringify({ files: EMUCFG.files, steps }).split(home).join('{home}').split(home.toLowerCase()).join('{home}')); // (a key in emu-setup.json is the program in lower case)
 }
 
 // 3DS .cia files (made up: [signature type, title id, [content id, index, type, size, in the file, NCCH flags | null]]) in

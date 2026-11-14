@@ -18,11 +18,11 @@ use crate::scanner::read_dir_sorted;
 /// An environment variable by name.
 pub type Var<'a> = &'a dyn Fn(&str) -> Option<String>;
 
-fn get(var: Var, k: &str) -> Option<String> {
+pub(crate) fn get(var: Var, k: &str) -> Option<String> {
     var(k).filter(|v| !v.is_empty())
 }
 
-fn home(var: Var) -> String {
+pub(crate) fn home(var: Var) -> String {
     get(var, if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap_or_default()
 }
 

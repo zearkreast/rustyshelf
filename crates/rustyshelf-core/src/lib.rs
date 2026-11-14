@@ -9,6 +9,7 @@ pub mod detect;
 pub mod dolphin;
 pub mod emucfg;
 pub mod emuname;
+pub mod emusetup;
 pub mod gamelist;
 pub mod history;
 pub mod js;

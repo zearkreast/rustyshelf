@@ -261,15 +261,15 @@ pub fn num(n: f64) -> Value {
     }
 }
 
-fn write_json(v: &Value, depth: usize, out: &mut String) {
-    let pad = |d: usize, out: &mut String| out.push_str(&"  ".repeat(d));
+fn write_json(v: &Value, indent: usize, depth: usize, out: &mut String) {
+    let pad = |d: usize, out: &mut String| out.push_str(&" ".repeat(indent * d));
     match v {
         Value::Number(n) => out.push_str(&number_text(n)),
         Value::Array(a) if !a.is_empty() => {
             out.push_str("[\n");
             for (i, x) in a.iter().enumerate() {
                 pad(depth + 1, out);
-                write_json(x, depth + 1, out);
+                write_json(x, indent, depth + 1, out);
                 out.push_str(if i + 1 < a.len() { ",\n" } else { "\n" });
             }
             pad(depth, out);
@@ -282,7 +282,7 @@ fn write_json(v: &Value, depth: usize, out: &mut String) {
                 pad(depth + 1, out);
                 out.push_str(&Value::from(k.as_str()).to_string());
                 out.push_str(": ");
-                write_json(x, depth + 1, out);
+                write_json(x, indent, depth + 1, out);
                 out.push_str(if i + 1 < ents.len() { ",\n" } else { "\n" });
             }
             pad(depth, out);
@@ -294,8 +294,13 @@ fn write_json(v: &Value, depth: usize, out: &mut String) {
 
 /// JS `JSON.stringify(v, null, 2)`.
 pub fn stringify_pretty(v: &Value) -> String {
+    stringify_indented(v, 2)
+}
+
+/// JS `JSON.stringify(v, null, indent)`.
+pub fn stringify_indented(v: &Value, indent: usize) -> String {
     let mut out = String::new();
-    write_json(v, 0, &mut out);
+    write_json(v, indent, 0, &mut out);
     out
 }
 
