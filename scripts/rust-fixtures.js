@@ -897,6 +897,17 @@ async function screenscraperFixtures() {
     return out;
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// ---- the Home menu's hotkeys (main/homemenu.js): which emulator a program is, and its keys with a console's own over them ----
+function homekeysFixtures() {
+  const hm = require('../main/homemenu');
+  const exes = ['C:\\Emu\\Dolphin.exe', '/opt/retroarch/retroarch', 'RetroArch-Win64\\retroarch.exe', 'my-retroarch.exe', 'duckstation-qt-x64-ReleaseLTCG.exe', 'pcsx2-qt.exe', 'PPSSPPWindows64.exe', 'Cemu.exe', 'eden.exe', 'yuzu.exe', 'Ryujinx.exe', 'xenia_canary.exe',
+    'shadPS4.exe', 'rpcs3.exe', 'azahar.exe', 'citra-qt.exe', 'mesen.exe', ''];
+  const kinds = []; for (const sys of ['snes', 'gc', 'wii', 'ps2', 'psp', 'wiiu', 'sw', 'sw2', 'x360', 'ps4', 'ps3', 'n3ds', 'pc', 'media']) for (const exe of exes) kinds.push([sys, exe, hm.emulatorKind(sys, exe)]);
+  const overrides = [undefined, {}, { pause: 'p' }, { save: '', load: null, shot: 'ctrl+shift+s', slot: 3 }, { pause: '', slot: 0 }, { slot: '2', other: 'x' }];
+  const keys = []; for (const [sys, exe] of [['gc', 'Dolphin.exe'], ['ps2', 'pcsx2-qt.exe'], ['psp', ''], ['sw', 'eden.exe'], ['wiiu', 'Cemu.exe'], ['x360', ''], ['ps3', 'rpcs3.exe'], ['n3ds', 'azahar.exe'], ['snes', 'retroarch.exe'], ['psx', 'duckstation-qt.exe'], ['pc', 'game.exe']])
+    for (const o of overrides) keys.push({ system: sys, exe, overrides: o === undefined ? null : o, keys: hm.hotkeysFor(sys, exe, o) });
+  return { kinds, keys };
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -904,6 +915,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');

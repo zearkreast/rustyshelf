@@ -22,6 +22,7 @@ pub mod find;
 pub mod gametdb;
 pub mod gamewatch;
 pub mod history;
+pub mod homemenu;
 pub mod info;
 pub mod js;
 pub mod kyty;

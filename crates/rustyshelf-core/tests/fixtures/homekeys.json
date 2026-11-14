@@ -1,0 +1,2094 @@
+{
+ "kinds": [
+  [
+   "snes",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "snes",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "snes",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "snes",
+   "my-retroarch.exe",
+   "other"
+  ],
+  [
+   "snes",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "snes",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "snes",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "snes",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "snes",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "snes",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "snes",
+   "Ryujinx.exe",
+   "other"
+  ],
+  [
+   "snes",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "snes",
+   "shadPS4.exe",
+   "shadps4"
+  ],
+  [
+   "snes",
+   "rpcs3.exe",
+   "rpcs3"
+  ],
+  [
+   "snes",
+   "azahar.exe",
+   "azahar"
+  ],
+  [
+   "snes",
+   "citra-qt.exe",
+   "azahar"
+  ],
+  [
+   "snes",
+   "mesen.exe",
+   "other"
+  ],
+  [
+   "snes",
+   "",
+   "other"
+  ],
+  [
+   "gc",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "gc",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "gc",
+   "my-retroarch.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "gc",
+   "pcsx2-qt.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "PPSSPPWindows64.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "Cemu.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "eden.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "yuzu.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "Ryujinx.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "xenia_canary.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "shadPS4.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "rpcs3.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "azahar.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "citra-qt.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "mesen.exe",
+   "dolphin"
+  ],
+  [
+   "gc",
+   "",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "wii",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "wii",
+   "my-retroarch.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "wii",
+   "pcsx2-qt.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "PPSSPPWindows64.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "Cemu.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "eden.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "yuzu.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "Ryujinx.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "xenia_canary.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "shadPS4.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "rpcs3.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "azahar.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "citra-qt.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "mesen.exe",
+   "dolphin"
+  ],
+  [
+   "wii",
+   "",
+   "dolphin"
+  ],
+  [
+   "ps2",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "ps2",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "ps2",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "ps2",
+   "my-retroarch.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "ps2",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "PPSSPPWindows64.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "Cemu.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "eden.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "yuzu.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "Ryujinx.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "xenia_canary.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "shadPS4.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "rpcs3.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "azahar.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "citra-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "mesen.exe",
+   "pcsx2"
+  ],
+  [
+   "ps2",
+   "",
+   "pcsx2"
+  ],
+  [
+   "psp",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "psp",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "psp",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "psp",
+   "my-retroarch.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "psp",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "psp",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "Cemu.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "eden.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "yuzu.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "Ryujinx.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "xenia_canary.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "shadPS4.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "rpcs3.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "azahar.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "citra-qt.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "mesen.exe",
+   "ppsspp"
+  ],
+  [
+   "psp",
+   "",
+   "ppsspp"
+  ],
+  [
+   "wiiu",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "wiiu",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "wiiu",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "wiiu",
+   "my-retroarch.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "wiiu",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "wiiu",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "wiiu",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "eden.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "yuzu.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "Ryujinx.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "xenia_canary.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "shadPS4.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "rpcs3.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "azahar.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "citra-qt.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "mesen.exe",
+   "cemu"
+  ],
+  [
+   "wiiu",
+   "",
+   "cemu"
+  ],
+  [
+   "sw",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "sw",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "sw",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "sw",
+   "my-retroarch.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "sw",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "sw",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "sw",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "sw",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "Ryujinx.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "xenia_canary.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "shadPS4.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "rpcs3.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "azahar.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "citra-qt.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "mesen.exe",
+   "eden"
+  ],
+  [
+   "sw",
+   "",
+   "eden"
+  ],
+  [
+   "sw2",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "sw2",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "sw2",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "sw2",
+   "my-retroarch.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "sw2",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "sw2",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "sw2",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "sw2",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "Ryujinx.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "xenia_canary.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "shadPS4.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "rpcs3.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "azahar.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "citra-qt.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "mesen.exe",
+   "eden"
+  ],
+  [
+   "sw2",
+   "",
+   "eden"
+  ],
+  [
+   "x360",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "x360",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "x360",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "x360",
+   "my-retroarch.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "x360",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "x360",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "x360",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "x360",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "x360",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "x360",
+   "Ryujinx.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "shadPS4.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "rpcs3.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "azahar.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "citra-qt.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "mesen.exe",
+   "xenia"
+  ],
+  [
+   "x360",
+   "",
+   "xenia"
+  ],
+  [
+   "ps4",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "ps4",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "ps4",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "ps4",
+   "my-retroarch.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "ps4",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "ps4",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "ps4",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "ps4",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "ps4",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "ps4",
+   "Ryujinx.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "ps4",
+   "shadPS4.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "rpcs3.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "azahar.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "citra-qt.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "mesen.exe",
+   "shadps4"
+  ],
+  [
+   "ps4",
+   "",
+   "shadps4"
+  ],
+  [
+   "ps3",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "ps3",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "ps3",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "ps3",
+   "my-retroarch.exe",
+   "rpcs3"
+  ],
+  [
+   "ps3",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "ps3",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "ps3",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "ps3",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "ps3",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "ps3",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "ps3",
+   "Ryujinx.exe",
+   "rpcs3"
+  ],
+  [
+   "ps3",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "ps3",
+   "shadPS4.exe",
+   "shadps4"
+  ],
+  [
+   "ps3",
+   "rpcs3.exe",
+   "rpcs3"
+  ],
+  [
+   "ps3",
+   "azahar.exe",
+   "rpcs3"
+  ],
+  [
+   "ps3",
+   "citra-qt.exe",
+   "rpcs3"
+  ],
+  [
+   "ps3",
+   "mesen.exe",
+   "rpcs3"
+  ],
+  [
+   "ps3",
+   "",
+   "rpcs3"
+  ],
+  [
+   "n3ds",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "n3ds",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "n3ds",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "n3ds",
+   "my-retroarch.exe",
+   "azahar"
+  ],
+  [
+   "n3ds",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "n3ds",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "n3ds",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "n3ds",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "n3ds",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "n3ds",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "n3ds",
+   "Ryujinx.exe",
+   "azahar"
+  ],
+  [
+   "n3ds",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "n3ds",
+   "shadPS4.exe",
+   "shadps4"
+  ],
+  [
+   "n3ds",
+   "rpcs3.exe",
+   "rpcs3"
+  ],
+  [
+   "n3ds",
+   "azahar.exe",
+   "azahar"
+  ],
+  [
+   "n3ds",
+   "citra-qt.exe",
+   "azahar"
+  ],
+  [
+   "n3ds",
+   "mesen.exe",
+   "azahar"
+  ],
+  [
+   "n3ds",
+   "",
+   "azahar"
+  ],
+  [
+   "pc",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "pc",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "pc",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "pc",
+   "my-retroarch.exe",
+   "other"
+  ],
+  [
+   "pc",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "pc",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "pc",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "pc",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "pc",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "pc",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "pc",
+   "Ryujinx.exe",
+   "other"
+  ],
+  [
+   "pc",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "pc",
+   "shadPS4.exe",
+   "shadps4"
+  ],
+  [
+   "pc",
+   "rpcs3.exe",
+   "rpcs3"
+  ],
+  [
+   "pc",
+   "azahar.exe",
+   "azahar"
+  ],
+  [
+   "pc",
+   "citra-qt.exe",
+   "azahar"
+  ],
+  [
+   "pc",
+   "mesen.exe",
+   "other"
+  ],
+  [
+   "pc",
+   "",
+   "other"
+  ],
+  [
+   "media",
+   "C:\\Emu\\Dolphin.exe",
+   "dolphin"
+  ],
+  [
+   "media",
+   "/opt/retroarch/retroarch",
+   "retroarch"
+  ],
+  [
+   "media",
+   "RetroArch-Win64\\retroarch.exe",
+   "retroarch"
+  ],
+  [
+   "media",
+   "my-retroarch.exe",
+   "other"
+  ],
+  [
+   "media",
+   "duckstation-qt-x64-ReleaseLTCG.exe",
+   "duckstation"
+  ],
+  [
+   "media",
+   "pcsx2-qt.exe",
+   "pcsx2"
+  ],
+  [
+   "media",
+   "PPSSPPWindows64.exe",
+   "ppsspp"
+  ],
+  [
+   "media",
+   "Cemu.exe",
+   "cemu"
+  ],
+  [
+   "media",
+   "eden.exe",
+   "eden"
+  ],
+  [
+   "media",
+   "yuzu.exe",
+   "eden"
+  ],
+  [
+   "media",
+   "Ryujinx.exe",
+   "other"
+  ],
+  [
+   "media",
+   "xenia_canary.exe",
+   "xenia"
+  ],
+  [
+   "media",
+   "shadPS4.exe",
+   "shadps4"
+  ],
+  [
+   "media",
+   "rpcs3.exe",
+   "rpcs3"
+  ],
+  [
+   "media",
+   "azahar.exe",
+   "azahar"
+  ],
+  [
+   "media",
+   "citra-qt.exe",
+   "azahar"
+  ],
+  [
+   "media",
+   "mesen.exe",
+   "other"
+  ],
+  [
+   "media",
+   "",
+   "other"
+  ]
+ ],
+ "keys": [
+  {
+   "system": "gc",
+   "exe": "Dolphin.exe",
+   "overrides": null,
+   "keys": {
+    "pause": "f10",
+    "save": "shift+f1",
+    "load": "f1",
+    "shot": "f9",
+    "slot": 1
+   }
+  },
+  {
+   "system": "gc",
+   "exe": "Dolphin.exe",
+   "overrides": {},
+   "keys": {
+    "pause": "f10",
+    "save": "shift+f1",
+    "load": "f1",
+    "shot": "f9",
+    "slot": 1
+   }
+  },
+  {
+   "system": "gc",
+   "exe": "Dolphin.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p",
+    "save": "shift+f1",
+    "load": "f1",
+    "shot": "f9",
+    "slot": 1
+   }
+  },
+  {
+   "system": "gc",
+   "exe": "Dolphin.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "pause": "f10",
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "gc",
+   "exe": "Dolphin.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "save": "shift+f1",
+    "load": "f1",
+    "shot": "f9",
+    "slot": 0
+   }
+  },
+  {
+   "system": "gc",
+   "exe": "Dolphin.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "pause": "f10",
+    "save": "shift+f1",
+    "load": "f1",
+    "shot": "f9",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "ps2",
+   "exe": "pcsx2-qt.exe",
+   "overrides": null,
+   "keys": {
+    "pause": "space",
+    "save": "f1",
+    "load": "f3",
+    "shot": "f8"
+   }
+  },
+  {
+   "system": "ps2",
+   "exe": "pcsx2-qt.exe",
+   "overrides": {},
+   "keys": {
+    "pause": "space",
+    "save": "f1",
+    "load": "f3",
+    "shot": "f8"
+   }
+  },
+  {
+   "system": "ps2",
+   "exe": "pcsx2-qt.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p",
+    "save": "f1",
+    "load": "f3",
+    "shot": "f8"
+   }
+  },
+  {
+   "system": "ps2",
+   "exe": "pcsx2-qt.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "pause": "space",
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "ps2",
+   "exe": "pcsx2-qt.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "save": "f1",
+    "load": "f3",
+    "shot": "f8",
+    "slot": 0
+   }
+  },
+  {
+   "system": "ps2",
+   "exe": "pcsx2-qt.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "pause": "space",
+    "save": "f1",
+    "load": "f3",
+    "shot": "f8",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "psp",
+   "exe": "",
+   "overrides": null,
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f12"
+   }
+  },
+  {
+   "system": "psp",
+   "exe": "",
+   "overrides": {},
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f12"
+   }
+  },
+  {
+   "system": "psp",
+   "exe": "",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f12",
+    "pause": "p"
+   }
+  },
+  {
+   "system": "psp",
+   "exe": "",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "psp",
+   "exe": "",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f12",
+    "pause": "",
+    "slot": 0
+   }
+  },
+  {
+   "system": "psp",
+   "exe": "",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f12",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "sw",
+   "exe": "eden.exe",
+   "overrides": null,
+   "keys": {
+    "pause": "f4",
+    "shot": "ctrl+p"
+   }
+  },
+  {
+   "system": "sw",
+   "exe": "eden.exe",
+   "overrides": {},
+   "keys": {
+    "pause": "f4",
+    "shot": "ctrl+p"
+   }
+  },
+  {
+   "system": "sw",
+   "exe": "eden.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p",
+    "shot": "ctrl+p"
+   }
+  },
+  {
+   "system": "sw",
+   "exe": "eden.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "pause": "f4",
+    "shot": "ctrl+shift+s",
+    "save": "",
+    "load": null,
+    "slot": 3
+   }
+  },
+  {
+   "system": "sw",
+   "exe": "eden.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "shot": "ctrl+p",
+    "slot": 0
+   }
+  },
+  {
+   "system": "sw",
+   "exe": "eden.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "pause": "f4",
+    "shot": "ctrl+p",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "wiiu",
+   "exe": "Cemu.exe",
+   "overrides": null,
+   "keys": {
+    "shot": "f12"
+   }
+  },
+  {
+   "system": "wiiu",
+   "exe": "Cemu.exe",
+   "overrides": {},
+   "keys": {
+    "shot": "f12"
+   }
+  },
+  {
+   "system": "wiiu",
+   "exe": "Cemu.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "shot": "f12",
+    "pause": "p"
+   }
+  },
+  {
+   "system": "wiiu",
+   "exe": "Cemu.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "shot": "ctrl+shift+s",
+    "save": "",
+    "load": null,
+    "slot": 3
+   }
+  },
+  {
+   "system": "wiiu",
+   "exe": "Cemu.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "shot": "f12",
+    "pause": "",
+    "slot": 0
+   }
+  },
+  {
+   "system": "wiiu",
+   "exe": "Cemu.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "shot": "f12",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "x360",
+   "exe": "",
+   "overrides": null,
+   "keys": {}
+  },
+  {
+   "system": "x360",
+   "exe": "",
+   "overrides": {},
+   "keys": {}
+  },
+  {
+   "system": "x360",
+   "exe": "",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p"
+   }
+  },
+  {
+   "system": "x360",
+   "exe": "",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "x360",
+   "exe": "",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "slot": 0
+   }
+  },
+  {
+   "system": "x360",
+   "exe": "",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "ps3",
+   "exe": "rpcs3.exe",
+   "overrides": null,
+   "keys": {
+    "shot": "f12"
+   }
+  },
+  {
+   "system": "ps3",
+   "exe": "rpcs3.exe",
+   "overrides": {},
+   "keys": {
+    "shot": "f12"
+   }
+  },
+  {
+   "system": "ps3",
+   "exe": "rpcs3.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "shot": "f12",
+    "pause": "p"
+   }
+  },
+  {
+   "system": "ps3",
+   "exe": "rpcs3.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "shot": "ctrl+shift+s",
+    "save": "",
+    "load": null,
+    "slot": 3
+   }
+  },
+  {
+   "system": "ps3",
+   "exe": "rpcs3.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "shot": "f12",
+    "pause": "",
+    "slot": 0
+   }
+  },
+  {
+   "system": "ps3",
+   "exe": "rpcs3.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "shot": "f12",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "n3ds",
+   "exe": "azahar.exe",
+   "overrides": null,
+   "keys": {
+    "pause": "f4",
+    "save": "ctrl+c",
+    "load": "ctrl+v",
+    "shot": "ctrl+p"
+   }
+  },
+  {
+   "system": "n3ds",
+   "exe": "azahar.exe",
+   "overrides": {},
+   "keys": {
+    "pause": "f4",
+    "save": "ctrl+c",
+    "load": "ctrl+v",
+    "shot": "ctrl+p"
+   }
+  },
+  {
+   "system": "n3ds",
+   "exe": "azahar.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p",
+    "save": "ctrl+c",
+    "load": "ctrl+v",
+    "shot": "ctrl+p"
+   }
+  },
+  {
+   "system": "n3ds",
+   "exe": "azahar.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "pause": "f4",
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "n3ds",
+   "exe": "azahar.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "save": "ctrl+c",
+    "load": "ctrl+v",
+    "shot": "ctrl+p",
+    "slot": 0
+   }
+  },
+  {
+   "system": "n3ds",
+   "exe": "azahar.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "pause": "f4",
+    "save": "ctrl+c",
+    "load": "ctrl+v",
+    "shot": "ctrl+p",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "snes",
+   "exe": "retroarch.exe",
+   "overrides": null,
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f8"
+   }
+  },
+  {
+   "system": "snes",
+   "exe": "retroarch.exe",
+   "overrides": {},
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f8"
+   }
+  },
+  {
+   "system": "snes",
+   "exe": "retroarch.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f8",
+    "pause": "p"
+   }
+  },
+  {
+   "system": "snes",
+   "exe": "retroarch.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "snes",
+   "exe": "retroarch.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f8",
+    "pause": "",
+    "slot": 0
+   }
+  },
+  {
+   "system": "snes",
+   "exe": "retroarch.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "save": "f2",
+    "load": "f4",
+    "shot": "f8",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "psx",
+   "exe": "duckstation-qt.exe",
+   "overrides": null,
+   "keys": {
+    "pause": "space",
+    "save": "f2",
+    "load": "f1",
+    "shot": "f10"
+   }
+  },
+  {
+   "system": "psx",
+   "exe": "duckstation-qt.exe",
+   "overrides": {},
+   "keys": {
+    "pause": "space",
+    "save": "f2",
+    "load": "f1",
+    "shot": "f10"
+   }
+  },
+  {
+   "system": "psx",
+   "exe": "duckstation-qt.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p",
+    "save": "f2",
+    "load": "f1",
+    "shot": "f10"
+   }
+  },
+  {
+   "system": "psx",
+   "exe": "duckstation-qt.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "pause": "space",
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "psx",
+   "exe": "duckstation-qt.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "save": "f2",
+    "load": "f1",
+    "shot": "f10",
+    "slot": 0
+   }
+  },
+  {
+   "system": "psx",
+   "exe": "duckstation-qt.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "pause": "space",
+    "save": "f2",
+    "load": "f1",
+    "shot": "f10",
+    "slot": "2",
+    "other": "x"
+   }
+  },
+  {
+   "system": "pc",
+   "exe": "game.exe",
+   "overrides": null,
+   "keys": {}
+  },
+  {
+   "system": "pc",
+   "exe": "game.exe",
+   "overrides": {},
+   "keys": {}
+  },
+  {
+   "system": "pc",
+   "exe": "game.exe",
+   "overrides": {
+    "pause": "p"
+   },
+   "keys": {
+    "pause": "p"
+   }
+  },
+  {
+   "system": "pc",
+   "exe": "game.exe",
+   "overrides": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   },
+   "keys": {
+    "save": "",
+    "load": null,
+    "shot": "ctrl+shift+s",
+    "slot": 3
+   }
+  },
+  {
+   "system": "pc",
+   "exe": "game.exe",
+   "overrides": {
+    "pause": "",
+    "slot": 0
+   },
+   "keys": {
+    "pause": "",
+    "slot": 0
+   }
+  },
+  {
+   "system": "pc",
+   "exe": "game.exe",
+   "overrides": {
+    "slot": "2",
+    "other": "x"
+   },
+   "keys": {
+    "slot": "2",
+    "other": "x"
+   }
+  }
+ ]
+}

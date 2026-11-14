@@ -1094,3 +1094,90 @@ fn screenscraper_lookups_match_the_js() {
         }
     }
 }
+
+#[test]
+fn home_menu_hotkeys_match_the_js() {
+    use rustyshelf_core::homemenu::{emulator_kind, hotkeys_for};
+    let fx = fixture("homekeys.json");
+    for k in fx["kinds"].as_array().unwrap() {
+        assert_eq!(emulator_kind(k[0].as_str().unwrap(), k[1].as_str().unwrap()), k[2].as_str().unwrap(), "{k}");
+    }
+    for k in fx["keys"].as_array().unwrap() {
+        let got = hotkeys_for(k["system"].as_str().unwrap(), k["exe"].as_str().unwrap(), k["overrides"].as_object());
+        let want = &k["keys"];
+        let key = |name: &str| want.get(name).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string);
+        assert_eq!((got.pause, got.save, got.load, got.shot), (key("pause"), key("save"), key("load"), key("shot")), "{k}");
+        let slot = want.get("slot").map_or(0.0, |s| s.as_f64().unwrap_or_else(|| s.as_str().unwrap().parse().unwrap()));
+        assert_eq!(got.slot as f64, slot, "{k}");
+    }
+}
+
+#[test]
+fn home_menu_behaves_as_the_page_does() {
+    use rustyshelf_core::homemenu::{Glyphs, Info, Menu, Out};
+    use serde_json::json;
+    const START: f64 = 1e12;
+    let fx = fixture("homemenu.json");
+    for (n, run) in fx["runs"].as_array().unwrap().iter().enumerate() {
+        let i = &run["info"];
+        let text = |k: &str| i[k].as_str().unwrap_or("").to_string();
+        let list = |k: &str| i[k].as_array().map_or(Vec::new(), |l| l.iter().map(|s| s.as_str().unwrap().to_string()).collect());
+        let info = Info {
+            in_game: i["inGame"] == true,
+            title: text("title"),
+            system: text("system"),
+            subtitle: text("subtitle"),
+            actions: list("actions"),
+            power: list("power"),
+            can_save: i["canSave"] == true,
+            slot: i["slot"].as_u64().unwrap_or(0) as u32,
+            paused: i["paused"] == true,
+            center: i["layout"] == "center",
+            glyphs: match i["glyphs"].as_str() {
+                Some("ps") => Glyphs::Ps,
+                Some("nintendo") => Glyphs::Nintendo,
+                _ => Glyphs::Xbox,
+            },
+            swap_ab: i["confirmButton"] == "b",
+        };
+        // a game is said to have started `played` ago
+        let (mut now, played) = (START, i["played"].as_f64().unwrap_or(0.0));
+        let started = if played > 0.0 { now - played } else { 0.0 };
+        let mut menu = Menu::open(info);
+        let mut acts: Vec<String> = Vec::new();
+        let take = |out: Option<Out>, acts: &mut Vec<String>| {
+            if let Some(Out::Close(_, action)) = out {
+                acts.push(action);
+            }
+        };
+        let shown = |menu: &Menu, acts: &[String]| {
+            if !acts.is_empty() {
+                return json!({ "open": false, "acts": acts });
+            }
+            let rows = menu.rows();
+            let (title, time) = menu.heading(started, START);
+            json!({ "open": true, "acts": acts, "title": title, "sys": menu.info.system, "time": time, "subhead": menu.in_power().then_some("Power"),
+                "seps": rows.iter().enumerate().filter(|r| r.1.sep_before).map(|r| r.0).collect::<Vec<_>>(),
+                "items": rows.iter().map(|r| json!({ "label": r.label, "sub": r.sub, "sel": r.selected, "danger": r.danger })).collect::<Vec<_>>(),
+                "foot": menu.foot().iter().map(|f| json!([f.0, f.1])).collect::<Vec<_>>() })
+        };
+        assert_eq!(shown(&menu, &acts), run["shown"][0], "run {n}, as opened");
+        for (s, step) in run["steps"].as_array().unwrap().iter().enumerate() {
+            if acts.is_empty() {
+                match step[0].as_str().unwrap() {
+                    "btn" => take(menu.press(step[1].as_str().unwrap(), step[2] == true, now), &mut acts),
+                    "paused" => menu.info.paused = step[1] == true,
+                    _ => {
+                        // frames a sixtieth of a second apart for as long as the page waited
+                        let until = now + step[1].as_f64().unwrap();
+                        while now < until && acts.is_empty() {
+                            now += 1000.0 / 60.0;
+                            take(menu.frame(now), &mut acts);
+                        }
+                    }
+                }
+            }
+            assert_eq!(shown(&menu, &acts), run["shown"][s + 1], "run {n}, step {s}: {step}");
+        }
+    }
+}
