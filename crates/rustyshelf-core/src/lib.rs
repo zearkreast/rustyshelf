@@ -41,6 +41,7 @@ pub mod shelfview;
 pub mod sfo;
 pub mod steam;
 pub mod steamart;
+pub mod synth;
 pub mod systems;
 pub mod titles;
 pub mod vdf;
