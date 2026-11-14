@@ -12,7 +12,7 @@ use rustyshelf_core::launch::{self, LaunchError};
 use rustyshelf_core::paths;
 use rustyshelf_core::presence::Presence;
 use rustyshelf_core::library::ShelfKind;
-use rustyshelf_core::scanner::Source;
+use rustyshelf_core::scanner::{Source, Tile};
 
 use crate::hud::Toast;
 use crate::padwatch::{self, Watch};
@@ -171,6 +171,19 @@ pub fn open_alone(playing: &mut Playing, console: &str, name: String, plan: &lau
     Ok(())
 }
 
+/// The game the Surprise me case landed on: its shelf, and its place there.
+#[derive(Resource, Default)]
+pub struct Surprise {
+    pub pick: Option<(String, usize)>,
+}
+
+impl Surprise {
+    /// The place of the game it landed on, on the shelf `shelf`.
+    pub fn on(&self, shelf: &str) -> Option<usize> {
+        self.pick.as_ref().filter(|p| p.0 == shelf).map(|p| p.1)
+    }
+}
+
 /// Holding a direction steps again after a moment, then quickly.
 #[derive(Resource, Default)]
 pub struct Repeat {
@@ -199,6 +212,7 @@ pub fn navigate(
     mut exit: MessageWriter<AppExit>,
     mut held: Local<padwatch::Held>,
     mut sounds: ResMut<crate::sound::Sounds>,
+    mut surprise: ResMut<Surprise>,
 ) {
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
@@ -311,7 +325,11 @@ pub fn navigate(
         cursor.flipped = !cursor.flipped;
         sounds.play("flip", 1);
     }
-    if let Some(g) = shelf.games.get(cursor.game).filter(|_| keys.just_pressed(KeyCode::KeyH) || y_held) {
+    let tile = |g: &rustyshelf_core::scanner::Game| match g.source {
+        Source::Tile(t) => Some(t),
+        _ => None,
+    };
+    if let Some(g) = shelf.games.get(cursor.game).filter(|g| tile(g).is_none() && (keys.just_pressed(KeyCode::KeyH) || y_held)) {
         let on = settings.toggle_favorite(&g.id);
         sounds.play(if on { "toast" } else { "back" }, 1);
         toast.text = if on { format!("♥ {} added to favorites", g.title) } else { format!("Removed {} from favorites", g.title) };
@@ -319,6 +337,45 @@ pub fn navigate(
     }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
+    // R, or a click of the left stick: the Surprise me case rolls, and rolls again
+    let mut roll = false;
+    if keys.just_pressed(KeyCode::KeyR) || pad(GamepadButton::LeftThumb) {
+        match shelf.games.iter().position(|g| tile(g) == Some(Tile::Surprise)) {
+            Some(i) => {
+                (cursor.game, cursor.flipped, roll) = (i, false, true);
+            }
+            None => {
+                toast.text = "Nothing to shuffle on this shelf".into();
+                toast.until = now + 3.0;
+            }
+        }
+    } else if go {
+        // one of the shelf's own cases: what it's for, not a game to start
+        match shelf.games.get(cursor.game).and_then(tile) {
+            // a second press plays the game it landed on, from that game's own place
+            Some(Tile::Surprise) => match surprise.pick.take().filter(|p| p.0 == shelf.id) {
+                Some((_, i)) => cursor.game = i,
+                None => roll = true,
+            },
+            Some(Tile::Emulator) => {
+                sounds.play("go", 1);
+                settings.open_emulator(&shelf.id);
+                return;
+            }
+            Some(Tile::AddGames) => return settings.open_console(&shelf.id),
+            Some(Tile::AddCustom) => return settings.open_custom(),
+            None => {}
+        }
+    }
+    if roll {
+        let pool: Vec<usize> = (0..n).filter(|&i| tile(&shelf.games[i]).is_none() && !shelf.games[i].not_installed).collect();
+        if !pool.is_empty() {
+            let chance = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos() as usize);
+            surprise.pick = Some((shelf.id.clone(), pool[chance % pool.len()]));
+            sounds.play("flip", 1);
+        }
+        return;
+    }
     let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
     sounds.play("go", 1);
     // a game on Home, All or a collection starts as it does on its own shelf
@@ -406,7 +463,7 @@ pub fn navigate(
                 toast.until = now + 6.0;
             }
         },
-        (ShelfKind::Pc | ShelfKind::Apps | ShelfKind::Mixed, Source::Rom) => {}
+        (ShelfKind::Pc | ShelfKind::Apps | ShelfKind::Mixed, Source::Rom) | (_, Source::Tile(_)) => {}
     }
 }
 

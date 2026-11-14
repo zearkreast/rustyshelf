@@ -5,7 +5,7 @@
 use bevy::prelude::*;
 use bevy::text::{FontSize, LetterSpacing};
 use rustyshelf_core::looks;
-use rustyshelf_core::scanner::{Game, Source};
+use rustyshelf_core::scanner::{Game, Source, Tile};
 
 use crate::loading::{to_image, LibraryRes, LibraryState};
 use crate::play::Playing;
@@ -215,9 +215,14 @@ pub fn store_name(source: &str) -> &'static str {
     }
 }
 
-/// What's written under a game's title, a piece at a time (app.js metaFor).
-fn meta(g: &Game) -> Vec<String> {
+/// What's written under a game's title, a piece at a time (app.js metaFor). `shelf`: its shelf's name; `ok`: the
+/// key that chooses, as the bar of keys names it.
+fn meta(g: &Game, shelf: &str, ok: &str) -> Vec<String> {
     let parts = match &g.source {
+        Source::Tile(Tile::Emulator) => vec!["Emulator".to_string(), "Open settings".into()],
+        Source::Tile(Tile::AddCustom) => vec!["Add games".to_string(), format!("{ok} adds several at once, a whole folder, or your Playnite library")],
+        Source::Tile(Tile::AddGames) => vec![format!("No {shelf} games yet"), format!("{ok} opens {shelf} settings to add a games folder")],
+        Source::Tile(Tile::Surprise) => vec!["Shuffle".to_string(), "Lands on a random game".into()],
         Source::Steam { minutes, .. } => vec!["Steam".to_string(), played(*minutes), size(g.size_bytes)],
         // TODO: the playtime RustyShelf keeps for the games it starts itself (the Electron app's history)
         Source::Pc(pc) => vec![store_name(pc.source).to_string(), if g.not_installed { "Not installed".into() } else { played(0) }, size(g.size_bytes)],
@@ -254,6 +259,7 @@ pub fn update(
     time: Res<Time>,
     settings: Res<crate::settings::Settings>,
     prompts: Res<Prompts>,
+    surprise: Res<crate::play::Surprise>,
     lexend: Res<Lexend>,
     face: Res<Face>,
     mut lines: Query<(&mut Text, &mut TextFont, &Line)>,
@@ -271,16 +277,23 @@ pub fn update(
         }
         LibraryState::Ready(l) => {
             let shelf = &l.shelves[cursor.shelf.min(l.shelves.len() - 1)];
-            let n = shelf.games.len();
+            // the shelf's own cases are counted among its cases, not among its games
+            let (cases, n) = (shelf.games.len(), shelf.games.iter().filter(|g| !matches!(g.source, Source::Tile(_))).count());
             let pc = matches!(shelf.kind, rustyshelf_core::library::ShelfKind::Pc);
             let what = if shelf.id == "media" { if n == 1 { "app" } else { "apps" } } else if pc { "installed" } else if n == 1 { "game" } else { "games" };
             count = format!("{n} {what}").to_uppercase();
             tag = looks::wordmark(&shelf.id).map_or(String::new(), |w| w.1.to_uppercase());
             match shelf.games.get(cursor.game) {
                 Some(g) => {
-                    title = g.title.clone();
-                    counter = format!("{} / {n}", cursor.game + 1);
-                    under = meta(g);
+                    let ok = if prompts.pad { "A" } else { "Enter" };
+                    // the Surprise me case shows the game it landed on
+                    let picked = surprise.on(&shelf.id).filter(|_| g.source == Source::Tile(Tile::Surprise)).and_then(|i| shelf.games.get(i));
+                    title = picked.map_or(&g.title, |p| &p.title).clone();
+                    counter = format!("{} / {cases}", cursor.game + 1);
+                    under = match picked {
+                        Some(p) => [format!("Surprise pick · {}", shelf.name)].into_iter().chain(meta(p, &shelf.name, ok).into_iter().take(2)).chain([format!("{} rolls again", if prompts.pad { "LS" } else { "R" })]).collect(),
+                        None => meta(g, &shelf.name, ok),
+                    };
                     // on Home, All or a collection: the shelf it's from first
                     if let Some(own) = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)) {
                         under.insert(0, own.name.clone());

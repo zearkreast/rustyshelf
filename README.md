@@ -524,6 +524,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Spectrum's ribbons and dust, Arcade's stars and mountains, Aurora's curtains and the rest), in the console's
   colour and washed with the chosen cover's, the floor mirroring the cases. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
   title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
+  A shelf has the Electron app's own cases among its games: Surprise me (Enter or R lands on a game, Enter again
+  plays it), Open with the console's emulator, and Add games on a shelf that has none and at the end of Custom.
   A game without box art gets the cover the Electron app draws for it: a scene and a title font picked by its name
   under the console's band, and a back with four small scenes, its description and what Details knows of it.
 - Starts a game the way the Electron app does: in its own emulator build when Details gives it one, else its console's,
@@ -631,6 +633,7 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Details | I | X |
 | Sort and filter (the shelf's menu) | G | Menu |
 | Settings | S | View |
+| Surprise me | R | left stick click |
 | Quit | Esc | |
 
 `cargo test --workspace` runs its tests, which compare its title and folder rules against the Electron app's own answers

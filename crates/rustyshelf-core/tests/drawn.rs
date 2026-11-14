@@ -15,6 +15,10 @@ fn covers_are_drawn_as_the_electron_app_draws_them() {
         let pic = if side == "back" {
             let facts: Vec<(String, String)> = c["facts"].as_array().unwrap().iter().map(|f| (f[0].as_str().unwrap().to_string(), f[1].as_str().unwrap().to_string())).collect();
             drawn::back(look(id), title, &facts, c["blurb"].as_str().unwrap())
+        } else if side == "surprise" {
+            drawn::surprise(look(id))
+        } else if side == "add" {
+            drawn::add_games(look(id))
         } else {
             drawn::front(look(id), title, c["region"].as_str().unwrap_or(""), c["scene"].as_str(), None)
         };
@@ -36,6 +40,10 @@ fn covers_are_drawn_as_the_electron_app_draws_them() {
                 }
                 let want = &theirs[cells];
                 let off = (0..3).map(|k| (sum[k] as f64 / (cell * cell) as f64 - want[k].as_f64().unwrap()).abs()).sum::<f64>() / 3.0;
+                // WHERE=1 says which cells are far off
+                if off > 45.0 && std::env::var("WHERE").is_ok() {
+                    println!("  at ({gx}, {gy}): ours {:?}, theirs {want}", sum.map(|v| v / (cell * cell) as u64));
+                }
                 total += off;
                 worst = worst.max(off);
                 cells += 1;

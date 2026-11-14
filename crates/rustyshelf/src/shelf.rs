@@ -16,6 +16,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rustyshelf_core::drawn::Picture;
 use rustyshelf_core::looks::{self, Rgba};
+use rustyshelf_core::scanner::{Source, Tile};
 use rustyshelf_core::themefx as themes_fx;
 use rustyshelf_core::themes;
 
@@ -116,6 +117,9 @@ pub struct Slot {
     /// how dark the film over its cover is
     dim: Eased,
     front: Handle<StandardMaterial>,
+    /// its cover again, in the floor, and the shape of the sheet both are on
+    mirrored: Handle<StandardMaterial>,
+    sheet: f32,
     glare: Handle<StandardMaterial>,
     /// its back and its spine's picture, asked for once it's chosen: each one's picture, and the sheet it goes on
     late: Vec<(Art, Sheet)>,
@@ -504,6 +508,50 @@ fn app_hue(app: &str) -> Option<f32> {
     }
 }
 
+/// A game's cover on the shelf `own`, and the colour that's the game's until its cover is seen: its own picture,
+/// or one drawn from its title; the shelf's own cases have theirs (the emulator's is drawn from its name and its
+/// shelf's).
+fn cover_of(g: &rustyshelf_core::scanner::Game, own: &str, look: &looks::Look) -> (Art, f32) {
+    let tile = match g.source {
+        Source::Tile(t) => Some(t),
+        _ => None,
+    };
+    let app = matches!(g.source, Source::App { .. }) || tile == Some(Tile::Emulator);
+    let hue = g.id.strip_prefix("app-").filter(|_| app).and_then(app_hue);
+    let seed = tile.map(|_| rustyshelf_core::drawn::hash(&format!("{}{own}", g.title)));
+    let cover = match (g.art.front.clone(), tile) {
+        (Some(path), _) => Art::File(path),
+        (None, Some(t)) if t != Tile::Emulator => Art::Tile { look: Box::new(look.clone()), tile: t },
+        (None, _) => Art::Front { look: Box::new(look.clone()), title: g.title.clone(), region: g.region.clone(), scene: app.then_some("media"), hue, seed },
+    };
+    (cover, hue.unwrap_or((seed.unwrap_or_else(|| rustyshelf_core::drawn::hash(&g.title)) % 360) as f32))
+}
+
+/// The Surprise me case wears the cover of the game it landed on, and its own again once that's played.
+pub fn reveal(
+    lib: Res<LibraryRes>,
+    cursor: Res<Cursor>,
+    surprise: Res<crate::play::Surprise>,
+    loader: Res<ArtLoader>,
+    mut covers: ResMut<Covers>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    slots: Query<&Slot>,
+    mut worn: Local<Option<(String, usize)>>,
+) {
+    if surprise.pick == *worn {
+        return;
+    }
+    *worn = surprise.pick.clone();
+    let LibraryState::Ready(library) = &lib.0 else { return };
+    let Some(shelf) = library.shelves.get(cursor.shelf) else { return };
+    let Some(at) = shelf.games.iter().position(|g| g.source == Source::Tile(Tile::Surprise)) else { return };
+    let Some(slot) = slots.iter().find(|s| s.index == at) else { return };
+    let shows = surprise.on(&shelf.id).and_then(|i| shelf.games.get(i)).unwrap_or(&shelf.games[at]);
+    let (cover, _) = cover_of(shows, &shelf.id, &looks::look_for(&shelf.id, shows));
+    covers.want(cover.clone(), (slot.front.clone(), slot.sheet), &loader, &mut materials);
+    covers.want(cover, (slot.mirrored.clone(), slot.sheet), &loader, &mut materials);
+}
+
 /// Stands the chosen shelf's games up, after the old shelf's cases are cleared away.
 pub fn build_shelf(
     mut commands: Commands,
@@ -514,6 +562,7 @@ pub fn build_shelf(
     kit: Res<Kit>,
     stage: Res<Stage>,
     plays: Res<crate::play::Plays>,
+    mut surprise: ResMut<crate::play::Surprise>,
     old: Query<Entity, With<Slot>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -529,6 +578,7 @@ pub fn build_shelf(
     cursor.built = Some(cursor.shelf);
     cursor.game = cursor.game.min(shelf.games.len().saturating_sub(1));
     cursor.flipped = false;
+    surprise.pick = None;
 
     let plain = |m: &mut Assets<StandardMaterial>, c: Color| m.add(StandardMaterial { base_color: c, unlit: true, alpha_mode: if c.alpha() < 1.0 { AlphaMode::Blend } else { AlphaMode::Opaque }, ..default() });
     let mut cases: HashMap<String, [Handle<StandardMaterial>; 2]> = HashMap::new();
@@ -548,18 +598,20 @@ pub fn build_shelf(
         let glare = materials.add(StandardMaterial { base_color: Color::srgba(1.0, 1.0, 1.0, 0.55), base_color_texture: Some(kit.glare.clone()), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
         let mirrored = materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
 
-        // a game without box art gets a cover drawn from its title, and a back to match
-        let app = matches!(g.source, rustyshelf_core::scanner::Source::App { .. });
-        let hue = g.id.strip_prefix("app-").filter(|_| app).and_then(app_hue);
-        let cover = match g.art.front.clone() {
-            Some(path) => Art::File(path),
-            None => Art::Front { look: Box::new(look.clone()), title: g.title.clone(), region: g.region.clone(), scene: app.then_some("media"), hue },
+        let tile = match g.source {
+            Source::Tile(t) => Some(t),
+            _ => None,
         };
+        let (cover, hue) = cover_of(g, &own.id, &look);
         let front_key = cover.key();
         covers.want(cover.clone(), (front.clone(), sheet_w / sheet_h), &loader, &mut materials);
         covers.want(cover, (mirrored.clone(), sheet_w / sheet_h), &loader, &mut materials);
         // painted at twice the pixels it stands in: the chosen case comes nearer
-        let label = look.spine_band.as_ref().map_or(String::new(), |b| b.label.clone());
+        let label = match tile {
+            Some(Tile::Emulator) => "EMU".into(),
+            Some(Tile::AddGames | Tile::AddCustom) => "ADD".into(),
+            _ => look.spine_band.as_ref().map_or(String::new(), |b| b.label.clone()),
+        };
         let drawn = Art::Spine { look: Box::new(look.clone()), title: g.title.clone(), label, width: (stage.bh * d * 2.0).round().max(2.0) as u32, height: (stage.bh * 2.0).round().max(2.0) as u32, edge: edge * stage.bh };
         covers.want(drawn, (spine.clone(), 0.0), &loader, &mut materials);
         let mut late = vec![(
@@ -581,10 +633,14 @@ pub fn build_shelf(
 
         let at = |x: f32, z: f32, turn: f32, sx: f32, sy: f32| Transform::from_xyz(x, 0.0, z).with_rotation(Quat::from_rotation_y(turn)).with_scale(Vec3::new(sx, sy, 1.0));
         let mesh = || Mesh3d(kit.face.clone());
-        let seed = rustyshelf_core::drawn::hash(&g.title);
         let slot = Slot {
             index: i,
-            hue: hue.unwrap_or((seed % 360) as f32),
+            // (a case of the shelf's own has its own colour: app.js prepare())
+            hue: match tile {
+                Some(Tile::Surprise) => 300.0,
+                Some(Tile::AddGames | Tile::AddCustom) => 210.0,
+                _ => hue,
+            },
             front_key,
             from: Place::default(),
             to: Place::default(),
@@ -592,6 +648,8 @@ pub fn build_shelf(
             turn: Eased::at(0.0),
             dim: Eased::at(0.34),
             front: front.clone(),
+            mirrored: mirrored.clone(),
+            sheet: sheet_w / sheet_h,
             glare: glare.clone(),
             late,
         };

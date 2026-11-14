@@ -57,6 +57,7 @@ fn main() {
         .init_resource::<shelf::Moving>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
+        .init_resource::<play::Surprise>()
         .init_resource::<play::Discord>()
         .init_resource::<sound::Sounds>()
         .init_resource::<play::Repeat>()
@@ -76,7 +77,7 @@ fn main() {
                 music::run,
                 shelf::measure,
                 shelf::build_shelf,
-                shelf::apply_covers,
+                (shelf::apply_covers, shelf::reveal).chain(),
                 shelf::arrange,
                 (shelf::backdrop, shelf::moving).chain(),
                 (hud::update, hud::top, hud::hints, settings::draw).chain(),

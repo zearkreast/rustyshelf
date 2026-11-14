@@ -136,7 +136,7 @@ const CASES = [
   const looks = JSON.parse(fs.readFileSync(path.join(ROOT, 'crates', 'rustyshelf-core', 'data', 'looks.json'), 'utf8')).style;
   const face = (family, weight, file) => `@font-face{font-family:"${family}";font-weight:${weight};src:url(data:font/woff2;base64,${fs.readFileSync(path.join(ROOT, 'renderer', 'fonts', file)).toString('base64')})}`;
   const css = [face('Lilita One', 400, 'lilita-one-latin-400-normal.woff2'), face('Bungee', 400, 'bungee-latin-400-normal.woff2'), face('Audiowide', 400, 'audiowide-latin-400-normal.woff2'),
-    face('Lexend', 400, 'lexend-latin-400-normal.woff2'), face('Lexend', 500, 'lexend-latin-500-normal.woff2'), face('Lexend', 700, 'lexend-latin-700-normal.woff2')].join('');
+    face('Lexend', 400, 'lexend-latin-400-normal.woff2'), face('Lexend', 500, 'lexend-latin-500-normal.woff2'), face('Lexend', 700, 'lexend-latin-700-normal.woff2'), face('Lexend', 800, 'lexend-latin-800-normal.woff2')].join('');
   const pg = await browser.newPage(); await pg.setContent(`<html><head><style>${css}</style></head><body></body></html>`);
   await pg.addScriptTag({ content: fs.readFileSync(path.join(ROOT, 'renderer', 'covers.js'), 'utf8') });
   // made-up titles, picked so that every scene and every title font comes up
@@ -144,13 +144,16 @@ const CASES = [
   const wanted = [...TITLES.map((title, i) => ({ look: ['gc', 'snes', 'n3ds', 'pc', 'sw', 'ps2', 'psx', 'gba'][i % 8], title, region: i % 3 ? '' : 'usa', side: 'front' })),
     { look: 'media', title: 'Made Up Player', region: '', side: 'front', scene: 'media' },
     { look: 'gc', title: 'Zeta Run', side: 'back', facts: [['Region', 'USA'], ['File', 'ISO · 1.4 GB'], ['Emulator', 'Dolphin']], blurb: 'A made-up game about running, written to try the back of a drawn cover on for size.' },
-    { look: 'snes', title: 'Omega Quest: The Long Way Home', side: 'back', facts: [['Region', 'Europe']], blurb: '' }];
+    { look: 'snes', title: 'Omega Quest: The Long Way Home', side: 'back', facts: [['Region', 'Europe']], blurb: '' },
+    // the shelf's own cases: Surprise me, and Add games on a shelf without any
+    { look: 'gc', title: 'Surprise me', side: 'surprise' }, { look: 'snes', title: 'Surprise me', side: 'surprise' }, { look: 'pc', title: 'Add games', side: 'add' }, { look: 'ps2', title: 'Add games', side: 'add' }];
   const covers = await pg.evaluate(async ({ wanted, looks }) => {
-    await Promise.all(['400 20px "Lilita One"', '400 20px Bungee', '400 20px Audiowide', '400 20px Lexend', '500 20px Lexend', '700 20px Lexend'].map(f => document.fonts.load(f)));
+    await Promise.all(['400 20px "Lilita One"', '400 20px Bungee', '400 20px Audiowide', '400 20px Lexend', '500 20px Lexend', '700 20px Lexend', '800 20px Lexend'].map(f => document.fonts.load(f)));
     const out = [];
     for (const w of wanted) {
       const seed = window.Covers.hash(w.title), game = { title: w.title, seed, hue: seed % 360, region: w.region, scene: w.scene };
-      const url = w.side === 'back' ? window.Covers.back(looks[w.look], game, w.facts, w.blurb) : window.Covers.front(looks[w.look], game);
+      const url = w.side === 'back' ? window.Covers.back(looks[w.look], game, w.facts, w.blurb) : w.side === 'surprise' ? window.Covers.randomFront(looks[w.look])
+        : w.side === 'add' ? window.Covers.setupFront(looks[w.look]) : window.Covers.front(looks[w.look], game);
       const im = new Image(); im.src = url; await im.decode();
       const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
       const d = x.getImageData(0, 0, im.width, im.height).data, cell = 20, grid = [];

@@ -9,7 +9,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::config::LoadError;
-use rustyshelf_core::library::Library;
+use rustyshelf_core::library::{Library, ShelfKind};
+use rustyshelf_core::scanner::{Game, Source, Tile};
 use rustyshelf_core::looks::Look;
 
 /// Box art is shown at most this tall: plenty for a box on a TV, and a few hundred covers stay within GPU memory.
@@ -35,10 +36,38 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
     use rustyshelf_core::shelfview::{arrange, View};
     let view = View::from_ui(base.config.raw().get("ui"));
     let mut lib = base.clone();
+    let ui = base.config.raw().get("ui");
+    let hidden: Vec<&str> = ui.and_then(|u| u.get("hidden")).and_then(|h| h.as_array()).map(|h| h.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
     for shelf in lib.shelves.iter_mut() {
+        let all = shelf.games.len();
         let order = arrange(&shelf.id, &shelf.games, &view, history);
         shelf.games = order.into_iter().map(|i| shelf.games[i].clone()).collect();
+        // the shelf's own cases among its games (app.js prepare()): Surprise me, Add games and the emulator's in
+        // front, the Custom shelf's Add games last
+        let tile = |id: String, title: String, tile: Tile| Game { id, title, source: Source::Tile(tile), ..Game::default() };
+        let mut front = Vec::new();
+        let (console, pc) = (matches!(shelf.kind, ShelfKind::Console { .. }), matches!(shelf.kind, ShelfKind::Pc));
+        let on = |key: &str, off: &serde_json::Value| ui.and_then(|u| u.get(key)) != Some(off);
+        if (console || pc) && shelf.games.len() > 1 && !hidden.contains(&format!("rnd-{}", shelf.id).as_str()) && on("surpriseMe", &"off".into()) {
+            front.push(tile(format!("rnd-{}", shelf.id), "Surprise me".into(), Tile::Surprise));
+        }
+        if console && all == 0 {
+            front.push(tile(format!("setup-{}", shelf.id), "Add games".into(), Tile::AddGames));
+        }
+        if let ShelfKind::Console { console, config } = &shelf.kind {
+            let emulator = if config.emulator.is_empty() && console.retro { base.config.retroarch() } else { config.emulator.clone() };
+            let there = !emulator.is_empty() && rustyshelf_core::paths::is_file(&rustyshelf_core::launch::emu_path(&emulator, &base.app_root));
+            if there && !hidden.contains(&format!("emu-{}", shelf.id).as_str()) && on("emuCase", &false.into()) {
+                front.push(tile(format!("emu-{}", shelf.id), format!("Open {}", crate::settings::emulator_of(shelf)), Tile::Emulator));
+            }
+        }
+        shelf.games.splice(0..0, front);
+        if shelf.id == "custom" {
+            shelf.games.push(tile("setup-custom".into(), "Add games".into(), Tile::AddCustom));
+        }
     }
+    // a console's shelf with nothing to show (its games all hidden) isn't shown
+    lib.shelves.retain(|s| !s.games.is_empty());
     // Home, All and the collections come first, in their own order
     let mut shelves = rustyshelf_core::shelfview::mixed_shelves(&base.shelves, base.config.raw().get("ui"), history);
     shelves.append(&mut lib.shelves);
@@ -150,7 +179,10 @@ pub struct Decoded {
 #[derive(Clone)]
 pub enum Art {
     File(PathBuf),
-    Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32> },
+    /// `seed`: the number it's drawn from, None for its title's own
+    Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32>, seed: Option<u32> },
+    /// the cover of one of the shelf's own cases
+    Tile { look: Box<Look>, tile: Tile },
     Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
     /// a spine painted `width` × `height` pixels, two to a pixel of the shelf: `edge` is the case's border there
     Spine { look: Box<Look>, title: String, label: String, width: u32, height: u32, edge: f32 },
@@ -161,7 +193,8 @@ impl Art {
     pub fn key(&self) -> PathBuf {
         match self {
             Art::File(p) => p.clone(),
-            Art::Front { look, title, region, hue, .. } => PathBuf::from(format!("drawn:{}|f|{title}|{region}|{hue:?}", look.id)),
+            Art::Front { look, title, region, hue, seed, .. } => PathBuf::from(format!("drawn:{}|f|{title}|{region}|{hue:?}|{seed:?}", look.id)),
+            Art::Tile { look, tile } => PathBuf::from(format!("drawn:{}|t|{tile:?}", look.id)),
             Art::Back { look, title, facts, blurb } => {
                 let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).collect();
                 PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
@@ -174,7 +207,9 @@ impl Art {
         let drawn = |p: rustyshelf_core::drawn::Picture| Some((p.width, p.height, p.rgba));
         match self {
             Art::File(p) => decode(p),
-            Art::Front { look, title, region, scene, hue } => drawn(rustyshelf_core::drawn::front(look, title, region, *scene, *hue)),
+            Art::Front { look, title, region, scene, hue, seed } => drawn(rustyshelf_core::drawn::front_from(look, title, region, *scene, *hue, seed.unwrap_or_else(|| rustyshelf_core::drawn::hash(title)))),
+            Art::Tile { look, tile: Tile::Surprise } => drawn(rustyshelf_core::drawn::surprise(look)),
+            Art::Tile { look, .. } => drawn(rustyshelf_core::drawn::add_games(look)),
             Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
             Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
         }

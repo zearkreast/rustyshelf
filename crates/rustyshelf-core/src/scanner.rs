@@ -62,6 +62,21 @@ pub enum Source {
     Pc(Box<crate::pcgames::PcGame>),
     /// a media app (the Media shelf), by its program as Settings has it
     App { path: String },
+    /// not a game: one of the shelf's own cases
+    Tile(Tile),
+}
+
+/// The cases a shelf stands among its games.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tile {
+    /// "Open <emulator>": the console's emulator on its own
+    Emulator,
+    /// "Add games" on a console's shelf without games: its page in Settings
+    AddGames,
+    /// "Add games" at the end of the Custom shelf: Settings → Custom games
+    AddCustom,
+    /// "Surprise me": lands on a game of the shelf
+    Surprise,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]

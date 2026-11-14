@@ -149,6 +149,8 @@ pub struct Settings {
     pub gpu_vendor: Option<u32>,
     /// a console whose emulator a page asked to open on its own
     open_emulator: Option<String>,
+    /// the page the shelf asked to be opened at
+    wanted: Option<Screen>,
     /// something to say on the shelf once Settings has closed
     toast: Option<String>,
     /// the Discord switch or id changed since they were last handed over
@@ -205,6 +207,7 @@ impl Default for Settings {
             setup: setup::SetupState::default(),
             gpu_vendor: None,
             open_emulator: None,
+            wanted: None,
             toast: None,
             discord_changed: true,
             sound_changed: true,
@@ -293,6 +296,21 @@ impl Settings {
     pub fn clock(&self) -> Option<(bool, bool)> {
         let mode = self.text(&["ui", "clock"]);
         (mode != "off").then(|| (mode != "time", self.flag(&["ui", "clock24"], false)))
+    }
+
+    /// Asks for a console's page (its emulator and games folders), from its shelf's "Add games" case.
+    pub fn open_console(&mut self, id: &str) {
+        self.wanted = Some(Screen::Console(id.to_string()));
+    }
+
+    /// Asks for the Custom games page, from the Custom shelf's "Add games" case.
+    pub fn open_custom(&mut self) {
+        self.wanted = Some(Screen::Custom);
+    }
+
+    /// Asks for a console's emulator to be opened on its own, from its shelf's "Open" case.
+    pub fn open_emulator(&mut self, id: &str) {
+        self.open_emulator = Some(id.to_string());
     }
 
     /// Puts a game among the favourites or takes it out, from the shelf; whether it's one now.
@@ -1359,6 +1377,7 @@ pub fn facts_of(g: &Game, emulator: &str, plays: Option<Played>) -> Vec<(String,
             rows.push(("Type", "Streaming app".into()));
             rows.push(("Program", short(path)));
         }
+        Source::Tile(_) => {}
     }
     rows.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
 }
@@ -1403,8 +1422,14 @@ pub fn input(
                 loading::reshow(&mut lib, b, &plays.0, &mut cursor);
             }
         }
+        if let Some(failed) = start_emulator(&mut s, &mut playing, time.elapsed_secs()).and_then(Result::err) {
+            toast.text = failed;
+            toast.until = time.elapsed_secs() + 8.0;
+        }
         let first = if playing.title.is_some() {
             None
+        } else if let Some(page) = s.wanted.take() {
+            Some(page)
         } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Select) {
             Some(Screen::Root)
         } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
@@ -1421,7 +1446,7 @@ pub fn input(
                 // on a mixed shelf, the game's own shelf says what runs it
                 let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
                 let emulator = emulator_of(own);
-                s.chosen = shelf.games.get(cursor.game).map(|g| Chosen { emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
+                s.chosen = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| Chosen { emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
             }
         }
         if let Some(b) = &base.0 {
@@ -1530,13 +1555,10 @@ pub fn input(
         s.back();
     }
 
-    if let Some(id) = s.open_emulator.take() {
-        let (emulator, args) = (s.emulator_of(&id), s.text(&["systems", &id, "emulatorArgs"]));
-        let combo = Config::from_value(&s.cfg).and_then(|c| c.quit_combo());
-        let opened = rustyshelf_core::launch::emulator_plan(&id, &emulator, &args, &s.app_root).and_then(|plan| crate::play::open_alone(&mut playing, &id, emuname::label(&emulator), &plan, combo.as_deref(), time.elapsed_secs()));
+    if let Some(opened) = start_emulator(&mut s, &mut playing, time.elapsed_secs()) {
         s.note = match opened {
-            Ok(()) => format!("{} is open. Settings is back when it closes.", emuname::label(&emulator)),
-            Err(e) => e.to_string(),
+            Ok(name) => format!("{name} is open. Settings is back when it closes."),
+            Err(e) => e,
         };
         s.redraw = true;
     }
@@ -1556,6 +1578,16 @@ pub fn input(
             loading::reshow(&mut lib, b, &plays.0, &mut cursor);
         }
     }
+}
+
+/// Opens the emulator that was asked for on its own: its name when it's open, or why it isn't; None when none was
+/// asked for.
+fn start_emulator(s: &mut Settings, playing: &mut crate::play::Playing, now: f32) -> Option<Result<String, String>> {
+    let id = s.open_emulator.take()?;
+    let (emulator, args) = (s.emulator_of(&id), s.text(&["systems", &id, "emulatorArgs"]));
+    let combo = Config::from_value(&s.cfg).and_then(|c| c.quit_combo());
+    let opened = rustyshelf_core::launch::emulator_plan(&id, &emulator, &args, &s.app_root).and_then(|plan| crate::play::open_alone(playing, &id, emuname::label(&emulator), &plan, combo.as_deref(), now));
+    Some(opened.map(|()| emuname::label(&emulator)).map_err(|e| e.to_string()))
 }
 
 /// Draws the page again when it changed.

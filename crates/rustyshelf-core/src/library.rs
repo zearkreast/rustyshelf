@@ -45,7 +45,8 @@ pub struct Shelf {
 pub struct Library {
     pub app_root: PathBuf,
     pub config: Config,
-    /// consoles that are on and have games, in the settings' console order, then the PC, Custom and Media shelves
+    /// consoles that are on, with an emulator or a games folder (even with no games yet), in the settings' console
+    /// order, then the PC, Custom and Media shelves
     pub shelves: Vec<Shelf>,
 }
 
@@ -262,7 +263,6 @@ impl Library {
                 None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) }, from: Vec::new() }),
             }
         }
-        shelves.retain(|s| !s.games.is_empty());
         for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom)] {
             if !games.is_empty() {
                 games.sort_by(|a, b| compare_plain(&a.title, &b.title));

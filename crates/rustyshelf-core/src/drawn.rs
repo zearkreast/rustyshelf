@@ -300,6 +300,14 @@ impl Canvas {
     }
 }
 
+/// How far under the middle of a line its baseline is, for text the canvas sets by its middle: the font's rise
+/// and fall, taken as one letter-size together (as Chromium takes them).
+fn below_middle(face: Face, size: f32) -> f32 {
+    let f = font_for(face, 'H');
+    let (up, down) = (f.ascent_unscaled(), -f.descent_unscaled());
+    (up - down) / (up + down) / 2.0 * size
+}
+
 fn width(w: f32) -> Stroke {
     Stroke { width: w, ..Stroke::default() }
 }
@@ -493,11 +501,7 @@ fn band(c: &mut Canvas, height: f32, band: Option<&Band>, right: &str) -> f32 {
     let Some(b) = band else { return 0.0 };
     let tall = (height * 0.085).round();
     c.rect(0.0, 0.0, W, tall, &solid(of(b.bg)));
-    // text set on the middle of its letters' height
-    let middle = |face: Face, size: f32| {
-        let f = font_for(face, 'H');
-        tall / 2.0 + (f.ascent_unscaled() + f.descent_unscaled()) / 2.0 * size / f.units_per_em().unwrap_or(1000.0)
-    };
+    let middle = |face: Face, size: f32| tall / 2.0 + below_middle(face, size);
     let ink = solid(of(b.fg));
     c.text(Face::Lexend(2), &b.label, tall * 0.42, W * 0.05, middle(Face::Lexend(2), tall * 0.42), 0.0, &ink);
     if !right.is_empty() {
@@ -520,7 +524,12 @@ fn picture(c: Canvas) -> Picture {
 /// A front cover for a game without one. `scene_kind`: the scene to draw ("media" for an app), None for one picked
 /// by the title; `hue`: the colour it's drawn around, None for the title's own.
 pub fn front(look: &Look, title: &str, region: &str, scene_kind: Option<&str>, hue: Option<f32>) -> Picture {
-    let seed = hash(title);
+    front_from(look, title, region, scene_kind, hue, hash(title))
+}
+
+/// A front cover drawn from the number `seed` instead of its title's own (a shelf's "Open <emulator>" case takes
+/// the shelf's into it).
+pub fn front_from(look: &Look, title: &str, region: &str, scene_kind: Option<&str>, hue: Option<f32>, seed: u32) -> Picture {
     let hue = hue.unwrap_or((seed % 360) as f32);
     let (mut c, height) = canvas(look);
     let mut r = Chance::new(seed);
@@ -589,6 +598,70 @@ pub fn back(look: &Look, title: &str, facts: &[(String, String)], blurb: &str) -
         }
         y += 22.0;
     }
+    picture(c)
+}
+
+/// The two lines at the foot of a tile's cover: its name, and what it does in small capitals.
+fn tile_words(c: &mut Canvas, height: f32, name: &str, does: &str) {
+    c.text(Face::Lexend(2), name, W * 0.1, W / 2.0, height * 0.84, 0.5, &solid(rgba(255, 255, 255, 0.96)));
+    c.text(Face::Lexend(1), does, W * 0.04, W / 2.0, height * 0.84 + W * 0.07, 0.5, &solid(rgba(255, 255, 255, 0.45)));
+}
+
+/// The cover of the "Surprise me" case: a card of foil with a big question mark, under the console's band.
+pub fn surprise(look: &Look) -> Picture {
+    let (mut c, height) = canvas(look);
+    c.rect(0.0, 0.0, W, height, &fade(0.0, height, rgba(0x14, 0x12, 0x1f, 1.0), rgba(0x07, 0x06, 0x0c, 1.0)));
+    let top = band(&mut c, height, look.band.as_ref(), "");
+    let size = W * 0.58;
+    let (x, y) = ((W - size) / 2.0, top + (height - top) * 0.42 - size / 2.0);
+    let card = || round_rect(x, y, size, size, size * 0.12);
+    // a soft white light round the card
+    let (pw, ph) = (c.pix.width() as usize, c.pix.height() as usize);
+    let mut shape = Pixmap::new(pw as u32, ph as u32).expect("a cover's size");
+    if let Some(p) = card() {
+        shape.fill_path(&p, &solid(Color::WHITE), FillRule::Winding, Transform::identity(), None);
+    }
+    let light = blurred(&shape.pixels().iter().map(|p| f32::from(p.alpha()) / 255.0).collect::<Vec<_>>(), pw, ph, 20.0);
+    for (px, a) in c.pix.pixels_mut().iter_mut().zip(light) {
+        let a = a * 0.35;
+        let mix = |v: u8| (255.0 * a + f32::from(v) * (1.0 - a)).round() as u8;
+        *px = tiny_skia::PremultipliedColorU8::from_rgba(mix(px.red()), mix(px.green()), mix(px.blue()), 255).unwrap_or(*px);
+    }
+    // the foil turns through its colours round the card's middle (the canvas starts it .6 of a radian before 3 o'clock)
+    let side = size.ceil() as u32;
+    let foil = crate::cssbg::paint("conic-gradient(from 55.62deg at 50% 50%,#ff4fa3,#ffd54a,#5affc8,#5a8cff,#e65aff,#ff4fa3)", side, side, side as f32 / size);
+    if let Some(foil) = tiny_skia::IntSize::from_wh(side, side).and_then(|s| Pixmap::from_vec(foil.rgba, s)) {
+        let shader = tiny_skia::Pattern::new(foil.as_ref(), SpreadMode::Pad, tiny_skia::FilterQuality::Bilinear, 1.0, Transform::from_translate(x, y));
+        c.fill(card(), &Paint { shader, anti_alias: true, ..Paint::default() });
+    }
+    let stops = vec![
+        GradientStop::new(0.0, rgba(255, 255, 255, 0.55)),
+        GradientStop::new(0.45, rgba(255, 255, 255, 0.0)),
+        GradientStop::new(0.55, rgba(0, 0, 0, 0.0)),
+        GradientStop::new(1.0, rgba(0, 0, 0, 0.35)),
+    ];
+    if let Some(shader) = LinearGradient::new(Point::from_xy(x, y), Point::from_xy(x + size, y + size), stops, SpreadMode::Pad, Transform::identity()) {
+        c.fill(card(), &Paint { shader, anti_alias: true, ..Paint::default() });
+    }
+    let (face, tall) = (Face::Lexend(3), size * 0.72);
+    c.text(face, "?", tall, x + size / 2.0, y + size * 0.56 + below_middle(face, tall), 0.5, &solid(rgba(10, 8, 16, 0.9)));
+    tile_words(&mut c, height, "Surprise me", "SHUFFLE");
+    picture(c)
+}
+
+/// The cover of the "Add games" case on a shelf without games: a dashed slot with a plus.
+pub fn add_games(look: &Look) -> Picture {
+    let (mut c, height) = canvas(look);
+    c.rect(0.0, 0.0, W, height, &fade(0.0, height, rgba(0x1a, 0x1d, 0x24, 1.0), rgba(0x0b, 0x0c, 0x10, 1.0)));
+    let top = band(&mut c, height, look.band.as_ref(), "");
+    let (size, cx, cy) = (W * 0.5, W / 2.0, top + (height - top) * 0.42);
+    let dashed = Stroke { width: W * 0.012, dash: StrokeDash::new(vec![W * 0.035, W * 0.025], 0.0), ..Stroke::default() };
+    c.stroke(round_rect(cx - size / 2.0, cy - size / 2.0, size, size, size * 0.14), &solid(rgba(255, 255, 255, 0.4)), &dashed);
+    let plus = Stroke { width: W * 0.03, line_cap: LineCap::Round, ..Stroke::default() };
+    for (a, b) in [((cx - size * 0.2, cy), (cx + size * 0.2, cy)), ((cx, cy - size * 0.2), (cx, cy + size * 0.2))] {
+        c.stroke(line(a, b), &solid(rgba(255, 255, 255, 0.88)), &plus);
+    }
+    tile_words(&mut c, height, "Add games", "OPEN SETTINGS");
     picture(c)
 }
 
