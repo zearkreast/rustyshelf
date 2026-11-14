@@ -1,0 +1,249 @@
+{
+ "files": {
+  "dolphin/Dolphin.exe": "",
+  "dolphin/portable.txt": "",
+  "dolphin/User/Config/RetroAchievements.ini": "﻿[Achievements]\r\nEnabled = True\r\nUsername = Made Up\r\nApiToken = secret\r\nHardcoreEnabled = true\r\n",
+  "ppsspp/PPSSPPWindows64.exe": "",
+  "ppsspp/memstick/PSP/SYSTEM/ppsspp.ini": "[Achievements]\nAchievementsEnable = True\nAchievementsUserName = other\n",
+  "ppsspp/memstick/PSP/SYSTEM/ppsspp_retroachievements.dat": "x",
+  "pcsx2/pcsx2-qt.exe": "",
+  "pcsx2/portable.ini": "",
+  "pcsx2/inis/PCSX2.ini": "[UI]\nx=1\n[Achievements]\nEnabled = false\nUsername = made up\nToken = t\n",
+  "duck/duckstation-qt-x64-ReleaseLTCG.exe": "",
+  "duck/portable.txt": "",
+  "duck/settings.ini": "; a note\n[Cheevos]\nEnabled = true\nUsername = Made Up\n# no token\n",
+  "ra/retroarch.exe": "",
+  "ra/retroarch.cfg": "cheevos_enable = \"true\"\ncheevos_username = \"MADE UP\"\ncheevos_token = \"t\"\ncheevos_hardcore_mode_enable = \"false\"\nbad line \"x\" y\n spaced_key   =   plain value  \n",
+  "fly/flycast.exe": "",
+  "fly/emu.cfg": "[achievements]\nEnabled = yes\nUserName = Made Up\nToken = abc\nHardcoreMode = on\n",
+  "empty/Dolphin.exe": ""
+ },
+ "checks": [
+  {
+   "cfg": {
+    "ra": {
+     "user": "made up"
+    },
+    "systems": {
+     "gc": {
+      "emulator": "<tmp>/dolphin/Dolphin.exe"
+     },
+     "wii": {
+      "emulator": "<tmp>/dolphin/Dolphin.exe"
+     },
+     "psp": {
+      "emulator": "<tmp>/ppsspp/PPSSPPWindows64.exe"
+     },
+     "ps2": {
+      "emulator": "<tmp>/pcsx2/pcsx2-qt.exe"
+     },
+     "psx": {
+      "emulator": "<tmp>/duck/duckstation-qt-x64-ReleaseLTCG.exe"
+     },
+     "snes": {
+      "emulator": "<tmp>/ra/retroarch.exe"
+     },
+     "dreamcast": {
+      "emulator": "<tmp>/fly/flycast.exe"
+     },
+     "sw": {
+      "emulator": "<tmp>/ra/retroarch.exe"
+     },
+     "nes": {
+      "emulator": "<tmp>/other/mesen.exe"
+     }
+    }
+   },
+   "rows": [
+    {
+     "system": "gc",
+     "emulator": "Dolphin",
+     "state": "ok",
+     "user": "Made Up",
+     "detail": "Hardcore mode on"
+    },
+    {
+     "system": "wii",
+     "emulator": "Dolphin",
+     "state": "ok",
+     "user": "Made Up",
+     "detail": "Hardcore mode on"
+    },
+    {
+     "system": "psp",
+     "emulator": "PPSSPP",
+     "state": "other-user",
+     "user": "other",
+     "detail": "PPSSPP is signed in as other, not made up"
+    },
+    {
+     "system": "ps2",
+     "emulator": "PCSX2",
+     "state": "off",
+     "user": "made up",
+     "detail": "Achievements are turned off in PCSX2"
+    },
+    {
+     "system": "psx",
+     "emulator": "DuckStation",
+     "state": "signed-out",
+     "user": "Made Up",
+     "detail": "Not signed in to RetroAchievements in DuckStation"
+    },
+    {
+     "system": "snes",
+     "emulator": "RetroArch",
+     "state": "ok",
+     "user": "MADE UP",
+     "detail": ""
+    },
+    {
+     "system": "dreamcast",
+     "emulator": "Flycast",
+     "state": "ok",
+     "user": "Made Up",
+     "detail": "Hardcore mode on"
+    }
+   ]
+  },
+  {
+   "cfg": {
+    "systems": {
+     "gc": {
+      "emulator": "<tmp>/empty/Dolphin.exe"
+     },
+     "ps2": {
+      "emulator": "<tmp>/ra/retroarch.exe"
+     },
+     "gba": {
+      "emulator": "<tmp>/fly/flycast.exe"
+     }
+    }
+   },
+   "rows": [
+    {
+     "system": "gc",
+     "emulator": "Dolphin",
+     "state": "unknown",
+     "user": "",
+     "detail": "Dolphin settings not found (run Dolphin once)"
+    },
+    {
+     "system": "wii",
+     "emulator": "Dolphin",
+     "state": "no-emulator",
+     "user": "",
+     "detail": "No Dolphin set up for this console"
+    },
+    {
+     "system": "psp",
+     "emulator": "PPSSPP",
+     "state": "no-emulator",
+     "user": "",
+     "detail": "No PPSSPP set up for this console"
+    },
+    {
+     "system": "ps2",
+     "emulator": "RetroArch",
+     "state": "ok",
+     "user": "MADE UP",
+     "detail": ""
+    },
+    {
+     "system": "gba",
+     "emulator": "Flycast",
+     "state": "ok",
+     "user": "Made Up",
+     "detail": "Hardcore mode on"
+    }
+   ]
+  },
+  {
+   "cfg": {},
+   "rows": [
+    {
+     "system": "gc",
+     "emulator": "Dolphin",
+     "state": "no-emulator",
+     "user": "",
+     "detail": "No Dolphin set up for this console"
+    },
+    {
+     "system": "wii",
+     "emulator": "Dolphin",
+     "state": "no-emulator",
+     "user": "",
+     "detail": "No Dolphin set up for this console"
+    },
+    {
+     "system": "psp",
+     "emulator": "PPSSPP",
+     "state": "no-emulator",
+     "user": "",
+     "detail": "No PPSSPP set up for this console"
+    },
+    {
+     "system": "ps2",
+     "emulator": "PCSX2",
+     "state": "no-emulator",
+     "user": "",
+     "detail": "No PCSX2 set up for this console"
+    }
+   ]
+  }
+ ],
+ "ini": [
+  "﻿; top\nloose = 1\n[ Section One ]\nKey = a = b\n=nokey\n[]\n#x\n[two]\r\nK2=\r\n",
+  {
+   "": {
+    "loose": "1"
+   },
+   "section one": {
+    "key": "a = b"
+   },
+   "two": {
+    "k2": ""
+   }
+  }
+ ],
+ "cfg": [
+  "cheevos_enable = \"true\"\ncheevos_username = \"MADE UP\"\ncheevos_token = \"t\"\ncheevos_hardcore_mode_enable = \"false\"\nbad line \"x\" y\n spaced_key   =   plain value  \n",
+  {
+   "cheevos_enable": "true",
+   "cheevos_username": "MADE UP",
+   "cheevos_token": "t",
+   "cheevos_hardcore_mode_enable": "false",
+   "spaced_key": "plain value  "
+  }
+ ],
+ "kinds": [
+  [
+   "C:\\Emu\\Dolphin.exe",
+   "Dolphin"
+  ],
+  [
+   "/opt/pcsx2-qt",
+   "PCSX2"
+  ],
+  [
+   "RetroArch-Win64/retroarch.exe",
+   "RetroArch"
+  ],
+  [
+   "x/my-retroarch.exe",
+   null
+  ],
+  [
+   "flycast-x64.exe",
+   "Flycast"
+  ],
+  [
+   "mesen.exe",
+   null
+  ],
+  [
+   "",
+   null
+  ]
+ ]
+}

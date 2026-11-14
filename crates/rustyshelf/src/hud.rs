@@ -282,6 +282,7 @@ pub fn update(
     settings: Res<crate::settings::Settings>,
     prompts: Res<Prompts>,
     surprise: Res<crate::play::Surprise>,
+    cheevos: Res<crate::cheevos::Cheevos>,
     lexend: Res<Lexend>,
     face: Res<Face>,
     mut lines: Query<(&mut Text, &mut TextFont, &Line)>,
@@ -317,8 +318,12 @@ pub fn update(
                         None => meta(g, &shelf.name, ok),
                     };
                     // on Home, All or a collection: the shelf it's from first
-                    if let Some(own) = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)) {
+                    let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id));
+                    if let Some(own) = own {
                         under.insert(0, own.name.clone());
+                    }
+                    if let Some(mark) = cheevos.mark(&own.unwrap_or(shelf).id, &picked.unwrap_or(g).title) {
+                        under.push(mark);
                     }
                 }
                 None => {
@@ -360,7 +365,7 @@ pub fn update(
                 _ => (0, 0.0),
             };
             if weight > 0 {
-                let latin = want.chars().all(|c| (c as u32) < 0x250 || matches!(c, '·' | '…' | '–' | '—' | '‘' | '’' | '“' | '”'));
+                let latin = want.chars().all(|c| (c as u32) < 0x250 || matches!(c, '·' | '…' | '–' | '—' | '‘' | '’' | '“' | '”' | '★'));
                 let shown = font.font_size;
                 *font = if latin { lexend.font(weight, size) } else { TextFont::default().with_font(face.0.clone()) };
                 font.font_size = if matches!(line, Line::Notice) { FontSize::Px(size) } else { shown };

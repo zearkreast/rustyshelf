@@ -23,6 +23,7 @@ use crate::hud::Face;
 use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
+mod accounts;
 mod collections;
 mod custom;
 mod find;
@@ -73,11 +74,14 @@ enum Screen {
     GameCollections,
     Collections,
     Find,
+    Accounts,
+    Achievements,
 }
 
 /// The game the shelf's menu or Details was opened on.
 struct Chosen {
-    /// the emulator its shelf names
+    /// its own console's shelf, and the emulator that shelf names
+    console: String,
     emulator: String,
     game: Game,
     plays: Option<Played>,
@@ -154,6 +158,12 @@ pub struct Settings {
     /// the page the shelf asked to be opened at
     wanted: Option<Screen>,
     finding: find::Finding,
+    ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
+    ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
+    /// the achievements last asked for: the game's id, and what came back
+    achievements: Option<(String, Result<Option<Value>, String>)>,
+    /// the key the Electron app seals API keys with on this computer
+    seal_key: Option<[u8; 32]>,
     /// the custom themes found, by id and name; and whether they're to be looked for again
     pub custom_themes: Vec<(String, String)>,
     pub reload_themes: bool,
@@ -217,6 +227,10 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             finding: Default::default(),
+            ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
+            ra_answer: None,
+            achievements: None,
+            seal_key: rustyshelf_core::seal::key(&paths::env_var),
             custom_themes: Vec::new(),
             reload_themes: false,
             go_to: None,
@@ -368,7 +382,7 @@ impl Settings {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
-        } else if matches!(path, ["ui", "music" | "musicLevel" | "theme" | "clock" | "clock24"]) {
+        } else if matches!(path, ["ui", "music" | "musicLevel" | "theme" | "clock" | "clock24"]) || path[0] == "ra" {
             self.redraw = true;
             // the music and the shelf read these as they go
         } else if matches!(path, ["ui", "builtInSongs"]) {
@@ -614,6 +628,7 @@ impl Settings {
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo", Screen::Controller),
+                    open("Accounts", String::new(), "RetroAchievements", Screen::Accounts),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                     open("System", String::new(), "Search again, emulator setup", Screen::System),
@@ -1221,6 +1236,9 @@ impl Settings {
                     },
                     open("Collections", String::new(), "This game on shelves of your own", Screen::GameCollections),
                 ];
+                if let Some(line) = self.achievements_line() {
+                    rows.push(open("Achievements", line, "Your RetroAchievements for this game", Screen::Achievements));
+                }
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());
                     let turn = move |s: &mut Settings, d: i32| {
@@ -1253,6 +1271,8 @@ impl Settings {
                 Page { title: g.title.clone(), lead: about, rows }
             }
             Screen::Find => self.find_page(),
+            Screen::Accounts => self.accounts_page(),
+            Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
                 let rows: Vec<Row> = hidden
@@ -1481,7 +1501,7 @@ pub fn input(
                 // on a mixed shelf, the game's own shelf says what runs it
                 let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
                 let emulator = emulator_of(own);
-                s.chosen = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| Chosen { emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
+                s.chosen = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| Chosen { console: own.id.clone(), emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
             }
         }
         if let Some(b) = &base.0 {
@@ -1491,6 +1511,9 @@ pub fn input(
         }
         if first == Screen::Details && s.chosen.is_none() {
             return;
+        }
+        if first == Screen::Details {
+            s.load_achievements(false);
         }
         if first == Screen::Find {
             if let Some(b) = &base.0 {
@@ -1536,6 +1559,7 @@ pub fn input(
         _ => {}
     }
     s.poll_core();
+    s.poll_ra();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;

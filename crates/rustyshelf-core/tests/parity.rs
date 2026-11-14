@@ -800,3 +800,78 @@ fn custom_themes_match_the_js() {
     assert_eq!(ours, theirs);
     assert!(ct::create(&root, &tmp.path().join("notes.txt"), "").is_err());
 }
+
+#[test]
+fn retroachievements_match_the_js() {
+    use rustyshelf_core::ra::{match_game, norm, Ra};
+    use std::sync::{Arc, Mutex};
+    let fx = fixture("ra.json");
+    for n in fx["norms"].as_array().unwrap() {
+        assert_eq!(norm(n[0].as_str().unwrap()), n[1].as_str().unwrap(), "{}", n[0]);
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let (site, asked) = (fx["site"].clone(), Arc::new(Mutex::new(Vec::<String>::new())));
+    let heard = asked.clone();
+    let ra = Ra::with(
+        tmp.path(),
+        Box::new(move |url: &str| {
+            heard.lock().unwrap().push(url.to_string());
+            let name = url.split("/API/").nth(1).and_then(|r| r.split(".php").next()).unwrap_or("");
+            site.get(name).cloned().ok_or_else(|| format!("no {name}"))
+        }),
+    );
+    assert!(!ra.enabled() && ra.game_list("gc").unwrap().is_empty());
+    ra.set_credentials(" Made Up ", "k e&y/1");
+    let list = ra.game_list("gc").unwrap();
+    for m in fx["matches"].as_array().unwrap() {
+        let title = m[0].as_str().unwrap();
+        assert_eq!(match_game(&list, title).map(|g| g.id), m[1].as_u64(), "{title}");
+    }
+    let or_null = |v: Option<Value>| v.unwrap_or(Value::Null);
+    assert_eq!(or_null(ra.progress("gc", "Zeta Run", false).unwrap()), fx["progress"]);
+    assert_eq!(or_null(ra.progress("gc", "Nothing Like It", false).unwrap()), fx["none"]);
+    assert_eq!(or_null(ra.progress("sw", "Zeta Run", false).unwrap()), fx["other"]);
+    let titles: Vec<String> = fx["matches"].as_array().unwrap().iter().map(|m| m[0].as_str().unwrap().to_string()).collect();
+    assert_eq!(ra.shelf_progress("gc", &titles).unwrap(), fx["shelf"]);
+    assert_eq!(or_null(ra.profile().unwrap()), fx["profile"]);
+    assert_eq!(Value::from(ra.recent(12.2).unwrap()), fx["recent"]);
+    assert_eq!(ra.test("Other One", "x").unwrap(), fx["test"]);
+    assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["asked"]);
+    // asked again within the cache's time: nothing new goes to the site
+    ra.progress("gc", "Zeta Run", false).unwrap();
+    ra.profile().unwrap();
+    assert_eq!(asked.lock().unwrap().len(), fx["asked"].as_array().unwrap().len());
+    assert!(ra.test("", "x").is_err());
+}
+
+#[test]
+fn emulators_retroachievements_standing_matches_the_js() {
+    use rustyshelf_core::raemu;
+    let fx = fixture("raemu.json");
+    let ini: Value = raemu::parse_ini(fx["ini"][0].as_str().unwrap().trim_start_matches('\u{feff}')).into_iter().map(|(k, v)| (k, Value::from(v.into_iter().map(|(k, v)| (k, Value::from(v))).collect::<serde_json::Map<_, _>>()))).collect::<serde_json::Map<_, _>>().into();
+    assert_eq!(ini, fx["ini"][1]);
+    let cfg: Value = raemu::parse_cfg(fx["cfg"][0].as_str().unwrap()).into_iter().map(|(k, v)| (k, Value::from(v))).collect::<serde_json::Map<_, _>>().into();
+    assert_eq!(cfg, fx["cfg"][1]);
+    for k in fx["kinds"].as_array().unwrap() {
+        assert_eq!(raemu::kind_of(k[0].as_str().unwrap()), k[1].as_str(), "{}", k[0]);
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_string_lossy().into_owned();
+    for (rel, text) in fx["files"].as_object().unwrap() {
+        let file = tmp.path().join(rel);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, text.as_str().unwrap()).unwrap();
+    }
+    let home = format!("{root}/home");
+    let var = |name: &str| match name {
+        "USERPROFILE" | "HOME" => Some(home.clone()),
+        "LOCALAPPDATA" => Some(format!("{home}/AppData/Local")),
+        "APPDATA" => Some(format!("{home}/AppData/Roaming")),
+        _ => None,
+    };
+    for c in fx["checks"].as_array().unwrap() {
+        let cfg: Value = serde_json::from_str(&c["cfg"].to_string().replace("<tmp>", &root)).unwrap();
+        let rows: Vec<Value> = raemu::check(&cfg, &var).iter().map(|r| serde_json::json!({ "system": r.system, "emulator": r.emulator, "state": r.state, "user": r.user, "detail": r.detail })).collect();
+        assert_eq!(Value::from(rows), c["rows"]);
+    }
+}

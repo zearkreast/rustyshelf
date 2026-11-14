@@ -608,6 +608,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Has the Home shelf (the twelve games you played last, then your favorites), the All shelf when Settings → Display
   asks for it, and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.
+- Reads RetroAchievements as the Electron app does (Settings → Accounts: the username and web API key, a check
+  of the account, and whether each console's emulator is signed in): a game's progress beside its facts on the
+  shelf, its achievements in Details, and what was unlocked when a game is come back from. The key is kept as
+  the Electron app keeps it, encrypted for this Windows user, so both apps open each other's.
 - Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf
   are listed as you type, best first, by the Electron app's own rules (capitals, accents and punctuation don't
   matter); with nothing typed, the games played last. Enter takes the shelf to the one chosen.

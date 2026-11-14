@@ -700,9 +700,71 @@ fs.writeFileSync(path.join(OUT, 'songs.json'), JSON.stringify(songFixtures()) + 
 fs.writeFileSync(path.join(OUT, 'art.json'), JSON.stringify(artFixtures(), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
+// ---- RetroAchievements (main/ra.js) against a stand-in for the site: made-up games, sets and an account ----
+async function raFixtures() {
+  const https = require('https'), { EventEmitter } = require('events');
+  const site = {
+    API_GetGameList: [{ ID: 11, Title: 'Zeta Run', NumAchievements: 30, Points: 400, ImageIcon: '/Images/000011.png' }, { ID: 12, Title: 'Zeta Run 2: The Long Way', NumAchievements: 12, Points: 90, ImageIcon: '/Images/000012.png' },
+      { ID: 13, Title: 'Omega Quest: Dawn of the Kings', NumAchievements: 55, Points: 620, ImageIcon: '/Images/000013.png' }, { ID: 14, Title: '~Hack~ Sigma\'s Tale', NumAchievements: 8, Points: 50, ImageIcon: '/Images/000014.png' },
+      { ID: 15, Title: 'Pokémon & Friends | Pocket Friends', NumAchievements: 20, Points: 200, ImageIcon: '/Images/000015.png' }, { ID: 16, Title: 'The Legend of Tau', NumAchievements: 5, Points: 25, ImageIcon: '/Images/000016.png' },
+      { ID: 17, Title: 'Kart Racers Deluxe Turbo Edition', NumAchievements: 9, Points: 70, ImageIcon: '/Images/000017.png' }, { ID: 18, Title: 'Alpha III', NumAchievements: 3, Points: 15, ImageIcon: '/Images/000018.png' }],
+    API_GetGameInfoAndUserProgress: { ID: 11, Title: 'Zeta Run', ConsoleName: 'GameCube', ImageIcon: '/Images/000011.png', ImageBoxArt: '/Images/box11.png', NumDistinctPlayers: 200, UserCompletion: '66.67%', UserCompletionHardcore: '33.33%', HighestAwardKind: 'beaten-softcore',
+      Achievements: { 902: { ID: 902, Title: 'Second', Description: 'Do the second thing', Points: '10', BadgeName: '0902', DisplayOrder: 2, NumAwarded: 50, DateEarned: '2026-01-02 10:00:00', type: 'progression' },
+        '901': { ID: 901, Title: 'First', Description: 'Do the first thing', Points: 5, BadgeName: '0901', DisplayOrder: 1, NumAwarded: 133, DateEarned: '2026-01-01 09:00:00', DateEarnedHardcore: '2026-01-01 09:00:00', Type: 'progression' },
+        903: { ID: 903, Title: 'Last', Description: 'Do the last thing', Points: 25, BadgeName: '0903', DisplayOrder: 2, NumAwarded: 0, Type: null }, 7: { ID: 7, Title: 'Unordered', Description: '', Points: 1, BadgeName: '0007', NumAwarded: 3 } } },
+    API_GetUserCompletionProgress: { Count: 2, Total: 2, Results: [{ GameID: 11, NumAwarded: 20, NumAwardedHardcore: 10, HighestAwardKind: 'beaten-softcore' }, { GameID: 16, NumAwarded: '5', NumAwardedHardcore: 5, HighestAwardKind: 'mastered' }] },
+    API_GetUserProfile: { User: 'Made Up', TotalPoints: 1234, TotalSoftcorePoints: 56, UserPic: '/UserPic/MadeUp.png', RichPresenceMsg: '' },
+    API_GetUserRecentAchievements: [{ AchievementID: 901, Title: 'First', Description: 'Do the first thing', Points: 5, BadgeName: '0901', GameTitle: 'Zeta Run', HardcoreMode: 1, Date: '2026-01-01 09:00:00' }, { AchievementID: 902, Title: 'Second', Description: '', Points: 10, BadgeName: '0902', GameTitle: 'Zeta Run', HardcoreMode: 0, Date: '2026-01-02 10:00:00' }],
+  };
+  const asked = [], real = https.get;
+  https.get = (u, _opts, cb) => { asked.push(u); const name = /API\/(\w+)\.php/.exec(u)[1], res = new EventEmitter(); res.statusCode = 200; res.setEncoding = () => {}; res.resume = () => {};
+    setImmediate(() => { cb(res); res.emit('data', JSON.stringify(site[name])); res.emit('end'); }); const req = new EventEmitter(); req.setTimeout = () => {}; req.destroy = () => {}; return req; };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-ra-')), ra = require('../main/ra');
+  try {
+    ra.init(tmp); ra.setCredentials(' Made Up ', 'k e&y/1');
+    const titles = ['Zeta Run', 'zeta run!', 'Zeta Run 2', 'Zeta Run 3', 'Omega Quest', 'Dawn of the Kings Omega Quest', 'Sigmas Tale', 'Pokemon and Friends', 'Legend of Tau, The', 'Kart Racers Deluxe Turbo', 'Kart Racers', 'Alpha', 'Alpha III', 'Nothing Like It', ''];
+    const list = (await ra.progress('gc', 'nothing', false), JSON.parse(fs.readFileSync(path.join(tmp, 'ra', 'list-16.json'), 'utf8')).data);
+    const out = { site, norms: [...titles, ...site.API_GetGameList.map(g => g.Title), 'Ōkami: The “Great” Game ~Demo~ II', 'A an the THE', "Ain't & isn’t"].map(t => [t, ra.norm(t)]),
+      matches: titles.map(t => { const g = ra.matchGame(list, t); return [t, g ? g.id : null]; }),
+      progress: await ra.progress('gc', 'Zeta Run', false), none: await ra.progress('gc', 'Nothing Like It', false), other: await ra.progress('sw', 'Zeta Run', false),
+      shelf: await ra.shelfProgress('gc', titles), profile: await ra.profile(), recent: await ra.recent(12.2), test: await ra.test('Other One', 'x') };
+    out.asked = asked; return out;
+  } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
+}
+// ---- whether each emulator is signed in to RetroAchievements (main/raemu.js), over made-up emulator folders ----
+async function raemuFixtures() {
+  const raemu = require('../main/raemu'), ra = require('../main/ra');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-raemu-')), home = path.join(tmp, 'home');
+  const put = (rel, text) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
+  const files = {
+    'dolphin/Dolphin.exe': '', 'dolphin/portable.txt': '', 'dolphin/User/Config/RetroAchievements.ini': '\ufeff[Achievements]\r\nEnabled = True\r\nUsername = Made Up\r\nApiToken = secret\r\nHardcoreEnabled = true\r\n',
+    'ppsspp/PPSSPPWindows64.exe': '', 'ppsspp/memstick/PSP/SYSTEM/ppsspp.ini': '[Achievements]\nAchievementsEnable = True\nAchievementsUserName = other\n', 'ppsspp/memstick/PSP/SYSTEM/ppsspp_retroachievements.dat': 'x',
+    'pcsx2/pcsx2-qt.exe': '', 'pcsx2/portable.ini': '', 'pcsx2/inis/PCSX2.ini': '[UI]\nx=1\n[Achievements]\nEnabled = false\nUsername = made up\nToken = t\n',
+    'duck/duckstation-qt-x64-ReleaseLTCG.exe': '', 'duck/portable.txt': '', 'duck/settings.ini': '; a note\n[Cheevos]\nEnabled = true\nUsername = Made Up\n# no token\n',
+    'ra/retroarch.exe': '', 'ra/retroarch.cfg': 'cheevos_enable = "true"\ncheevos_username = "MADE UP"\ncheevos_token = "t"\ncheevos_hardcore_mode_enable = "false"\nbad line "x" y\n spaced_key   =   plain value  \n',
+    'fly/flycast.exe': '', 'fly/emu.cfg': '[achievements]\nEnabled = yes\nUserName = Made Up\nToken = abc\nHardcoreMode = on\n',
+    'empty/Dolphin.exe': '',
+  };
+  const at = Object.fromEntries(Object.entries(files).map(([rel, text]) => [rel, put(rel, text)]));
+  const env = { USERPROFILE: home, HOME: home, LOCALAPPDATA: path.join(home, 'AppData', 'Local'), APPDATA: path.join(home, 'AppData', 'Roaming') };
+  const cfgs = [
+    { ra: { user: 'made up' }, systems: { gc: { emulator: at['dolphin/Dolphin.exe'] }, wii: { emulator: at['dolphin/Dolphin.exe'] }, psp: { emulator: at['ppsspp/PPSSPPWindows64.exe'] }, ps2: { emulator: at['pcsx2/pcsx2-qt.exe'] },
+      psx: { emulator: at['duck/duckstation-qt-x64-ReleaseLTCG.exe'] }, snes: { emulator: at['ra/retroarch.exe'] }, dreamcast: { emulator: at['fly/flycast.exe'] }, sw: { emulator: at['ra/retroarch.exe'] }, nes: { emulator: path.join(tmp, 'other', 'mesen.exe') } } },
+    { systems: { gc: { emulator: at['empty/Dolphin.exe'] }, ps2: { emulator: at['ra/retroarch.exe'] }, gba: { emulator: at['fly/flycast.exe'] } } },
+    {},
+  ];
+  const rel = s => String(s).split(tmp).join('<tmp>');
+  const checks = [];
+  for (const cfg of cfgs) checks.push({ cfg: JSON.parse(rel(JSON.stringify(cfg))), rows: await raemu.check(cfg, ra.CONSOLE_ID, env) });
+  const ini = '\ufeff; top\nloose = 1\n[ Section One ]\nKey = a = b\n=nokey\n[]\n#x\n[two]\r\nK2=\r\n', cfgText = files['ra/retroarch.cfg'];
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return { files, checks, ini: [ini, raemu.parseIni(ini)], cfg: [cfgText, raemu.parseCfg(cfgText)], kinds: ['C:\\Emu\\Dolphin.exe', '/opt/pcsx2-qt', 'RetroArch-Win64/retroarch.exe', 'x/my-retroarch.exe', 'flycast-x64.exe', 'mesen.exe', ''].map(e => [e, raemu.kindOf(e)]) };
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'arcade.json'), JSON.stringify(await arcadeFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'emucfg.json'), JSON.stringify(await emucfgFixtures(), null, 1) + '\n');
