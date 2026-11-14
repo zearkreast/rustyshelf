@@ -115,6 +115,22 @@ impl Config {
         }
     }
 
+    /// Settings → PC games → Steam: on, its folder, and whether its tools (Proton, runtimes …) are left off the shelf.
+    pub fn steam(&self) -> (bool, String, bool) {
+        let s = self.raw.get("steam").and_then(Value::as_object);
+        let get = |k: &str| s.and_then(|m| m.get(k));
+        (
+            get("enabled").and_then(Value::as_bool).unwrap_or(true),
+            str_of(get("path"), "").to_string(),
+            get("hideTools").and_then(Value::as_bool).unwrap_or(true),
+        )
+    }
+
+    /// Settings → PC games → Console box art: a PC game shown in its console box.
+    pub fn pc_console_box(&self) -> bool {
+        self.raw.get("pc").and_then(|p| p.get("consoleBox")).and_then(Value::as_bool).unwrap_or(false)
+    }
+
     /// Settings → RetroArch: the program the retro consoles fall back on, unexpanded.
     pub fn retroarch(&self) -> String {
         str_of(self.raw.get("retroarch"), "").trim().to_string()

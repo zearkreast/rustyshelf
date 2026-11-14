@@ -522,13 +522,17 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   else RetroArch with the console's core; with the options the emulator in use takes (a standalone retro emulator,
   Ryujinx, Dolphin's settings for the session, the GameCube startup), the real Xenia behind Xenia Manager, a PS Vita game
   by its title id, an unpacked Switch 2 game in its newest update, and a PS5 game with the Kyty launcher's settings.
+- Shows your installed Steam games on a PC shelf, from every Steam library, with Steam's covers (or the cover you chose
+  in the Electron app) and your playtime, and starts them through Steam. Steam's tools (Proton, runtimes) stay off it
+  unless Settings → PC games says otherwise.
 - Shows the names you gave games in the Electron app (Details → Rename).
 
-The Xbox 360 title list, the arcade names and the sizes of unpacked Switch 2 games come from the Electron app's `data`
-folder. Until the Electron app has fetched or measured them, games show their file names and no size.
+The Xbox 360 title list, the arcade names, the sizes of unpacked Switch 2 games and the Steam covers Steam itself doesn't
+keep come from the Electron app's `data` folder. Until the Electron app has fetched or measured them, games show their
+file names, no size and no such cover.
 
-**Not yet:** Settings and the setup wizard, art downloads, Steam and PC games, the open case and the museum, sounds and
-music, the phone companion, Android. Installing a 3DS `.cia`, choosing a Switch 2 build, downloading a missing RetroArch
+**Not yet:** Settings and the setup wizard, art downloads, PC games other than Steam's (Epic, GOG, Ubisoft, EA, Xbox, the
+PC games folder, games added by hand), the open case and the museum, sounds and music, the phone companion, Android. Installing a 3DS `.cia`, choosing a Switch 2 build, downloading a missing RetroArch
 core, and the emulator settings the Electron app adjusts before a game (so the controller's quit combo closes it without
 a question) are Electron-only too.
 

@@ -414,6 +414,32 @@ pub fn start(plan: &Plan) -> Result<Child, LaunchError> {
     cmd.spawn().map_err(LaunchError::Spawn)
 }
 
+/// Hands a Steam game to Steam (steam://rungameid), which starts it.
+pub fn launch_steam(appid: &str) -> Result<(), LaunchError> {
+    if appid.is_empty() || !appid.bytes().all(|b| b.is_ascii_digit()) {
+        return refuse("Unknown Steam game.");
+    }
+    let url = format!("steam://rungameid/{appid}");
+    let mut cmd = if cfg!(windows) {
+        let mut c = Command::new("rundll32");
+        c.args(["url.dll,FileProtocolHandler", &url]);
+        c
+    } else if cfg!(target_os = "macos") {
+        let mut c = Command::new("open");
+        c.arg(&url);
+        c
+    } else {
+        let mut c = Command::new("xdg-open");
+        c.arg(&url);
+        c
+    };
+    cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    // the opener returns at once; reaped on a thread so it doesn't linger
+    let mut child = cmd.spawn().map_err(LaunchError::Spawn)?;
+    std::thread::spawn(move || child.wait());
+    Ok(())
+}
+
 pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Child, LaunchError> {
     start(&plan(console, sc, file, game_id, cfg, app_root)?)
 }

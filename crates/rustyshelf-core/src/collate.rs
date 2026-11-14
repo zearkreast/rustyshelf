@@ -30,13 +30,22 @@ fn fold(c: char) -> char {
 }
 
 pub fn compare(a: &str, b: &str) -> Ordering {
+    compare_with(a, b, true)
+}
+
+/// `localeCompare` without numeric order ("Mario 10" before "Mario 2"), as Steam's games are sorted.
+pub fn compare_plain(a: &str, b: &str) -> Ordering {
+    compare_with(a, b, false)
+}
+
+fn compare_with(a: &str, b: &str, numeric: bool) -> Ordering {
     let (mut x, mut y) = (a.chars().peekable(), b.chars().peekable());
     loop {
         match (x.peek().copied(), y.peek().copied()) {
             (None, None) => return Ordering::Equal,
             (None, Some(_)) => return Ordering::Less,
             (Some(_), None) => return Ordering::Greater,
-            (Some(c), Some(d)) if c.is_ascii_digit() && d.is_ascii_digit() => {
+            (Some(c), Some(d)) if numeric && c.is_ascii_digit() && d.is_ascii_digit() => {
                 let take = |it: &mut std::iter::Peekable<std::str::Chars>| {
                     let mut s = String::new();
                     while let Some(&c) = it.peek().filter(|c| c.is_ascii_digit()) {
@@ -74,5 +83,7 @@ mod tests {
         let mut v = vec!["mario 10", "Mario 2", "Zelda", "Éclair", "1942", "Ape"];
         v.sort_by(|a, b| compare(a, b));
         assert_eq!(v, ["1942", "Ape", "Éclair", "Mario 2", "mario 10", "Zelda"]);
+        v.sort_by(|a, b| compare_plain(a, b));
+        assert_eq!(v, ["1942", "Ape", "Éclair", "mario 10", "Mario 2", "Zelda"]);
     }
 }

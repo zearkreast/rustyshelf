@@ -6,6 +6,8 @@ use std::sync::Mutex;
 
 use bevy::prelude::*;
 use rustyshelf_core::launch::{self, LaunchError};
+use rustyshelf_core::library::ShelfKind;
+use rustyshelf_core::scanner::Source;
 
 use crate::hud::Toast;
 use crate::loading::{LibraryRes, LibraryState};
@@ -44,6 +46,7 @@ pub fn navigate(
     mut cursor: ResMut<Cursor>,
     mut repeat: ResMut<Repeat>,
     mut playing: ResMut<Playing>,
+    mut toast: ResMut<Toast>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
@@ -103,14 +106,26 @@ pub fn navigate(
     }
 
     let go = keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
-    if let (true, Some(g)) = (go, shelf.games.get(cursor.game)) {
-        let (tx, rx) = channel();
-        let (console, sc, file, id, cfg, root) = (shelf.console.clone(), shelf.config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
-        std::thread::spawn(move || {
-            let _ = tx.send(launch::launch_game(&console, &sc, &file, &id, &cfg, &root));
-        });
-        playing.title = Some(g.title.clone());
-        playing.starting = Some(Mutex::new(rx));
+    let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
+    match (&shelf.kind, &g.source) {
+        // Steam starts it and looks after it; the shelf stays as it is
+        (_, Source::Steam { appid, .. }) => {
+            toast.text = match launch::launch_steam(appid) {
+                Ok(()) => format!("{} is starting in Steam.", g.title),
+                Err(e) => e.to_string(),
+            };
+            toast.until = now + 5.0;
+        }
+        (ShelfKind::Console { console, config }, Source::Rom) => {
+            let (tx, rx) = channel();
+            let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
+            std::thread::spawn(move || {
+                let _ = tx.send(launch::launch_game(&console, &sc, &file, &id, &cfg, &root));
+            });
+            playing.title = Some(g.title.clone());
+            playing.starting = Some(Mutex::new(rx));
+        }
+        (ShelfKind::Pc, Source::Rom) => {}
     }
 }
 

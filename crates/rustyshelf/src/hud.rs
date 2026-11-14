@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy::text::FontSize;
 use rustyshelf_core::paths;
-use rustyshelf_core::scanner::Game;
+use rustyshelf_core::scanner::{Game, Source};
 
 use crate::loading::{LibraryRes, LibraryState};
 use crate::play::Playing;
@@ -71,8 +71,21 @@ fn size(bytes: u64) -> String {
     }
 }
 
+/// Playtime as the Electron app writes it: "45 min", "2 h", "2 h 5 min".
+fn played(minutes: u64) -> String {
+    match minutes {
+        0 => String::new(),
+        m if m < 60 => format!("{m} min played"),
+        m if m % 60 == 0 => format!("{} h played", m / 60),
+        m => format!("{} h {} min played", m / 60, m % 60),
+    }
+}
+
 fn details(g: &Game) -> String {
     let mut parts = vec![g.region.clone(), g.ext.to_uppercase(), size(g.size_bytes)];
+    if let Source::Steam { minutes, .. } = g.source {
+        parts.push(played(minutes));
+    }
     if g.discs.len() > 1 {
         parts.push(format!("{} discs", g.discs.len()));
     }
@@ -107,7 +120,7 @@ pub fn update(
                 .shelves
                 .iter()
                 .enumerate()
-                .map(|(i, s)| if i == cursor.shelf { format!("[ {} ]", s.console.name) } else { s.console.name.clone() })
+                .map(|(i, s)| if i == cursor.shelf { format!("[ {} ]", s.name) } else { s.name.clone() })
                 .collect::<Vec<_>>()
                 .join("   ");
             if let Some(g) = shelf.games.get(cursor.game) {

@@ -160,8 +160,50 @@ function scanFixtures() {
   return { data: DATA, dirSizes: DIR_SIZES, trees: out };
 }
 
+// Steam folders: [file, text] with {root} for the folder they're in; cases: [given, main, hideTools] as Settings has them
+const acf = (id, name, flags, dir, size = 1000) => `"AppState"\n{\n\t"appid"\t\t"${id}"\n\t"name"\t\t"${name}"\n\t"StateFlags"\t\t"${flags}"\n\t"installdir"\t\t"${dir}"\n\t"SizeOnDisk"\t\t"${size}"\n\t"LastPlayed"\t\t"7"\n}\n`;
+const STEAM = {
+  files: [
+    ['Steam/steamapps/libraryfolders.vdf', '\uFEFF"libraryfolders"\n{\n\t"1"\n\t{\n\t\t"path"\t\t"{root}/Library"\n\t}\n\t"0"\n\t{\n\t\t"path"\t\t"{root}/Steam"\n\t}\n\t"2"\t{ "path" "{root}/Gone" }\n}\n'],
+    ['Steam/steamapps/appmanifest_10.acf', acf(10, 'Zeta Run', 4, 'Zeta')],
+    ['Steam/steamapps/appmanifest_11.acf', acf(11, 'Game 10', 4, 'G10')], ['Steam/steamapps/appmanifest_12.acf', acf(12, 'game 2', 4, 'G2')],
+    ['Steam/steamapps/appmanifest_228980.acf', acf(228980, 'Steamworks Common Redistributables', 4, 'Common')],
+    ['Steam/steamapps/appmanifest_1493710.acf', acf(1493710, 'Proton Experimental', 4, 'Proton')],
+    ['Steam/steamapps/appmanifest_20.acf', acf(20, 'Alpha Soundtrack', 4, 'AlphaOST')],
+    ['Steam/steamapps/appmanifest_21.acf', acf(21, 'Omega Dedicated Server', 4, 'OmegaDS')],
+    ['Steam/steamapps/appmanifest_30.acf', acf(30, 'Uninstalled Thing', 1, 'Un')],
+    ['Steam/steamapps/appmanifest_31.acf', acf(31, 'Queued Update', 1026, 'Queued')], ['Steam/steamapps/common/Queued/x', ''],
+    ['Steam/steamapps/appmanifest_32.acf', acf(32, 'Queued Elsewhere', 1026, 'Missing')],
+    ['Steam/steamapps/appmanifest_33.acf', acf(33, 'Empty Size', 0, 'Queued', 0)],
+    ['Steam/steamapps/not_a_manifest.acf', acf(34, 'Not Read', 4, 'NR')],
+    ['Library/steamapps/appmanifest_40.acf', acf(40, 'beta quest', 4, 'Beta', 'x')], ['Library/steamapps/appmanifest_10.acf', acf(10, 'Zeta Run Copy', 4, 'Zeta')],
+    ['Steam/appcache/librarycache/40/abc/library_600x900.jpg', ''], ['Steam/appcache/librarycache/10_library_600x900_2x.jpg', ''],
+    ['Steam/appcache/librarycache/10_library_600x900.jpg', ''], ['Steam/appcache/librarycache/11/library_hero.jpg', ''],
+    ['Steam/userdata/1/config/localconfig.vdf', '"UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "apps" { "10" { "Playtime" "125" "LastPlayed" "99" } } } } } }'],
+  ],
+  cases: [['Library', 'Steam', true], ['Steam', '', false], ['Steam/steamapps', '', true], ['Gone', '', true]],
+};
+
+async function steamFixtures() {
+  const steam = require('../main/steam');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-steam-')), root = path.join(tmp, 'root');
+  for (const [f, t] of STEAM.files) writeFile(path.join(root, f), text(t.split('{root}').join(root.split(path.sep).join('/'))));
+  const rel = p => p ? path.relative(root, p).split(path.sep).join('/') : null;
+  const out = [];
+  for (const [given, main, hideTools] of STEAM.cases) {
+    const games = await steam.scanSteamAsync(path.join(root, given), { mainPath: main ? path.join(root, main) : '', hideTools });
+    out.push({ given, main, hideTools, games: games.map(g => ({ appid: g.appid, title: g.title, sizeBytes: g.sizeBytes, dir: rel(g.dir), minutes: g.minutes,
+      lastPlayed: g.lastPlayed, front: rel(g.art.front), hero: rel(g.art.hero) })) });
+  }
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return { files: STEAM.files, cases: out };
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'titles.json'), JSON.stringify(titles, null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), null, 1) + '\n');
-console.log('wrote', path.relative(ROOT, OUT));
-process.exit(0); // (the folder-size measure it queued would keep the process waiting)
+steamFixtures().then(st => {
+  fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
+  console.log('wrote', path.relative(ROOT, OUT));
+  process.exit(0); // (the folder-size measure it queued would keep the process waiting)
+});

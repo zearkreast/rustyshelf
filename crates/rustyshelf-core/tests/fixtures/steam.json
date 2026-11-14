@@ -1,0 +1,287 @@
+{
+ "files": [
+  [
+   "Steam/steamapps/libraryfolders.vdf",
+   "﻿\"libraryfolders\"\n{\n\t\"1\"\n\t{\n\t\t\"path\"\t\t\"{root}/Library\"\n\t}\n\t\"0\"\n\t{\n\t\t\"path\"\t\t\"{root}/Steam\"\n\t}\n\t\"2\"\t{ \"path\" \"{root}/Gone\" }\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_10.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"10\"\n\t\"name\"\t\t\"Zeta Run\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"Zeta\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_11.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"11\"\n\t\"name\"\t\t\"Game 10\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"G10\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_12.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"12\"\n\t\"name\"\t\t\"game 2\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"G2\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_228980.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"228980\"\n\t\"name\"\t\t\"Steamworks Common Redistributables\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"Common\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_1493710.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"1493710\"\n\t\"name\"\t\t\"Proton Experimental\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"Proton\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_20.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"20\"\n\t\"name\"\t\t\"Alpha Soundtrack\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"AlphaOST\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_21.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"21\"\n\t\"name\"\t\t\"Omega Dedicated Server\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"OmegaDS\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_30.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"30\"\n\t\"name\"\t\t\"Uninstalled Thing\"\n\t\"StateFlags\"\t\t\"1\"\n\t\"installdir\"\t\t\"Un\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_31.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"31\"\n\t\"name\"\t\t\"Queued Update\"\n\t\"StateFlags\"\t\t\"1026\"\n\t\"installdir\"\t\t\"Queued\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/common/Queued/x",
+   ""
+  ],
+  [
+   "Steam/steamapps/appmanifest_32.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"32\"\n\t\"name\"\t\t\"Queued Elsewhere\"\n\t\"StateFlags\"\t\t\"1026\"\n\t\"installdir\"\t\t\"Missing\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/appmanifest_33.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"33\"\n\t\"name\"\t\t\"Empty Size\"\n\t\"StateFlags\"\t\t\"0\"\n\t\"installdir\"\t\t\"Queued\"\n\t\"SizeOnDisk\"\t\t\"0\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/steamapps/not_a_manifest.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"34\"\n\t\"name\"\t\t\"Not Read\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"NR\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Library/steamapps/appmanifest_40.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"40\"\n\t\"name\"\t\t\"beta quest\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"Beta\"\n\t\"SizeOnDisk\"\t\t\"x\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Library/steamapps/appmanifest_10.acf",
+   "\"AppState\"\n{\n\t\"appid\"\t\t\"10\"\n\t\"name\"\t\t\"Zeta Run Copy\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"Zeta\"\n\t\"SizeOnDisk\"\t\t\"1000\"\n\t\"LastPlayed\"\t\t\"7\"\n}\n"
+  ],
+  [
+   "Steam/appcache/librarycache/40/abc/library_600x900.jpg",
+   ""
+  ],
+  [
+   "Steam/appcache/librarycache/10_library_600x900_2x.jpg",
+   ""
+  ],
+  [
+   "Steam/appcache/librarycache/10_library_600x900.jpg",
+   ""
+  ],
+  [
+   "Steam/appcache/librarycache/11/library_hero.jpg",
+   ""
+  ],
+  [
+   "Steam/userdata/1/config/localconfig.vdf",
+   "\"UserLocalConfigStore\" { \"Software\" { \"Valve\" { \"Steam\" { \"apps\" { \"10\" { \"Playtime\" \"125\" \"LastPlayed\" \"99\" } } } } } }"
+  ]
+ ],
+ "cases": [
+  {
+   "given": "Library",
+   "main": "Steam",
+   "hideTools": true,
+   "games": [
+    {
+     "appid": "40",
+     "title": "beta quest",
+     "sizeBytes": null,
+     "dir": "Library/steamapps/common/Beta",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": "Steam/appcache/librarycache/40/abc/library_600x900.jpg",
+     "hero": null
+    },
+    {
+     "appid": "11",
+     "title": "Game 10",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/G10",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": "Steam/appcache/librarycache/11/library_hero.jpg"
+    },
+    {
+     "appid": "12",
+     "title": "game 2",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/G2",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "31",
+     "title": "Queued Update",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Queued",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "10",
+     "title": "Zeta Run",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Zeta",
+     "minutes": 125,
+     "lastPlayed": 99,
+     "front": "Steam/appcache/librarycache/10_library_600x900_2x.jpg",
+     "hero": null
+    }
+   ]
+  },
+  {
+   "given": "Steam",
+   "main": "",
+   "hideTools": false,
+   "games": [
+    {
+     "appid": "40",
+     "title": "beta quest",
+     "sizeBytes": null,
+     "dir": "Library/steamapps/common/Beta",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": "Steam/appcache/librarycache/40/abc/library_600x900.jpg",
+     "hero": null
+    },
+    {
+     "appid": "11",
+     "title": "Game 10",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/G10",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": "Steam/appcache/librarycache/11/library_hero.jpg"
+    },
+    {
+     "appid": "12",
+     "title": "game 2",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/G2",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "1493710",
+     "title": "Proton Experimental",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Proton",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "31",
+     "title": "Queued Update",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Queued",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "228980",
+     "title": "Steamworks Common Redistributables",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Common",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "10",
+     "title": "Zeta Run",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Zeta",
+     "minutes": 125,
+     "lastPlayed": 99,
+     "front": "Steam/appcache/librarycache/10_library_600x900_2x.jpg",
+     "hero": null
+    }
+   ]
+  },
+  {
+   "given": "Steam/steamapps",
+   "main": "",
+   "hideTools": true,
+   "games": [
+    {
+     "appid": "40",
+     "title": "beta quest",
+     "sizeBytes": null,
+     "dir": "Library/steamapps/common/Beta",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": "Steam/appcache/librarycache/40/abc/library_600x900.jpg",
+     "hero": null
+    },
+    {
+     "appid": "11",
+     "title": "Game 10",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/G10",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": "Steam/appcache/librarycache/11/library_hero.jpg"
+    },
+    {
+     "appid": "12",
+     "title": "game 2",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/G2",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "31",
+     "title": "Queued Update",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Queued",
+     "minutes": 0,
+     "lastPlayed": 7,
+     "front": null,
+     "hero": null
+    },
+    {
+     "appid": "10",
+     "title": "Zeta Run",
+     "sizeBytes": 1000,
+     "dir": "Steam/steamapps/common/Zeta",
+     "minutes": 125,
+     "lastPlayed": 99,
+     "front": "Steam/appcache/librarycache/10_library_600x900_2x.jpg",
+     "hero": null
+    }
+   ]
+  },
+  {
+   "given": "Gone",
+   "main": "",
+   "hideTools": true,
+   "games": []
+  }
+ ]
+}

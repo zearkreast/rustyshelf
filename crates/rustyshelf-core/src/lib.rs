@@ -14,6 +14,8 @@ pub mod paths;
 pub mod pkg;
 pub mod scanner;
 pub mod sfo;
+pub mod steam;
 pub mod systems;
 pub mod titles;
+pub mod vdf;
 pub mod x360;

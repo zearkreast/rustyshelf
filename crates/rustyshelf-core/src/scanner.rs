@@ -45,7 +45,22 @@ const ARCADE_BIOS: [&str; 26] = [
     "f355bios", "airlbios", "megaplay", "megatech", "playch10", "qsound", "neocdz", "isgsm", "nmk004", "ym2608", "bubsys", "cchip", "sp-cpu",
 ];
 
-#[derive(Debug, Clone, PartialEq)]
+/// Where a game comes from, which decides how it's started.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum Source {
+    /// a file in a console's games folder, started in its emulator
+    #[default]
+    Rom,
+    /// started through Steam
+    Steam {
+        appid: String,
+        minutes: u64,
+        /// seconds since 1970
+        last_played: u64,
+    },
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Game {
     /// `<console id>:<file>`, as the Electron app has it (history and favourites use it)
     pub id: String,
@@ -67,6 +82,7 @@ pub struct Game {
     pub not_installed: bool,
     /// how well the game runs in Xenia, from the Xbox 360 title list
     pub compat: Option<String>,
+    pub source: Source,
 }
 
 /// What a scan reads from the data folder besides the settings: lists the Electron app downloads, and sizes it measured.
@@ -418,6 +434,7 @@ fn add_packages(console: &Console, sc: &SystemConfig, by_title: &mut HashMap<Str
                     hero: None,
                     not_installed: true,
                     compat: None,
+                    source: Source::Rom,
                 },
             },
         );
@@ -683,6 +700,7 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &S
                     hero,
                     not_installed: false,
                     compat,
+                    source: Source::Rom,
                 },
             },
         );

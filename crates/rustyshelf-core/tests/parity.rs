@@ -143,3 +143,46 @@ fn scans_match_the_js_scanner() {
         assert_eq!(serde_json::to_string_pretty(&got).unwrap(), serde_json::to_string_pretty(&want).unwrap(), "{id}");
     }
 }
+
+#[test]
+fn steam_matches_the_js_scan() {
+    let fx = fixture("steam.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("root");
+    let slashed = root.to_string_lossy().replace('\\', "/");
+    for f in fx["files"].as_array().unwrap() {
+        let p = root.join(f[0].as_str().unwrap());
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(&p, f[1].as_str().unwrap().replace("{root}", &slashed)).unwrap();
+    }
+    let rel = |p: &Option<std::path::PathBuf>| match p {
+        Some(p) => Value::String(p.strip_prefix(&root).unwrap().to_string_lossy().replace('\\', "/")),
+        None => Value::Null,
+    };
+    for case in fx["cases"].as_array().unwrap() {
+        let main = case["main"].as_str().unwrap();
+        let main = (!main.is_empty()).then(|| root.join(main).to_string_lossy().into_owned());
+        let games = rustyshelf_core::steam::scan(&root.join(case["given"].as_str().unwrap()).to_string_lossy(), main.as_deref(), case["hideTools"].as_bool().unwrap());
+        let got: Vec<Value> = games
+            .iter()
+            .map(|g| {
+                serde_json::json!({ "appid": g.appid, "title": g.title, "sizeBytes": g.size_bytes, "dir": rel(&g.dir), "minutes": g.minutes,
+                    "lastPlayed": g.last_played, "front": rel(&g.front), "hero": rel(&g.hero) })
+            })
+            .collect();
+        // a size that isn't a number is NaN in JS (null in the fixture), none here
+        let want: Vec<Value> = case["games"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .cloned()
+            .map(|mut g| {
+                if g["sizeBytes"].is_null() {
+                    g["sizeBytes"] = Value::from(0);
+                }
+                g
+            })
+            .collect();
+        assert_eq!(serde_json::to_string_pretty(&got).unwrap(), serde_json::to_string_pretty(&want).unwrap(), "{case}");
+    }
+}
