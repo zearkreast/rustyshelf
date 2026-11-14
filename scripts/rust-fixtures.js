@@ -974,6 +974,40 @@ async function updatesFixtures() {
   } finally { https.get = real; }
   return { compares, checks };
 }
+// ---- Add games (main/addgames.js): a made-up folder of games scanned, names made into titles, and a made-up
+// Playnite library turned into what's added ----
+async function addgamesFixtures() {
+  const ag = require('../main/addgames');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-add-')), there = v => JSON.parse(JSON.stringify(v).split(JSON.stringify(tmp).slice(1, -1)).join('<tmp>'));
+  // each file with as many bytes as its number (the biggest program of a folder is the game)
+  const tree = { 'Zeta Run/ZetaRun.exe': 50, 'Zeta Run/unins000.exe': 900, 'Zeta Run/tools/packer.exe': 800, 'Zeta Run/cover.png': 5, 'Omega_Quest.v1.2.3-GOG/bin/x64/game.exe': 30, 'Omega_Quest.v1.2.3-GOG/launcher.exe': 10, 'Sigma (v2.1)/Sigma.exe': 20,
+    '[Repack] Tau Racers/Binaries/Win64/TauRacers-Win64-Shipping.exe': 70, '[Repack] Tau Racers/Binaries/Win64/CrashReportClient.exe': 300, 'Racing/Phi Kart/phikart.exe': 41, 'Racing/Phi Kart/editor.exe': 40, 'Racing/Phi Kart/server.exe': 39, 'Racing/Phi Kart/extra.exe': 38,
+    'Racing/Phi Kart/fifth.exe': 37, 'Racing/Rho Rally/Game/rho.exe': 42, 'Racing/Rho Rally/art/rho.jpg': 3, '2D games/Retro/Alpha Tale/alpha.exe': 11, '2D games/Retro/Beta Kart/beta.exe': 12, '2D games/Gamma Force/gf.exe': 13, 'Only Installer/setup_only.exe': 9,
+    'Zipped/game.zip': 8, 'Empty Thing/readme.txt': 2, '.hidden/secret.exe': 7, 'redist/vc.exe': 6, 'loose.exe': 14, 'Loose_Game-v1.0.exe': 15, 'notes.txt': 1, 'bin/thing.exe': 16, '___/prog.exe': 17, 'One Game Only/Deep/Deeper/one.exe': 18 };
+  for (const [rel, n] of Object.entries(tree)) { const f = path.join(tmp, 'Games', rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, Buffer.alloc(n, 1)); }
+  const names = ['Omega_Quest.v1.2.3-GOG', 'Sigma (v2.1)', '[Repack] Tau Racers', 'Zeta-Run_(GOG)', 'Phi.Kart.Build 1234', 'Rho [www.example.org]', 'v2 Alpha', 'Beta 2', 'Gamma (1.0b) Force', 'repack', '', '___', 'Tau  Racers   Deluxe', 'Kart v1.2.3a final', 'build7 thing', 'Über-Spiel'];
+  const exes = ['Games/Zeta Run/ZetaRun.exe', 'Games/Omega/bin/x64/game.exe', 'Games/x64/game.exe', 'Games/Tau/Binaries/Win64/Tau-Win64-Shipping.exe', 'Games/prog.exe', 'Games/___/prog.exe', 'elsewhere/bin/Sigma_Tale.v2.exe'].map(e => path.join(tmp, e));
+  // a Playnite library: every name, folder and id made up
+  const EMPTY = '00000000-0000-0000-0000-000000000000', play = (Type, more = {}) => ({ IsPlayAction: true, Type, ...more });
+  const lib = { platforms: [{ Id: 'p-gc', SpecificationId: 'nintendo_gamecube', Name: 'Nintendo GameCube' }, { Id: 'P-SNES', Name: 'Super Nintendo (SNES)' }, { Id: 'p-pc', SpecificationId: 'pc_windows', Name: 'PC (Windows)' }, { _id: 'p-odd', Name: 'Something Else' }, { Id: 'p-ds', Name: 'Handheld DS' }],
+    emulators: [{ Id: 'e-dolphin', InstallDir: '{PlayniteDir}\\Emulation\\Dolphin' }, { Id: 'e-none' }],
+    games: [{ Id: 'g1', Name: 'Zeta Run', PluginId: EMPTY, InstallDirectory: 'D:\\Games\\Zeta Run\\', GameActions: [play(0, { Path: '{InstallDir}\\zeta.exe', Arguments: '-w {InstallDirName} {PlayniteDir}' })], CoverImage: 'g1\\cover.png', BackgroundImage: 'https://example.org/bg.jpg', Favorite: true },
+      { Id: 'g2', Name: 'Omega Quest', InstallDirectory: 'E:/Omega', GameActions: [{ Type: 'File', Path: 'bin/../bin/omega.exe' }], CoverImage: 'g2/missing.png', BackgroundImage: 'g2/bg.jpg' },
+      { Id: 'g3', Name: 'Store Game', PluginId: 'ABCDEF01-2345-6789-abcd-ef0123456789', GameActions: [play(0, { Path: 'x.exe' })] }, { Name: 'Hidden One', Hidden: true, GameActions: [play(0, { Path: 'h.exe' })] },
+      { Id: 'g5', Name: 'Link Game', GameActions: [play(1, { Path: 'steam://run/1' })] }, { Id: 'g5b', Name: 'Store Link', PluginId: 'ABCDEF01-2345-6789-abcd-ef0123456789', GameActions: [play('URL', { Path: 'x://y' })] },
+      { Id: 'g6', Name: 'Sigma', PlatformIds: ['P-GC'], GameActions: [play(2, { EmulatorId: 'E-DOLPHIN' })], Roms: [{ Path: '{InstallDir}\\Sigma.iso' }], InstallDirectory: 'F:\\Roms\\GC' },
+      { Id: 'g7', Name: 'Tau', PlatformIds: ['p-gc'], GameActions: [play('Emulator', { EmulatorId: 'e-none' })], Roms: [{ Path: 'f:\\roms\\gc\\Tau.iso' }] }, { Id: 'g7b', Name: 'Phi', PlatformIds: ['nowhere', 'p-gc'], Roms: [{ Path: 'G:/More/gc/Phi.rvz' }, { Path: 'ignored' }] },
+      { Name: 'Rho', PlatformIds: ['p-snes'], Roms: [{ Path: 'D:\\snes\\rho.sfc' }] }, { Name: 'Odd', PlatformIds: ['p-odd'], GameActions: [play('Emulator')], Roms: [{ Path: 'x' }] }, { Name: 'Pc Rom', PlatformIds: ['p-pc'], Roms: [{ Path: 'a' }] },
+      { Id: 'g11' }, null, { Name: 'No Rom', PlatformIds: ['p-gc'], GameActions: [play(2)] }, { Name: 'Kart DS', PlatformIds: ['p-ds'], Roms: [{ Path: 'rom.nds' }] },
+      { _id: 'g14', Name: 'A very long name '.repeat(10), InstallDirectory: '', GameActions: [play(0, { Path: 'C:\\Long\\long.exe', Arguments: 'x'.repeat(1100) }), { Type: 0, Path: 'other.exe' }] },
+      { Name: 'alpha tale', GameActions: [play(0, { Path: 'D:\\a\\alpha.exe' })], Favorite: 0 }, { Name: 'Two Actions', GameActions: [{ Type: 0, Path: 'one.exe' }, { Type: 0, Path: 'two.exe' }] }] };
+  const found = { app: 'C:\\Playnite', library: path.join(tmp, 'pn', 'library') };
+  fs.mkdirSync(path.join(found.library, 'files', 'g1'), { recursive: true }); fs.writeFileSync(path.join(found.library, 'files', 'g1', 'cover.png'), 'x'); fs.mkdirSync(path.join(found.library, 'files', 'g2')); fs.writeFileSync(path.join(found.library, 'files', 'g2', 'bg.jpg'), 'x');
+  try {
+    return there({ tree, scan: await ag.scanFolderAsync(path.join(tmp, 'Games')), few: (await ag.scanFolderAsync(path.join(tmp, 'Games'), 3)).games.length, gone: await ag.scanFolderAsync(path.join(tmp, 'nowhere')),
+      clean: names.map(n => [n, ag.clean(n)]), titles: exes.map(e => [e, ag.titleFor(e, path.join(tmp, 'Games')), ag.titleFor(e)]), lib, plan: ag.plan(lib, found) });
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -982,6 +1016,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'dataexport.json'), JSON.stringify(await dataexportFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'addgames.json'), JSON.stringify(await addgamesFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');

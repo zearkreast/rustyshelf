@@ -60,13 +60,14 @@ impl Settings {
 
     pub(super) fn custom_page(&self) -> Page {
         let list = self.custom();
-        let mut rows = vec![Row {
-            label: "Add a game".into(),
+        let mut rows = self.adding_rows();
+        rows.push(Row {
+            label: "Add one program".into(),
             value: "Choose…".into(),
             hint: "Choose the game's program. It goes on the Custom shelf; RustyShelf starts it directly, no emulator is involved.".into(),
             press: Some(Box::new(|s: &mut Settings| s.pick(Pick::CustomGame, "Choose the game's program", false))),
             step: None,
-        }];
+        });
         for (i, c) in list.iter().enumerate() {
             let text = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("");
             let (title, shelf) = (text("title"), text("shelf"));

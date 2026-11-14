@@ -24,6 +24,7 @@ use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
 mod accounts;
+mod addgames;
 mod collections;
 mod custom;
 mod find;
@@ -62,6 +63,9 @@ enum Screen {
     Custom,
     /// one game added by hand, by its place in the list
     CustomGame(usize),
+    /// the games found to add, to be ticked; and what a Playnite library comes to
+    AddGames,
+    Playnite,
     BoxArt,
     Display,
     Sound,
@@ -121,6 +125,8 @@ enum Pick {
     CustomGame,
     ExportTo,
     ImportFrom,
+    ScanGames,
+    Playnite,
 }
 
 #[derive(Resource)]
@@ -165,6 +171,7 @@ pub struct Settings {
     pub keys_taken: bool,
     moves: moving::Moves,
     update: update::Update,
+    adding: addgames::Adding,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -237,6 +244,7 @@ impl Default for Settings {
             keys_taken: false,
             moves: Default::default(),
             update: Default::default(),
+            adding: Default::default(),
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -571,6 +579,11 @@ impl Settings {
         let (tx, rx) = channel();
         let title = title.to_string();
         std::thread::spawn(move || {
+            // RUSTYSHELF_PICK answers instead of the dialog: for trying these pages where there's no desktop
+            if let Some(answer) = std::env::var_os("RUSTYSHELF_PICK") {
+                let _ = tx.send(Some(PathBuf::from(answer)));
+                return;
+            }
             let dialog = rfd::FileDialog::new().set_title(&title);
             let _ = tx.send(if folder { dialog.pick_folder() } else { dialog.pick_file() });
         });
@@ -599,6 +612,8 @@ impl Settings {
             Pick::CustomGame => self.add_custom(&p),
             Pick::ExportTo => self.export_to(path),
             Pick::ImportFrom => self.import_from(path),
+            Pick::ScanGames => self.scan_games(path),
+            Pick::Playnite => self.read_playnite(Some(path)),
         }
     }
 
@@ -922,6 +937,8 @@ impl Settings {
             Screen::Collections => self.collections_page(),
             Screen::Custom => self.custom_page(),
             Screen::CustomGame(i) => self.custom_game_page(*i),
+            Screen::AddGames => self.add_games_page(),
+            Screen::Playnite => self.playnite_page(),
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
                 let games = self.text(&["pc", "gamesDir"]);
@@ -1612,6 +1629,7 @@ pub fn input(
     s.poll_ra();
     s.poll_moves();
     s.poll_update();
+    s.poll_adding();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;

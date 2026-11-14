@@ -1,6 +1,7 @@
 //! RustyShelf without a screen: the consoles, the settings, the games folders and their box art, launching a game.
 //! The Electron app's main process does the same in JS (main/*.js); the data files are shared between the two.
 
+pub mod addgames;
 pub mod arcade;
 pub mod art;
 pub mod boxart;

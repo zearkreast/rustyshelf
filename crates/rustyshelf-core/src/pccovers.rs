@@ -28,6 +28,29 @@ pub fn cover(data: &Path, id: &str) -> Option<PathBuf> {
     picture(data.join("pc-covers"), id)
 }
 
+/// Makes a picture of the player's own the cover chosen for a game: a JPG, PNG or WebP of 25 MB at most, copied
+/// into `data/pc-covers` in place of any cover chosen before.
+pub fn own(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
+    let ext = file.extension().map_or(String::new(), |e| e.to_string_lossy().to_lowercase().replace("jpeg", "jpg"));
+    if !["jpg", "png", "webp"].contains(&ext.as_str()) {
+        return Err("Pick a JPG, PNG or WebP picture.".into());
+    }
+    if file.metadata().map_err(|e| e.to_string())?.len() > 25_000_000 {
+        return Err("That picture is too big (over 25 MB).".into());
+    }
+    let bytes = std::fs::read(file).map_err(|e| e.to_string())?;
+    let dir = data.join("pc-covers");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let base = dir.join(safe_id(id)).display().to_string();
+    let (dest, tmp) = (PathBuf::from(format!("{base}.{ext}")), PathBuf::from(format!("{base}.{ext}.tmp")));
+    std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
+    for gone in ["jpg", "png", "webp", "plat", "from"] {
+        let _ = std::fs::remove_file(format!("{base}.{gone}"));
+    }
+    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    Ok(dest)
+}
+
 /// The store's own cover of a game, downloaded once (`data/pc-covers-auto`).
 pub fn auto_cover(data: &Path, id: &str) -> Option<PathBuf> {
     picture(data.join("pc-covers-auto"), id)

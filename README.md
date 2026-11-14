@@ -587,6 +587,12 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   GameCube startup and Kyty's launcher switch, and the console's own art folder), and the RetroArch core a console
   runs in.
 - Has Custom games in Settings: a program added by hand, its name, launch arguments and the shelf it sits on.
+  Many can be added at once, as in the Electron app: several programs picked together, or a folder of games
+  scanned (one game per folder, its main program picked, helpers left out, folders of categories stepped into,
+  the picture in a game's folder taken as its cover), each found game ticked or not before it's added. On
+  Windows a Playnite library can be brought over too (experimental): the games added there by hand onto the
+  Custom shelf with their covers and favorites, emulated games' folders onto their consoles, and it can all
+  be taken off again.
 - Sets emulators up for you on Windows, as the Electron app does (Settings → a console → Set up for me, and the
   first run's switch): the controller, the Home menu's hotkeys, one BIOS folder, a graphics preset and no quit
   questions for RetroArch, Dolphin, DuckStation, PCSX2 and PPSSPP, each file backed up first, with Undo. The page
@@ -647,8 +653,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   app's, it's drawn in RustyShelf's own window in front of the paused game, not over the game's picture, so a
   saved state is confirmed by the emulator's own message.
 
-**Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding several games at once, a folder of games or a
-Playnite library), the
+**Not yet:** the rest of Settings (making a custom theme from a picture, the Artwork and Blur themes' pictures; adding Microsoft Store apps), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
 full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), manuals, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput, the phone

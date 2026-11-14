@@ -1321,3 +1321,57 @@ fn update_notice_matches_the_js() {
         assert_eq!(json!({ "latest": n.latest, "newer": n.newer, "url": n.url, "notes": n.notes, "assets": assets }), c["newest"], "{} for {}", c["list"], c["current"]);
     }
 }
+
+#[test]
+fn adding_many_games_matches_the_js() {
+    use rustyshelf_core::addgames::{clean, plan, scan_folder, title_for, Playnite};
+    use serde_json::json;
+    let fx = fixture("addgames.json");
+    for c in fx["clean"].as_array().unwrap() {
+        assert_eq!(json!(clean(c[0].as_str().unwrap())), c[1], "{}", c[0]);
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_string_lossy().into_owned();
+    let here = |s: &str| s.replace("<tmp>", &root);
+    let there = |p: &Path| p.to_string_lossy().replace(&root, "<tmp>");
+    let games = tmp.path().join("Games");
+    for (rel, bytes) in fx["tree"].as_object().unwrap() {
+        let file = games.join(rel);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, vec![1u8; bytes.as_u64().unwrap() as usize]).unwrap();
+    }
+    for t in fx["titles"].as_array().unwrap() {
+        let exe = here(t[0].as_str().unwrap());
+        assert_eq!(json!([title_for(Path::new(&exe), Some(&games)), title_for(Path::new(&exe), None)]), json!([t[1], t[2]]), "{}", t[0]);
+    }
+    let scan = scan_folder(&games, 2000);
+    let found: Vec<Value> = scan
+        .games
+        .iter()
+        .map(|g| {
+            let mut o = json!({ "folder": there(&g.folder), "title": g.title, "exe": there(&g.exe), "others": g.others.iter().map(|o| there(o)).collect::<Vec<_>>() });
+            if let Some(group) = &g.group {
+                o["group"] = json!(group);
+            }
+            if let Some(cover) = &g.cover {
+                o["cover"] = json!(there(cover));
+            }
+            o
+        })
+        .collect();
+    assert_eq!(Value::from(found), fx["scan"]["games"]);
+    let skipped: Vec<Value> = scan.skipped.iter().map(|s| json!({ "folder": there(&s.0), "title": s.1, "why": s.2 })).collect();
+    assert_eq!(Value::from(skipped), fx["scan"]["skipped"]);
+    assert_eq!(json!(scan_folder(&games, 3).games.len()), fx["few"]);
+    assert_eq!(json!(scan_folder(&tmp.path().join("nowhere"), 2000).error), fx["gone"]["error"]);
+
+    let library = tmp.path().join("pn").join("library");
+    for file in ["g1/cover.png", "g2/bg.jpg"] {
+        let file = library.join("files").join(file);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, "x").unwrap();
+    }
+    let planned = plan(&fx["lib"], &Playnite { app: "C:\\Playnite".into(), library, portable: false });
+    let planned: Value = serde_json::from_str(&planned.to_string().replace(serde_json::to_string(&root).unwrap().trim_matches('"'), "<tmp>")).unwrap();
+    assert_eq!(planned, fx["plan"]);
+}
