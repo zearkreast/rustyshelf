@@ -418,3 +418,53 @@ fn emulator_settings_change_as_in_the_js() {
         before = now;
     }
 }
+
+// Azahar's folders are looked for where Linux keeps them, and the fixture was written there
+#[cfg(target_os = "linux")]
+#[test]
+fn cia_files_install_as_in_the_js() {
+    let fx = fixture("n3ds.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().to_string_lossy().into_owned();
+    for d in fx["dirs"].as_array().unwrap() {
+        fs::create_dir_all(tmp.path().join(d.as_str().unwrap())).unwrap();
+    }
+    for f in fx["files"].as_array().unwrap() {
+        let p = tmp.path().join(f[0].as_str().unwrap());
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, f[1].as_str().unwrap().replace("{home}", &home)).unwrap();
+    }
+    fs::create_dir_all(tmp.path().join("roms")).unwrap();
+    for c in fx["cias"].as_array().unwrap() {
+        fs::write(tmp.path().join("roms").join(c[0].as_str().unwrap()), base64::engine::general_purpose::STANDARD.decode(c[1].as_str().unwrap()).unwrap()).unwrap();
+    }
+    let var = |k: &str| (k == "HOME").then(|| home.clone());
+    let sizes = |root: &Path| -> std::collections::BTreeMap<String, Vec<u8>> {
+        fn walk(d: &Path, root: &Path, out: &mut std::collections::BTreeMap<String, Vec<u8>>) {
+            for e in fs::read_dir(d).unwrap().flatten() {
+                match e.path() {
+                    p if p.is_dir() => walk(&p, root, out),
+                    p => drop(out.insert(p.strip_prefix(root).unwrap().to_string_lossy().into_owned(), fs::read(&p).unwrap())),
+                }
+            }
+        }
+        let mut out = std::collections::BTreeMap::new();
+        walk(root, root, &mut out);
+        out
+    };
+    let mut before = sizes(tmp.path());
+    for (i, play) in fx["plays"].as_array().unwrap().iter().enumerate() {
+        let mut status: Vec<String> = Vec::new();
+        let file = tmp.path().join("roms").join(play["file"].as_str().unwrap());
+        let result = match rustyshelf_core::n3ds::boot_file(&file, &format!("{home}/{}", play["exe"].as_str().unwrap()), &var, &mut |t| status.push(t.to_string())) {
+            Ok(boot) => serde_json::json!({ "boot": boot.to_string_lossy().replace(&home, "{home}") }),
+            Err(e) => serde_json::json!({ "error": e }),
+        };
+        let now = sizes(tmp.path());
+        use sha1::Digest;
+        let hex = |b: &[u8]| sha1::Sha1::digest(b).iter().map(|x| format!("{x:02x}")).collect::<String>();
+        let changed: serde_json::Map<String, Value> = now.iter().filter(|(k, v)| before.get(*k) != Some(*v)).map(|(k, v)| (k.clone(), Value::from(hex(v)))).collect();
+        assert_eq!((&result, serde_json::json!(status), &Value::Object(changed)), (&play["result"], play["status"].clone(), &play["changed"]), "play {i}");
+        before = now;
+    }
+}

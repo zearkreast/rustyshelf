@@ -14,6 +14,7 @@ pub mod js;
 pub mod kyty;
 pub mod launch;
 pub mod library;
+pub mod n3ds;
 pub mod nx2;
 pub mod paths;
 pub mod pccovers;

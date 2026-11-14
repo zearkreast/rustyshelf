@@ -299,8 +299,7 @@ fn clean_env_of(vars: Vec<(String, String)>, extra: Option<Vec<(String, String)>
 }
 
 /// Everything the Electron app decides before it starts a game: the emulator, its options, the file it's handed.
-// TODO: still Electron-only: installing a 3DS .cia into Azahar, the Switch 2 build picker, downloading a missing
-// RetroArch core (Windows), and the emulator settings tweaks before a launch (main/emucfg.js beforeLaunch)
+// TODO: still Electron-only: the Switch 2 build picker and downloading a missing RetroArch core (Windows)
 pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Plan, LaunchError> {
     let id = console.id.as_str();
     let mut exe = choose_emulator(console, sc, game_id, cfg, app_root)?;
@@ -332,8 +331,10 @@ pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cf
         extra.extend(["-C", "Dolphin.Interface.ConfirmStop=False", "-C", "Graphics.Settings.BorderlessFullscreen=True"].map(String::from));
     }
     let mut rom = file.to_string_lossy().into_owned();
-    if id == "n3ds" && file.extension().is_some_and(|e| e.eq_ignore_ascii_case("cia")) {
-        return refuse("A .cia has to be installed into the emulator first, which only the Electron app does so far. Play it from there.");
+    if id == "n3ds" {
+        // TODO: the launch screen shows how far the install is (the Electron app's launch:status)
+        let boot = crate::n3ds::boot_file(file, &exe.to_string_lossy(), &crate::paths::env_var, &mut |_| {}).map_err(LaunchError::Refused)?;
+        rom = boot.to_string_lossy().into_owned();
     }
     if id == "psvita" {
         let (r, args) = vita3k_spec(file)?;

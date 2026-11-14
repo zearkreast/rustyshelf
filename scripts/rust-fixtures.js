@@ -422,6 +422,47 @@ function emucfgFixtures() {
   return JSON.parse(JSON.stringify({ files: EMUCFG.files, steps }).split(home).join('{home}'));
 }
 
+// 3DS .cia files (made up: [signature type, title id, [content id, index, type, size, in the file, NCCH flags | null]]) in
+// a home folder where Azahar has run once, and what playing each one does
+function cia(sigType, titleId, contents, cut = 0) {
+  const sig = { 0x10004: 0x140, 0x10002: 0x80, 0x10003: 0x240 }[sigType] || 0x140, tmd = Buffer.alloc(sig + 0xC4 + 64 * 0x24 + contents.length * 0x30);
+  tmd.writeUInt32BE(sigType, 0); tmd.writeBigUInt64BE(BigInt(titleId), sig + 0x4C); tmd.writeUInt16BE(contents.length, sig + 0x9E);
+  const h = Buffer.alloc(0x2020); h.writeUInt32LE(0x2020, 0); h.writeUInt32LE(0x40, 8); h.writeUInt32LE(0x10, 12); h.writeUInt32LE(tmd.length, 16);
+  const bodies = [];
+  contents.forEach(([id, index, type, size, present, flags], i) => { const o = sig + 0xC4 + 64 * 0x24 + i * 0x30; tmd.writeUInt32BE(id, o); tmd.writeUInt16BE(index, o + 4); tmd.writeUInt16BE(type, o + 6); tmd.writeBigUInt64BE(BigInt(size), o + 8);
+    if (!present) return; h[0x20 + (i >> 3)] |= 0x80 >> (i & 7); const b = Buffer.alloc(size, 0x41 + i); if (flags != null && size >= 0x200) { b.write('NCCH', 0x100, 'latin1'); b[0x18F] = flags; } bodies.push(b); });
+  const pad = (b, to) => Buffer.concat([b, Buffer.alloc(to - b.length)]), al = n => Math.ceil(n / 64) * 64;
+  const head = pad(pad(pad(h, al(0x2020)), al(al(0x2020) + 0x40)), al(al(al(0x2020) + 0x40) + 0x10));
+  const all = Buffer.concat([pad(Buffer.concat([head, tmd]), al(head.length + tmd.length)), ...bodies]);
+  return all.subarray(0, all.length - cut);
+}
+const N3DS = {
+  cias: [['good.cia', cia(0x10004, '0x0004000000ABC100', [[0x10, 0, 0, 0x300, true, 4], [0x11, 1, 0, 0x40, false, null], [0x12, 2, 0, 0x90, true, null]])],
+    ['dlc.CIA', cia(0x10002, '0x0004008C00ABC100', [[0x20, 0, 0, 0x200, true, 4], [0x21, 1, 0x4000, 0x50, true, null]])],
+    ['enc.cia', cia(0x10003, '0x0004000000ABC200', [[0x30, 0, 1, 0x200, true, 4]])], ['inner.cia', cia(0x10004, '0x0004000000ABC300', [[0x40, 0, 0, 0x200, true, 0]])],
+    ['nogame.cia', cia(0x10004, '0x0004000000ABC400', [[0x50, 0, 0, 0x200, false, 4], [0x51, 1, 0, 0x40, true, null]])], ['notncch.cia', cia(0x10004, '0x0004000000ABC500', [[0x60, 0, 0, 0x200, true, null]])],
+    ['cut.cia', cia(0x10004, '0x0004000000ABC600', [[0x70, 0, 0, 0x300, true, 4], [0x71, 1, 0, 0x90, true, null]], 0x20)], ['junk.cia', Buffer.alloc(0x3000, 7)], ['short.cia', Buffer.alloc(0x100)],
+    ['badsig.cia', cia(0x99999, '0x0004000000ABC700', [[0x80, 0, 0, 0x200, true, 4]])], ['game.3ds', Buffer.alloc(8)]],
+  plays: [['good.cia', 'emus/azahar'], ['good.cia', 'emus/azahar'], ['dlc.CIA', 'emus/azahar'], ['enc.cia', 'emus/azahar'], ['enc.cia', 'emus/citra-qt'], ['inner.cia', 'emus/azahar'], ['inner.cia', 'emus/lime3ds'],
+    ['nogame.cia', 'emus/azahar'], ['notncch.cia', 'emus/azahar'], ['cut.cia', 'emus/azahar'], ['junk.cia', 'emus/azahar'], ['short.cia', 'emus/azahar'], ['badsig.cia', 'emus/azahar'], ['game.3ds', 'emus/azahar'], ['good.cia', 'emus/citra-qt']],
+  dirs: ['.local/share/azahar-emu', '.local/share/lime3ds-emu', 'elsewhere'], files: [['.config/lime3ds-emu/qt-config.ini', '[Data%20Storage]\r\nuse_custom_storage=true\r\nsdmc_directory={home}/elsewhere/sd/\r\n']],
+};
+async function n3dsFixtures() {
+  const n3ds = require('../main/n3ds');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-3ds-')), was = process.env.HOME; process.env.HOME = home;
+  for (const d of N3DS.dirs) fs.mkdirSync(path.join(home, d), { recursive: true });
+  for (const [f, t] of N3DS.files) { fs.mkdirSync(path.dirname(path.join(home, f)), { recursive: true }); fs.writeFileSync(path.join(home, f), t.split('{home}').join(home)); }
+  fs.mkdirSync(path.join(home, 'roms'), { recursive: true }); for (const [n, b] of N3DS.cias) fs.writeFileSync(path.join(home, 'roms', n), b);
+  const snap = () => { const o = {}; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else o[path.relative(home, p)] = require('crypto').createHash('sha1').update(fs.readFileSync(p)).digest('hex'); } }; walk(home); return o; };
+  let before = snap(); const plays = [];
+  for (const [file, exe] of N3DS.plays) { const status = []; let result;
+    try { result = { boot: await n3ds.bootFile(path.join(home, 'roms', file), path.join(home, exe), t => status.push(t)) }; } catch (e) { result = { error: e.message }; }
+    const now = snap(), changed = {}; for (const k of Object.keys(now).sort()) if (before[k] !== now[k]) changed[k] = now[k];
+    plays.push({ file, exe, result, status, changed }); before = now; }
+  process.env.HOME = was; fs.rmSync(home, { recursive: true, force: true });
+  return JSON.parse(JSON.stringify({ cias: N3DS.cias.map(([n, b]) => [n, b.toString('base64')]), dirs: N3DS.dirs, files: N3DS.files, plays }).split(home).join('{home}'));
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
@@ -431,6 +472,7 @@ fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), nul
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'n3ds.json'), JSON.stringify(await n3dsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'detect.json'), JSON.stringify(await detectFixtures(), null, 1) + '\n');
   console.log('wrote', path.relative(ROOT, OUT));
   process.exit(0); // (the folder-size measure it queued would keep the process waiting)
