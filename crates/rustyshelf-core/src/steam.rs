@@ -91,7 +91,8 @@ pub fn steam_root(given: &str) -> Option<PathBuf> {
     is_dir(&s.join("steamapps")).then_some(s)
 }
 
-fn steam_root_within(given: &str) -> Option<PathBuf> {
+/// `steam_root`, giving up (None) when the folder's drive doesn't answer in time.
+pub fn steam_root_within(given: &str) -> Option<PathBuf> {
     let g = given.to_string();
     within(WAIT, move || steam_root(&g)).flatten()
 }
@@ -99,6 +100,12 @@ fn steam_root_within(given: &str) -> Option<PathBuf> {
 /// Steam's own folder (the list of every library, playtimes and its cover cache), not just a library on another drive.
 pub fn is_main_steam(p: &Path) -> bool {
     is_dir(&p.join("userdata")) || is_dir(&p.join("appcache"))
+}
+
+/// `is_main_steam`, false when the folder's drive doesn't answer in time.
+pub fn is_main_steam_within(p: &Path) -> bool {
+    let p = p.to_path_buf();
+    within(WAIT, move || is_main_steam(&p)).unwrap_or(false)
 }
 
 /// Steam's folder on this computer, when it's in the usual place.

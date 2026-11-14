@@ -14,19 +14,39 @@ fn class(c: char) -> u8 {
     }
 }
 
-fn fold(c: char) -> char {
-    let c = match c {
-        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' => 'a',
-        'ç' | 'Ç' => 'c',
-        'è' | 'é' | 'ê' | 'ë' | 'È' | 'É' | 'Ê' | 'Ë' => 'e',
-        'ì' | 'í' | 'î' | 'ï' | 'Ì' | 'Í' | 'Î' | 'Ï' => 'i',
-        'ñ' | 'Ñ' => 'n',
-        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'Ò' | 'Ó' | 'Ô' | 'Õ' | 'Ö' => 'o',
-        'ù' | 'ú' | 'û' | 'ü' | 'Ù' | 'Ú' | 'Û' | 'Ü' => 'u',
-        'ý' | 'ÿ' | 'Ý' => 'y',
-        c => c,
-    };
-    c.to_lowercase().next().unwrap_or(c)
+/// Where a space or a punctuation mark sorts among the others, as ICU's root collation has them.
+fn punct_rank(c: char) -> u32 {
+    const ORDER: &str = "_-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$";
+    if c.is_whitespace() {
+        return 0;
+    }
+    match ORDER.find(c) {
+        Some(i) => 1 + i as u32,
+        None => 100 + c as u32,
+    }
+}
+
+/// A title as the collator compares it at its first level: accents off, case off, ligatures spelt out.
+fn folded(s: &str) -> Vec<char> {
+    use unicode_normalization::UnicodeNormalization;
+    let mut out = Vec::with_capacity(s.len());
+    for c in s.nfd() {
+        if ('\u{300}'..='\u{36f}').contains(&c) {
+            continue;
+        }
+        match c {
+            'Œ' | 'œ' => out.extend(['o', 'e']),
+            'Æ' | 'æ' => out.extend(['a', 'e']),
+            'ß' => out.extend(['s', 's']),
+            'Þ' | 'þ' => out.extend(['t', 'h']),
+            'Ł' | 'ł' => out.push('l'),
+            'Ø' | 'ø' => out.push('o'),
+            'Đ' | 'đ' | 'Ð' | 'ð' => out.push('d'),
+            'ı' => out.push('i'),
+            c => out.extend(c.to_lowercase()),
+        }
+    }
+    out
 }
 
 pub fn compare(a: &str, b: &str) -> Ordering {
@@ -39,16 +59,17 @@ pub fn compare_plain(a: &str, b: &str) -> Ordering {
 }
 
 fn compare_with(a: &str, b: &str, numeric: bool) -> Ordering {
-    let (mut x, mut y) = (a.chars().peekable(), b.chars().peekable());
+    let (a, b) = (folded(a), folded(b));
+    let (mut x, mut y) = (a.iter().copied().peekable(), b.iter().copied().peekable());
     loop {
         match (x.peek().copied(), y.peek().copied()) {
             (None, None) => return Ordering::Equal,
             (None, Some(_)) => return Ordering::Less,
             (Some(_), None) => return Ordering::Greater,
             (Some(c), Some(d)) if numeric && c.is_ascii_digit() && d.is_ascii_digit() => {
-                let take = |it: &mut std::iter::Peekable<std::str::Chars>| {
+                let take = |it: &mut std::iter::Peekable<std::iter::Copied<std::slice::Iter<char>>>| {
                     let mut s = String::new();
-                    while let Some(&c) = it.peek().filter(|c| c.is_ascii_digit()) {
+                    while let Some(c) = it.peek().copied().filter(|c| c.is_ascii_digit()) {
                         s.push(c);
                         it.next();
                     }
@@ -62,8 +83,7 @@ fn compare_with(a: &str, b: &str, numeric: bool) -> Ordering {
                 }
             }
             (Some(c), Some(d)) => {
-                let (c, d) = (fold(c), fold(d));
-                let o = class(c).cmp(&class(d)).then_with(|| c.cmp(&d));
+                let o = class(c).cmp(&class(d)).then_with(|| if class(c) == 0 { punct_rank(c).cmp(&punct_rank(d)) } else { c.cmp(&d) });
                 if o != Ordering::Equal {
                     return o;
                 }
@@ -85,5 +105,20 @@ mod tests {
         assert_eq!(v, ["1942", "Ape", "Éclair", "Mario 2", "mario 10", "Zelda"]);
         v.sort_by(|a, b| compare_plain(a, b));
         assert_eq!(v, ["1942", "Ape", "Éclair", "mario 10", "Mario 2", "Zelda"]);
+        // as node's localeCompare orders them
+        let mut v = vec!["Zuma", "Šachy", "S.T.A.L.K.E.R.: X", "S!X", "S:X", "Portal 2", "Outlast", "Ōkami HD", "Œuvre", "Ärger"];
+        v.sort_by(|a, b| compare_plain(a, b));
+        assert_eq!(v, ["Ärger", "Œuvre", "Ōkami HD", "Outlast", "Portal 2", "S:X", "S!X", "S.T.A.L.K.E.R.: X", "Šachy", "Zuma"]);
+        let mut v = vec!["A$b", "A#b", "A&b", "A/b", "A(b", "A?b", "A;b", "A,b", "A-b", "A_b", "A b"];
+        v.sort_by(|a, b| compare_plain(a, b));
+        assert_eq!(v, ["A b", "A_b", "A-b", "A,b", "A;b", "A?b", "A(b", "A/b", "A&b", "A#b", "A$b"]);
+        let want = [
+            "Ärger", "Final Fantasy X", "Final Fantasy X-2", "Final Fantasy XII", "Ł", "Lz", "mario 2", "Mario 10", "Mario_2", "Mario-2",
+            "Mario: 2", "Œuvre", "Ōkami HD", "S:X", "S.T.A.L.K.E.R.: X", "Šachy 9", "Šachy 10", "Zuma 2",
+        ];
+        let mut v = want.to_vec();
+        v.reverse();
+        v.sort_by(|a, b| compare(a, b));
+        assert_eq!(v, want);
     }
 }

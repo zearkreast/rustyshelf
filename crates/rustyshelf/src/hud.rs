@@ -13,6 +13,20 @@ const STEEL: Color = Color::srgb(0.87, 0.89, 0.92);
 const RUST: Color = Color::srgb(0.83, 0.32, 0.17);
 const DIM: Color = Color::srgb(0.55, 0.58, 0.62);
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn playtime() {
+        assert_eq!(super::played(125), "2.1 h played");
+        assert_eq!(super::played(45), "0.8 h played");
+        assert_eq!(super::played(15), "0.3 h played");
+        assert_eq!(super::played(9), "0.1 h played");
+        assert_eq!(super::played(75), "1.3 h played");
+        assert_eq!(super::played(57), "0.9 h played");
+        assert_eq!(super::played(0), "Not played yet");
+    }
+}
+
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Line {
     Tabs,
@@ -71,21 +85,22 @@ fn size(bytes: u64) -> String {
     }
 }
 
-/// Playtime as the Electron app writes it: "45 min", "2 h", "2 h 5 min".
+/// A Steam game's playtime as the Electron app writes it: hours to one decimal, as JS toFixed(1) rounds them.
 fn played(minutes: u64) -> String {
-    match minutes {
-        0 => String::new(),
-        m if m < 60 => format!("{m} min played"),
-        m if m % 60 == 0 => format!("{} h played", m / 60),
-        m => format!("{} h {} min played", m / 60, m % 60),
+    if minutes == 0 {
+        return "Not played yet".into();
     }
+    // Rust rounds the double as JS does, except on an exact half (a quarter hour, 1.25), which JS rounds up
+    let h = if minutes.is_multiple_of(15) && !(minutes / 15).is_multiple_of(2) { format!("{}.{}", (minutes + 3) / 60, (minutes + 3) / 6 % 10) } else { format!("{:.1}", minutes as f64 / 60.0) };
+    format!("{h} h played")
 }
 
 fn details(g: &Game) -> String {
-    let mut parts = vec![g.region.clone(), g.ext.to_uppercase(), size(g.size_bytes)];
     if let Source::Steam { minutes, .. } = g.source {
-        parts.push(played(minutes));
+        let parts = ["Steam".to_string(), played(minutes), size(g.size_bytes)];
+        return parts.into_iter().filter(|p| !p.is_empty()).collect::<Vec<_>>().join("  ·  ");
     }
+    let mut parts = vec![g.region.clone(), g.ext.to_uppercase(), size(g.size_bytes)];
     if g.discs.len() > 1 {
         parts.push(format!("{} discs", g.discs.len()));
     }

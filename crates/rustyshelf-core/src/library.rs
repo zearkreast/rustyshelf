@@ -56,18 +56,22 @@ fn steam_shelf(cfg: &Config, data: &Path) -> Vec<Game> {
     if !enabled {
         return Vec::new();
     }
-    let path = match steam::steam_root(&path) {
+    // unset, wrong, or on a drive that doesn't answer: the Steam in the usual place
+    let path = match steam::steam_root_within(&path) {
         Some(_) => path,
-        None => steam::find_steam().map(|p| p.to_string_lossy().into_owned()).unwrap_or(path),
+        None => steam::find_steam()
+            .map(|p| p.to_string_lossy().into_owned())
+            .filter(|p| steam::steam_root_within(p).is_some())
+            .unwrap_or(path),
     };
     if path.is_empty() {
         return Vec::new();
     }
     // a library on another drive set as the Steam folder: Steam's own folder lists every library
-    let main = steam::steam_root(&path)
-        .filter(|r| !steam::is_main_steam(r))
+    let main = steam::steam_root_within(&path)
+        .filter(|r| !steam::is_main_steam_within(r))
         .and_then(|_| steam::find_steam())
-        .filter(|p| steam::steam_root(&p.to_string_lossy()).is_some_and(|r| steam::is_main_steam(&r)))
+        .filter(|p| steam::steam_root_within(&p.to_string_lossy()).is_some_and(|r| steam::is_main_steam_within(&r)))
         .map(|p| p.to_string_lossy().into_owned());
     let boxes = cfg.pc_console_box();
     steam::scan(&path, main.as_deref(), hide_tools).into_iter().map(|g| steam_game(g, cfg, data, boxes)).collect()
