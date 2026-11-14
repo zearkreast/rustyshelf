@@ -61,6 +61,7 @@ pub mod systems;
 pub mod themefx;
 pub mod themes;
 pub mod titles;
+pub mod updates;
 pub mod usermusic;
 pub mod vdf;
 pub mod vita3k;

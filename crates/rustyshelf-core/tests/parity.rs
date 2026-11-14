@@ -1301,3 +1301,23 @@ fn exports_and_imports_match_the_js() {
     fs::write(at("Other/manifest.json"), r#"{"app":"Something else"}"#).unwrap();
     assert_eq!(json!(import_all(&at("Other"), &target, &control, &mut |_, _, _| {}, &mut |_| {}).unwrap_err()), fx["notOurs"]);
 }
+
+#[test]
+fn update_notice_matches_the_js() {
+    use rustyshelf_core::updates::{compare, newest};
+    use serde_json::json;
+    let fx = fixture("updates.json");
+    for c in fx["compares"].as_array().unwrap() {
+        let sign = match compare(c[0].as_str().unwrap(), c[1].as_str().unwrap()) {
+            Ordering::Less => -1,
+            Ordering::Equal => 0,
+            Ordering::Greater => 1,
+        };
+        assert_eq!(json!(sign), c[2], "{} against {}", c[0], c[1]);
+    }
+    for c in fx["checks"].as_array().unwrap() {
+        let n = newest(&c["list"], c["current"].as_str().unwrap());
+        let assets: Vec<Value> = n.assets.iter().map(|a| json!({ "name": a.name, "url": a.url, "size": a.size })).collect();
+        assert_eq!(json!({ "latest": n.latest, "newer": n.newer, "url": n.url, "notes": n.notes, "assets": assets }), c["newest"], "{} for {}", c["list"], c["current"]);
+    }
+}

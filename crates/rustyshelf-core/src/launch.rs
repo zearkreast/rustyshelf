@@ -494,6 +494,14 @@ pub fn open_folder(dir: &Path) -> Result<(), LaunchError> {
     Ok(())
 }
 
+/// Opens a web page in the system's browser.
+pub fn open_link(url: &str) -> Result<(), LaunchError> {
+    if !url.starts_with("https://") {
+        return refuse("Not a web address.");
+    }
+    open_folder(Path::new(url))
+}
+
 /// Hands a Steam game to Steam (steam://rungameid), which starts it.
 pub fn launch_steam(appid: &str) -> Result<(), LaunchError> {
     if appid.is_empty() || !appid.bytes().all(|b| b.is_ascii_digit()) {

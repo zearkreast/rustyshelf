@@ -635,6 +635,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   export will be, shows the copy as it goes, and can pause or cancel it; exporting into a folder that already
   holds an export copies only what's new or changed. An import replaces files of the same name, keeps the
   settings there were as a backup file, and starts RustyShelf again.
+- Tells you the newest release when asked (Settings → System → Check for a new version), comparing versions
+  as the Electron app does, and opens its page; nothing is downloaded or installed, and it doesn't ask by
+  itself at start yet, since the releases are still the Electron app's.
 - Has the Home menu (Settings → Controller turns it off, or makes it a centred card). Over a running game, Guide
   on the pad (or View held on its own for a second) pauses the game with its emulator's own hotkey and brings
   RustyShelf forward with Resume, Save state, Load state, Screenshot, Power (Sleep, Restart, Shut down) and Quit

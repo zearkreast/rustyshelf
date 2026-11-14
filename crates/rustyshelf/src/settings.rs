@@ -30,6 +30,7 @@ mod find;
 mod moving;
 pub mod setup;
 mod text;
+mod update;
 
 
 const STEEL: Color = Color::srgb(0.87, 0.89, 0.92);
@@ -163,6 +164,7 @@ pub struct Settings {
     /// the Home menu is up: the keys and the pads are its own
     pub keys_taken: bool,
     moves: moving::Moves,
+    update: update::Update,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -234,6 +236,7 @@ impl Default for Settings {
             wanted: None,
             keys_taken: false,
             moves: Default::default(),
+            update: Default::default(),
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -1202,6 +1205,7 @@ impl Settings {
                 ]
                 .into_iter()
                 .chain(self.moving_rows())
+                .chain([self.update_row()])
                 .collect(),
             },
             Screen::Shelf => {
@@ -1607,6 +1611,7 @@ pub fn input(
     s.poll_core();
     s.poll_ra();
     s.poll_moves();
+    s.poll_update();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;

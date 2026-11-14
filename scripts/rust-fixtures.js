@@ -955,6 +955,25 @@ async function dataexportFixtures() {
     return out;
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// ---- the update notice (main/updates.js): which of two versions is newer, and the newest of made-up releases ----
+async function updatesFixtures() {
+  const https = require('https'), { EventEmitter } = require('events'), updates = require('../main/updates');
+  const versions = ['1.82.0', 'v1.82.0', '1.82', '1', '1.82.0-beta.1', '1.82.0-beta.2', '1.82.0-beta.10', '1.82.0-beta', '1.82.0-alpha.3', '1.82.0-rc.1', '1.82.0-beta.1.x', '1.82.0-1', '1.82.0-x', '2.12.4.284', '2.12.4+284', '2.12.4+9', '2.12.4', '2.12.5-beta.1',
+    ' 1.9.0 ', '1.9.0+0', '0.1.0', '10.0', '1.10.0', '1.9.10', 'nonsense', '', 'v2', '1.2.3.4-beta.1', '1.2.3-beta-x.1'];
+  const compares = []; for (const a of versions) for (const b of versions) compares.push([a, b, Math.sign(updates.compare(a, b))]);
+  const rel = (tag, more = {}) => ({ tag_name: tag, html_url: 'https://github.com/zearkreast/rustyshelf/releases/tag/' + tag, body: 'Notes for ' + tag, draft: false, assets: [{ name: `RustyShelf-${tag}.exe`, browser_download_url: `https://example.org/${tag}.exe`, size: 1234 }], ...more });
+  const lists = [[rel('v1.9.0.5'), rel('v1.9.0.12'), rel('1.9.0-beta.3'), rel('v2.0.0', { draft: true }), rel('not a version'), null, rel('v1.9.0.12', { body: 'second of the same' })], [rel('v1.8.0', { body: 'ü'.repeat(2100), assets: null })],
+    [], { message: 'rate limited' }, [rel('1.9.0-beta.2', { body: null }), rel('1.9.0-beta.10')], [rel('0.1.0')]];
+  const real = https.get, checks = [];
+  try {
+    for (const list of lists) for (const current of ['1.9.0+7', '0.1.0', '1.9.0-beta.5']) {
+      https.get = (u, _opts, cb) => { const res = new EventEmitter(); res.statusCode = 200; res.setEncoding = () => {}; res.resume = () => {};
+        setImmediate(() => { cb(res); res.emit('data', JSON.stringify(list)); res.emit('end'); }); const req = new EventEmitter(); req.setTimeout = () => {}; req.destroy = () => {}; return req; };
+      const { checkedAt, current: _c, ...r } = await updates.check(current, true); checks.push({ list, current, newest: r });
+    }
+  } finally { https.get = real; }
+  return { compares, checks };
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -963,6 +982,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'dataexport.json'), JSON.stringify(await dataexportFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'place.json'), JSON.stringify(await placeFixtures(), null, 1) + '\n');
