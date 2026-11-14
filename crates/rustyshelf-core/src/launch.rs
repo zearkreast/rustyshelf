@@ -10,6 +10,8 @@ use regex::Regex;
 
 use crate::config::SystemConfig;
 use crate::paths::{expand, is_file};
+use crate::systems::Console;
+use crate::{kyty, nx2};
 
 static ARG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#""([^"]*)"|(\S+)"#).unwrap());
 
@@ -26,6 +28,8 @@ pub enum LaunchError {
     /// no emulator set, or it isn't where Settings says
     NotFound(String),
     Spawn(std::io::Error),
+    /// the game can't be started as it is
+    NotPlayable(&'static str),
 }
 
 impl std::fmt::Display for LaunchError {
@@ -34,6 +38,7 @@ impl std::fmt::Display for LaunchError {
             LaunchError::NotFound(p) if p.is_empty() => write!(f, "No emulator is set for this console. Choose one in Settings."),
             LaunchError::NotFound(p) => write!(f, "Can't find {p}. Check its path in Settings."),
             LaunchError::Spawn(e) => write!(f, "The emulator didn't start: {e}"),
+            LaunchError::NotPlayable(why) => f.write_str(why),
         }
     }
 }
@@ -61,7 +66,25 @@ pub fn start(exe: &Path, args: &[String]) -> Result<Child, LaunchError> {
     cmd.spawn().map_err(LaunchError::Spawn)
 }
 
-pub fn launch_game(sc: &SystemConfig, rom: &Path, app_root: &Path) -> Result<Child, LaunchError> {
+const PS4_PKG: &str = "This PS4 game is still a .pkg package, which shadPS4 can't run. Extract it to a folder first (current \
+shadPS4 builds no longer install packages themselves) with a PKG extractor such as PKG Editor or the ShadPS4Plus \
+pkg_extractor, into a folder inside your PS4 games folder. Once that folder has an eboot.bin in it, the game shows up here as \
+installed.";
+
+/// What the emulator is handed for a shelf file: an unpacked Switch 2 game's newest version, a PS5 game's folder.
+pub fn boot_file(console: &Console, file: &Path) -> Result<PathBuf, LaunchError> {
+    Ok(match console.id.as_str() {
+        "ps4" if file.extension().is_some_and(|e| e.eq_ignore_ascii_case("pkg")) => return Err(LaunchError::NotPlayable(PS4_PKG)),
+        "sw2" => nx2::boot_file(file),
+        "ps5" => kyty::game_dir(file),
+        _ => file.to_path_buf(),
+    })
+}
+
+// TODO: the Electron app's per-console launch steps: Kyty's launcher settings for PS5 (main/kyty.js spec), the Switch 2
+// build picker, the 3DS boot file, emulator config before launch (main/emucfg.js)
+pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, app_root: &Path) -> Result<Child, LaunchError> {
+    let rom = boot_file(console, file)?;
     let exe = resolve_exe(&sc.emulator, app_root)?;
     start(&exe, &build_args(&sc.game_args, &rom.to_string_lossy()))
 }

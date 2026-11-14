@@ -96,7 +96,7 @@ pub fn navigate(
 
     let go = keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
     if let (true, Some(g)) = (go, shelf.games.get(cursor.game)) {
-        match launch::launch_game(&shelf.config, &g.file, &l.app_root) {
+        match launch::launch_game(&shelf.console, &shelf.config, &g.file, &l.app_root) {
             Ok(child) => {
                 info!("Launched {} with {}", g.title, shelf.config.emulator);
                 playing.title = Some(g.title.clone());

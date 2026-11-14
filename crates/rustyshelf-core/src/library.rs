@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::art::ArtLibrary;
 use crate::config::{Config, LoadError, SystemConfig};
 use crate::paths;
-use crate::scanner::{self, Game};
+use crate::scanner::{self, Game, ScanData};
 use crate::systems::{systems, Console};
 
 #[derive(Debug, Clone)]
@@ -31,6 +31,7 @@ impl Library {
     pub fn load_from(app_root: &Path) -> Result<Library, LoadError> {
         let config = Config::load(&paths::data_dir(app_root))?;
         let lib = ArtLibrary::from_config(&config, app_root);
+        let data = ScanData::load(&paths::data_dir(app_root));
         let wanted: Vec<(&Console, SystemConfig)> = systems()
             .consoles
             .iter()
@@ -41,8 +42,8 @@ impl Library {
             let jobs: Vec<_> = wanted
                 .into_iter()
                 .map(|(c, sc)| {
-                    let dirs = lib.dirs_for(&sc, app_root);
-                    s.spawn(move || Shelf { games: scanner::scan(c, &sc, &dirs), console: c.clone(), config: sc })
+                    let (dirs, data) = (lib.dirs_for(&sc, app_root), &data);
+                    s.spawn(move || Shelf { games: scanner::scan(c, &sc, &dirs, data), console: c.clone(), config: sc })
                 })
                 .collect();
             jobs.into_iter().filter_map(|j| j.join().ok()).filter(|s| !s.games.is_empty()).collect()

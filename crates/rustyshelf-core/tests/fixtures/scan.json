@@ -1,424 +1,1674 @@
-[
- {
-  "console": "gc",
-  "files": [
-   [
-    "Metroid Prime (USA).iso",
-    100
-   ],
-   [
-    "Metroid Prime (USA).rvz",
-    50
-   ],
-   [
-    "Tales of Symphonia (USA) (Disc 1).rvz",
-    10
-   ],
-   [
-    "Tales of Symphonia (USA) (Disc 2).rvz",
-    10
-   ],
-   [
-    "Tales of Symphonia (USA) (Disc 2).iso",
-    30
-   ],
-   [
-    "Pikmin 2 (Europe).rvz",
-    5
-   ],
-   [
-    "Pikmin 2 (USA).rvz",
-    5
-   ],
-   [
-    "RPG/Skies of Arcadia Legends (USA).gcz",
-    7
-   ],
-   [
-    "a/b/c/d/e/Too Deep (USA).iso",
-    1
-   ],
-   [
-    "a/b/c/d/Deep Enough (USA).iso",
-    1
-   ],
-   [
-    ".hidden/Hidden Game.iso",
-    1
-   ],
-   [
-    "updates/Patch.iso",
-    1
-   ],
-   [
-    "notes.txt",
-    1
-   ],
-   [
-    "Legend of Zelda, The - The Wind Waker (USA).rvz",
-    9
+{
+ "data": {
+  "x360-titles.json": {
+   "at": 0,
+   "titles": {
+    "41510001": {
+     "title": "Alpha Quest",
+     "state": "playable"
+    },
+    "41510002": {
+     "title": "Alpha Quest Bonus Disc",
+     "state": "ingame"
+    },
+    "41510004": {
+     "title": "Iota Puzzle",
+     "state": ""
+    },
+    "41510006": {
+     "title": "Epsilon Drift™",
+     "state": "playable"
+    },
+    "41510007": {
+     "title": "Omega Pack",
+     "state": "playable"
+    },
+    "41510008": {
+     "title": "Omega Pack Bonus",
+     "state": "ingame"
+    }
+   }
+  },
+  "arcade-names.json": {
+   "v": 1,
+   "at": 0,
+   "names": {
+    "omif": "Omicron Fighters (World 910522)",
+    "omifu": "Omicron Fighters (USA 910206)",
+    "piblast": "Pi Blaster / Pi Blaster: Alt"
+   },
+   "bios": [
+    "rhobios"
    ]
-  ],
-  "art": [
-   "covers/Metroid Prime (USA).png",
-   "covers/Metroid Prime (USA)-back.jpg",
-   "covers/Metroid Prime (USA)-spinemade.png",
-   "covers/Tales of Symphonia.png",
-   "covers/Pikmin 2 (USA)-manual-02.jpg",
-   "covers/Pikmin 2 (USA)-manual-10.jpg",
-   "covers/Pikmin 2 (USA)-manual-1.jpg",
-   "media/covers/Skies of Arcadia Legends (USA)-manual.pdf",
-   "boxart/The Legend of Zelda - The Wind Waker-disc.webp"
-  ],
-  "games": [
-   {
-    "title": "Deep Enough",
-    "region": "USA",
-    "disc": 0,
-    "file": "a/b/c/d/Deep Enough (USA).iso",
-    "ext": "iso",
-    "sizeBytes": 1,
-    "discs": [
-     "a/b/c/d/Deep Enough (USA).iso"
+  }
+ },
+ "dirSizes": {
+  "SR ROM": 123456789
+ },
+ "trees": [
+  {
+   "console": "gc",
+   "files": [
+    [
+     "Metroid Prime (USA).iso",
+     100
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Metroid Prime",
-    "region": "USA",
-    "disc": 0,
-    "file": "Metroid Prime (USA).iso",
-    "ext": "iso",
-    "sizeBytes": 100,
-    "discs": [
-     "Metroid Prime (USA).iso"
+    [
+     "Metroid Prime (USA).rvz",
+     50
     ],
-    "art": {
-     "front": "covers/Metroid Prime (USA).png",
-     "back": "covers/Metroid Prime (USA)-back.jpg",
-     "madeBack": false,
-     "spine": "covers/Metroid Prime (USA)-spinemade.png",
-     "madeSpine": true,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Pikmin 2",
-    "region": "Europe",
-    "disc": 0,
-    "file": "Pikmin 2 (Europe).rvz",
-    "ext": "rvz",
-    "sizeBytes": 5,
-    "discs": [
-     "Pikmin 2 (Europe).rvz"
-    ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Pikmin 2",
-    "region": "USA",
-    "disc": 0,
-    "file": "Pikmin 2 (USA).rvz",
-    "ext": "rvz",
-    "sizeBytes": 5,
-    "discs": [
-     "Pikmin 2 (USA).rvz"
-    ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [
-      "covers/Pikmin 2 (USA)-manual-1.jpg",
-      "covers/Pikmin 2 (USA)-manual-02.jpg",
-      "covers/Pikmin 2 (USA)-manual-10.jpg"
-     ],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Skies of Arcadia Legends",
-    "region": "USA",
-    "disc": 0,
-    "file": "RPG/Skies of Arcadia Legends (USA).gcz",
-    "ext": "gcz",
-    "sizeBytes": 7,
-    "discs": [
-     "RPG/Skies of Arcadia Legends (USA).gcz"
-    ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": "media/covers/Skies of Arcadia Legends (USA)-manual.pdf"
-    }
-   },
-   {
-    "title": "Tales of Symphonia",
-    "region": "USA",
-    "disc": 1,
-    "file": "Tales of Symphonia (USA) (Disc 1).rvz",
-    "ext": "rvz",
-    "sizeBytes": 10,
-    "discs": [
+    [
      "Tales of Symphonia (USA) (Disc 1).rvz",
-     "Tales of Symphonia (USA) (Disc 2).iso"
+     10
     ],
-    "art": {
-     "front": "covers/Tales of Symphonia.png",
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "The Legend of Zelda - The Wind Waker",
-    "region": "USA",
-    "disc": 0,
-    "file": "Legend of Zelda, The - The Wind Waker (USA).rvz",
-    "ext": "rvz",
-    "sizeBytes": 9,
-    "discs": [
-     "Legend of Zelda, The - The Wind Waker (USA).rvz"
+    [
+     "Tales of Symphonia (USA) (Disc 2).rvz",
+     10
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": "boxart/The Legend of Zelda - The Wind Waker-disc.webp",
-     "manual": [],
-     "manualPdf": null
+    [
+     "Tales of Symphonia (USA) (Disc 2).iso",
+     30
+    ],
+    [
+     "Pikmin 2 (Europe).rvz",
+     5
+    ],
+    [
+     "Pikmin 2 (USA).rvz",
+     5
+    ],
+    [
+     "RPG/Skies of Arcadia Legends (USA).gcz",
+     7
+    ],
+    [
+     "a/b/c/d/e/Too Deep (USA).iso",
+     1
+    ],
+    [
+     "a/b/c/d/Deep Enough (USA).iso",
+     1
+    ],
+    [
+     ".hidden/Hidden Game.iso",
+     1
+    ],
+    [
+     "updates/Patch.iso",
+     1
+    ],
+    [
+     "notes.txt",
+     1
+    ],
+    [
+     "Legend of Zelda, The - The Wind Waker (USA).rvz",
+     9
+    ]
+   ],
+   "art": [
+    "covers/Metroid Prime (USA).png",
+    "covers/Metroid Prime (USA)-back.jpg",
+    "covers/Metroid Prime (USA)-spinemade.png",
+    "covers/Tales of Symphonia.png",
+    "covers/Pikmin 2 (USA)-manual-02.jpg",
+    "covers/Pikmin 2 (USA)-manual-10.jpg",
+    "covers/Pikmin 2 (USA)-manual-1.jpg",
+    "media/covers/Skies of Arcadia Legends (USA)-manual.pdf",
+    "boxart/The Legend of Zelda - The Wind Waker-disc.webp"
+   ],
+   "games": [
+    {
+     "title": "Deep Enough",
+     "region": "USA",
+     "disc": 0,
+     "file": "a/b/c/d/Deep Enough (USA).iso",
+     "ext": "iso",
+     "sizeBytes": 1,
+     "discs": [
+      "a/b/c/d/Deep Enough (USA).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Metroid Prime",
+     "region": "USA",
+     "disc": 0,
+     "file": "Metroid Prime (USA).iso",
+     "ext": "iso",
+     "sizeBytes": 100,
+     "discs": [
+      "Metroid Prime (USA).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "covers/Metroid Prime (USA).png",
+      "back": "covers/Metroid Prime (USA)-back.jpg",
+      "madeBack": false,
+      "spine": "covers/Metroid Prime (USA)-spinemade.png",
+      "madeSpine": true,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Pikmin 2",
+     "region": "Europe",
+     "disc": 0,
+     "file": "Pikmin 2 (Europe).rvz",
+     "ext": "rvz",
+     "sizeBytes": 5,
+     "discs": [
+      "Pikmin 2 (Europe).rvz"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Pikmin 2",
+     "region": "USA",
+     "disc": 0,
+     "file": "Pikmin 2 (USA).rvz",
+     "ext": "rvz",
+     "sizeBytes": 5,
+     "discs": [
+      "Pikmin 2 (USA).rvz"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [
+       "covers/Pikmin 2 (USA)-manual-1.jpg",
+       "covers/Pikmin 2 (USA)-manual-02.jpg",
+       "covers/Pikmin 2 (USA)-manual-10.jpg"
+      ],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Skies of Arcadia Legends",
+     "region": "USA",
+     "disc": 0,
+     "file": "RPG/Skies of Arcadia Legends (USA).gcz",
+     "ext": "gcz",
+     "sizeBytes": 7,
+     "discs": [
+      "RPG/Skies of Arcadia Legends (USA).gcz"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": "media/covers/Skies of Arcadia Legends (USA)-manual.pdf",
+      "hero": null
+     }
+    },
+    {
+     "title": "Tales of Symphonia",
+     "region": "USA",
+     "disc": 1,
+     "file": "Tales of Symphonia (USA) (Disc 1).rvz",
+     "ext": "rvz",
+     "sizeBytes": 10,
+     "discs": [
+      "Tales of Symphonia (USA) (Disc 1).rvz",
+      "Tales of Symphonia (USA) (Disc 2).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "covers/Tales of Symphonia.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "The Legend of Zelda - The Wind Waker",
+     "region": "USA",
+     "disc": 0,
+     "file": "Legend of Zelda, The - The Wind Waker (USA).rvz",
+     "ext": "rvz",
+     "sizeBytes": 9,
+     "discs": [
+      "Legend of Zelda, The - The Wind Waker (USA).rvz"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": "boxart/The Legend of Zelda - The Wind Waker-disc.webp",
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
     }
-   }
-  ]
- },
- {
-  "console": "sw",
-  "files": [
-   [
-    "Pokemon Sword [0100ABF008968000][v0].nsp",
-    20
-   ],
-   [
-    "Pokemon Sword [0100ABF008968800][v65536].nsp",
-    2
-   ],
-   [
-    "Zelda Update v1.6.0.nsp",
-    1
-   ],
-   [
-    "Hall Pass.xci",
-    3
-   ],
-   [
-    "Game [UPD].nsp",
-    1
-   ],
-   [
-    "DLC/Extra.nsp",
-    1
    ]
-  ],
-  "art": [],
-  "games": [
-   {
-    "title": "Pokemon Sword",
-    "region": "",
-    "disc": 0,
-    "file": "Pokemon Sword [0100ABF008968000][v0].nsp",
-    "ext": "nsp",
-    "sizeBytes": 20,
-    "discs": [
-     "Pokemon Sword [0100ABF008968000][v0].nsp"
+  },
+  {
+   "console": "sw",
+   "files": [
+    [
+     "Pokemon Sword [0100ABF008968000][v0].nsp",
+     20
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
+    [
+     "Pokemon Sword [0100ABF008968800][v65536].nsp",
+     2
+    ],
+    [
+     "Zelda Update v1.6.0.nsp",
+     1
+    ],
+    [
+     "Hall Pass.xci",
+     3
+    ],
+    [
+     "Game [UPD].nsp",
+     1
+    ],
+    [
+     "DLC/Extra.nsp",
+     1
+    ]
+   ],
+   "art": [],
+   "games": [
+    {
+     "title": "Pokemon Sword",
+     "region": "",
+     "disc": 0,
+     "file": "Pokemon Sword [0100ABF008968000][v0].nsp",
+     "ext": "nsp",
+     "sizeBytes": 20,
+     "discs": [
+      "Pokemon Sword [0100ABF008968000][v0].nsp"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
     }
-   }
-  ]
- },
- {
-  "console": "psx",
-  "files": [
-   [
-    "Final Fantasy VII (USA) (Disc 1).chd",
-    3
-   ],
-   [
-    "Final Fantasy VII (USA) (Disc 2).chd",
-    3
-   ],
-   [
-    "Final Fantasy VII (USA) (Disc 3).chd",
-    3
-   ],
-   [
-    "Ape Escape (USA).cue",
-    1
-   ],
-   [
-    "Mario 10.chd",
-    1
-   ],
-   [
-    "Mario 2.chd",
-    1
-   ],
-   [
-    "mario 1.chd",
-    1
    ]
-  ],
-  "art": [],
-  "games": [
-   {
-    "title": "Ape Escape",
-    "region": "USA",
-    "disc": 0,
-    "file": "Ape Escape (USA).cue",
-    "ext": "cue",
-    "sizeBytes": 1,
-    "discs": [
-     "Ape Escape (USA).cue"
-    ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Final Fantasy VII",
-    "region": "USA",
-    "disc": 1,
-    "file": "Final Fantasy VII (USA) (Disc 1).chd",
-    "ext": "chd",
-    "sizeBytes": 3,
-    "discs": [
+  },
+  {
+   "console": "psx",
+   "files": [
+    [
      "Final Fantasy VII (USA) (Disc 1).chd",
+     3
+    ],
+    [
      "Final Fantasy VII (USA) (Disc 2).chd",
-     "Final Fantasy VII (USA) (Disc 3).chd"
+     3
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "mario 1",
-    "region": "",
-    "disc": 0,
-    "file": "mario 1.chd",
-    "ext": "chd",
-    "sizeBytes": 1,
-    "discs": [
-     "mario 1.chd"
+    [
+     "Final Fantasy VII (USA) (Disc 3).chd",
+     3
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Mario 2",
-    "region": "",
-    "disc": 0,
-    "file": "Mario 2.chd",
-    "ext": "chd",
-    "sizeBytes": 1,
-    "discs": [
-     "Mario 2.chd"
+    [
+     "Ape Escape (USA).cue",
+     1
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
-    }
-   },
-   {
-    "title": "Mario 10",
-    "region": "",
-    "disc": 0,
-    "file": "Mario 10.chd",
-    "ext": "chd",
-    "sizeBytes": 1,
-    "discs": [
-     "Mario 10.chd"
+    [
+     "Mario 10.chd",
+     1
     ],
-    "art": {
-     "front": null,
-     "back": null,
-     "madeBack": false,
-     "spine": null,
-     "madeSpine": false,
-     "disc": null,
-     "manual": [],
-     "manualPdf": null
+    [
+     "Mario 2.chd",
+     1
+    ],
+    [
+     "mario 1.chd",
+     1
+    ]
+   ],
+   "art": [],
+   "games": [
+    {
+     "title": "Ape Escape",
+     "region": "USA",
+     "disc": 0,
+     "file": "Ape Escape (USA).cue",
+     "ext": "cue",
+     "sizeBytes": 1,
+     "discs": [
+      "Ape Escape (USA).cue"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Final Fantasy VII",
+     "region": "USA",
+     "disc": 1,
+     "file": "Final Fantasy VII (USA) (Disc 1).chd",
+     "ext": "chd",
+     "sizeBytes": 3,
+     "discs": [
+      "Final Fantasy VII (USA) (Disc 1).chd",
+      "Final Fantasy VII (USA) (Disc 2).chd",
+      "Final Fantasy VII (USA) (Disc 3).chd"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "mario 1",
+     "region": "",
+     "disc": 0,
+     "file": "mario 1.chd",
+     "ext": "chd",
+     "sizeBytes": 1,
+     "discs": [
+      "mario 1.chd"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Mario 2",
+     "region": "",
+     "disc": 0,
+     "file": "Mario 2.chd",
+     "ext": "chd",
+     "sizeBytes": 1,
+     "discs": [
+      "Mario 2.chd"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Mario 10",
+     "region": "",
+     "disc": 0,
+     "file": "Mario 10.chd",
+     "ext": "chd",
+     "sizeBytes": 1,
+     "discs": [
+      "Mario 10.chd"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
     }
-   }
-  ]
- }
-]
+   ]
+  },
+  {
+   "console": "x360",
+   "files": [
+    [
+     "Alpha Quest/DVD1.iso",
+     {
+      "size": 71680,
+      "at": [
+       [
+        65536,
+        "TUlDUk9TT0ZUKlhCT1gqTUVESUEhAAAAAAgAAA=="
+       ],
+       [
+        67584,
+        "AAAAACIAAABAAAAAAAtkZWZhdWx0LnhleA=="
+       ],
+       [
+        69632,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQABAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Alpha Quest/DVD2.iso",
+     {
+      "size": 71680,
+      "at": [
+       [
+        65536,
+        "TUlDUk9TT0ZUKlhCT1gqTUVESUEhAAAAAAgAAA=="
+       ],
+       [
+        67584,
+        "AAAAACIAAABAAAAAAAtkZWZhdWx0LnhleA=="
+       ],
+       [
+        69632,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQACAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Omega Pack/Omega Pack.iso",
+     {
+      "size": 71680,
+      "at": [
+       [
+        65536,
+        "TUlDUk9TT0ZUKlhCT1gqTUVESUEhAAAAAAgAAA=="
+       ],
+       [
+        67584,
+        "AAAAACIAAABAAAAAAAtkZWZhdWx0LnhleA=="
+       ],
+       [
+        69632,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQAHAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Omega Pack/Omega Pack Bonus (Disc 2).iso",
+     {
+      "size": 71680,
+      "at": [
+       [
+        65536,
+        "TUlDUk9TT0ZUKlhCT1gqTUVESUEhAAAAAAgAAA=="
+       ],
+       [
+        67584,
+        "AAAAACIAAABAAAAAAAtkZWZhdWx0LnhleA=="
+       ],
+       [
+        69632,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQAIAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Gamma Run (USA).iso",
+     4
+    ],
+    [
+     "Kappa Saga (Disc 2).iso",
+     2
+    ],
+    [
+     "Kappa Saga (Disc 1).iso",
+     2
+    ],
+    [
+     "Lone Extra (Disc 2).iso",
+     2
+    ]
+   ],
+   "art": [
+    "covers/Alpha Quest.png"
+   ],
+   "games": [
+    {
+     "title": "Alpha Quest",
+     "region": "",
+     "disc": 1,
+     "file": "Alpha Quest/DVD1.iso",
+     "ext": "iso",
+     "sizeBytes": 71680,
+     "discs": [
+      "Alpha Quest/DVD1.iso",
+      "Alpha Quest/DVD2.iso"
+     ],
+     "titleId": "41510001",
+     "notInstalled": false,
+     "compat": "playable",
+     "art": {
+      "front": "covers/Alpha Quest.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Gamma Run",
+     "region": "USA",
+     "disc": 0,
+     "file": "Gamma Run (USA).iso",
+     "ext": "iso",
+     "sizeBytes": 4,
+     "discs": [
+      "Gamma Run (USA).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Kappa Saga",
+     "region": "",
+     "disc": 1,
+     "file": "Kappa Saga (Disc 1).iso",
+     "ext": "iso",
+     "sizeBytes": 2,
+     "discs": [
+      "Kappa Saga (Disc 1).iso",
+      "Kappa Saga (Disc 2).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Lone Extra (Disc 2)",
+     "region": "",
+     "disc": 2,
+     "file": "Lone Extra (Disc 2).iso",
+     "ext": "iso",
+     "sizeBytes": 2,
+     "discs": [
+      "Lone Extra (Disc 2).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Omega Pack",
+     "region": "",
+     "disc": 0,
+     "file": "Omega Pack/Omega Pack.iso",
+     "ext": "iso",
+     "sizeBytes": 71680,
+     "discs": [
+      "Omega Pack/Omega Pack.iso",
+      "Omega Pack/Omega Pack Bonus (Disc 2).iso"
+     ],
+     "titleId": "41510007",
+     "notInstalled": false,
+     "compat": "playable",
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    }
+   ]
+  },
+  {
+   "console": "x360",
+   "files": [
+    [
+     "Epsilon/default.xex",
+     {
+      "size": 64,
+      "at": [
+       [
+        0,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQAGAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Epsilon/helper.xex",
+     1
+    ],
+    [
+     "Epsilon/sub/Other Game.iso",
+     1
+    ],
+    [
+     "Delta Force Lite/default.xex",
+     {
+      "size": 64,
+      "at": [
+       [
+        0,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAAD/7SAAAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Zeta/DVD.iso",
+     {
+      "size": 71680,
+      "at": [
+       [
+        65536,
+        "TUlDUk9TT0ZUKlhCT1gqTUVESUEhAAAAAAgAAA=="
+       ],
+       [
+        67584,
+        "AAAAACIAAABAAAAAAAtkZWZhdWx0LnhleA=="
+       ],
+       [
+        69632,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQAJAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "DVD.iso",
+     {
+      "size": 71680,
+      "at": [
+       [
+        65536,
+        "TUlDUk9TT0ZUKlhCT1gqTUVESUEhAAAAAAgAAA=="
+       ],
+       [
+        67584,
+        "AAAAACIAAABAAAAAAAtkZWZhdWx0LnhleA=="
+       ],
+       [
+        69632,
+        "WEVYMgAAAAAAAABAAAAAAAAAAAAAAAABAAQABgAAACAAAAAAAAAAAAAAAABBUQAKAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ]
+   ],
+   "art": [
+    "covers/Epsilon.png"
+   ],
+   "games": [
+    {
+     "title": "Delta Force Lite",
+     "region": "",
+     "disc": 0,
+     "file": "Delta Force Lite/default.xex",
+     "ext": "xex",
+     "sizeBytes": 64,
+     "discs": [
+      "Delta Force Lite/default.xex"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Epsilon Drift",
+     "region": "",
+     "disc": 0,
+     "file": "Epsilon/default.xex",
+     "ext": "xex",
+     "sizeBytes": 64,
+     "discs": [
+      "Epsilon/default.xex"
+     ],
+     "titleId": "41510006",
+     "notInstalled": false,
+     "compat": "playable",
+     "art": {
+      "front": "covers/Epsilon.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Xbox 360 game 4151000A",
+     "region": "",
+     "disc": 0,
+     "file": "DVD.iso",
+     "ext": "iso",
+     "sizeBytes": 71680,
+     "discs": [
+      "DVD.iso"
+     ],
+     "titleId": "4151000A",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Zeta",
+     "region": "",
+     "disc": 0,
+     "file": "Zeta/DVD.iso",
+     "ext": "iso",
+     "sizeBytes": 71680,
+     "discs": [
+      "Zeta/DVD.iso"
+     ],
+     "titleId": "41510009",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    }
+   ]
+  },
+  {
+   "console": "x360",
+   "files": [
+    [
+     "Content/0000000000000000/41510003/00007000/0123456789ABCDEF0123456789ABCDEF01234567",
+     {
+      "size": 5906,
+      "at": [
+       [
+        0,
+        "TElWRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQVEAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFQAaABlAHQAYQAgACAAUwBhAGcAYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+       ]
+      ]
+     }
+    ],
+    [
+     "Content/0000000000000000/41510004/000D0000/89ABCDEF0123456789ABCDEF0123456789ABCDEF",
+     {
+      "size": 5906,
+      "at": [
+       [
+        0,
+        "TElWRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQVEABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+       ]
+      ]
+     }
+    ],
+    [
+     "Content/0000000000000000/41510005/000D0000/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+     {
+      "size": 5906,
+      "at": [
+       [
+        0,
+        "TElWRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQVEABQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+       ]
+      ]
+     }
+    ],
+    [
+     "Content/0000000000000000/41510003/00000001/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+     {
+      "size": 5906,
+      "at": [
+       [
+        0,
+        "TElWRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQVEAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFQAaABlAHQAYQAgAFMAYQB2AGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+       ]
+      ]
+     }
+    ],
+    [
+     "Content/0000000000000000/41510003/00007000/0123456789ABCDEF0123456789ABCDEF01234567.data/Data0000.iso",
+     1
+    ],
+    [
+     "Content/0000000000000000/41510003/00007000/notes",
+     1
+    ]
+   ],
+   "art": [],
+   "games": [
+    {
+     "title": "Iota Puzzle",
+     "region": "",
+     "disc": 0,
+     "file": "Content/0000000000000000/41510004/000D0000/89ABCDEF0123456789ABCDEF0123456789ABCDEF",
+     "ext": "",
+     "sizeBytes": 5906,
+     "discs": [
+      "Content/0000000000000000/41510004/000D0000/89ABCDEF0123456789ABCDEF0123456789ABCDEF"
+     ],
+     "titleId": "41510004",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Theta Saga",
+     "region": "",
+     "disc": 0,
+     "file": "Content/0000000000000000/41510003/00007000/0123456789ABCDEF0123456789ABCDEF01234567",
+     "ext": "",
+     "sizeBytes": 5906,
+     "discs": [
+      "Content/0000000000000000/41510003/00007000/0123456789ABCDEF0123456789ABCDEF01234567"
+     ],
+     "titleId": "41510003",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Xbox 360 game 41510005",
+     "region": "",
+     "disc": 0,
+     "file": "Content/0000000000000000/41510005/000D0000/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+     "ext": "",
+     "sizeBytes": 5906,
+     "discs": [
+      "Content/0000000000000000/41510005/000D0000/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+     ],
+     "titleId": "41510005",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    }
+   ]
+  },
+  {
+   "console": "sw2",
+   "files": [
+    [
+     "SR ROM/base/exefs/main",
+     1
+    ],
+    [
+     "SR ROM/base/exefs/main.npdm",
+     {
+      "size": 256,
+      "at": [
+       [
+        0,
+        "TUVUQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAABBQ0kwAAAAAAAAAAAAAAAAAOAGAPDDAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "SR ROM/updates/131072/exefs/main",
+     1
+    ],
+    [
+     "SR ROM/updates/131072/exefs/main.npdm",
+     1
+    ],
+    [
+     "SR ROM/base/game.nsp",
+     5
+    ],
+    [
+     "Group/OtherGame_v1.0.2 [BASE]/200/exefs/main",
+     1
+    ],
+    [
+     "Group/OtherGame_v1.0.2 [BASE]/200/exefs/main.npdm",
+     1
+    ],
+    [
+     "Group/OtherGame_v1.0.2 [BASE]/30/exefs/main",
+     1
+    ],
+    [
+     "Group/OtherGame_v1.0.2 [BASE]/30/exefs/main.npdm",
+     1
+    ],
+    [
+     "Packed.Thing_v1.0.0 [0100000000001000].nsp",
+     7
+    ],
+    [
+     "Upsilon [0400C3F00006E000].xci",
+     3
+    ],
+    [
+     "Upsilon Update.nsp",
+     1
+    ]
+   ],
+   "art": [
+    "covers/SR ROM.png"
+   ],
+   "games": [
+    {
+     "title": "Mario Kart World",
+     "region": "",
+     "disc": 0,
+     "file": "SR ROM/base/exefs/main",
+     "ext": "",
+     "sizeBytes": 123456789,
+     "discs": [
+      "SR ROM/base/exefs/main"
+     ],
+     "titleId": "0400C3F00006E000",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "covers/SR ROM.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Other Game",
+     "region": "",
+     "disc": 0,
+     "file": "Group/OtherGame_v1.0.2 [BASE]/30/exefs/main",
+     "ext": "",
+     "sizeBytes": 0,
+     "discs": [
+      "Group/OtherGame_v1.0.2 [BASE]/30/exefs/main"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Packed Thing",
+     "region": "",
+     "disc": 0,
+     "file": "Packed.Thing_v1.0.0 [0100000000001000].nsp",
+     "ext": "nsp",
+     "sizeBytes": 0,
+     "discs": [
+      "Packed.Thing_v1.0.0 [0100000000001000].nsp"
+     ],
+     "titleId": "0100000000001000",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    }
+   ]
+  },
+  {
+   "console": "ps4",
+   "files": [
+    [
+     "Lambda Game/eboot.bin",
+     1
+    ],
+    [
+     "Lambda Game/sce_sys/param.sfo",
+     {
+      "size": 121,
+      "at": [
+       [
+        0,
+        "AFBTRgEBAABEAAAAXAAAAAMAAAAAAAQCEAAAABAAAAAAAAAABgAEAgoAAAAKAAAAEAAAAA8ABAIDAAAAAwAAABoAAABUSVRMRQBUSVRMRV9JRABDQVRFR09SWQBMYW1iZGEgIEdhbWXihKIAQ1VTQTk5OTAxAGdkAA=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Lambda Game/sce_sys/icon0.png",
+     1
+    ],
+    [
+     "Lambda Game/sce_sys/pic1.png",
+     1
+    ],
+    [
+     "pkgs/Lambda.Game_CUSA99901_v1.00.pkg",
+     3
+    ],
+    [
+     "pkgs/[Site]-Mu.Racer_CUSA99902_v1.00_UP.pkg",
+     4
+    ],
+    [
+     "pkgs/nu.pkg",
+     {
+      "size": 210,
+      "at": [
+       [
+        0,
+        "f0NOVAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAIAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAYAAAAHIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFBTRgEBAABEAAAAXAAAAAMAAAAAAAQCCQAAAAkAAAAAAAAABgAEAgoAAAAKAAAACQAAAA8ABAIDAAAAAwAAABMAAABUSVRMRQBUSVRMRV9JRABDQVRFR09SWQBOdSBTdG9yeQBDVVNBOTk5MDMAZ2QA"
+       ]
+      ]
+     }
+    ],
+    [
+     "pkgs/nu-patch.pkg",
+     {
+      "size": 210,
+      "at": [
+       [
+        0,
+        "f0NOVAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAIAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAYAAAAHIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFBTRgEBAABEAAAAXAAAAAMAAAAAAAQCCQAAAAkAAAAAAAAABgAEAgoAAAAKAAAACQAAAA8ABAIDAAAAAwAAABMAAABUSVRMRQBUSVRMRV9JRABDQVRFR09SWQBOdSBTdG9yeQBDVVNBOTk5MDMAZ3AA"
+       ]
+      ]
+     }
+    ]
+   ],
+   "art": [],
+   "games": [
+    {
+     "title": "Lambda Game",
+     "region": "",
+     "disc": 0,
+     "file": "Lambda Game/eboot.bin",
+     "ext": "bin",
+     "sizeBytes": 0,
+     "discs": [
+      "Lambda Game/eboot.bin"
+     ],
+     "titleId": "CUSA99901",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "Lambda Game/sce_sys/icon0.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": "Lambda Game/sce_sys/icon0.png",
+      "manual": [],
+      "manualPdf": null,
+      "hero": "Lambda Game/sce_sys/pic1.png"
+     }
+    },
+    {
+     "title": "Mu Racer",
+     "region": "Not installed",
+     "disc": 0,
+     "file": "pkgs/[Site]-Mu.Racer_CUSA99902_v1.00_UP.pkg",
+     "ext": "pkg",
+     "sizeBytes": 4,
+     "discs": [
+      "pkgs/[Site]-Mu.Racer_CUSA99902_v1.00_UP.pkg"
+     ],
+     "titleId": "CUSA99902",
+     "notInstalled": true,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Nu Story",
+     "region": "Not installed",
+     "disc": 0,
+     "file": "pkgs/nu.pkg",
+     "ext": "pkg",
+     "sizeBytes": 210,
+     "discs": [
+      "pkgs/nu.pkg"
+     ],
+     "titleId": "CUSA99903",
+     "notInstalled": true,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    }
+   ]
+  },
+  {
+   "console": "ps5",
+   "files": [
+    [
+     "Xi Game/eboot.bin",
+     1
+    ],
+    [
+     "Xi Game/sce_sys/param.json",
+     {
+      "size": 106,
+      "at": [
+       [
+        0,
+        "eyJ0aXRsZUlkIjoiUFBTQTk5OTAxIiwibG9jYWxpemVkUGFyYW1ldGVycyI6eyJkZWZhdWx0TGFuZ3VhZ2UiOiJmci1GUiIsImVuLVVTIjp7InRpdGxlTmFtZSI6IlhpICBHYW1lIn19fQ=="
+       ]
+      ]
+     }
+    ],
+    [
+     "Xi Game/sce_sys/pic0.png",
+     1
+    ],
+    [
+     "PPSA99902/eboot.bin",
+     1
+    ],
+    [
+     "PPSA99902/sce_sys/param.json",
+     {
+      "size": 1,
+      "at": [
+       [
+        0,
+        "ew=="
+       ]
+      ]
+     }
+    ]
+   ],
+   "art": [],
+   "games": [
+    {
+     "title": "PPSA99902",
+     "region": "",
+     "disc": 0,
+     "file": "PPSA99902/eboot.bin",
+     "ext": "bin",
+     "sizeBytes": 0,
+     "discs": [
+      "PPSA99902/eboot.bin"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Xi Game",
+     "region": "",
+     "disc": 0,
+     "file": "Xi Game/eboot.bin",
+     "ext": "bin",
+     "sizeBytes": 0,
+     "discs": [
+      "Xi Game/eboot.bin"
+     ],
+     "titleId": "PPSA99901",
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": "Xi Game/sce_sys/pic0.png"
+     }
+    }
+   ]
+  },
+  {
+   "console": "arcade",
+   "files": [
+    [
+     "omif.zip",
+     10
+    ],
+    [
+     "omifu.zip",
+     20
+    ],
+    [
+     "piblast.zip",
+     3
+    ],
+    [
+     "rhobios.zip",
+     1
+    ],
+    [
+     "neogeo.zip",
+     1
+    ],
+    [
+     "sigmaset.zip",
+     2
+    ]
+   ],
+   "art": [],
+   "games": [
+    {
+     "title": "Omicron Fighters",
+     "region": "",
+     "disc": 0,
+     "file": "omifu.zip",
+     "ext": "zip",
+     "sizeBytes": 20,
+     "discs": [
+      "omif.zip"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Pi Blaster",
+     "region": "",
+     "disc": 0,
+     "file": "piblast.zip",
+     "ext": "zip",
+     "sizeBytes": 3,
+     "discs": [
+      "piblast.zip"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "sigmaset",
+     "region": "",
+     "disc": 0,
+     "file": "sigmaset.zip",
+     "ext": "zip",
+     "sizeBytes": 2,
+     "discs": [
+      "sigmaset.zip"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    }
+   ]
+  },
+  {
+   "console": "snes",
+   "files": [
+    [
+     "Sigma (USA).sfc",
+     1
+    ],
+    [
+     "sub/Tau.sfc",
+     1
+    ],
+    [
+     "Phi (USA).sfc",
+     1
+    ],
+    [
+     "gamelist.xml",
+     {
+      "size": 460,
+      "at": [
+       [
+        0,
+        "PGdhbWVMaXN0PgogPGdhbWU+PHBhdGg+Li9TaWdtYSAoVVNBKS5zZmM8L3BhdGg+PG5hbWU+U2lnbWEgJmFtcDsgRnJpZW5kczwvbmFtZT48dGh1bWJuYWlsPi4vaW1hZ2VzL3NpZ21hLnBuZzwvdGh1bWJuYWlsPjxib3hiYWNrPi4vaW1hZ2VzL25vbmUucG5nPC9ib3hiYWNrPjxmYW5hcnQ+Li9pbWFnZXMvc2lnbWEtZmFuLnBuZzwvZmFuYXJ0PjwvZ2FtZT4KIDxnYW1lIGlkPSIyIj48cGF0aD4uL3N1Yi9UYXUuc2ZjPC9wYXRoPjxuYW1lPlRhdeKEoiAgRGVsdXhlPC9uYW1lPjxpbWFnZT4uL2ltYWdlcy90YXUucG5nPC9pbWFnZT48bWFudWFsPi4vbWFudWFscy90YXUucGRmPC9tYW51YWw+PC9nYW1lPgogPGdhbWU+PHBhdGg+Li9QaGkgKFVTQSkuc2ZjPC9wYXRoPjxuYW1lPlBoaSBBZ2FpbjwvbmFtZT48dGh1bWJuYWlsPi4vaW1hZ2VzL3BoaS5wbmc8L3RodW1ibmFpbD48L2dhbWU+CjwvZ2FtZUxpc3Q+Cg=="
+       ]
+      ]
+     }
+    ]
+   ],
+   "art": [
+    "images/sigma.png",
+    "images/sigma-fan.png",
+    "images/tau.png",
+    "images/phi.png",
+    "manuals/tau.pdf",
+    "covers/Phi (USA).png"
+   ],
+   "games": [
+    {
+     "title": "Phi Again",
+     "region": "USA",
+     "disc": 0,
+     "file": "Phi (USA).sfc",
+     "ext": "sfc",
+     "sizeBytes": 1,
+     "discs": [
+      "Phi (USA).sfc"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "covers/Phi (USA).png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
+    },
+    {
+     "title": "Sigma & Friends",
+     "region": "USA",
+     "disc": 0,
+     "file": "Sigma (USA).sfc",
+     "ext": "sfc",
+     "sizeBytes": 1,
+     "discs": [
+      "Sigma (USA).sfc"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "images/sigma.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": "images/sigma-fan.png"
+     }
+    },
+    {
+     "title": "Tau Deluxe",
+     "region": "",
+     "disc": 0,
+     "file": "sub/Tau.sfc",
+     "ext": "sfc",
+     "sizeBytes": 1,
+     "discs": [
+      "sub/Tau.sfc"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": "images/tau.png",
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": "manuals/tau.pdf",
+      "hero": "images/tau.png"
+     }
+    }
+   ]
+  }
+ ]
+}

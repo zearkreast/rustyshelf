@@ -514,12 +514,18 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 - Reads the Electron app's settings from `data\config.json`, read-only, so set things up in the Electron app.
 - Finds every console's games the same way the Electron app does: one box per game, discs grouped, updates and DLC left out.
+  That includes Xbox 360 games named by their title id (disc images, extracted games, Games on Demand and Arcade
+  packages), unpacked Switch 2 games, PS4 `.pkg` packages shown as not installed, PS5 games, arcade sets named from the
+  FinalBurn Neo list, and the names and pictures in a Batocera / RetroBat `gamelist.xml`.
 - Shows them with their box art on a 3D shelf, one console at a time.
-- Starts a game in its emulator with its launch options.
+- Starts a game in its emulator with its launch options (an unpacked Switch 2 game in its newest update).
+
+The Xbox 360 title list, the arcade names and the sizes of unpacked Switch 2 games come from the Electron app's `data`
+folder. Until the Electron app has fetched or measured them, games show their file names and no size.
 
 **Not yet:** Settings and the setup wizard, art downloads, Steam and PC games, the open case and the museum, sounds and
-music, the phone companion, Android. Xbox 360 packages, unpacked Switch 2 games, PS4 `.pkg` files and the arcade name list
-aren't read yet either.
+music, the phone companion, Android. Starting a PS5 game with the Kyty launcher's settings, and choosing a Switch 2 build,
+are Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

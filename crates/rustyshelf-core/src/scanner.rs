@@ -2,9 +2,6 @@
 // Boxshelf's main/scanner.js, as RustyShelf has it.
 //! Walks a console's games folders and makes one shelf entry per game: disc 2 joins disc 1, two dumps of a game are
 //! one box (the fuller one), updates and DLC stay off the shelf.
-//!
-//! Not ported yet, so those games are missing or named by their file: the Xbox 360 (packages, title list), Switch 2
-//! (unpacked folders), PS4 .pkg packages, PS5 param.json and the arcade name list.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -14,11 +11,14 @@ use std::time::UNIX_EPOCH;
 
 use regex::Regex;
 
+use crate::arcade::{self, Set};
 use crate::art::{resolve, Art, ArtIndex};
 use crate::config::SystemConfig;
+use crate::gamelist::Gamelists;
 use crate::systems::Console;
 use crate::titles::{clean_title, CleanTitle};
-use crate::{collate, sfo};
+use crate::x360::{self, Package};
+use crate::{collate, kyty, nx2, pkg, sfo};
 
 // "[UPD]", "(DLC)", or the word after a separator ("Game - Update v1.0.1", "Game_DLC"); not anywhere ("DLC Quest")
 static SKIP_NAME: LazyLock<Regex> =
@@ -35,7 +35,11 @@ static WIIU_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?-u:\b)(000
 static WIIU_KIND: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?-u:\b)0005000([0-9A-F])[0-9A-F]{8}(?-u:\b)").unwrap());
 static UPDATE_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?-u:\b)(update|dlc)(?-u:\b)").unwrap());
 static HEX_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^[0-9A-F]{16}$").unwrap());
-// BIOS sets that sit beside the arcade games
+static DATA_DIR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.data$").unwrap());
+// what an Xbox 360 game's disc is often called, which says nothing of the game
+static GENERIC: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(dvd|disc|game|image|iso|default|xbox ?360)\s*([0-9]*)$").unwrap());
+static DISC_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\(disc [0-9]+\)$").unwrap());
+// BIOS sets that sit beside the arcade games, hidden even without the arcade name list
 const ARCADE_BIOS: [&str; 26] = [
     "neogeo", "pgm", "skns", "stvbios", "decocass", "cpzn1", "cpzn2", "taitofx1", "konamigx", "nss", "naomi", "awbios", "hod2bios",
     "f355bios", "airlbios", "megaplay", "megatech", "playch10", "qsound", "neocdz", "isgsm", "nmk004", "ym2608", "bubsys", "cchip", "sp-cpu",
@@ -57,8 +61,41 @@ pub struct Game {
     pub discs: Vec<PathBuf>,
     pub title_id: Option<String>,
     pub art: Art,
-    /// a hero picture the game's folder carries (PS3 PIC1.PNG)
+    /// a picture for behind the game: the game folder's own (PS3 PIC1.PNG) or a gamelist.xml's
     pub hero: Option<PathBuf>,
+    /// a PS4 .pkg that has to be extracted before it can be played
+    pub not_installed: bool,
+    /// how well the game runs in Xenia, from the Xbox 360 title list
+    pub compat: Option<String>,
+}
+
+/// What a scan reads from the data folder besides the settings: lists the Electron app downloads, and sizes it measured.
+#[derive(Debug, Clone, Default)]
+pub struct ScanData {
+    pub x360: x360::TitleList,
+    pub arcade: Option<arcade::Names>,
+    /// `data/dir-sizes.json`: a folder (resolved) → its size in bytes, as the Electron app last measured it
+    pub dir_sizes: HashMap<String, u64>,
+}
+
+impl ScanData {
+    pub fn load(data_dir: &Path) -> ScanData {
+        let sizes: HashMap<String, serde_json::Value> =
+            fs::read_to_string(data_dir.join("dir-sizes.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+        ScanData {
+            x360: x360::TitleList::load(data_dir),
+            arcade: arcade::Names::load(data_dir),
+            dir_sizes: sizes.into_iter().filter_map(|(k, v)| Some((k, v.get("bytes")?.as_f64()? as u64))).collect(),
+        }
+    }
+
+    // TODO: measure a folder the Electron app hasn't (an unpacked Switch 2 game shows no size until it has)
+    fn dir_size(&self, dir: &Path) -> u64 {
+        if !dir.is_absolute() || fs::metadata(dir).is_err() {
+            return 0;
+        }
+        self.dir_sizes.get(&resolve(dir).to_string_lossy().into_owned()).copied().unwrap_or(0)
+    }
 }
 
 struct Found {
@@ -100,6 +137,13 @@ fn walk(dir: &Path, exts: &[String], depth: u32, out: &mut Vec<PathBuf>, game_fi
             }
         }
     }
+    let stfs = exts.iter().any(|e| e == "stfs");
+    // an extracted Xbox 360 game's folder: its subfolders are the game's data, never another game
+    let xex_here = game_file.is_none()
+        && exts.iter().any(|e| e == "xex")
+        && ents.iter().any(|e| {
+            e.file_type().map(|t| t.is_file()).unwrap_or(false) && e.file_name().to_string_lossy().eq_ignore_ascii_case("default.xex")
+        });
     for ent in ents {
         let name = ent.file_name().to_string_lossy().into_owned();
         let full = ent.path();
@@ -117,6 +161,10 @@ fn walk(dir: &Path, exts: &[String], depth: u32, out: &mut Vec<PathBuf>, game_fi
             if game_file.is_some() && dir_name.eq_ignore_ascii_case("usrdir") {
                 continue;
             }
+            // a Games on Demand package's data folder: "<hash>.data"
+            if xex_here || (stfs && DATA_DIR.is_match(&name)) {
+                continue;
+            }
             if depth > 0 && !name.starts_with('.') && !SKIP_DIR.is_match(&name) {
                 walk(&full, exts, depth - 1, out, game_file);
             }
@@ -131,7 +179,11 @@ fn walk(dir: &Path, exts: &[String], depth: u32, out: &mut Vec<PathBuf>, game_fi
             }
             continue;
         }
-        if exts.contains(&ext_of(&name)) && !SKIP_NAME.is_match(&name) {
+        let ext = ext_of(&name);
+        if exts.contains(&ext) && !SKIP_NAME.is_match(&name) {
+            out.push(full);
+        } else if ext.is_empty() && stfs && x360::is_stfs_candidate(&full) {
+            // a Games on Demand / Arcade package: its header decides later whether it's a game
             out.push(full);
         }
     }
@@ -160,6 +212,8 @@ struct FolderGame {
     region: String,
     icon: Option<PathBuf>,
     hero: Option<PathBuf>,
+    /// an unpacked Switch 2 game's folder, whose size is the game's
+    folder: Option<PathBuf>,
 }
 
 /// PS3: EBOOT.BIN in USRDIR; PARAM.SFO, ICON0.PNG and PIC1.PNG one level up (PS3_GAME for discs, the NPxx00000 folder
@@ -194,16 +248,23 @@ fn ps3_game(file: &Path) -> Option<FolderGame> {
         title_id,
         icon: crate::art::existing(base.join("ICON0.PNG")),
         hero: crate::art::existing(base.join("PIC1.PNG")),
+        folder: None,
     })
 }
 
-/// A PS4 / Vita / PS5 game folder: the title from param.sfo, else the folder's name ("CUSA00207": the folder above,
-/// unless that's the games folder itself).
+/// A PS4 / Vita / PS5 game folder: the title from param.sfo (a PS5 game's param.json), else the folder's name
+/// ("CUSA00207": the folder above, unless that's the games folder itself).
 fn folder_game(file: &Path, rom_dirs: &[String]) -> FolderGame {
     let dir = file.parent().unwrap_or(Path::new(""));
-    // TODO: a PS5 game's sce_sys/param.json (main/kyty.js) when there's no param.sfo
     let sfo = sfo::read(&dir.join("sce_sys").join("param.sfo"));
-    let mut title = sfo.as_ref().and_then(|s| sfo::text(s, "TITLE")).map(|t| SPACES.replace_all(t, " ").trim().to_string()).unwrap_or_default();
+    let (sfo_title, title_id) = match &sfo {
+        Some(s) => (sfo::text(s, "TITLE").map(String::from), sfo::text(s, "TITLE_ID").map(String::from)),
+        None => match kyty::read_param(dir) {
+            Some(p) => (Some(p.title), Some(p.title_id)),
+            None => (None, None),
+        },
+    };
+    let mut title = sfo_title.map(|t| SPACES.replace_all(&t, " ").trim().to_string()).unwrap_or_default();
     let folder = name_of(dir);
     let parent = dir.parent().unwrap_or(Path::new(""));
     if title.is_empty() {
@@ -211,13 +272,15 @@ fn folder_game(file: &Path, rom_dirs: &[String]) -> FolderGame {
         title = if PS_ID_START.is_match(&folder) && !parent_is_root && !name_of(parent).is_empty() { name_of(parent) } else { folder };
     }
     let sce = dir.join("sce_sys");
+    // PS5 games often have only pic0
     let pic = crate::art::existing(sce.join("pic1.png")).or_else(|| crate::art::existing(sce.join("pic0.png")));
     FolderGame {
         title: TM.replace_all(&title, "").trim().to_string(),
-        title_id: sfo.as_ref().and_then(|s| sfo::text(s, "TITLE_ID")).map(String::from),
+        title_id: title_id.filter(|t| !t.is_empty()),
         region: String::new(),
         icon: crate::art::existing(sce.join("icon0.png")),
         hero: pic,
+        folder: None,
     }
 }
 
@@ -260,23 +323,149 @@ fn walk_files(console: &Console, sc: &SystemConfig) -> Vec<PathBuf> {
     let deep = console.game_file.is_some() || console.deep || console.id == "x360";
     let depth = if deep { 6 } else { 4 };
     let game_file = console.game_file.as_deref();
+    // "stfs": Games on Demand / Arcade packages, which have no extension
+    let mut exts = console.extensions.clone();
+    if console.id == "x360" {
+        exts.push("stfs".into());
+    }
     let mut files = Vec::new();
     for dir in &sc.rom_dirs {
-        walk(Path::new(dir), &console.extensions, depth, &mut files, game_file);
+        walk(Path::new(dir), &exts, depth, &mut files, game_file);
     }
     if !console.also_files.is_empty() {
         for dir in &sc.rom_dirs {
             walk(Path::new(dir), &console.also_files, 4, &mut files, None);
         }
     }
+    if console.id == "sw2" {
+        let packed = std::mem::take(&mut files);
+        for dir in &sc.rom_dirs {
+            nx2::find(Path::new(dir), 3, &mut files);
+        }
+        let sep = std::path::MAIN_SEPARATOR_STR;
+        let roots: Vec<String> = files.iter().map(|f| nx2::game_root(f).to_string_lossy().to_lowercase() + sep).collect();
+        // a .nsp / .xci / .nup kept inside an unpacked game's folder is that game again
+        for f in packed {
+            let low = f.to_string_lossy().to_lowercase();
+            if !roots.iter().any(|r| low.starts_with(r.as_str())) {
+                files.push(f);
+            }
+        }
+    }
     files
 }
 
+/// PS4 .pkg packages: on the shelf as "Not installed" unless the installed copy is.
+fn add_packages(console: &Console, sc: &SystemConfig, by_title: &mut HashMap<String, Found>, order: &mut Vec<String>) {
+    let mut pkgs = Vec::new();
+    for dir in &sc.rom_dirs {
+        walk(Path::new(dir), &["pkg".to_string()], 4, &mut pkgs, None);
+    }
+    let installed: HashSet<String> = by_title.values().filter_map(|f| f.game.title_id.clone()).collect();
+    for f in pkgs {
+        let sfo = pkg::info(&f).unwrap_or_default();
+        let cat = match sfo.get("CATEGORY") {
+            Some(sfo::SfoValue::Text(t)) if !t.is_empty() => t.to_lowercase(),
+            Some(sfo::SfoValue::Int(n)) if *n != 0 => n.to_string(),
+            _ => "gd".into(),
+        };
+        // patches and add-ons aren't games
+        if cat != "gd" {
+            continue;
+        }
+        let id = sfo::text(&sfo, "TITLE_ID")
+            .filter(|t| !t.is_empty())
+            .map(String::from)
+            .or_else(|| pkg::NAME_ID.find(&name_of(&f)).map(|m| m.as_str().to_uppercase()))
+            .unwrap_or_default();
+        if !id.is_empty() && installed.contains(&id) {
+            continue;
+        }
+        let from_sfo = sfo::text(&sfo, "TITLE").map(|t| TM.replace_all(&SPACES.replace_all(t, " "), "").trim().to_string());
+        let title = [from_sfo.unwrap_or_default(), pkg::title_from_name(&f), name_of(&f)].into_iter().find(|t| !t.is_empty()).unwrap_or_default();
+        let key = format!("{}|pkg", title.to_lowercase());
+        if by_title.contains_key(&key) {
+            continue;
+        }
+        order.push(key.clone());
+        by_title.insert(
+            key,
+            Found {
+                art_title: title.clone(),
+                icon: None,
+                game: Game {
+                    id: format!("{}:{}", console.id, f.display()),
+                    title,
+                    region: "Not installed".into(),
+                    disc: 0,
+                    ext: "pkg".into(),
+                    size_bytes: fs::metadata(&f).map_or(0, |m| m.len()),
+                    added: 0,
+                    discs: vec![f.clone()],
+                    file: f,
+                    title_id: Some(id).filter(|i| !i.is_empty()),
+                    art: Art::default(),
+                    hero: None,
+                    not_installed: true,
+                    compat: None,
+                },
+            },
+        );
+    }
+}
+
+/// Xbox 360: a disc 2+ (a bonus or content disc, with its own title id) joins its disc 1, found by the disc 1's file
+/// name, else in the same game folder. On its own it says which disc it is, so it isn't taken for the game.
+// TODO: games with no usable file name ("DVD1.iso") share the `None` name, as they share `undefined` in the Electron
+// app: a disc 2 of one joins the last of them, not the disc 1 in its own folder. Fix both apps together.
+fn join_x360_discs(sc: &SystemConfig, by_title: &mut HashMap<String, Found>, order: &[String], by_name: &HashMap<String, String>) {
+    let later = |f: &Found| f.game.disc > 1;
+    let mut firsts: HashMap<Option<String>, String> = HashMap::new();
+    for k in order {
+        if by_title.get(k).is_some_and(|f| !later(f)) {
+            firsts.insert(by_name.get(k).cloned(), k.clone());
+        }
+    }
+    let roots: Vec<String> = sc.rom_dirs.iter().map(|d| resolve(Path::new(d)).to_string_lossy().to_lowercase()).collect();
+    let sep = std::path::MAIN_SEPARATOR_STR;
+    for k in order {
+        let Some(g) = by_title.get(k).filter(|g| later(g)) else { continue };
+        let mut host = firsts.get(&by_name.get(k).cloned()).cloned();
+        if host.is_none() {
+            let dir = g.game.file.parent().map(|d| resolve(d).to_string_lossy().to_lowercase()).unwrap_or_default();
+            if !roots.contains(&dir) {
+                let inside = dir + sep;
+                host = order
+                    .iter()
+                    .filter(|h| *h != k)
+                    .find(|h| {
+                        by_title.get(*h).is_some_and(|h| !later(h) && resolve(&h.game.file).to_string_lossy().to_lowercase().starts_with(&inside))
+                    })
+                    .cloned();
+            }
+        }
+        match host {
+            Some(h) => {
+                let g = by_title.remove(k).unwrap();
+                by_title.get_mut(&h).unwrap().game.discs.push(g.game.file);
+            }
+            None => {
+                let g = by_title.get_mut(k).unwrap();
+                if !DISC_TAG.is_match(&g.game.title) {
+                    g.game.title = format!("{} (Disc {})", g.game.title, g.game.disc);
+                }
+            }
+        }
+    }
+}
+
 /// One console's games, sorted by title, with their art.
-pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<Game> {
+pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &ScanData) -> Vec<Game> {
     let files = walk_files(console, sc);
     let switch = console.id == "sw" || console.id == "sw2";
+    let (is_x360, is_sw2) = (console.id == "x360", console.id == "sw2");
     let ct = |f: &Path| clean_title(&name_of(f), switch);
+    let is_root = |d: &Path| sc.rom_dirs.iter().any(|r| resolve(Path::new(r)) == resolve(d));
     // an extracted Xbox 360 game: default.xex is the game, the other .xex beside it are helpers
     let xex_dirs: HashSet<PathBuf> = files
         .iter()
@@ -287,6 +476,8 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
     let mut by_title: HashMap<String, Found> = HashMap::new();
     let mut order: Vec<String> = Vec::new();
     let mut disc_of: HashMap<PathBuf, (u32, u64)> = HashMap::new();
+    // Xbox 360: the title of each game's file name, to find a later disc's disc 1
+    let mut by_name: HashMap<String, String> = HashMap::new();
 
     for f in files {
         let fname = name_of(&f);
@@ -303,7 +494,30 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
                 None => continue,
             }
         }
-        let mut info: CleanTitle = if as_folder || fg.is_some() {
+        if is_sw2 {
+            let n = if nx2::is_unpacked(&f) { nx2::info(&f) } else { nx2::file_info(&f) };
+            fg = Some(FolderGame {
+                title: n.title,
+                title_id: Some(n.title_id).filter(|t| !t.is_empty()),
+                region: String::new(),
+                icon: None,
+                hero: None,
+                folder: Some(n.folder),
+            });
+        }
+        // an Xbox 360 package is a game only if its header says so (not a save, DLC or update)
+        let stfs: Option<Package> = if is_x360 && x360::no_extname(&f) {
+            match x360::stfs_info(&f) {
+                Some(p) => Some(p),
+                None => continue,
+            }
+        } else {
+            None
+        };
+        let mut info: CleanTitle = if let Some(p) = &stfs {
+            let title = if p.title.is_empty() { format!("Xbox 360 game {}", p.title_id) } else { p.title.clone() };
+            CleanTitle { title, ..Default::default() }
+        } else if as_folder || fg.is_some() {
             let g = fg.get_or_insert_with(|| folder_game(&f, &sc.rom_dirs));
             CleanTitle { title: g.title.clone(), region: g.region.clone(), ..Default::default() }
         } else if is_default {
@@ -311,10 +525,19 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
         } else {
             ct(&f)
         };
-        if console.id == "arcade" || console.id == "neogeo" {
+        if arcade::SYSTEMS.contains(&console.id.as_str()) {
             let set = fname.rsplit_once('.').map_or(fname.as_str(), |(s, _)| s).to_lowercase();
-            if ARCADE_BIOS.contains(&set.as_str()) {
-                continue;
+            match data.arcade.as_ref().and_then(|a| a.lookup(&set)) {
+                Some(Set::Bios) => continue,
+                None if ARCADE_BIOS.contains(&set.as_str()) => continue,
+                // "A / B": two names for one game, the first is the shelf's; versions of a game ("(World 910522)",
+                // "(USA 910206)") are one box, the fuller zip kept
+                Some(Set::Game(t)) if !t.is_empty() => {
+                    let first = t.split(" / ").next().unwrap_or("").replace(['\\', '/'], "-");
+                    info = clean_title(&format!("{first}.zip"), switch);
+                    info.region = String::new();
+                }
+                _ => {}
             }
         }
         let mut nus_bytes = 0;
@@ -345,6 +568,33 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
                 info.title = TM.replace_all(&title, "").trim().to_string();
             }
         }
+        let mut x = None;
+        if is_x360 {
+            // "DVD.iso" / "DVD1.iso" / "game.iso" inside a folder: the folder is the name (a digit in the file name is the
+            // disc number); then the title id inside the image beats any file name
+            if stfs.is_none() {
+                if let Some(gen) = GENERIC.captures(&info.title.clone()) {
+                    let n: u32 = gen[2].parse().unwrap_or(0);
+                    let dir = f.parent().unwrap_or(Path::new(""));
+                    if !is_root(dir) {
+                        let ext = fname.rfind('.').filter(|&i| i > 0).map_or("", |i| &fname[i..]);
+                        info = ct(&with_ext(dir, ext));
+                    }
+                    if info.disc == 0 && n > 0 {
+                        info.disc = n;
+                    }
+                }
+            }
+            // FFxxxxxx ids are generic (bonus and downloadable-content discs share FFED2000): never trusted for a title
+            x = x360::lookup(&f, stfs.as_ref(), &data.x360).filter(|l| !l.title_id.to_uppercase().starts_with("FF"));
+            if let Some(l) = &x {
+                if let Some(t) = &l.title {
+                    info.title = TM.replace_all(t, "").trim().to_string();
+                } else if GENERIC.is_match(&info.title) {
+                    info.title = format!("Xbox 360 game {}", l.title_id);
+                }
+            }
+        }
         if console.id == "wiiu" {
             let update = WIIU_KIND.captures(&f.to_string_lossy()).is_some_and(|c| c[1].eq_ignore_ascii_case("c") || c[1].eq_ignore_ascii_case("e"));
             info.extra = update || UPDATE_WORD.is_match(&info.title);
@@ -359,7 +609,19 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
                 size = m.len();
             }
         }
-        let key = format!("{}|{}", info.title.to_lowercase(), info.region);
+        if let Some(dir) = fg.as_ref().and_then(|g| g.folder.as_deref()).filter(|_| size == 0 && is_sw2) {
+            size = data.dir_size(dir);
+        }
+        let key = match &x {
+            Some(l) => format!("x360:{}", l.title_id),
+            None => format!("{}|{}", info.title.to_lowercase(), info.region),
+        };
+        if is_x360 && stfs.is_none() {
+            let nt = ct(&f).title;
+            if !GENERIC.is_match(&nt) {
+                by_name.insert(key.clone(), nt.to_lowercase());
+            }
+        }
         let n = info.disc.max(1);
         disc_of.insert(f.clone(), (n, size));
         let mut discs = vec![f.clone()];
@@ -383,9 +645,13 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
             order.push(key.clone());
         }
         let ext = ext_of(&fname);
-        let (icon, hero, title_id) = match fg {
+        let (icon, hero, folder_id) = match fg {
             Some(g) => (g.icon, g.hero, g.title_id),
             None => (None, None, None),
+        };
+        let (title_id, compat) = match x {
+            Some(l) => (Some(l.title_id), l.compat),
+            None => (folder_id, None),
         };
         by_title.insert(
             key,
@@ -405,12 +671,21 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
                     title_id,
                     art: Art::default(),
                     hero,
+                    not_installed: false,
+                    compat,
                 },
             },
         );
     }
+    if console.id == "ps4" {
+        add_packages(console, sc, &mut by_title, &mut order);
+    }
+    if is_x360 {
+        join_x360_discs(sc, &mut by_title, &order, &by_name);
+    }
 
     let mut index = ArtIndex::default();
+    let mut lists = Gamelists::default();
     let mut games: Vec<Game> = order
         .into_iter()
         .filter_map(|k| by_title.remove(&k))
@@ -423,6 +698,18 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf]) -> Vec<G
                 if art.disc.is_none() {
                     art.disc = Some(icon);
                 }
+            }
+            // art of RustyShelf's own beats a gamelist.xml's
+            if let Some(gl) = lists.lookup(&f.game.file, &sc.rom_dirs) {
+                let name = SPACES.replace_all(&TM.replace_all(&gl.name, ""), " ").trim().to_string();
+                if !name.is_empty() {
+                    f.game.title = name;
+                }
+                art.front = art.front.or(gl.front);
+                art.back = art.back.or(gl.back);
+                art.disc = art.disc.or(gl.disc);
+                art.manual_pdf = art.manual_pdf.or(gl.manual_pdf);
+                f.game.hero = f.game.hero.or(gl.hero);
             }
             f.game.art = art;
             f.game

@@ -96,7 +96,10 @@ pub fn art_base(file: &Path) -> String {
         }
         return UNSAFE_NAME.replace_all(&dir, "_").into_owned();
     }
-    // TODO: unpacked Switch 2 games (…\<Game>\exefs\main) are named by the game's folder (main/nx2.js gameRoot)
+    // unpacked Switch 2 games (every one's file is "main") are named by the game's folder
+    if low == "main" && parent_name(file).eq_ignore_ascii_case("exefs") {
+        return UNSAFE_NAME.replace_all(&file_name(&crate::nx2::game_root(file)), "_").into_owned();
+    }
     match b.rfind('.') {
         Some(i) if i + 1 < b.len() => b[..i].to_string(),
         _ => b,
@@ -306,6 +309,7 @@ mod tests {
         assert_eq!(art_base(Path::new("/g/Some Game/PS3_GAME/USRDIR/EBOOT.BIN")), "Some Game");
         assert_eq!(art_base(Path::new("/g/Halo 3/DVD1.iso")), "Halo 3");
         assert_eq!(art_base(Path::new("/g/noext")), "noext");
+        assert_eq!(art_base(Path::new("/g/Mario Kart World/base/exefs/main")), "Mario Kart World");
     }
 
     #[test]
