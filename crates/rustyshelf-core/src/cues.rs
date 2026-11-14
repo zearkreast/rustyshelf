@@ -48,6 +48,13 @@ pub static THEMES: [Theme; 3] = [
     },
 ];
 
+impl Theme {
+    /// The pitch its scale starts on.
+    pub fn root(&self) -> f32 {
+        self.root
+    }
+}
+
 /// A voice by the name the settings have (`ui.soundTheme`), the voices before these three included; Aero for a
 /// name that's none.
 pub fn theme(name: &str) -> &'static Theme {

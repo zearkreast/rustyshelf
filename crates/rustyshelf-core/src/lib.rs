@@ -26,6 +26,7 @@ pub mod launch;
 #[allow(clippy::all, dead_code)]
 pub mod lbindex;
 pub mod library;
+pub mod music;
 pub mod n3ds;
 pub mod net;
 pub mod nx2;

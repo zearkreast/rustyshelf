@@ -1,6 +1,6 @@
 // Writes crates/rustyshelf-core/tests/fixtures/synth.json: voices rendered by the Electron app's own sound engine
 // (renderer/sound.js, in a headless Chromium through Playwright), for the Rust engine's tests to be compared with;
-// and cues.json: the voices every cue asks that engine for.
+// cues.json: the voices every cue asks that engine for; and music.json: what the menu music asks to be played.
 //   node scripts/rust-sound-fixtures.js
 // Every case starts on a render quantum, after a lead-in: an offline limiter starts closed and takes a moment to open,
 // and an oscillator started inside a quantum plays its first samples at the wrong pitch.
@@ -9,6 +9,7 @@ const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..');
+const MUSIC_OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'music.json');
 const CUES_OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'cues.json');
 const OUT = path.join(ROOT, 'crates', 'rustyshelf-core', 'tests', 'fixtures', 'synth.json');
 const RATE = 44100, LEAD_FRAMES = 22016, AHEAD = 264; // (the limiter's 6 ms look-ahead)
@@ -92,7 +93,30 @@ const CASES = [
     delete run.steps;
     await pg.close();
   }
-  await browser.close();
   fs.writeFileSync(CUES_OUT, JSON.stringify({ runs }) + '\n');
   console.log('wrote', path.relative(ROOT, CUES_OUT), `(${runs.length} runs)`);
+
+  // ---- the menu music's score: what each track asks to be played over a few minutes, for a seed and a key ----
+  const score = src
+    .replace('function mEp(m, f, t, dur, vel, pan) {', "function mEp(m, f, t, dur, vel, pan) { if (window.__mus) { window.__mus.push(['ep', f, t, dur, vel, pan]); return; }")
+    .replace('function mBell(m, f, t, vel, pan) {', "function mBell(m, f, t, vel, pan) { if (window.__mus) { window.__mus.push(['bell', f, t, vel, pan]); return; }")
+    .replace('function mGlass(m, f, t, vel, pan) {', "function mGlass(m, f, t, vel, pan) { if (window.__mus) { window.__mus.push(['glass', f, t, vel, pan]); return; }")
+    .replace('function mDrone(m, f, t, dur, vel) {', "function mDrone(m, f, t, dur, vel) { if (window.__mus) { window.__mus.push(['drone', f, t, dur, vel]); return; }")
+    .replace('function padTo(m, notes, t) {', "function padTo(m, notes, t) { if (window.__mus) { window.__mus.push(['pad', notes.slice(), t, m.step > 1]); return; }")
+    .replace('m.pad.out.gain.setTargetAtTime(m.padBase * (.7 + .3 * m.rng()), t, 2.2);', "if (window.__mus) window.__mus.push(['level', m.padBase * (.7 + .3 * m.rng()), t]); else m.pad.out.gain.setTargetAtTime(m.padBase * (.7 + .3 * m.rng()), t, 2.2);");
+  if (score.split('window.__mus.push').length !== 7) throw new Error('renderer/sound.js changed: the music hooks no longer fit');
+  const scores = [];
+  for (const [track, seed, shelf, theme] of [['drift', 1, 'gc', 'aero'], ['night', 7, 'ps4', 'aero'], ['glow', 3, 'sw', 'musicbox'], ['glow', 123456789, 'wii', 'melody'], ['drift', -5, 'media', 'aero'], ['lounge', 99, 'ps2', 'aero']]) {
+    const pg = await browser.newPage(); await pg.setContent('<html></html>'); await pg.addScriptTag({ content: score });
+    const events = await pg.evaluate(async ({ track, seed, key, theme }) => {
+      window.Sound.set(Object.assign({ theme }, key || { key: 0 })); window.__mus = [];
+      await window.Sound.renderMusic(track, 240, seed, .4);
+      return window.__mus;
+    }, { track, seed, key: KEYS[shelf], theme });
+    scores.push({ track, seed, shelf, theme, events });
+    await pg.close();
+  }
+  await browser.close();
+  fs.writeFileSync(MUSIC_OUT, JSON.stringify({ start: .05, seconds: 240, scores }) + '\n');
+  console.log('wrote', path.relative(ROOT, MUSIC_OUT), `(${scores.length} scores)`);
 })().catch(e => { console.error(e); process.exit(1); });
