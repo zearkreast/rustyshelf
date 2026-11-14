@@ -1,7 +1,7 @@
 //! What JS does with loosely typed values and paths, for reading the files other programs write the way the Electron
 //! app reads them.
 
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
@@ -113,26 +113,54 @@ pub fn encode_uri_component(s: &str) -> String {
     out
 }
 
-/// node's `path.normalize`, without the trailing separator it keeps.
-pub fn normalize(p: &str) -> PathBuf {
-    let mut out = PathBuf::new();
-    for c in Path::new(p).components() {
-        match c {
-            Component::CurDir => {}
-            Component::ParentDir => match out.components().next_back() {
-                Some(Component::Normal(_)) => {
-                    out.pop();
-                }
-                Some(Component::RootDir | Component::Prefix(_)) => {}
-                _ => out.push(".."),
-            },
-            c => out.push(c),
+fn is_sep(c: char) -> bool {
+    c == '/' || (cfg!(windows) && c == '\\')
+}
+
+/// A Windows path's drive (`C:`) or share (`\\\\server\\share`), and the rest; nothing on other systems.
+fn split_prefix(p: &str) -> (String, &str) {
+    if !cfg!(windows) {
+        return (String::new(), p);
+    }
+    let b = p.as_bytes();
+    if b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':' {
+        return (p[..2].to_string(), &p[2..]);
+    }
+    let mut c = p.chars();
+    if c.next().is_some_and(is_sep) && c.next().is_some_and(is_sep) && c.next().is_some_and(|x| !is_sep(x)) {
+        let mut names = p[2..].splitn(3, is_sep);
+        if let (Some(server), Some(share)) = (names.next(), names.next().filter(|s| !s.is_empty())) {
+            let used = 2 + server.len() + 1 + share.len();
+            return (format!("\\\\{server}\\{share}\\"), &p[used..]);
         }
     }
-    if out.as_os_str().is_empty() {
-        out.push(".");
+    (String::new(), p)
+}
+
+/// node's `path.normalize`, without the trailing separator it keeps.
+pub fn normalize(p: &str) -> PathBuf {
+    let (prefix, rest) = split_prefix(p);
+    let rooted = rest.starts_with(is_sep) || prefix.ends_with('\\');
+    let mut parts: Vec<&str> = Vec::new();
+    for seg in rest.split(is_sep) {
+        match seg {
+            "" | "." => {}
+            ".." => match parts.last() {
+                Some(l) if *l != ".." => {
+                    parts.pop();
+                }
+                _ if rooted => {}
+                _ => parts.push(".."),
+            },
+            seg => parts.push(seg),
+        }
     }
-    out
+    let mut out = prefix;
+    if rooted && !out.ends_with('\\') {
+        out.push(std::path::MAIN_SEPARATOR);
+    }
+    out.push_str(&parts.join(std::path::MAIN_SEPARATOR_STR));
+    PathBuf::from(if out.is_empty() { ".".to_string() } else { out })
 }
 
 /// node's `path.join`: the parts end to end (a later absolute one doesn't start over), then normalized.
@@ -317,6 +345,28 @@ mod tests {
         assert_eq!(join(&["", "x"]), "x");
         assert_eq!(join(&["", ""]), ".");
         assert_eq!(join(&["a", "../.."]), "..");
+        assert_eq!((join(&["/", ".."]), join(&["/a/", "b/"]), join(&["a//b", "."])), ("/".into(), "/a/b".into(), "a/b".into()));
         assert_eq!((basename("/a/b.tar.gz"), dirname("/a/b.c"), extname("/a/.b"), stem("/a/b.tar.gz")), ("b.tar.gz".into(), "/a".into(), "".into(), "b.tar".into()));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_paths() {
+        // as node's path.win32.join gives them
+        let cases: &[(&[&str], &str)] = &[
+            (&["C:/a", "b"], "C:\\a\\b"),
+            (&["C:\\a", "D:\\b"], "C:\\a\\D:\\b"),
+            (&["C:\\a\\", "..", "x"], "C:\\x"),
+            (&["\\\\srv\\share\\a", "..", "..", "b"], "\\\\srv\\share\\b"),
+            (&["C:", "x"], "C:\\x"),
+            (&["C:\\", ".."], "C:\\"),
+            (&["a", "../.."], ".."),
+            (&["//srv/share", "x"], "\\\\srv\\share\\x"),
+            (&["/x", "y"], "\\x\\y"),
+        ];
+        for (parts, want) in cases {
+            assert_eq!(join(parts), *want, "{parts:?}");
+        }
+        assert!(is_absolute("\\x") && is_absolute("/x") && is_absolute("C:\\x") && !is_absolute("C:x") && !is_absolute("x\\y"));
     }
 }

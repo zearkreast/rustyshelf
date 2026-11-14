@@ -80,12 +80,16 @@ pub fn folder_cover(dir_or_exe: &str) -> Option<PathBuf> {
         }
     }
     for s in [d.clone(), js::join(&[&d, "covers"]), js::join(&[&d, "art"]), js::join(&[&d, "media"])] {
+        // TODO: a picture with its extension in capitals (Cover.JPG) is never matched, as in main/pccovers.js, which
+        // takes the lower-cased extension off the name as written
         let pictures: Vec<(String, String)> = read_dir_sorted(Path::new(&s))
             .into_iter()
             .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
             .map(|e| e.file_name().to_string_lossy().into_owned())
-            .filter(|n| [".jpg", ".jpeg", ".png", ".webp"].contains(&js::extname(n).to_lowercase().as_str()))
-            .map(|n| (js::stem(&n).to_lowercase(), n))
+            .filter_map(|n| {
+                let ext = js::extname(&n).to_lowercase();
+                [".jpg", ".jpeg", ".png", ".webp"].contains(&ext.as_str()).then(|| (n.strip_suffix(&ext).filter(|stem| !stem.is_empty()).unwrap_or(&n).to_lowercase(), n.clone()))
+            })
             .collect();
         for name in &names {
             if let Some((_, file)) = pictures.iter().find(|(stem, _)| stem == name) {
@@ -105,7 +109,7 @@ mod tests {
         assert_eq!(safe_id("steam-12 34/X"), "steam-12-34-x");
         let t = tempfile::tempdir().unwrap();
         let d = t.path();
-        for f in ["pc-covers/steam-10.png", "pc-console-covers/epic-a.jpg", "pc-console-covers/epic-a-back.jpg", "game/Zeta.exe", "game/art/ZETA.PNG", "game/readme.txt"] {
+        for f in ["pc-covers/steam-10.png", "pc-console-covers/epic-a.jpg", "pc-console-covers/epic-a-back.jpg", "game/Zeta.exe", "game/art/ZETA.png", "game/Cover.JPG", "game/readme.txt"] {
             std::fs::create_dir_all(d.join(f).parent().unwrap()).unwrap();
             std::fs::write(d.join(f), b"").unwrap();
         }
@@ -118,7 +122,7 @@ mod tests {
         std::fs::write(d.join("pc-covers/steam-10.plat"), " xone\n").unwrap();
         assert_eq!(console_plat(d, "steam-10").as_deref(), Some("xone"));
         let exe = d.join("game/Zeta.exe");
-        assert_eq!(folder_cover(&exe.to_string_lossy()), Some(d.join("game/art/ZETA.PNG")));
+        assert_eq!(folder_cover(&exe.to_string_lossy()), Some(d.join("game/art/ZETA.png")));
         assert_eq!(folder_cover(&d.join("nope").to_string_lossy()), None);
     }
 }

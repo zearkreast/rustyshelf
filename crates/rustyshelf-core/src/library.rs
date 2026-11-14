@@ -224,20 +224,24 @@ impl Library {
         pc.extend(stores.into_iter().map(|g| art.pc_game(g)));
         // a game added by hand can sit on the PC shelf or on a console's, beside its ROMs: it's still started as its
         // own program. A console that's switched off sends its games back to Custom
-        let mut custom = Vec::new();
+        let (mut custom, mut back, mut moved): (Vec<Game>, Vec<Game>, HashMap<String, Vec<Game>>) = Default::default();
         for g in mine {
             let shelf = g.shelf.clone();
             let game = art.pc_game(g);
             match shelf.as_deref() {
                 None => custom.push(game),
                 Some("pc") => pc.push(game),
-                Some(id) => match (shelves.iter_mut().find(|s| s.id == id), systems().console(id).map(|c| (c, config.system(c))).filter(|(_, sc)| sc.enabled)) {
-                    (Some(shelf), Some(_)) => shelf.games.push(game),
-                    (None, Some((c, sc))) => {
-                        shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games: vec![game], kind: ShelfKind::Console { console: Box::new(c.clone()), config: sc } })
-                    }
-                    _ => custom.push(game),
-                },
+                Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(game),
+                Some(_) => back.push(game),
+            }
+        }
+        custom.extend(back);
+        // a console with neither an emulator nor a games folder gets a shelf for them, after the others
+        for c in &systems().consoles {
+            let Some(games) = moved.remove(&c.id) else { continue };
+            match shelves.iter_mut().find(|s| s.id == c.id) {
+                Some(shelf) => shelf.games.extend(games),
+                None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) } }),
             }
         }
         shelves.retain(|s| !s.games.is_empty());
@@ -302,7 +306,8 @@ mod tests {
             "steam": { "enabled": false },
             "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false, "custom": [
                 { "title": "On Custom", "exe": at("tools/a.exe") }, { "title": "On PC", "exe": at("tools/b.exe"), "shelf": "pc" },
-                { "title": "On SNES", "exe": at("tools/c.exe"), "shelf": "snes" }, { "title": "Console Off", "exe": at("tools/d.exe"), "shelf": "gc" } ] },
+                { "title": "On SNES", "exe": at("tools/c.exe"), "platform": "snes" }, { "title": "Console Off", "exe": at("tools/d.exe"), "shelf": "gc" },
+                { "title": "Ported", "exe": at("tools/a.exe"), "shelf": "xboxone" }, { "title": "No Emulator", "exe": format!(" {} ", at("tools/b.exe")), "shelf": "nes" } ] },
             "systems": { "snes": { "romDirs": [at("snes")] }, "gc": { "enabled": false } },
             "games": { "custom-on-pc": { "title": "Renamed" } },
             "apps": { "stremio": { "enabled": true, "path": at("tools/a.exe") }, "nuvio": { "enabled": false, "path": at("tools/b.exe") } },
@@ -311,6 +316,6 @@ mod tests {
         std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
-        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("media", vec!["Stremio"])]);
+        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("media", vec!["Stremio"])]);
     }
 }

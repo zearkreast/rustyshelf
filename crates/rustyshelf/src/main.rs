@@ -27,6 +27,7 @@ fn window_mode() -> WindowMode {
 }
 
 fn main() {
+    paths::quiet_drive_errors();
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {

@@ -426,7 +426,7 @@ pub fn xbox_roots() -> Vec<String> {
             Err(_) => None,
         };
         let dir = match rel.filter(|r| !r.is_empty()) {
-            Some(r) if Path::new(&r).is_absolute() => r,
+            Some(r) if js::is_absolute(&r) => r,
             Some(r) => js::join(&[&drive, &r]),
             None => js::join(&[&drive, "XboxGames"]),
         };
@@ -831,7 +831,7 @@ fn quiver4(root: &str) -> Vec<QuiverApp> {
             (None, Some(f)) => js::join(&[&[apps_dir.as_str()], grp.as_slice(), &[f]].concat()),
             _ => String::new(),
         };
-        let inside = |p: &str| if Path::new(p).is_absolute() { p.to_string() } else { js::join(&[&dir, p]) };
+        let inside = |p: &str| if js::is_absolute(p) { p.to_string() } else { js::join(&[&dir, p]) };
         let mut exe = js::filled(i.get("program")).map(inside).unwrap_or_default();
         if exe.is_empty() {
             if let Some(first) = i.get("executables").and_then(Value::as_array).and_then(|a| a.first()) {

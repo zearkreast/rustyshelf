@@ -296,3 +296,44 @@ fn settings_match_the_js_rules() {
         }
     }
 }
+
+// the consoles' program names are this platform's, and the fixture was written on Linux
+#[cfg(target_os = "linux")]
+#[test]
+fn setup_finds_what_the_js_finds() {
+    use rustyshelf_core::detect::{Detector, Found};
+    let fx = fixture("detect.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().to_string_lossy().into_owned();
+    for f in fx["files"].as_array().unwrap() {
+        let (rel, text) = match f {
+            Value::String(rel) => (rel.as_str(), ""),
+            pair => (pair[0].as_str().unwrap(), pair[1].as_str().unwrap()),
+        };
+        let p = tmp.path().join(rel);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(&p, text.replace("{home}", &home)).unwrap();
+    }
+    // only the folders under the home and the app, as when the fixture was written
+    let mut sys = systems().clone();
+    let own = |d: &String| d.starts_with("{app}") || d.starts_with("%HOME%");
+    sys.consoles.iter_mut().for_each(|c| c.emulator_folders.retain(own));
+    sys.apps.iter_mut().for_each(|a| a.folders.retain(own));
+    let det = Detector::with(&sys, &tmp.path().join("app"), |k| (k.eq_ignore_ascii_case("HOME")).then(|| home.clone()), Vec::new());
+
+    let found = |f: &Found| serde_json::json!({ "emulator": f.emulator, "emulators": f.emulators, "romDirs": f.rom_dirs });
+    let same = |what: &str, got: Value, want: &Value| assert_eq!(serde_json::to_string_pretty(&got).unwrap().replace(&home, "{home}"), serde_json::to_string_pretty(want).unwrap(), "{what}");
+    let all = det.detect_all();
+    let systems: serde_json::Map<String, Value> = all.systems.iter().map(|(id, f)| (id.clone(), found(f))).collect();
+    let apps: serde_json::Map<String, Value> = all.apps.iter().map(|(id, p)| (id.clone(), serde_json::json!({ "path": p }))).collect();
+    same("everything", serde_json::json!({ "systems": systems, "apps": apps, "retroarch": all.retroarch }), &fx["all"]);
+    for case in fx["systems"].as_array().unwrap() {
+        let id = case[0].as_str().unwrap();
+        same(id, det.detect_system(id).map_or(Value::Null, |f| found(&f)), &case[1]);
+    }
+    for (dir, key) in [("Portable", "inFolder"), ("nope", "inNothing")] {
+        let (hits, retroarch) = det.emulators_in(&format!("{home}/{dir}"));
+        let hits: serde_json::Map<String, Value> = hits.into_iter().map(|(id, p)| (id, Value::from(p))).collect();
+        same(key, serde_json::json!({ "systems": hits, "retroarch": retroarch }), &fx[key]);
+    }
+}

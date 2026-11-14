@@ -339,6 +339,32 @@ function settingsFixtures() {
   return out;
 }
 
+// a home folder with emulators and games folders in it, for what setup finds by itself ({home} = that folder; the app's
+// own folder is {home}/app). Only the folders under the home and the app are searched, so the answer is this tree's alone
+const DETECT = {
+  files: ['app/Emulators/Dolphin/dolphin-emu', 'Applications/Eden-v1.AppImage', 'Applications/DuckStation-x64.AppImage', '.local/bin/retroarch', 'Emulators/flycast/flycast',
+    'Emulators/retro/RetroArch-Linux.AppImage', 'Desktop/Emus/deep/gopher64', 'Desktop/Emus/deep/deeper/RMG', 'Desktop/node_modules/citron', 'Desktop/.hidden/citron', 'Desktop/stremio',
+    'Games/vita3k/Vita3K', ['Games/vita3k/config.yml', 'other: 1\npref-path: "../vitadata"  \n'], 'Games/vitadata/ux0/app/PCSE00000/eboot.bin', '.local/share/Vita3K/Vita3K/ux0/app/x',
+    ['.local/share/Vita3K/Vita3K/config.yml', "pref-path: '{home}/Elsewhere'\n"], 'Elsewhere/ux0/app/x',
+    'app/ROMS/gc/x', 'app/roms/GameCube/x', 'Games/roms/SNES/x', 'Emulation/roms/n64/x', 'Games/wii/x', 'Downloads/isos/PSX/x', 'Documents/games/Dreamcast/x', 'Documents/other/snes/x',
+    'Portable/a/b/c/d/dolphin-emu', 'Portable/a/b/c/d/e/citron', 'Portable/x/retroarch.AppImage', 'Portable/x/y/duckstation-qt'],
+  systems: ['gc', 'psvita', 'n64', 'nope'],
+};
+async function detectFixtures() {
+  const { CONSOLES, APPS } = require('../main/systems'), paths = require('../main/paths'), detect = require('../main/detect');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-home-')), was = { HOME: process.env.HOME, XDG: process.env.XDG_DATA_HOME, root: paths.appRoot() };
+  for (const f of DETECT.files) { const [rel, text] = Array.isArray(f) ? f : [f, '']; const p = path.join(home, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text.split('{home}').join(home)); }
+  process.env.HOME = home; delete process.env.XDG_DATA_HOME; paths.setAppRoot(path.join(home, 'app'));
+  const own = d => /^(\{app\}|%HOME%)/.test(d), kept = [...CONSOLES.map(c => [c, 'emulatorFolders']), ...APPS.map(a => [a, 'folders'])].map(([o, k]) => [o, k, o[k]]);
+  for (const [o, k, v] of kept) o[k] = v.filter(own);
+  const all = await detect.detectAll(), out = { files: DETECT.files, all: { systems: all.systems, apps: all.apps, retroarch: all.retroarch },
+    systems: DETECT.systems.map(id => [id, detect.detectSystem(id)]), inFolder: detect.emulatorsIn(path.join(home, 'Portable')), inNothing: detect.emulatorsIn(path.join(home, 'nope')) };
+  for (const [o, k, v] of kept) o[k] = v;
+  process.env.HOME = was.HOME; if (was.XDG != null) process.env.XDG_DATA_HOME = was.XDG; paths.setAppRoot(was.root);
+  fs.rmSync(home, { recursive: true, force: true });
+  return JSON.parse(JSON.stringify(out).split(home).join('{home}'));
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'emunames.json'), JSON.stringify(EMUS.map(p => { const n = require('../shared/emuname'); return { path: p, label: n.label(p), parts: n.parts(p), known: n.knownName(p) }; }), null, 1) + '\n');
 fs.writeFileSync(path.join(OUT, 'settings.json'), JSON.stringify(settingsFixtures(), null, 1) + '\n');
@@ -347,6 +373,7 @@ fs.writeFileSync(path.join(OUT, 'scan.json'), JSON.stringify(scanFixtures(), nul
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'detect.json'), JSON.stringify(await detectFixtures(), null, 1) + '\n');
   console.log('wrote', path.relative(ROOT, OUT));
   process.exit(0); // (the folder-size measure it queued would keep the process waiting)
 });

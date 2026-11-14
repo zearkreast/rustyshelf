@@ -30,7 +30,8 @@ fn punct_rank(c: char) -> u32 {
 fn folded(s: &str) -> Vec<char> {
     use unicode_normalization::UnicodeNormalization;
     let mut out = Vec::with_capacity(s.len());
-    for c in s.nfd() {
+    // compatibility forms too, as ICU compares them: ™ as TM, ﬁ as fi, ² as 2, full-width letters as plain ones
+    for c in s.nfkd() {
         if ('\u{300}'..='\u{36f}').contains(&c) {
             continue;
         }
@@ -118,6 +119,9 @@ mod tests {
         let mut v = vec!["Zuma", "Šachy", "S.T.A.L.K.E.R.: X", "S!X", "S:X", "Portal 2", "Outlast", "Ōkami HD", "Œuvre", "Ärger"];
         v.sort_by(|a, b| compare_plain(a, b));
         assert_eq!(v, ["Ärger", "Œuvre", "Ōkami HD", "Outlast", "Portal 2", "S:X", "S!X", "S.T.A.L.K.E.R.: X", "Šachy", "Zuma"]);
+        let mut v = vec!["Foo™", "Foob", "Foo", "ﬁx", "fiz", "Pokemon2", "Pokémon²", "Pokemon 2"];
+        v.sort_by(|a, b| compare_plain(a, b));
+        assert_eq!(v, ["ﬁx", "fiz", "Foo", "Foob", "Foo™", "Pokemon 2", "Pokemon2", "Pokémon²"]);
         let mut v = vec!["A$b", "A#b", "A&b", "A/b", "A(b", "A?b", "A;b", "A,b", "A-b", "A_b", "A b"];
         v.sort_by(|a, b| compare_plain(a, b));
         assert_eq!(v, ["A b", "A_b", "A-b", "A,b", "A;b", "A?b", "A(b", "A/b", "A&b", "A#b", "A$b"]);

@@ -455,9 +455,12 @@ fn needs_admin(exe: &Path) -> bool {
 fn elevated_script(exe: &str, args: &[String]) -> String {
     // one PowerShell string: a quote inside is doubled
     let q = |s: &str| format!("'{}'", s.replace('\'', "''"));
+    // the program's folder, as Windows names it: a drive's root keeps its separator
     let dir = match exe.rfind(['\\', '/']) {
         Some(0) => &exe[..1],
+        Some(2) if exe.as_bytes()[1] == b':' => &exe[..3],
         Some(i) => &exe[..i],
+        None if exe.as_bytes().get(1) == Some(&b':') => &exe[..2],
         None => ".",
     };
     let list = if args.is_empty() { String::new() } else { format!("-ArgumentList @({}) ", args.iter().map(|a| q(a)).collect::<Vec<_>>().join(",")) };
@@ -700,6 +703,7 @@ mod tests {
             elevated_script("C:\\Games\\It's\\a.exe", &["-x".into(), "it's".into()]),
             "$p = Start-Process -FilePath 'C:\\Games\\It''s\\a.exe' -WorkingDirectory 'C:\\Games\\It''s' -Verb RunAs -ArgumentList @('-x','it''s') -PassThru; $p.WaitForExit()"
         );
+        assert!(elevated_script("D:\\game.exe", &[]).contains("-WorkingDirectory 'D:\\' "));
         assert_eq!(elevated_script("a.exe", &[]), "$p = Start-Process -FilePath 'a.exe' -WorkingDirectory '.' -Verb RunAs -PassThru; $p.WaitForExit()");
     }
 

@@ -13,16 +13,37 @@ static VAR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"%([^%]+)%").unwrap()
 
 /// Fills in `{app}` and `%VAR%` (any case; an unknown variable stays as written).
 pub fn expand(p: &str, app_root: &Path) -> String {
+    expand_with(p, app_root, &env_var)
+}
+
+/// An environment variable by its name in any case, as Windows reads them.
+pub fn env_var(name: &str) -> Option<String> {
+    let want = name.to_lowercase();
+    env::vars_os().find(|(k, _)| k.to_string_lossy().to_lowercase() == want).map(|(_, v)| v.to_string_lossy().into_owned())
+}
+
+/// `expand` with the variables looked up by `var`.
+pub fn expand_with(p: &str, app_root: &Path, var: &dyn Fn(&str) -> Option<String>) -> String {
     let root = app_root.to_string_lossy();
     let p = APP.replace_all(p, |_: &Captures| root.to_string());
-    VAR.replace_all(&p, |c: &Captures| {
-        let want = c[1].to_lowercase();
-        env::vars_os()
-            .find(|(k, _)| k.to_string_lossy().to_lowercase() == want)
-            .map(|(_, v)| v.to_string_lossy().into_owned())
-            .unwrap_or_else(|| c[0].to_string())
-    })
-    .into_owned()
+    VAR.replace_all(&p, |c: &Captures| var(&c[1]).unwrap_or_else(|| c[0].to_string())).into_owned()
+}
+
+/// Windows: a drive with nothing in it (an empty card reader, an optical drive) fails quietly when it's looked at,
+/// instead of raising "There is no disk in the drive". Called once as the app starts.
+pub fn quiet_drive_errors() {
+    #[cfg(windows)]
+    {
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn SetErrorMode(mode: u32) -> u32;
+        }
+        const SEM_FAILCRITICALERRORS: u32 = 1;
+        // SAFETY: a kernel32 call that only sets this process's error mode
+        unsafe {
+            SetErrorMode(SEM_FAILCRITICALERRORS);
+        }
+    }
 }
 
 pub fn is_dir(p: &Path) -> bool {
