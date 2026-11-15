@@ -93,6 +93,8 @@ pub struct Museum {
     walls: [(Vec3, f32); 3],
     /// walking through the arcade
     walk: Option<crate::arcade::Walk>,
+    /// each shelf's games that have a case, for this visit
+    kept: Vec<(usize, Vec<usize>)>,
 }
 
 impl Museum {
@@ -110,13 +112,37 @@ impl Museum {
     }
 }
 
-/// The museum's games as the room plan takes them: each console's and the PC shelves' games, with their first genre.
-fn entries(lib: &rustyshelf_core::library::Library) -> Vec<rustyshelf_core::museum_plan::Entry> {
-    lib.shelves
+/// Each museum shelf's games that get a case, by shelf: every game, or for a very big library a share of them
+/// (museum_plan::pick: favourites and the most played first).
+fn kept(lib: &rustyshelf_core::library::Library, plays: &rustyshelf_core::history::History) -> Vec<(usize, Vec<usize>)> {
+    let favs: std::collections::HashSet<&str> = lib.config.raw().get("ui").and_then(|u| u.get("favorites")).and_then(|f| f.as_array()).map(|f| f.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
+    let shelves: Vec<(usize, Vec<usize>)> = lib
+        .shelves
         .iter()
-        .filter(|s| matches!(s.kind, ShelfKind::Console { .. } | ShelfKind::Pc))
-        .flat_map(|s| {
-            s.games.iter().filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| rustyshelf_core::museum_plan::Entry {
+        .enumerate()
+        .filter(|(_, s)| matches!(s.kind, ShelfKind::Console { .. } | ShelfKind::Pc))
+        .map(|(si, s)| (si, s.games.iter().enumerate().filter(|(_, g)| !matches!(g.source, Source::Tile(_))).map(|(i, _)| i).collect::<Vec<_>>()))
+        .filter(|(_, g)| !g.is_empty())
+        .collect();
+    let n = shelves.len();
+    shelves
+        .into_iter()
+        .map(|(si, games)| {
+            let s = &lib.shelves[si];
+            let fav: Vec<bool> = games.iter().map(|&i| favs.contains(s.games[i].id.as_str())).collect();
+            let count: Vec<u64> = games.iter().map(|&i| plays.get(&s.games[i].id).map_or(0, |p| p.count)).collect();
+            let keep = rustyshelf_core::museum_plan::pick(&fav, &count, n);
+            (si, keep.into_iter().map(|k| games[k]).collect())
+        })
+        .collect()
+}
+
+/// The museum's games as the room plan takes them: each kept game, with its shelf as its system and its first genre.
+fn entries(lib: &rustyshelf_core::library::Library, kept: &[(usize, Vec<usize>)]) -> Vec<rustyshelf_core::museum_plan::Entry> {
+    kept.iter()
+        .flat_map(|(si, games)| {
+            let s = &lib.shelves[*si];
+            games.iter().map(|&i| &s.games[i]).map(|g| rustyshelf_core::museum_plan::Entry {
                 id: g.id.clone(),
                 system: s.id.clone(),
                 genre: g.info.as_ref().and_then(|i| i.genres.as_deref()).and_then(|x| x.split(';').next()).unwrap_or("").to_string(),
@@ -143,13 +169,12 @@ fn build(
 ) {
     m.rows.clear();
     // what stands on the walls: (wall, the shelf, its games' places there)
-    let museum_shelves = |s: &rustyshelf_core::library::Shelf| matches!(s.kind, ShelfKind::Console { .. } | ShelfKind::Pc);
     let groups: Vec<(usize, usize, Vec<usize>)> = match m.plan.as_ref().and_then(|p| p.rooms.get(m.room)) {
         Some(room) => {
             let mut at = std::collections::HashMap::new();
-            for (si, s) in lib.shelves.iter().enumerate().filter(|(_, s)| museum_shelves(s)) {
-                for (gi, g) in s.games.iter().enumerate() {
-                    at.entry(g.id.as_str()).or_insert((si, gi));
+            for (si, games) in &m.kept {
+                for &gi in games {
+                    at.entry(lib.shelves[*si].games[gi].id.as_str()).or_insert((*si, gi));
                 }
             }
             room.segments
@@ -161,14 +186,7 @@ fn build(
                 })
                 .collect()
         }
-        None => lib
-            .shelves
-            .iter()
-            .enumerate()
-            .filter(|(_, s)| museum_shelves(s))
-            .map(|(si, s)| (0, si, s.games.iter().enumerate().filter(|(_, g)| !matches!(g.source, Source::Tile(_))).map(|(i, _)| i).collect::<Vec<_>>()))
-            .filter(|g| !g.2.is_empty())
-            .collect(),
+        None => m.kept.iter().map(|(si, games)| (0, *si, games.clone())).collect(),
     };
     let wood = materials.add(StandardMaterial { base_color: Color::srgb(0.23, 0.15, 0.1), perceptual_roughness: 0.55, ..default() });
     let wall = materials.add(StandardMaterial { base_color: Color::srgb(0.09, 0.1, 0.14), perceptual_roughness: 0.95, ..default() });
@@ -311,6 +329,7 @@ pub struct Others<'w, 's> {
     inspect: Res<'w, crate::shelf::Inspect>,
     reader: Res<'w, crate::reader::Reader>,
     shelf_camera: Query<'w, 's, &'static mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
+    plays: Res<'w, crate::play::Plays>,
 }
 
 /// Opens the museum (M on the shelf), takes the keys while it's open, and moves through it.
@@ -356,7 +375,8 @@ pub fn run(
             m.select_since = None;
             m.open = true;
             m.grouping = l.config.raw().get("ui").and_then(|u| u.get("museumStyle")).and_then(|x| x.get("grouping")).and_then(|g| g.as_str()).unwrap_or("classic").to_string();
-            m.plan = (m.grouping != "classic").then(|| rustyshelf_core::museum_plan::plan_museum(&entries(l), &m.grouping));
+            m.kept = kept(l, &others.plays.0);
+            m.plan = (m.grouping != "classic").then(|| rustyshelf_core::museum_plan::plan_museum(&entries(l, &m.kept), &m.grouping));
             // the room the game under the cursor is in
             let here = l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).map(|g| g.id.clone());
             m.room = match (&m.plan, here) {

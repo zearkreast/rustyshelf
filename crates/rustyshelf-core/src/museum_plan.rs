@@ -286,6 +286,24 @@ pub fn rooms_for_system(plan: &Plan, system: &str) -> Vec<String> {
     plan.rooms.iter().filter(|r| r.segments.iter().any(|s| s.system == sys)).map(|r| r.id.clone()).collect()
 }
 
+/// (Haseosama's fork) The games of one of `shelves` museum shelves that get a case: all of them, or for a big
+/// library its share of 6,000 cases (60 to 300), favourites first, then the most played, then the rest in their
+/// order, kept in that order. `fav` and `plays` are each game's, in the shelf's order. Keep in sync with
+/// renderer/app.js musPick.
+pub fn pick(fav: &[bool], plays: &[u64], shelves: usize) -> Vec<usize> {
+    let cap = (6000 / shelves.max(1)).clamp(60, 300);
+    let n = fav.len();
+    if n <= cap {
+        return (0..n).collect();
+    }
+    let score = |i: usize| (if fav[i] { 1e9 } else { 0.0 }) + plays.get(i).copied().unwrap_or(0) as f64 * 1e3 - i as f64 / 1e6;
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|a, b| score(*b).total_cmp(&score(*a)));
+    order.truncate(cap);
+    order.sort_unstable();
+    order
+}
+
 // ---------- the arcade wing ----------
 
 /// An arcade room's cabinets: the usual, and the least and most a player can choose.
@@ -469,4 +487,25 @@ pub fn plan_arcade(entries: &[Entry], cap: Option<f64>) -> Arcade {
     }
     let by_game = rooms.iter().flat_map(|r| r.game_ids.iter().enumerate().map(|(i, id)| (id.clone(), (r.id.clone(), i)))).collect();
     Arcade { cap, rooms, corridor_end, walls, by_game }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_big_shelf_keeps_its_favourites_and_most_played() {
+        // two shelves: up to 300 each
+        assert_eq!(pick(&[false; 10], &[0; 10], 2), (0..10).collect::<Vec<_>>());
+        let mut fav = vec![false; 400];
+        let mut plays = vec![0u64; 400];
+        fav[399] = true;
+        plays[350] = 5;
+        let kept = pick(&fav, &plays, 2);
+        assert_eq!(kept.len(), 300);
+        assert!(kept.contains(&399) && kept.contains(&350) && kept.contains(&0) && !kept.contains(&299));
+        assert!(kept.windows(2).all(|w| w[0] < w[1]));
+        // a hundred shelves: 60 each, never fewer
+        assert_eq!(pick(&vec![false; 500], &[], 100).len(), 60);
+    }
 }
