@@ -1,6 +1,6 @@
 //! Accounts: RetroAchievements (the account's name and web API key, whether each console's emulator is signed in
 //! to it, and a game's achievements in Details), the player's SteamGridDB and Steam Web API keys and their
-//! ScreenScraper account.
+//! ScreenScraper account. Xbox 360 achievements and PS3 trophies come from Xenia's and RPCS3's own files instead.
 
 use std::sync::Arc;
 
@@ -8,7 +8,7 @@ use rustyshelf_core::ra::Ra;
 use rustyshelf_core::screenscraper::{Creds, ScreenScraper};
 use rustyshelf_core::steamach::SteamAch;
 use rustyshelf_core::steamgrid::SteamGrid;
-use rustyshelf_core::{raemu, seal};
+use rustyshelf_core::{raemu, rpcs3troph, seal, xeniaach};
 
 use super::*;
 
@@ -145,6 +145,35 @@ impl Settings {
             };
             rows.push(Row { label: format!("{name} · {}", r.emulator), value: state, hint: r.detail, ..Row::default() });
         }
+        // Xenia's and RPCS3's own achievements, with the switch for each one's pop-up in game
+        let own: [(&str, &str, &str); 2] = [("x360", "Xenia", "Xbox 360"), ("ps3", "RPCS3", "PS3")];
+        for (system, emulator, name) in own {
+            let Some(exe) = self.own_ach_emulator(system) else { continue };
+            let (state, popups, detail) = if system == "x360" { xeniaach::status(&exe, &paths::env_var) } else { rpcs3troph::status(&exe) };
+            let value = match state {
+                "ok" => "Ready",
+                "signed-out" => "Not signed in",
+                _ => "Unknown",
+            };
+            let hint = if detail.is_empty() { format!("{emulator} keeps the {} on this PC: no account needed.", if system == "ps3" { "trophies" } else { "achievements" }) } else { detail };
+            rows.push(Row { label: format!("{name} · {emulator}"), value: value.into(), hint, ..Row::default() });
+            if state == "ok" {
+                rows.push(Row {
+                    label: format!("{emulator}'s own pop-up"),
+                    value: if popups { "On" } else { "Off" }.into(),
+                    hint: format!("{emulator} shows an achievement as it's earned. Close {emulator} first: it writes its settings back when it quits."),
+                    press: Some(Box::new(move |s: &mut Settings| {
+                        let Some(exe) = s.own_ach_emulator(system) else { return };
+                        let done = if system == "x360" { xeniaach::set_popups(&exe, !popups, &paths::env_var) } else { rpcs3troph::set_popups(&exe, !popups) };
+                        match done {
+                            Ok(_) => s.say(format!("{emulator}'s pop-up: {}", if popups { "Off" } else { "On" })),
+                            Err(why) => s.say(why),
+                        }
+                    })),
+                    step: None,
+                });
+            }
+        }
         let sgdb = self.api_key("steamgriddb");
         let typed_sgdb = |s: &mut Settings| {
             s.edit(
@@ -253,11 +282,31 @@ impl Settings {
         Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover. Steam: your achievements on the Trophies screen. ScreenScraper: box scans by region.".into(), rows }
     }
 
+    /// The emulator a console with achievements of its own uses (Xenia for Xbox 360, on Windows; RPCS3 for PS3),
+    /// when one is set up.
+    pub(super) fn own_ach_emulator(&self, system: &str) -> Option<std::path::PathBuf> {
+        if !matches!(system, "ps3" | "x360") || (system == "x360" && !cfg!(windows)) {
+            return None;
+        }
+        let exe = self.text(&["systems", system, "emulator"]);
+        (!exe.is_empty()).then(|| rustyshelf_core::launch::emu_path(&exe, &self.app_root))
+    }
+
     /// Asks for the chosen game's achievements (again, when `force`).
     pub(super) fn load_achievements(&mut self, force: bool) {
         let Some(c) = &self.chosen else { return };
         let (shelf, title, id) = (c.console.clone(), c.game.title.clone(), c.game.id.clone());
         self.achievements = None;
+        if let Some(exe) = self.own_ach_emulator(&shelf) {
+            let (file, title_id, cache) = (c.game.file.clone(), c.game.title_id.clone().unwrap_or_default(), paths::data_dir(&self.app_root).join("trophy-packs"));
+            let (tx, rx) = std::sync::mpsc::channel();
+            self.ra_answer = Some(Mutex::new(rx));
+            std::thread::spawn(move || {
+                let got = if shelf == "x360" { xeniaach::progress(&exe, &title_id, &paths::env_var) } else { rpcs3troph::progress(&exe, &title, &file, Some(&cache), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)) };
+                let _ = tx.send(RaAnswer::Progress(id, Ok(got)));
+            });
+            return;
+        }
         if let Some(appid) = self.steam_app().map(String::from) {
             let given = self.text(&["steam", "path"]);
             let (tx, rx) = std::sync::mpsc::channel();
@@ -279,6 +328,17 @@ impl Settings {
             // (a Steam game with none kept here has no row at all)
             let p = self.achievements.as_ref().filter(|a| a.0 == c.game.id)?.1.as_ref().ok()?.as_ref()?;
             return Some(format!("{} of {}{}", p["earned"], p["total"], if p["mastered"] == "completed" { " · Completed" } else { "" }));
+        }
+        if self.own_ach_emulator(&c.console).is_some() {
+            let ps3 = c.console == "ps3";
+            return Some(match self.achievements.as_ref().filter(|a| a.0 == c.game.id) {
+                None => "…".into(),
+                Some((_, Ok(Some(p)))) if ps3 => format!("{} of {} · {}", p["earned"], p["total"], p["grades"].as_str().unwrap_or("")),
+                Some((_, Ok(Some(p)))) => format!("{} of {} · {} of {} G{}", p["earned"], p["total"], p["pointsEarned"], p["points"], if p["mastered"] == "completed" { " · Completed" } else { "" }),
+                Some((_, Ok(None))) if ps3 => "No trophies found yet".into(),
+                Some((_, Ok(None))) => "Nothing recorded yet".into(),
+                Some((_, Err(_))) => "Couldn't be read".into(),
+            });
         }
         rustyshelf_core::ra::console_id(&c.console)?;
         if self.ra_account().1.is_empty() {
@@ -304,11 +364,18 @@ impl Settings {
         const SORTS: [&str; 3] = ["Order", "Rarity", "Points"];
         let title = self.chosen.as_ref().map_or(String::new(), |c| c.game.title.clone());
         let steam = self.steam_app().is_some();
-        let again = if steam { "Reads your progress again from what Steam keeps on this PC." } else { "Reads your progress from RetroAchievements now." };
+        let own = self.chosen.as_ref().filter(|c| self.own_ach_emulator(&c.console).is_some()).map(|c| if c.console == "ps3" { "RPCS3" } else { "Xenia" });
+        let again = match own {
+            Some(emu) => format!("Reads your progress again from what {emu} keeps on this PC."),
+            None if steam => "Reads your progress again from what Steam keeps on this PC.".into(),
+            None => "Reads your progress from RetroAchievements now.".into(),
+        };
         let sort = self.ach_sort % SORTS.len();
-        let mut rows = vec![Row { label: "Ask again".into(), hint: again.into(), press: Some(Box::new(|s: &mut Settings| s.load_achievements(true))), ..Row::default() }];
+        let mut rows = vec![Row { label: "Ask again".into(), hint: again, press: Some(Box::new(|s: &mut Settings| s.load_achievements(true))), ..Row::default() }];
         let lead = match self.achievements.as_ref().map(|a| &a.1) {
-            None if steam => "Reading Steam's files…".into(),
+            None if own.is_some() || steam => format!("Reading {}'s files…", own.unwrap_or("Steam")),
+            Some(Ok(None)) if own == Some("Xenia") => "Xenia has nothing for this game yet: it records achievements once the game has run with a profile signed in.".into(),
+            Some(Ok(None)) if own.is_some() => "No trophies found: RPCS3 has none for this game yet, and the game has no trophy pack of its own.".into(),
             None => "Asking RetroAchievements…".into(),
             Some(Err(why)) => why.clone(),
             Some(Ok(None)) if steam => "Steam keeps no achievements for this game on this PC yet.".into(),
@@ -331,7 +398,11 @@ impl Settings {
                     rows.push(Row { label: format!("— {label} · {} —", list.len()), ..Row::default() });
                     rows.extend(list.into_iter().map(|a| achievement_row(a, steam)));
                 }
-                if steam {
+                if own == Some("RPCS3") {
+                    format!("{} of {} earned · {}", p["earned"], p["total"], p["grades"].as_str().unwrap_or(""))
+                } else if own.is_some() {
+                    format!("{} of {} earned · {} of {} G", p["earned"], p["total"], p["pointsEarned"], p["points"])
+                } else if steam {
                     format!("{} of {} earned, as Steam keeps them on this PC", p["earned"], p["total"])
                 } else {
                     format!("{} of {} earned · {} of {} points", p["earned"], p["total"], p["pointsEarned"], p["points"])
@@ -400,7 +471,13 @@ fn achievement_sections<'a>(all: &[&'a Value], sort: usize) -> Vec<(&'static str
 fn achievement_row(a: &Value, steam: bool) -> Row {
     let earned = a["earned"] == true;
     let rarity = a["rarity"].as_f64();
-    let value = if steam { if earned { "Earned" } else { "" }.into() } else { format!("{}{}", a["points"], if a["hardcore"] == true { " · hardcore" } else { "" }) };
+    let value = if steam {
+        if earned { "Earned" } else { "" }.into()
+    } else if let Some(grade) = a["grade"].as_str() {
+        grade.to_string()
+    } else {
+        format!("{}{}", a["points"], if a["hardcore"] == true { " · hardcore" } else { "" })
+    };
     let hint = [
         a["desc"].as_str().unwrap_or("").to_string(),
         kind(a).to_string(),

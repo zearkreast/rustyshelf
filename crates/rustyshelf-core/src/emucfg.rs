@@ -106,6 +106,13 @@ fn write_ini(f: &str, text: &str, ini: &Ini) -> std::io::Result<()> {
     })
 }
 
+/// A settings file of an emulator's own written again: its one-time backup made first, then a temporary file takes
+/// its place.
+pub(crate) fn write_keeping_copy(f: &Path, text: &str) -> Result<(), String> {
+    let f = f.to_string_lossy();
+    write_ini(&f, text, &Ini { src: String::new(), bom: false, is_new: false }).map_err(|e| e.to_string())
+}
+
 // ---------- Eden and its forks (Switch, Switch 2) ----------
 
 /// Each fork keeps its own settings folder (main/emucfg.js EDEN_FORKS).

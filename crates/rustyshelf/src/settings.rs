@@ -1803,7 +1803,12 @@ impl Settings {
                     open("Collections", String::new(), "This game on shelves of your own", Screen::GameCollections),
                 ];
                 if let Some(line) = self.achievements_line() {
-                    let whose = if matches!(g.source, Source::Steam { .. }) { "Your Steam achievements for this game, read from Steam's own files on this PC" } else { "Your RetroAchievements for this game" };
+                    let whose = match (&g.source, c.console.as_str()) {
+                        (Source::Steam { .. }, _) => "Your Steam achievements for this game, read from Steam's own files on this PC",
+                        (_, "x360") if self.own_ach_emulator("x360").is_some() => "Your Xbox 360 achievements for this game, read from Xenia's own files on this PC",
+                        (_, "ps3") if self.own_ach_emulator("ps3").is_some() => "Your trophies for this game, read from RPCS3's own files on this PC",
+                        _ => "Your RetroAchievements for this game",
+                    };
                     rows.push(open("Achievements", line, whose, Screen::Achievements));
                 }
                 if !g.art.manual.is_empty() {
