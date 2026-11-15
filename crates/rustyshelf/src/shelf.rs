@@ -137,6 +137,94 @@ pub struct Slot {
 #[derive(Component)]
 pub struct Turning;
 
+/// Inspect: the chosen case held up to be turned and looked at from every side.
+#[derive(Resource)]
+pub struct Inspect {
+    pub on: bool,
+    /// how it's turned, in degrees: round, and tipped toward the eye
+    yaw: f32,
+    pitch: f32,
+    zoom: f32,
+    /// how far it's held up, from 0 (on the shelf) to 1
+    held: Eased,
+}
+
+impl Default for Inspect {
+    fn default() -> Self {
+        Inspect { on: false, yaw: 0.0, pitch: 0.0, zoom: 1.0, held: Eased::at(0.0) }
+    }
+}
+
+/// seconds a case takes up into the hand and back
+const HOLD_UP: f32 = 0.45;
+/// degrees a second a held direction turns the case
+const SPIN: f32 = 150.0;
+
+#[derive(Component)]
+pub struct InspectKeys;
+
+/// Inspect's keys: V or the right stick's click holds the chosen case up; the arrows or a stick turn it, F shows
+/// its other side, Page Up and Page Down (or the triggers) bring it nearer and further; Enter plays it, Escape
+/// puts it back.
+pub fn inspect(
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
+    pads: Query<&Gamepad>,
+    lib: Res<LibraryRes>,
+    cursor: Res<Cursor>,
+    playing: Res<crate::play::Playing>,
+    mut settings: ResMut<crate::settings::Settings>,
+    mut sounds: ResMut<crate::sound::Sounds>,
+    mut inspect: ResMut<Inspect>,
+    mut hint: Query<(&mut Visibility, &mut Text), With<InspectKeys>>,
+) {
+    let (now, dt) = (time.elapsed_secs(), time.delta_secs());
+    let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
+    let (confirm, back) = settings.confirm();
+    let game = matches!(&lib.0, LibraryState::Ready(l) if l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).is_some_and(|g| !matches!(g.source, Source::Tile(_))));
+    let toggle = keys.just_pressed(KeyCode::KeyV) || pad(GamepadButton::RightThumb);
+    let held = inspect.held.now(now, HOLD_UP, EASE);
+    if !inspect.on {
+        if toggle && game && !settings.open && !settings.keys_taken && !settings.just_closed && playing.title.is_none() {
+            *inspect = Inspect { on: true, held: Eased { from: held, to: 1.0, since: now }, ..Inspect::default() };
+            sounds.play("open", 1);
+        }
+    } else {
+        settings.keys_taken = true;
+        let stick = pads.iter().map(|p| p.left_stick() + p.right_stick() + p.dpad()).find(|v| v.length() > 0.3).unwrap_or(Vec2::ZERO);
+        let turn = Vec2::new(
+            (keys.pressed(KeyCode::ArrowRight) as i32 - keys.pressed(KeyCode::ArrowLeft) as i32) as f32 + stick.x,
+            (keys.pressed(KeyCode::ArrowUp) as i32 - keys.pressed(KeyCode::ArrowDown) as i32) as f32 + stick.y,
+        )
+        .clamp(Vec2::splat(-1.0), Vec2::splat(1.0));
+        inspect.yaw = (inspect.yaw + turn.x * SPIN * dt).rem_euclid(360.0);
+        inspect.pitch = (inspect.pitch - turn.y * SPIN * 0.6 * dt).clamp(-70.0, 70.0);
+        if keys.just_pressed(KeyCode::KeyF) || pad(GamepadButton::North) {
+            inspect.yaw = (inspect.yaw + 180.0).rem_euclid(360.0);
+            sounds.play("flip", 1);
+        }
+        let near = (keys.pressed(KeyCode::PageUp) || pads.iter().any(|p| p.pressed(GamepadButton::RightTrigger2))) as i32 - (keys.pressed(KeyCode::PageDown) || pads.iter().any(|p| p.pressed(GamepadButton::LeftTrigger2))) as i32;
+        inspect.zoom = (inspect.zoom + near as f32 * dt).clamp(0.7, 1.5);
+        let play = keys.just_pressed(KeyCode::Enter) || pad(confirm);
+        if play || toggle || !game || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) {
+            (inspect.on, inspect.held) = (false, Eased { from: held, to: 0.0, since: now });
+            sounds.play("back", 1);
+            // (the key that put it back isn't the shelf's too)
+            settings.just_closed = true;
+            settings.play = play && game;
+        }
+    }
+    if let Ok((mut seen, mut text)) = hint.single_mut() {
+        seen.set_if_neq(if inspect.on { Visibility::Inherited } else { Visibility::Hidden });
+        if inspect.on && text.0.is_empty() || inspect.is_changed() && inspect.on {
+            let keys = format!("◀ ▶ ▲ ▼  Turn      F · {}  Other side      PgUp · PgDn  Nearer, further      Enter · {}  Play      Esc · {}  Put it back", settings.cap("tri"), settings.cap("x"), settings.cap("o"));
+            if text.0 != keys {
+                text.0 = keys;
+            }
+        }
+    }
+}
+
 /// A layer that looks one way on the chosen case and another on the rest: the plastic over a cover, a spine's
 /// shading.
 #[derive(Component)]
@@ -894,8 +982,10 @@ pub fn arrange(
     mut turning: Query<(&mut Transform, &Children), With<Turning>>,
     mut either: Query<(&Either, &mut MeshMaterial3d<StandardMaterial>)>,
     mut worn: Query<&mut Visibility, (With<OnChosen>, Without<Slot>)>,
+    inspect: Res<Inspect>,
 ) {
     let now = time.elapsed_secs();
+    let held = inspect.held.now(now, HOLD_UP, EASE);
     for (mut s, mut t, mut seen, children) in &mut slots {
         let chosen = s.index == cursor.game;
         let to = place(s.index, cursor.game, &stage);
@@ -913,10 +1003,15 @@ pub fn arrange(
         t.translation = Vec3::new(at.x, 0.0, at.z);
         t.rotation = Quat::from_rotation_y(at.ry.to_radians());
         t.scale = Vec3::splat(stage.bh);
+        if chosen && held > 0.0 {
+            // up from its place into the hand: nearer, a little higher, facing the eye
+            t.translation = t.translation.lerp(Vec3::new(0.0, stage.bh * 0.13, stage.bw * (1.75 + (inspect.zoom - 1.0) * 1.6)), held);
+            t.rotation = Quat::from_rotation_y((at.ry * (1.0 - held)).to_radians());
+        }
         seen.set_if_neq(if s.index.abs_diff(cursor.game) <= IN_VIEW { Visibility::Visible } else { Visibility::Hidden });
 
         let film = s.dim.now(now, 0.45, EASE);
-        s.dim.head_for(if chosen { 0.0 } else { 0.34 }, film, now);
+        s.dim.head_for(if chosen { 0.0 } else if inspect.on { 0.72 } else { 0.34 }, film, now);
         if let Some(mut m) = materials.get_mut(&s.front) {
             let want = Color::srgb(1.0 - film, 1.0 - film, 1.0 - film);
             if m.base_color != want {
@@ -938,6 +1033,9 @@ pub fn arrange(
         for child in children.iter() {
             let Ok((mut turn, parts)) = turning.get_mut(child) else { continue };
             turn.rotation = Quat::from_rotation_y(angle.to_radians());
+            if chosen && held > 0.0 {
+                turn.rotation = Quat::from_euler(EulerRot::XYZ, (inspect.pitch * held).to_radians(), (angle + inspect.yaw * held).to_radians(), 0.0);
+            }
             for part in parts.iter() {
                 if let Ok((looks, mut m)) = either.get_mut(part) {
                     let want = &looks.0[usize::from(!chosen)];
@@ -946,7 +1044,8 @@ pub fn arrange(
                     }
                 }
                 if let Ok(mut seen) = worn.get_mut(part) {
-                    seen.set_if_neq(if chosen { Visibility::Inherited } else { Visibility::Hidden });
+                    // (its light on the floor and its mirror image stay on the shelf)
+                    seen.set_if_neq(if chosen && held == 0.0 { Visibility::Inherited } else { Visibility::Hidden });
                 }
             }
         }

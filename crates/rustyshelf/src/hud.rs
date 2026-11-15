@@ -106,7 +106,8 @@ pub struct Prompts {
 const FONT: &[u8] = include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf");
 
 pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
-    commands.insert_resource(Face(fonts.add(Font::from_bytes(FONT.to_vec()))));
+    let face = fonts.add(Font::from_bytes(FONT.to_vec()));
+    commands.insert_resource(Face(face.clone()));
     let lexend = Lexend([300, 400, 500, 600, 700, 800].map(|w| fonts.add(Font::from_bytes(rustyshelf_core::drawn::lexend(w).to_vec()))));
     let text = |line: Line, weight: u32, size: f32, color: Color, spacing: f32| (line, Text::default(), lexend.font(weight, size), TextColor(color), LetterSpacing::Px(spacing * size));
     commands.spawn((
@@ -179,6 +180,11 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
                     BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
                     BorderColor::all(LINE),
                 )]
+            ),
+            // Inspect's keys, in their place
+            (
+                Node { position_type: PositionType::Absolute, bottom: px(32), width: percent(100), justify_content: JustifyContent::Center, ..default() },
+                children![(crate::shelf::InspectKeys, Text::default(), TextFont::from_font_size(FontSize::Px(12.0)).with_font(face), TextColor(INK), Visibility::Hidden)]
             ),
         ],
     ));
@@ -508,6 +514,7 @@ pub fn hints(
     mut prompts: ResMut<Prompts>,
     mut bar: Query<(Entity, &mut Visibility), With<Hints>>,
     mut shown: Local<Option<(bool, pads::Glyphs, bool)>>,
+    inspect: Res<crate::shelf::Inspect>,
 ) {
     // the phone's remote isn't a controller of its own: the prompts stay those of the pad there is
     let own = |name: Option<&Name>| name.is_none_or(|n| n.as_str() != crate::phone::REMOTE);
@@ -542,7 +549,7 @@ pub fn hints(
     }
     let Ok((bar, mut seen)) = bar.single_mut() else { return };
     let any = matches!(&lib.0, LibraryState::Ready(l) if !l.shelves.is_empty());
-    seen.set_if_neq(if settings.open || !any { Visibility::Hidden } else { Visibility::Inherited });
+    seen.set_if_neq(if settings.open || inspect.on || !any { Visibility::Hidden } else { Visibility::Inherited });
     let now = (prompts.pad, settings.glyphs(), settings.swap());
     if *shown == Some(now) {
         return;

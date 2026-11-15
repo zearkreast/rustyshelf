@@ -687,6 +687,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   face button confirms and the bottom one goes back, on every screen. A pad Windows shows as an Xbox 360 one is
   asked about as the Electron app asks: the real controllers plugged in (USB or Bluetooth) say whether a
   PlayStation or Switch pad is behind Steam Input or DS4Windows.
+- Has a first Inspect (V, or the right stick's click): the chosen case comes up off the shelf to be turned
+  freely with the arrows or a stick, tipped, flipped to its other side and brought nearer or further; Enter
+  plays it, Escape puts it back. The case doesn't open yet.
 - Has the Art Studio's picker (Details → Box art): for a console game's front, back, spine and disc, every
   version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps), the picture in use
   and the ones replaced before it, the best for the console's style first by the Electron app's own points
@@ -706,7 +709,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 rest of the Art Studio (a style for each console and the re-pick it starts, complete sets,
-ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
@@ -725,6 +728,7 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Change console | ↑ / ↓ | LT / RT |
 | Play | Enter | A |
 | Turn the case round | F | Y |
+| Inspect: hold the case up and turn it freely | V | Right stick click |
 | Favorite | H | hold Y |
 | Details | I | X |
 | Sort and filter (the shelf's menu) | G | Menu |

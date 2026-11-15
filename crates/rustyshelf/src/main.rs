@@ -61,6 +61,7 @@ fn main() {
         .init_resource::<shelf::Backdrop>()
         .init_resource::<shelf::Moving>()
         .init_resource::<shelf::Customs>()
+        .init_resource::<shelf::Inspect>()
         .init_resource::<play::Playing>()
         .init_resource::<play::Plays>()
         .init_resource::<play::Surprise>()
@@ -85,6 +86,7 @@ fn main() {
                 phone::run,
                 home::run,
                 reader::run,
+                shelf::inspect,
                 settings::input,
                 play::navigate,
                 sound::run,
