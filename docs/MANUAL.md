@@ -772,9 +772,17 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   and Settings' text boxes, and Play starts the game as pressing A on its case would, closing what's open first.
   The PC's address is the adapter its traffic leaves by, or one on a 192.168 network when that's a VPN; the
   Electron app's list of virtual adapters to pass over isn't used.
+- Has the museum (M, or View / Minus held on a pad): the whole collection on lit shelving, the picture lights
+  coming on row by row as you walk in (any key skips it), then the wide view with a gold frame on one shelf. A
+  shelf ends with a stand-in console and a brass plaque of its games and plays; a pulled case turns its cover to
+  you with a gallery card beside it, and Enter plays it, the museum coming back when the game ends. Settings'
+  museum grouping lays it out in rooms by maker or genre ([ and ], or L1 and R1, for the next room); classic keeps
+  one long wall. W (Y on a pad) walks into the arcade wing, a room per genre with a cabinet per arcade game, and
+  the reading corner's Magazines and Strategy guides racks open an issue in the reader. A big library keeps up to
+  6,000 cases, favourites and the most played first.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, opening the case in Inspect (its disc and its manual inside), the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
