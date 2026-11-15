@@ -2270,15 +2270,33 @@ async function raDetails(g,force){
 // or when there's no set (Y used to start a second download then, or fetch the "no set" answer again)
 const achReady=()=>!$("dAch").hidden&&/^(ok|err)$/.test($("dAch").dataset.state||"");
 function achAct(){if(!achReady())return false;if($("dAch").dataset.state==="err"){const g=curGame();if(g)raDetails(g,true)}else openAchievements();return true}
-const ach={open:false,items:[],all:[],sel:0,filter:"all",p:null};
+const ach={open:false,items:[],all:[],sel:0,filter:"all",p:null,sort:"order"};
 const ACH_TABS=[["all","All"],["got","Unlocked"],["locked","Locked"]];
+/* (beta.12) the list is a wall of badges with a card beside it for the one you're on (full title and description, points,
+   rarity, when it was unlocked, story / missable). Each badge's rim says how rare it is (the share of players who have it) */
+const ACH_SORTS=[["order","Order"],["rarity","Rarity"],["points","Points"]];
+const achTier=r=>r==null?null:r<3?["ultra","Ultra rare"]:r<10?["rare","Rare"]:r<40?["uncommon","Uncommon"]:["common","Common"];
+const achType=t=>{t=String(t||"").toLowerCase();return t==="progression"?["story","Story"]:t==="win_condition"?["win","Beats the game"]:t==="missable"?["miss","Missable"]:null};
+function achDate(s){if(!s)return "";const d=new Date(String(s).replace(" ","T"));return isNaN(d)?String(s).slice(0,10):d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}
+function achSorted(list){const L=list.slice();if(ach.sort==="rarity")L.sort((a,b)=>(a.rarity??101)-(b.rarity??101));else if(ach.sort==="points")L.sort((a,b)=>b.points-a.points);return L}
+function achSortStep(){const i=ACH_SORTS.findIndex(s=>s[0]===ach.sort);ach.sort=ACH_SORTS[(i+1)%ACH_SORTS.length][0];const keep=ach.items[ach.sel];achList();
+  const j=keep?ach.items.indexOf(keep):-1;ach.sel=j<0?0:j;achSelect();achHints();play_("tick")} /* (the one you were on stays selected, wherever it moved to) */
+/* the card: what the badge wall can't say */
+function achCard(){const c=$("achCard"),a=ach.items[ach.sel];if(!c)return;if(!a){c.hidden=true;return}c.hidden=false;
+  if(c._a===a)return;c._a=a;const tier=achTier(a.rarity),type=achType(a.type);c.dataset.tier=tier?tier[0]:"";c.classList.toggle("locked",!a.earned);
+  c.querySelector(".ach-big").src=achImg(a);c.querySelector(".ach-card-t").textContent=a.title;c.querySelector(".ach-card-d").textContent=a.desc||"";
+  c.querySelector(".ach-tier").textContent=tier?tier[1]:"";
+  const f=c.querySelector(".ach-facts");f.innerHTML="";[["Points",a.points?String(a.points):"—"],["Players",a.rarity!=null?a.rarity+"%":"—"],["Status",a.earned?"Unlocked"+(a.hardcore?" · hardcore":""):"Locked"]].forEach(([k,v])=>{const d=document.createElement("div");const s=document.createElement("small");s.textContent=k;const b=document.createElement("b");b.textContent=v;d.append(s,b);f.append(d)});
+  c.querySelector(".ach-when").textContent=a.earned&&a.date?"Unlocked "+achDate(a.date):"";
+  c.querySelector(".ach-rare i").style.transform=`scaleX(${a.rarity!=null?Math.max(.02,Math.min(1,a.rarity/100)):0})`;
+  const tg=c.querySelector(".ach-tags");tg.innerHTML="";if(type){const s=document.createElement("span");s.className="ach-tag "+type[0];s.textContent=type[1];tg.append(s)}}
 async function openAchievements(){
   const g=curGame(),s=shelfFor(g),pc=isPcAch(g);if(!pc&&(!raHas(s)||!g||g.kind!=="rom")||ach.open||ach.busy)return;
   let p=pc?(PCA.has(g.id)?PCA.get(g.id):await pcAch(g)):RA.game.get(s.id+"|"+g.title);if(pc&&!p)return;if(p===undefined){toast("Loading achievements…");ach.busy=true;try{p=await api.raProgress(s.id,g.title,true);RA.game.set(s.id+"|"+g.title,p||false)}catch(e){toast(e&&e.message||"RetroAchievements didn't answer");if(mode==="details"&&curGame()===g)raRow("err","Achievements didn't load",e&&e.message||"RetroAchievements didn't answer.","Try again");return}finally{ach.busy=false}
     if(mode==="details"&&curGame()===g)raDetails(g)} // the Details row catches up with what just came in
   if(!p){toast(`RetroAchievements has no set for ${g.title} yet`);return}
   if(curGame()!==g||(mode!=="browse"&&mode!=="details")||qm.open||sysBusy())return;
-  ach.open=true;ach.p=p;ach.all=p.achievements;ach.filter="all";
+  ach.open=true;pvHold();ach.p=p;ach.all=p.achievements;ach.filter="all";
   const ic=$("achIcon");if(p.icon){ic.src=p.icon;ic.hidden=false}else ic.hidden=true;
   $("achTitle").textContent=p.title;$("achBar").style.width=(p.total?100*p.earned/p.total:0)+"%";
   $("achSub").textContent=`${p.earned} of ${p.total} unlocked · ${p.total-p.earned} still locked${p.points?` · ${p.pointsEarned} / ${p.points} points`:""}${p.mastered?" · "+p.mastered:""}${p.source?" · "+p.source:""}`;
@@ -2288,24 +2306,49 @@ async function openAchievements(){
 // the list's prompts: buttons, like the shelf's, so a mouse can switch tabs and close it (it had no way out with a mouse);
 // redrawn when you switch between controller and keyboard (renderHints)
 function achHints(){const pad=showPad(),h=$("achHints");h.innerHTML="";
-  [[pad?["L1","R1"]:["Q","E"],"All · Unlocked · Locked",()=>achTab(ach.filter==="locked"?-2:1)],[pad?["dpad"]:["↑","↓"],"Browse",null],[pad?["o"]:["Esc"],"Close",()=>closeAchievements()]].forEach(([keys,label,act])=>{const b=document.createElement("button");b.type="button";b.className="hint";b.innerHTML=keys.map(k=>pad?glyph(k):`<span class="g">${k}</span>`).join("");b.append(document.createTextNode(label));if(act)b.addEventListener("click",act);else b.tabIndex=-1;h.append(b)})}
+  [[pad?["L1","R1"]:["Q","E"],"All · Unlocked · Locked",()=>achTab(ach.filter==="locked"?-2:1)],[pad?["tri"]:["S"],"Sort: "+(ACH_SORTS.find(s=>s[0]===ach.sort)||ACH_SORTS[0])[1],()=>achSortStep()],[pad?["dpad"]:["←","→"],"Browse",null],[pad?["o"]:["Esc"],"Close",()=>closeAchievements()]].forEach(([keys,label,act])=>{const b=document.createElement("button");b.type="button";b.className="hint";b.innerHTML=keys.map(k=>pad?glyph(k):`<span class="g">${k}</span>`).join("");b.append(document.createTextNode(label));if(act)b.addEventListener("click",act);else b.tabIndex=-1;h.append(b)})}
 // the list for the chosen tab; opening lands on the first locked one (the next to go for)
+/* (beta.12) the badge's own picture: a locked one is dimmed here (RetroAchievements' "_lock" copy is already grey, and
+   dimming that again made it muddy) */
+const achImg=a=>String(a.badge||"").replace(/_lock(\.png)$/i,"$1");
+/* the wall in sections: All has a trophy shelf of what you've unlocked (newest first) over the rest; Order splits the rest
+   into Story, Missable and everything else, Rarity into its tiers */
+function achSections(list){const f=ach.filter,S=[];
+  if(f==="all"){S.push({key:"shelf",label:"Your trophies",shelf:true,items:list.filter(a=>a.earned).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))});list=list.filter(a=>!a.earned)}
+  const L=achSorted(list),kind=a=>{const t=achType(a.type);return t?t[0]:""},rest=f==="all"?"Still to unlock":f==="got"?"Unlocked":"Locked";
+  if(ach.sort==="rarity")[["ultra","Ultra rare"],["rare","Rare"],["uncommon","Uncommon"],["common","Common"],["none","No rarity yet"]].forEach(([k,l])=>{const it=L.filter(a=>(achTier(a.rarity)||["none"])[0]===k);if(it.length)S.push({key:k,label:l,items:it})});
+  else if(ach.sort==="order"){const st=L.filter(a=>kind(a)==="story"||kind(a)==="win"),mi=L.filter(a=>kind(a)==="miss"),ot=L.filter(a=>!st.includes(a)&&!mi.includes(a));
+    if(st.length)S.push({key:"story",label:"Story",items:st});if(mi.length)S.push({key:"miss",label:"Missable",items:mi});if(ot.length)S.push({key:"rest",label:st.length||mi.length?"Everything else":rest,items:ot})}
+  else if(L.length)S.push({key:"rest",label:rest,items:L});
+  return S}
+function achTile(a,i){const t=document.createElement("div"),tier=achTier(a.rarity),type=achType(a.type);t.className="ach"+(a.earned?"":" locked")+(type&&type[0]==="miss"?" miss":"");t.dataset.i=i;if(tier)t.dataset.tier=tier[0];
+  t.title=a.title;t.setAttribute("role","button");t.setAttribute("aria-label",`${a.title}, ${a.points?a.points+" points, ":""}${a.earned?"unlocked":"locked"}${tier?", "+tier[1].toLowerCase():""}`);
+  const im=new Image();im.src=achImg(a);im.alt="";im.loading="lazy";im.decoding="async";t.append(im);
+  t.addEventListener("click",()=>{if(ach.sel===i)return;ach.sel=i;achSelect();play_("tick")});return t}
 function achList(first){
-  const all=ach.all,f=ach.filter;ach.items=f==="got"?all.filter(a=>a.earned):f==="locked"?all.filter(a=>!a.earned):all;
-  ach.sel=first?Math.max(0,ach.items.findIndex(a=>!a.earned)):0;if(ach.sel<0)ach.sel=0;
+  const all=ach.all,f=ach.filter,secs=achSections(f==="got"?all.filter(a=>a.earned):f==="locked"?all.filter(a=>!a.earned):all.slice());ach.items=secs.flatMap(s=>s.items);
+  ach.sel=first?Math.max(0,ach.items.findIndex(a=>!a.earned)):0;if(ach.sel<0)ach.sel=0;ach.shown=-1;ach.tiles=[];
   const tabs=$("achTabs");tabs.innerHTML="";ACH_TABS.forEach(([id,label])=>{const n=id==="got"?all.filter(a=>a.earned).length:id==="locked"?all.filter(a=>!a.earned).length:all.length;
-    const b=document.createElement("button");b.type="button";b.className="ach-tab"+(id===f?" on":"");b.textContent=`${label} ${n}`;b.addEventListener("click",()=>{if(ach.filter!==id){ach.filter=id;achList();achSelect();play_("tick")}});tabs.append(b)});
-  const list=$("achList");list.innerHTML="";list.scrollTop=0;
-  if(!ach.items.length){const e=document.createElement("div");e.className="ach-empty";e.textContent=f==="got"?"Nothing unlocked yet. Every achievement is under Locked.":"All unlocked. Nothing left to earn here.";list.append(e);return}
-  ach.items.forEach((a,i)=>{const row=document.createElement("div");row.className="ach"+(a.earned?"":" locked")+(i===ach.sel?" sel":"");row.dataset.i=i;
-    const im=new Image();if(a.badge)im.src=a.badge;im.alt="";im.loading="lazy";
-    const main=document.createElement("div");main.className="ach-main";const b=document.createElement("b");b.textContent=a.title;const d=document.createElement("span");d.textContent=a.desc;
-    const meta=document.createElement("div");meta.className="ach-meta";meta.textContent=(a.earned?"Unlocked "+(a.date?a.date.slice(0,10):"")+(a.hardcore?" · hardcore":""):"Locked")+(a.rarity!=null?` · ${a.rarity}% of players`:"");
-    main.append(b,d,meta);const pts=document.createElement("div");pts.className="ach-pts";pts.textContent=a.points?a.points+" pts":"";row.append(im,main,pts);row.addEventListener("click",()=>{ach.sel=i;achSelect()});list.append(row)});
+    const b=document.createElement("button");b.type="button";b.className="ach-tab"+(id===f?" on":"");b.innerHTML=`<span></span> <em>${n}</em>`;b.firstChild.textContent=label;b.addEventListener("click",()=>{if(ach.filter!==id){ach.filter=id;achList();achSelect();play_("tick")}});tabs.append(b)});
+  const list=$("achList");list.innerHTML="";list.scrollTop=0;const c=$("achCard");if(c)c._a=null;
+  const fr=document.createDocumentFragment();let i=0;
+  secs.forEach(s=>{const h=document.createElement("div");h.className="ach-sec"+(s.shelf?" top":"");h.innerHTML="<span></span><em></em>";h.firstChild.textContent=s.label;h.lastChild.textContent=String(s.items.length);fr.append(h);
+    if(s.shelf){const sh=document.createElement("div");sh.className="ach-shelf";const row=document.createElement("div");row.className="ach-shelf-row";
+      if(!s.items.length){const e=document.createElement("div");e.className="ach-shelf-empty";e.innerHTML="<i></i><span>Your first unlock goes here</span>";row.append(e)}
+      s.items.forEach(a=>{const t=achTile(a,i++);ach.tiles.push(t);row.append(t)});sh.append(row);fr.append(sh);return}
+    s.items.forEach(a=>{const t=achTile(a,i++);ach.tiles.push(t);fr.append(t)})});
+  if(!ach.items.length||(f==="all"&&!all.some(a=>!a.earned))){const e=document.createElement("div");e.className="ach-empty";e.textContent=f==="got"?"Nothing unlocked yet. Every achievement is under Locked.":"All unlocked. Nothing left to earn here.";fr.append(e)}
+  list.append(fr);if(!ach.items.length&&c)c.hidden=true;
 }
 function achTab(d){const i=ACH_TABS.findIndex(t=>t[0]===ach.filter);const n=Math.max(0,Math.min(ACH_TABS.length-1,i+d));if(n===i)return;ach.filter=ACH_TABS[n][0];achList();achSelect();play_("tick")}
-function achSelect(){const rows=$("achList").children;[...rows].forEach((r,i)=>r.classList.toggle("sel",i===ach.sel));const r=rows[ach.sel];if(r)r.scrollIntoView({block:"nearest"})}
-function achMove(d){if(!ach.items.length)return;const cols=Math.max(1,(getComputedStyle($("achList")).gridTemplateColumns||"").split(" ").filter(Boolean).length); /* the grid's own column count (auto-fill, 300px min + gap): width/310 rounded up a column at 1280 wide, so ↓ went diagonally */ach.sel=Math.max(0,Math.min(ach.items.length-1,ach.sel+d*cols));achSelect();play_("tick")}
+function achSelect(){const T=ach.tiles||[];if(ach.shown>=0&&T[ach.shown])T[ach.shown].classList.remove("sel"); /* (only the one that was on: a move touches two badges, not the whole wall) */
+  const t=T[ach.sel];if(t){t.classList.add("sel");t.scrollIntoView({block:"nearest",inline:"nearest"})}ach.shown=ach.sel;achCard()}
+/* up / down: the badge in the row above or below that's nearest across (the wall has sections and a shelf, so not a fixed
+   column count); read from where the badges are, once per press */
+function achMove(d){const T=ach.tiles||[],c=T[ach.sel];if(!c)return;const r=c.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,hh=r.height/2;let best=-1,bd=Infinity,bx=Infinity;
+  /* (centres, half a badge of slack: the selected one is lifted and scaled, so its top isn't its row's) */
+  T.forEach((t,i)=>{if(i===ach.sel)return;const q=t.getBoundingClientRect(),dy=d>0?q.top+q.height/2-cy:cy-q.top-q.height/2;if(dy<hh)return;const dx=Math.abs(q.left+q.width/2-cx);if(dy<bd-hh||(Math.abs(dy-bd)<=hh&&dx<bx)){bd=dy;bx=dx;best=i}});
+  if(best<0)return;ach.sel=best;achSelect();play_("tick")}
 function achSide(d){if(!ach.items.length)return;ach.sel=Math.max(0,Math.min(ach.items.length-1,ach.sel+d));achSelect();play_("tick")}
 function closeAchievements(){if(!ach.open)return;ach.open=false;const el=$("achv");el.classList.remove("on");el.setAttribute("aria-hidden","true");mode=$("details").getAttribute("aria-hidden")==="false"?"details":"browse";renderHints();sfx.back()} // the bar may have been redrawn for "achv" meanwhile (a switch of input)
 function showUnlocks(list){
@@ -3923,7 +3966,7 @@ addEventListener("keydown",e=>{
     else if(k==="Escape"||k==="Backspace"||k==="t"||k==="T"){if(!e.repeat&&!((k==="Escape"||k==="Backspace")&&czClosePick()))closeCustomize()}else if(k==="F11")api.toggleFullscreen();else return;e.preventDefault();return}
   if(mode==="note"){e.preventDefault();setInput("kbd");const k=e.key;if(e.repeat)return;if(k==="ArrowLeft"||k==="ArrowUp"||(k==="Tab"&&e.shiftKey))noteMove(-1);else if(k==="ArrowRight"||k==="ArrowDown"||k==="Tab")noteMove(1);else if(k==="Enter"||k===" ")notePick();else if(k==="Escape"||k==="Backspace")noteClose();return} // (beta.7) the note card
   if(mode==="troph"){const k=e.key;setInput("kbd");if(k==="q"||k==="Q"||(k==="Tab"&&e.shiftKey)){e.preventDefault();troTab(-1)}else if(k==="e"||k==="E"||k==="Tab"){e.preventDefault();troTab(1)}else if(k==="ArrowDown")troMove(1);else if(k==="ArrowUp")troMove(-1);else if(k==="ArrowRight")troSide(1);else if(k==="ArrowLeft")troSide(-1);else if(k==="r"||k==="R"){if(!e.repeat)openTrophies(true)}else if(k==="Escape"||k==="Backspace"||k==="Enter"){if(!e.repeat)closeTrophies()}else return;e.preventDefault();return}
-  if(mode==="achv"){const k=e.key;setInput("kbd");if(k==="q"||k==="Q"||(k==="Tab"&&e.shiftKey)){e.preventDefault();achTab(-1)}else if(k==="e"||k==="E"||k==="Tab"){e.preventDefault();achTab(1)}else if(k==="ArrowDown")achMove(1);else if(k==="ArrowUp")achMove(-1);else if(k==="ArrowRight")achSide(1);else if(k==="ArrowLeft")achSide(-1);else if(k==="Escape"||k==="Backspace"||k==="Enter"){if(!e.repeat)closeAchievements()}else return;e.preventDefault();return}
+  if(mode==="achv"){const k=e.key;setInput("kbd");if(k==="q"||k==="Q"||(k==="Tab"&&e.shiftKey)){e.preventDefault();achTab(-1)}else if(k==="e"||k==="E"||k==="Tab"){e.preventDefault();achTab(1)}else if(k==="s"||k==="S"){if(!e.repeat)achSortStep()}else if(k==="ArrowDown")achMove(1);else if(k==="ArrowUp")achMove(-1);else if(k==="ArrowRight")achSide(1);else if(k==="ArrowLeft")achSide(-1);else if(k==="Escape"||k==="Backspace"||k==="Enter"){if(!e.repeat)closeAchievements()}else return;e.preventDefault();return}
   // (beta.7) Details' More menu: up / down walk it, Enter picks (Esc closes it, through back())
   if(mode==="details"&&!$("dMenu").hidden){const dir={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"up",ArrowRight:"down"}[e.key];if(dir){e.preventDefault();setInput("kbd");padNav($("dMenu"),dir);return}if(e.key==="Enter"||e.key===" "){e.preventDefault();if(!e.repeat&&!padActivate($("dMenu"))&&document.activeElement&&$("dMenu").contains(document.activeElement))document.activeElement.click();return}}
   const k=e.key;let handled=true;setInput("kbd");
@@ -4237,7 +4280,7 @@ function pollBody(t){
     if(mode==="achv"){
       if(v&&!prevBtn.v){setInput("pad");achMove(v)}if(h&&!prevBtn.h){setInput("pad");achSide(h)}prevBtn.v=!!v;prevBtn.h=!!h;
       const ry2=ax[3]||0;if(Math.abs(ry2)>.5&&t-(prevBtn.achT||0)>140){prevBtn.achT=t;achMove(ry2>0?1:-1)}
-      edge(gp,4,()=>achTab(-1));edge(gp,5,()=>achTab(1));edge(gp,1,()=>closeAchievements());edge(gp,0,()=>closeAchievements());return;
+      edge(gp,4,()=>achTab(-1));edge(gp,5,()=>achTab(1));edge(gp,3,()=>{setInput("pad");achSortStep()});edge(gp,1,()=>closeAchievements());edge(gp,0,()=>closeAchievements());return;
     }
     const padActive=gp.buttons.some(b=>b&&b.pressed)||ax.some(a=>Math.abs(a)>.2);
     if(mode==="museum"){if(padActive)setInput("pad");museumPad(gp,t,B,ax);return}
