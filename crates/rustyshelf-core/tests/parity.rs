@@ -737,16 +737,37 @@ fn game_info_matches_the_js_lookup() {
 fn themes_match_the_js() {
     use rustyshelf_core::themes;
     let fx = fixture("themes.json");
-    let ours: Vec<Value> = themes::themes().iter().map(|t| serde_json::json!({ "id": t.id, "name": t.name })).collect();
-    assert_eq!(Value::from(ours), fx["themes"]);
+    // the Electron app's own themes (its extra themes are beta.14's here: themes14.json)
+    let fx14 = fixture("themes14.json");
+    let extra: Vec<&str> = fx14["themes"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
+    let own: Vec<Value> = fx["themes"].as_array().unwrap().iter().filter(|t| !extra.contains(&t["id"].as_str().unwrap()) && !fx14["retired"].get(t["id"].as_str().unwrap()).is_some()).cloned().collect();
+    let ours: Vec<Value> = themes::themes().iter().map(|t| serde_json::json!({ "id": t.id, "name": t.name })).take(own.len()).collect();
+    assert_eq!(Value::from(ours), Value::from(own));
     for (old, now) in fx["alias"].as_object().unwrap() {
         assert_eq!(themes::id_of(old), now.as_str().unwrap());
     }
     assert_eq!(themes::id_of("no such theme"), "spectrum");
-    for t in fx["tints"].as_array().unwrap() {
+    for t in fx["tints"].as_array().unwrap().iter().filter(|t| !extra.contains(&t["id"].as_str().unwrap()) && fx14["retired"].get(t["id"].as_str().unwrap()).is_none()) {
         let (id, sh, hue, song) = (t["id"].as_str().unwrap(), t["sh"].as_f64().unwrap(), t["hue"].as_f64().unwrap(), t["song"].as_f64());
         assert_eq!(themes::tint(id, sh, hue, song), t["css"].as_str().unwrap(), "{id} at {sh}");
         assert_eq!(themes::halo(id, sh, song), t["halo"].as_f64().unwrap(), "{id} at {sh}");
+    }
+}
+
+#[test]
+fn beta14_themes_match_the_js() {
+    use rustyshelf_core::themes;
+    let fx = fixture("themes14.json");
+    let ids: Vec<String> = themes::themes().iter().map(|t| t.id.clone()).skip_while(|id| id != "cube").collect();
+    assert_eq!(Value::from(ids), fx["themes"]);
+    for (old, now) in fx["retired"].as_object().unwrap() {
+        assert_eq!(themes::id_of(old), now.as_str().unwrap());
+    }
+    for t in fx["tints"].as_array().unwrap() {
+        let (id, sh) = (t["id"].as_str().unwrap(), t["sh"].as_f64().unwrap());
+        assert_eq!(themes::tint(id, sh, 40.0, None), t["css"].as_str().unwrap(), "{id} at {sh}");
+        // (serde_json reads a long float a last digit off)
+        assert!((themes::halo(id, sh, None) - t["halo"].as_f64().unwrap()).abs() < 1e-9, "{id} at {sh}");
     }
 }
 

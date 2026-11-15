@@ -93,3 +93,15 @@ fn timing() {
         println!("{}: {:?} whole, {:?} at a quarter", t.id, full, a.elapsed());
     }
 }
+
+/// Writes each theme's backdrop as a PNG into the folder `THEMES_OUT` names, for looking at them.
+#[test]
+#[ignore]
+fn look() {
+    let dir = std::path::PathBuf::from(std::env::var("THEMES_OUT").unwrap());
+    for t in rustyshelf_core::themes::themes() {
+        let css = rustyshelf_core::themes::tint(&t.id, 258.0, 40.0, None);
+        let p = cssbg::paint(&css, 640, 360, 1.0);
+        image::save_buffer(dir.join(format!("{}.png", t.id)), &p.rgba, p.width, p.height, image::ExtendedColorType::Rgba8).unwrap();
+    }
+}

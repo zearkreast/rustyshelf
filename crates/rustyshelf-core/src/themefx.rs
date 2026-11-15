@@ -173,7 +173,7 @@ pub struct Layer {
 
 /// Whether a theme has anything moving.
 pub fn moves(theme: &str) -> bool {
-    matches!(crate::themes::id_of(theme), "spectrum" | "keys" | "arcade" | "aurora" | "midnight" | "blueshift" | "swirl" | "forest" | "crt" | "vhs" | "synth")
+    matches!(crate::themes::id_of(theme), "spectrum" | "keys" | "arcade" | "aurora" | "midnight" | "blueshift" | "swirl" | "forest" | "synth")
 }
 
 impl Layer {
@@ -243,8 +243,6 @@ impl Layer {
             "blueshift" => self.blue_shift(),
             "swirl" => self.swirl(),
             "forest" => self.forest(),
-            "crt" => self.crt(),
-            "vhs" => self.vhs(),
             "synth" => self.synth(),
             _ => {}
         }
@@ -511,35 +509,6 @@ impl Layer {
             let size = (h * 0.006).max(1.5);
             self.c.glow(x, y, size * 2.4, vec![stop(0.0, rgba(226, 255, 150, 0.12 + blink * 0.6)), stop(1.0, rgba(160, 255, 90, 0.0))]);
         }
-    }
-
-    /// CRT: a pale bar rolling slowly down the tube.
-    fn crt(&mut self) {
-        let (w, h) = (self.w, self.h);
-        let (y, tall) = (((self.t * 0.085) % 1.4 - 0.2) * h, h * 0.22);
-        let bar = down(y - tall / 2.0, y + tall / 2.0, vec![stop(0.0, rgba(255, 255, 255, 0.0)), stop(0.5, hsl(self.hue.round(), 40.0, 80.0, 0.055)), stop(1.0, rgba(255, 255, 255, 0.0))]);
-        self.c.rect(0.0, y - tall / 2.0, w, tall, bar);
-    }
-
-    /// VHS: light snow, different specks every frame, and now and then a tracking band rolling up.
-    fn vhs(&mut self) {
-        let (w, h) = (self.w, self.h);
-        for _ in 0..40 {
-            let (x, y, len) = (self.rng.next() * w, self.rng.next() * h, 1.0 + self.rng.next() * 2.5);
-            self.c.rect(x, y, len, 1.0, Shader::SolidColor(rgba(230, 235, 255, 0.10)));
-        }
-        let phase = self.t % 7.3;
-        if phase > 1.4 {
-            return;
-        }
-        let (y, band) = (h * (1.05 - phase / 1.4 * 1.1), h * 0.05);
-        for _ in 0..7 {
-            let (yy, x0) = (y + (self.rng.next() - 0.5) * band, self.rng.next() * w * 0.3);
-            let (a, short, tall) = (0.06 + self.rng.next() * 0.12, self.rng.next() * w * 0.2, 1.0 + self.rng.next() * 2.0);
-            self.c.rect(x0, yy, w - x0 - short, tall, Shader::SolidColor(rgba(235, 240, 255, a)));
-        }
-        self.c.rect(0.0, y - band * 0.6, w, band * 0.5, Shader::SolidColor(rgba(255, 40, 120, 0.05)));
-        self.c.rect(0.0, y + band * 0.1, w, band * 0.5, Shader::SolidColor(rgba(40, 200, 255, 0.05)));
     }
 
     /// Synthwave: stars over the horizon, lines of the grid rolling toward the eye, lights running down its lanes.
