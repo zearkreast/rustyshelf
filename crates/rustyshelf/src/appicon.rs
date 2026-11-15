@@ -63,6 +63,8 @@ mod win {
                 return false;
             }
             let module = GetModuleHandleW(std::ptr::null());
+            // MAKEINTRESOURCE(1): the icon's resource id, not a pointer
+            #[allow(clippy::manual_dangling_ptr)]
             let load = |metric| {
                 let size = GetSystemMetrics(metric);
                 LoadImageW(module, 1usize as *const u16, IMAGE_ICON, size, size, LR_SHARED)
