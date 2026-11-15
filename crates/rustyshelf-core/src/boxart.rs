@@ -562,6 +562,33 @@ fn gametdb_spine(console: &str, file: &Path, dir: &Path, base: &str, cache_dir: 
     false
 }
 
+/// A game's full box wraps on LaunchBox (back | spine | front), the best three for the region.
+fn launchbox_wraps(shard: &ShardFile, title: &str, region: &str) -> Vec<String> {
+    let Some(g) = covers::launchbox_match(&shard.games, &shard.images, title) else { return Vec::new() };
+    let imgs = shard.images.get(&g.id).map_or(&[][..], Vec::as_slice);
+    covers::pick_images(imgs, "Box - Full", region).into_iter().take(3).map(|im| im.file.clone()).collect()
+}
+
+/// A spine cut from one of these wraps: usually far sharper than a spine scan.
+fn wrap_spine(wraps: &[String], console: &str, dir: &Path, base: &str, cache_dir: &Path, cancel: &AtomicBool) -> bool {
+    static COUNT: AtomicUsize = AtomicUsize::new(0);
+    for file in wraps {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let ext = Some(js::extname(file)).filter(|e| !e.is_empty()).unwrap_or(".jpg".into());
+        let tmp = cache_dir.join(format!(".wrap-{}-{}{ext}", std::process::id(), COUNT.fetch_add(1, Ordering::Relaxed)));
+        let got = matches!(download_ex(&format!("{}{}", covers::LB_IMG, js::encode_uri(file)), &tmp, false), Ok(Outcome::Ok));
+        // (wider than tall, or it isn't a wrap)
+        let placed = got && !size_of(&tmp).is_some_and(|(w, h)| (w as f32) < h as f32 * 1.2) && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine"));
+        let _ = fs::remove_file(&tmp);
+        if placed {
+            return true;
+        }
+    }
+    false
+}
+
 /// A Switch or 3DS game's full cover scan from GameTDB (found by its title), downloaded to a file in the cache:
 /// its back and its spine are both cut from it.
 fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str, title: &str, cache_dir: &Path, region: &str, cancel: &AtomicBool) -> Option<PathBuf> {
@@ -583,8 +610,8 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
-// TODO: still Electron-only: the Art Studio's styles, sharper scans over low-res pictures, spines cut from
-// LaunchBox's full box wraps, SteamGridDB posters and drawn cartridges
+// TODO: still Electron-only: the Art Studio's styles, sharper scans over low-res pictures, the wrap's spine
+// before the spine scans when looking for HD, SteamGridDB posters and drawn cartridges
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
     let Run { art, app_root, cache_dir, kinds, region } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
@@ -665,6 +692,10 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                     if let Some(w) = crate::wikiart::find(cache_dir, id, &covers::lookup_names(&game.title), key, wiki_region, now() as f64, &crate::wikiart::ask) {
                         ok = matches!(fetch_into(&w.url, &dir, &base, suffix, &format!(".{}", w.ext), None, false), Fetched::Placed);
                     }
+                }
+                if let (false, None, "spine", Some(index), Some(plat), false) = (ok, &old, key, &index, platform, stopped()) {
+                    let wraps = index.lock().unwrap().platform(plat).map(|shard| launchbox_wraps(shard, &game.title, region)).unwrap_or_default();
+                    ok = wrap_spine(&wraps, id, &dir, &base, cache_dir, cancel);
                 }
                 // GameCube / Wii spines: GameTDB has a full cover scan for nearly every disc, by its game id
                 if !ok && old.is_none() && key == "spine" && matches!(id, "gc" | "wii") && !stopped() {

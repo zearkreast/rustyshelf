@@ -568,7 +568,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   the art of the Steam game with the same name. The shelf shows all of it as soon as it's in.
 - Downloads box art for console games missing a front, a back or a spine, unless box art downloads are off: fronts
   from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
-  downloaded and built once), and where those have none a spine (GameCube, Wii) or a spine and a back (Switch,
+  downloaded and built once), and where those have none a spine cut from LaunchBox's full box wrap, a spine (GameCube, Wii) or a spine and a back (Switch,
   3DS) cut from GameTDB's full cover scan, or a Switch 2 front or back from the Super Mario Wiki. Each game is looked at once a week at most; a picture that's there is
   never replaced.
 - With your own SteamGridDB key (Settings → Accounts, with a check of the key) and box art downloads on, gives PC
