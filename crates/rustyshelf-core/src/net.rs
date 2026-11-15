@@ -57,6 +57,23 @@ pub fn ask(url: &str, headers: &[(&str, &str)], wait: Duration, max: usize) -> R
     Ok((status, after, b))
 }
 
+/// A POST with its own headers and body: the status and at most `max` bytes of the answer, whatever the status. An
+/// error is the network's.
+pub fn post(url: &str, headers: &[(&str, &str)], body: &str, wait: Duration, max: usize) -> Result<(u16, Vec<u8>), Failure> {
+    let mut req = AGENT.post(url).timeout(wait);
+    for (name, value) in headers {
+        req = req.set(name, value);
+    }
+    let res = match req.send_string(body) {
+        Ok(r) | Err(ureq::Error::Status(_, r)) => r,
+        Err(e) => return Err(failure(e)),
+    };
+    let status = res.status();
+    let mut b = Vec::new();
+    res.into_reader().take(max as u64).read_to_end(&mut b).map_err(|e| e.to_string())?;
+    Ok((status, b))
+}
+
 /// A page's bytes, at most `max` of them; None when the server says it isn't there (404, 403).
 pub fn get_bytes(url: &str, wait: Duration, max: usize) -> Result<Option<Vec<u8>>, Failure> {
     let res = match AGENT.get(url).timeout(wait).call() {

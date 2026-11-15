@@ -245,6 +245,8 @@ pub struct Settings {
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
+    /// IGDB's info for the chosen game, asked when Details opened with gaps in it: the game's id and its info filled
+    igdb_answer: Option<Mutex<Receiver<(String, rustyshelf_core::info::Info)>>>,
     /// the achievements last asked for: the game's id, and what came back
     achievements: Option<(String, Result<Option<Value>, String>)>,
     /// the achievements' order: 0 the set's (story first), 1 rarity, 2 points
@@ -336,6 +338,7 @@ impl Default for Settings {
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
+            igdb_answer: None,
             achievements: None,
             ach_sort: 0,
             seal_key: rustyshelf_core::seal::key(&paths::env_var),
@@ -603,6 +606,7 @@ impl Settings {
         }
         if screen == Screen::Details {
             self.load_achievements(false);
+            self.load_igdb();
         }
         self.stack.push((screen, 0));
         self.cues.push(("open", 1));
@@ -1060,7 +1064,7 @@ impl Settings {
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
                     Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() },
-                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, Steam, ScreenScraper, RomM", Screen::Accounts),
+                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, Steam, ScreenScraper, IGDB, RomM", Screen::Accounts),
                     open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
@@ -2229,6 +2233,7 @@ pub fn input(
         }
         if first == Screen::Details {
             s.load_achievements(false);
+            s.load_igdb();
         }
         if first == Screen::Find {
             if let Some(b) = &base.0 {
@@ -2276,6 +2281,7 @@ pub fn input(
     }
     s.poll_core();
     s.poll_ra();
+    s.poll_igdb();
     s.poll_romm();
     s.poll_moves();
     s.poll_update();

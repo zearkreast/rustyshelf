@@ -317,10 +317,17 @@ impl Library {
         // a console game's info goes by the name its art is looked up under: the one picked by hand (Details → Art
         // match), else the title read from its file
         let mut infos = crate::info::InfoCache::load(&data_dir.join("boxart-cache"));
+        // what IGDB gave, kept from Details' lookups, fills the gaps LaunchBox leaves (nothing is asked here)
+        let igdb = crate::igdb::Store::load(&data_dir);
         for shelf in shelves.iter_mut() {
             for g in shelf.games.iter_mut() {
                 let name = config.game(&g.id).and_then(|o| o.get("artName")).and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or(&g.title);
                 g.info = infos.get(&shelf.id, name).or(g.info.take());
+                if let Some(x) = igdb.get(&crate::gamekey::game_key(&shelf.id, &g.file, &g.title)) {
+                    let mut info = g.info.take().unwrap_or_default();
+                    crate::igdb::fill(&mut info, x);
+                    g.info = Some(info);
+                }
                 if let Some(t) = config.game_title(&g.id) {
                     g.title = t.to_string();
                 }

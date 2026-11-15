@@ -205,6 +205,34 @@ impl Settings {
             })),
             ..Row::default()
         });
+        let (igdb_id, igdb_secret) = (self.api_key("igdbId"), self.api_key("igdbSecret"));
+        for (label, key, hint, secret) in [
+            ("IGDB Client ID", "igdbId", "From a free Twitch developer app (dev.twitch.tv → Your Console → Applications → Register, any name, OAuth redirect http://localhost). IGDB then fills in what LaunchBox's database is missing about a game. Kept encrypted.", false),
+            ("IGDB Client Secret", "igdbSecret", "The same app's Client Secret (New Secret). Kept encrypted, sent only to Twitch.", true),
+        ] {
+            let now = self.api_key(key);
+            rows.push(Row {
+                label: label.into(),
+                value: if now.is_empty() { "(none)".into() } else if secret { "••••••••".into() } else { now.clone() },
+                hint: hint.into(),
+                press: Some(Box::new(move |s: &mut Settings| s.edit(label, hint, String::new(), Box::new(move |s: &mut Settings, v: String| s.set_api_key(key, v.trim().to_string()))))),
+                step: None,
+            });
+        }
+        rows.push(Row {
+            label: "Check IGDB".into(),
+            hint: "Asks Twitch for an app token with this Client ID and Secret.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let c = rustyshelf_core::igdb::Igdb::new(&igdb_id, &igdb_secret);
+                s.say("Asking Twitch…".into());
+                let (tx, rx) = std::sync::mpsc::channel();
+                s.ra_answer = Some(Mutex::new(rx));
+                std::thread::spawn(move || {
+                    let _ = tx.send(RaAnswer::Tested(c.test().map(|()| "IGDB: the keys work".to_string()).map_err(|why| format!("IGDB: {why}"))));
+                });
+            })),
+            ..Row::default()
+        });
         let steamweb = self.api_key("steamweb");
         let typed_steam = |s: &mut Settings| {
             s.edit(
@@ -290,6 +318,32 @@ impl Settings {
         }
         let exe = self.text(&["systems", system, "emulator"]);
         (!exe.is_empty()).then(|| rustyshelf_core::launch::emu_path(&exe, &self.app_root))
+    }
+
+    /// Asks IGDB for what the chosen console game's info is missing, when there are keys and it's due; what's kept
+    /// from before fills the gaps without asking.
+    pub(super) fn load_igdb(&mut self) {
+        let Some(c) = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom && rustyshelf_core::igdb::gaps(c.game.info.as_ref())) else { return };
+        let (sys, file, title, id, mut info) = (c.console.clone(), c.game.file.clone(), c.game.title.clone(), c.game.id.clone(), c.game.info.clone().unwrap_or_default());
+        let data = paths::data_dir(&self.app_root);
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.igdb_answer = Some(Mutex::new(rx));
+        std::thread::spawn(move || {
+            let client = rustyshelf_core::igdb::Igdb::from_settings(&data);
+            if rustyshelf_core::igdb::lookup_info(client.as_ref(), &data, &sys, &file, &title, &mut info) {
+                let _ = tx.send((id, info));
+            }
+        });
+    }
+
+    /// IGDB's answer for the chosen game, since the last frame.
+    pub(super) fn poll_igdb(&mut self) {
+        let Some((id, info)) = self.igdb_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        self.igdb_answer = None;
+        if let Some(c) = self.chosen.as_mut().filter(|c| c.game.id == id) {
+            c.game.info = Some(info);
+            self.redraw = true;
+        }
     }
 
     /// Asks for the chosen game's achievements (again, when `force`).
