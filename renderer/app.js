@@ -3855,12 +3855,12 @@ const PAD_HINTS=[
 // Button prompts: Xbox (A/B/X/Y, LB/RB…) or PlayStation shapes. "auto" follows the connected controller.
 let buttonsPref="auto",padStyle="xbox";
 const XB_COL={A:"#5fbf4a",B:"#e5484d",X:"#3b82f6",Y:"#e8b81a"};
-const xbFace=l=>`<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${XB_COL[l]}"/><text x="8" y="11.6" text-anchor="middle" font-size="10" font-weight="700" font-family="Lexend,Segoe UI,sans-serif" fill="#0b0b0f">${l}</text></svg>`;
+const xbFace=l=>`<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${XB_COL[l]}"/><text x="8" y="11.6" text-anchor="middle" font-size="10" font-weight="700" font-family="Mona Sans,Segoe UI,sans-serif" fill="#0b0b0f">${l}</text></svg>`;
 const XB_MAP={x:"A",o:"B",sq:"X",tri:"Y",L1:"LB",R1:"RB",L2:"LT",R2:"RT",R3:"RS",L3:"LS","☰":"Menu","⧉":"View",L:"LS",R:"RS"};
 const PS_WORD={"☰":"Options","⧉":"Share"};
 // Nintendo layout (Switch Pro / Joy-Con): the same four positions, other letters — B bottom, A right, Y left, X top
 const NT_MAP={x:"B",o:"A",sq:"Y",tri:"X",L1:"L",R1:"R",L2:"ZL",R2:"ZR",R3:"RS",L3:"LS","☰":"+","⧉":"−",L:"LS",R:"RS"};
-const ntFace=l=>`<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#e9ebf1"/><text x="8" y="11.6" text-anchor="middle" font-size="9.5" font-weight="700" font-family="Lexend,Segoe UI,sans-serif" fill="#15161c">${l}</text></svg>`;
+const ntFace=l=>`<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#e9ebf1"/><text x="8" y="11.6" text-anchor="middle" font-size="9.5" font-weight="700" font-family="Mona Sans,Segoe UI,sans-serif" fill="#15161c">${l}</text></svg>`;
 // Y in Details: tap = trailer if there is one, else achievements, else flip; hold = achievements when both are there
 function detailsYLab(){const tr=!$("dTrailer").hidden,a=achReady();return [tr?"Trailer":a?"Achievements":"Flip",tr&&a?"Achievements":""]}
 function detailsY(hold){const tr=!$("dTrailer").hidden;if(hold){achAct();return}if(tr)openTrailer();else if(!achAct())flip()}
@@ -3871,9 +3871,9 @@ function icoDpad(lit){ // lit: string of u d l r
   const arm=(d,x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.3" fill="${lit.includes(d)?ICO_INK:ICO_DIM}"/>`;
   const tri=(d,pts)=>lit.includes(d)?`<polygon points="${pts}" fill="#0b0d14"/>`:"";
   return `<svg viewBox="0 0 18 18" width="18" height="18">${arm("u",6.3,.6,5.4,6.4)}${arm("d",6.3,11,5.4,6.4)}${arm("l",.6,6.3,6.4,5.4)}${arm("r",11,6.3,6.4,5.4)}<rect x="6.3" y="6.3" width="5.4" height="5.4" fill="${ICO_DIM}"/>${tri("u","9,2.2 7.4,4.8 10.6,4.8")}${tri("d","9,15.8 7.4,13.2 10.6,13.2")}${tri("l","2.2,9 4.8,7.4 4.8,10.6")}${tri("r","15.8,9 13.2,7.4 13.2,10.6")}</svg>`}
-const icoBumper=t=>`<svg viewBox="0 0 28 16" width="28" height="16"><path d="M3 13.5 L3 7 Q3 3 8 2.6 L20 2.6 Q25 3 25 7 L25 13.5 Z" fill="none" stroke="${ICO_INK}" stroke-width="1.4" stroke-linejoin="round"/><text x="14" y="11.6" text-anchor="middle" font-size="7.4" font-weight="700" font-family="Lexend,Segoe UI,sans-serif" fill="${ICO_INK}">${t}</text></svg>`;
-const icoTrigger=t=>`<svg viewBox="0 0 22 18" width="22" height="18"><path d="M3.5 16.5 L3.5 6 Q3.5 1.4 11 1.4 Q18.5 1.4 18.5 6 L18.5 16.5 Z" fill="none" stroke="${ICO_INK}" stroke-width="1.4" stroke-linejoin="round"/><text x="11" y="12.6" text-anchor="middle" font-size="7" font-weight="700" font-family="Lexend,Segoe UI,sans-serif" fill="${ICO_INK}">${t}</text></svg>`;
-const icoStick=t=>`<svg viewBox="0 0 18 18" width="18" height="18"><circle cx="9" cy="9" r="7.6" fill="none" stroke="${ICO_INK}" stroke-width="1.3"/><circle cx="9" cy="9" r="4.9" fill="${ICO_DIM}"/><text x="9" y="11.7" text-anchor="middle" font-size="7.2" font-weight="700" font-family="Lexend,Segoe UI,sans-serif" fill="${ICO_INK}">${t}</text></svg>`;
+const icoBumper=t=>`<svg viewBox="0 0 28 16" width="28" height="16"><path d="M3 13.5 L3 7 Q3 3 8 2.6 L20 2.6 Q25 3 25 7 L25 13.5 Z" fill="none" stroke="${ICO_INK}" stroke-width="1.4" stroke-linejoin="round"/><text x="14" y="11.6" text-anchor="middle" font-size="7.4" font-weight="700" font-family="Mona Sans,Segoe UI,sans-serif" fill="${ICO_INK}">${t}</text></svg>`;
+const icoTrigger=t=>`<svg viewBox="0 0 22 18" width="22" height="18"><path d="M3.5 16.5 L3.5 6 Q3.5 1.4 11 1.4 Q18.5 1.4 18.5 6 L18.5 16.5 Z" fill="none" stroke="${ICO_INK}" stroke-width="1.4" stroke-linejoin="round"/><text x="11" y="12.6" text-anchor="middle" font-size="7" font-weight="700" font-family="Mona Sans,Segoe UI,sans-serif" fill="${ICO_INK}">${t}</text></svg>`;
+const icoStick=t=>`<svg viewBox="0 0 18 18" width="18" height="18"><circle cx="9" cy="9" r="7.6" fill="none" stroke="${ICO_INK}" stroke-width="1.3"/><circle cx="9" cy="9" r="4.9" fill="${ICO_DIM}"/><text x="9" y="11.7" text-anchor="middle" font-size="7.2" font-weight="700" font-family="Mona Sans,Segoe UI,sans-serif" fill="${ICO_INK}">${t}</text></svg>`;
 const icoMenu=`<svg viewBox="0 0 18 18" width="18" height="18"><circle cx="9" cy="9" r="8" fill="#2a2e3a" stroke="${ICO_DIM}" stroke-width=".8"/><path d="M5.4 6.4h7.2M5.4 9h7.2M5.4 11.6h7.2" stroke="${ICO_INK}" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 const icoView=`<svg viewBox="0 0 18 18" width="18" height="18"><circle cx="9" cy="9" r="8" fill="#2a2e3a" stroke="${ICO_DIM}" stroke-width=".8"/><rect x="5" y="5.4" width="5.6" height="4.6" rx=".8" fill="none" stroke="${ICO_INK}" stroke-width="1.1"/><rect x="7.4" y="7.8" width="5.6" height="4.6" rx=".8" fill="#2a2e3a" stroke="${ICO_INK}" stroke-width="1.1"/></svg>`;
 const DPAD_KEYS={"↕":"ud","↔":"lr","↑":"u","↓":"d","←":"l","→":"r","dpad":"udlr"};
@@ -4235,7 +4235,7 @@ async function smoothTest(){
     ["maximized window, standing still","",null,"max",true],["maximized window, scrolling","",null,"max"],["half-size window, standing still","",null,"half",true],["half-size window, scrolling","",null,"half"],
     ["full screen again, standing still","",null,"full",true],["full screen again, scrolling","",null,"full"]];
   const css=document.createElement("style");document.head.append(css);
-  const ban=document.createElement("div");ban.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:99;padding:6px 14px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font:600 14px/1.3 Lexend,system-ui,sans-serif;pointer-events:none";document.body.append(ban);
+  const ban=document.createElement("div");ban.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:99;padding:6px 14px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font:600 14px/1.3 'Mona Sans',system-ui,sans-serif;pointer-events:none";document.body.append(ban);
   smoothTest.stop=false;
   const wait=ms=>new Promise(r=>setTimeout(r,ms)),gaps=[];let sampling=false,prev=0;
   const loop=t=>{if(sampling&&prev)gaps.push(t-prev);prev=t;if(smoothTest.on)requestAnimationFrame(loop)};requestAnimationFrame(loop);

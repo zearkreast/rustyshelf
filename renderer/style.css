@@ -7,7 +7,7 @@
   --glass:rgba(8,10,20,.46);
   --line:rgba(255,255,255,.16);
   --tri:#3fd0b6; --sq:#ee8fd6; --cross:#86a8ff; --circ:#ff7a7a;
-  --ui:'Lexend',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --ui:'Mona Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --bw:240px; --bh:340px; --bd:24px; --edge:6px; --cw:240px; --ch:340px; --cd:24px; --ce:6px;
   --case:#141418; --case-side:#0b0b0e; --spine-ink:#e6e6ee; --sel-glow:rgba(120,140,255,.45);
   color-scheme:dark;
@@ -264,7 +264,7 @@ body.aside *,body.aside *::before,body.aside *::after{animation-play-state:pause
 .wm-gamecom{--wm-grad:linear-gradient(180deg,#fff7c2 10%,#e0b400 95%);--wm-glow:rgba(224,180,0,.42);--wm-tagc:#f0dc8a}
 .wm-psvita{--wm-grad:linear-gradient(180deg,#e6efff 10%,#4f86e8 95%);--wm-glow:rgba(79,134,232,.42);--wm-tagc:#a9c4f5}
 .wm-ngpc{--wm-grad:linear-gradient(180deg,#ffffff 10%,#2f6ce0 95%);--wm-glow:rgba(47,108,224,.42);--wm-tagc:#a9c3f3}
-.wm-home .wm-main{font-family:'Lexend',var(--ui);font-weight:800;letter-spacing:.1em;font-size:clamp(22px,2.4vw,34px)}
+.wm-home .wm-main{font-family:'Mona Sans',var(--ui);font-weight:800;letter-spacing:.1em;font-size:clamp(22px,2.4vw,34px)}
 /* favorite heart on the box corner */
 .slot.fav .f-front::before{content:"♥";position:absolute;right:calc(8px*var(--os,1));top:calc(8px*var(--os,1));z-index:3;width:calc(26px*var(--os,1));height:calc(26px*var(--os,1));border-radius:50%;background:rgba(10,10,16,.75);color:#ff5c8a;font-size:calc(14px*var(--os,1));line-height:calc(26px*var(--os,1));text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 .wm-gc{--wm-grad:linear-gradient(180deg,#e2dbff 10%,#8b75ff 95%);--wm-glow:rgba(139,117,255,.45);--wm-tagc:#b7aaf2}
@@ -687,7 +687,7 @@ body.theme-aurora .theme-fx{display:none}
   background:radial-gradient(ellipse at 50% 46%,#151829 0%,#07070c 72%);transition:opacity .6s ease,transform .8s cubic-bezier(.2,.8,.2,1)}
 html.no-splash #splash{display:none}
 #splash.out{opacity:0;transform:scale(1.035)}
-.sp-word{position:relative;font-family:'Lexend',var(--ui),sans-serif;font-weight:800;letter-spacing:.34em;padding-left:.34em;font-size:clamp(34px,4.2vw,70px);color:rgba(214,220,255,.82);}
+.sp-word{position:relative;font-family:'Mona Sans',var(--ui),sans-serif;font-weight:800;letter-spacing:.34em;padding-left:.34em;font-size:clamp(34px,4.2vw,70px);color:rgba(214,220,255,.82);}
 .sp-word{will-change:transform,opacity}
 .sp-line{width:min(50px,4.5vw);height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(170,186,255,.75),transparent)}
 /* ripple: the chosen case first, then outward to each side; the text and buttons last */
@@ -867,3 +867,6 @@ html.reduce-motion .art-card,html.reduce-motion .ac-bar i{transition:none}
    top-right); Play downloads it first */
 .slot.cloud .f-front::after{content:"";position:absolute;left:calc(8px*var(--os,1));top:calc(8px*var(--os,1));z-index:3;width:calc(26px*var(--os,1));height:calc(26px*var(--os,1));border-radius:50%;
   background:rgba(10,10,16,.75) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9bfff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.2 4.5 4.5 0 0 0 7 18z'/><path d='M12 10v6m-2.5-2.5L12 16l2.5-2.5'/></svg>") center/62% no-repeat;pointer-events:none}
+
+/* Mona Sans: titles in its wide cut */
+.sys-word,.g-title,.l-title,.d-title,.bss-title,.su-title,#btT{font-stretch:125%}

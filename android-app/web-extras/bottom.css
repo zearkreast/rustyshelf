@@ -4,7 +4,7 @@
    (1240 x 1080 on the Thor), so it looks the same at any pixel density. Every animation is transform / opacity only
    (the compositor runs them): this page shares the WebView's main thread with the shelf on the top screen. */
 :root{--bg:#0b0b14;--ink:#f3f5fb;--dim:rgba(243,245,251,.64);--faint:rgba(243,245,251,.4);--line:rgba(255,255,255,.1);
-  --card:rgba(255,255,255,.045);--accent:#9d8cff;--ui:'Lexend',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --card:rgba(255,255,255,.045);--accent:#9d8cff;--ui:'Mona Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --ease:cubic-bezier(.2,.8,.2,1);color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;font-family:var(--ui);

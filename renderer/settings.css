@@ -4,7 +4,7 @@
    Interface size and Fit to TV settings). Every class is prefixed bss- so nothing collides with the shelf's styles.
    One look throughout: a dark surface tinted by the theme, a clean list with hairlines, and a single gliding highlight
    (the same family as the sidebar's selected item). */
-#bss{position:fixed;inset:0;z-index:55;display:none;overflow:hidden;font-family:var(--ui,'Lexend',system-ui,sans-serif);color:#eef0f6;user-select:none;-webkit-user-select:none;
+#bss{position:fixed;inset:0;z-index:55;display:none;overflow:hidden;font-family:var(--ui,'Mona Sans',system-ui,sans-serif);color:#eef0f6;user-select:none;-webkit-user-select:none;
   --line:rgba(255,255,255,.07);--ink:#f3f5fb;--ink2:#d5d9e6;--dim:#a4abbf;--faint:#7c8399;--acc:#6b8cff;--acc2:#a9bfff;--ok:#45d483;--warn:#ffb547;--bad:#ff6b6b;--tint:#6a5cff;
   --hl:linear-gradient(90deg,color-mix(in srgb,var(--acc) 30%,transparent),color-mix(in srgb,var(--acc) 13%,transparent));
   --hlRing:inset 0 0 0 2px color-mix(in srgb,var(--acc2) 85%,transparent);--hlGlow:0 10px 34px -10px color-mix(in srgb,var(--acc) 70%,transparent),0 0 0 1px rgba(0,0,0,.25)}
@@ -18,7 +18,7 @@
 #bss:not(.on){pointer-events:none}
 body.bss-reduce #bss,body.reduce-motion #bss{transition-duration:.12s}
 #bss *{box-sizing:border-box}
-.bss-stage{position:absolute;left:0;top:0;transform-origin:0 0;font:500 16px/1.35 var(--ui,'Lexend',system-ui,sans-serif);letter-spacing:.005em}
+.bss-stage{position:absolute;left:0;top:0;transform-origin:0 0;font:500 16px/1.35 var(--ui,'Mona Sans',system-ui,sans-serif);letter-spacing:.005em}
 /* the surface: opaque, a soft glow of the theme's colour, a little grain and a vignette; only a live preview lets the shelf through */
 .bss-bg{position:absolute;inset:0;transition:opacity .35s ease;will-change:transform;transform:translateZ(0);
   background:radial-gradient(1300px 760px at 78% -12%,color-mix(in srgb,var(--tint) 24%,transparent),transparent 70%),radial-gradient(1000px 640px at 18% 118%,color-mix(in srgb,var(--tint) 12%,transparent),transparent 70%),linear-gradient(180deg,#0d0f1a,#07080e 70%)}
@@ -135,8 +135,8 @@ body.bss-reduce #bss,body.reduce-motion #bss{transition-duration:.12s}
 .bss-st.busy{color:#ffd08a}.bss-st.busy i{width:18px;height:18px;margin:0 3px;background:none;border:2.5px solid var(--warn);border-right-color:transparent;animation:bssspin .8s linear infinite}
 @keyframes bssspin{to{transform:rotate(360deg)}}
 /* text being typed */
-.bss-edit{flex:1;min-width:0;font:500 20px/1.2 var(--ui,'Lexend',sans-serif);color:#fff;background:rgba(0,0,0,.4);border:0;box-shadow:inset 0 0 0 2px var(--acc2);border-radius:12px;padding:10px 14px;outline:none}
-.bss-editv{flex:1;min-width:0;font:500 20px/1.2 var(--ui,'Lexend',sans-serif);color:#fff;background:rgba(0,0,0,.4);box-shadow:inset 0 0 0 2px var(--acc2);border-radius:12px;padding:10px 14px;white-space:pre;overflow:hidden;display:flex;justify-content:flex-end}
+.bss-edit{flex:1;min-width:0;font:500 20px/1.2 var(--ui,'Mona Sans',sans-serif);color:#fff;background:rgba(0,0,0,.4);border:0;box-shadow:inset 0 0 0 2px var(--acc2);border-radius:12px;padding:10px 14px;outline:none}
+.bss-editv{flex:1;min-width:0;font:500 20px/1.2 var(--ui,'Mona Sans',sans-serif);color:#fff;background:rgba(0,0,0,.4);box-shadow:inset 0 0 0 2px var(--acc2);border-radius:12px;padding:10px 14px;white-space:pre;overflow:hidden;display:flex;justify-content:flex-end}
 .bss-editv .c{width:2px;height:24px;background:var(--acc2);animation:bssblink 1s steps(1) infinite;flex:none;align-self:center}
 .bss-row.editing .bss-val{min-width:0;flex:1;max-width:66%}
 /* theme tiles */

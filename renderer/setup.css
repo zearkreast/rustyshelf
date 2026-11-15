@@ -598,7 +598,7 @@ body.reduce-motion .ach-list{scroll-behavior:auto}
 html:not(.platform-android) .setup{--acc:#6b8cff;--acc2:#a9bfff;--ok:#45d483;--warn:#ffb547;--bad:#ff6b6b;--tint:#6a5cff;--line:rgba(255,255,255,.07);--ink:#f3f5fb;--ink-dim:#a4abbf;
   --hl:linear-gradient(90deg,color-mix(in srgb,var(--acc) 30%,transparent),color-mix(in srgb,var(--acc) 13%,transparent));
   --ring:inset 0 0 0 2px color-mix(in srgb,var(--acc2) 85%,transparent),0 10px 34px -10px color-mix(in srgb,var(--acc) 70%,transparent);
-  font-family:var(--ui,'Lexend',system-ui,sans-serif);
+  font-family:var(--ui,'Mona Sans',system-ui,sans-serif);
   background:radial-gradient(1300px 760px at 78% -12%,color-mix(in srgb,var(--tint) 24%,transparent),transparent 70%),radial-gradient(1000px 640px at 18% 118%,color-mix(in srgb,var(--tint) 12%,transparent),transparent 70%),linear-gradient(180deg,#0d0f1a,#07080e 70%)}
 html:not(.platform-android) .su-card{width:min(1180px,calc(100vw - 48px));height:min(820px,calc(100vh - 56px));grid-template-columns:260px minmax(0,1fr);background:rgba(9,10,17,.72);border-color:rgba(255,255,255,.08);border-radius:26px;box-shadow:0 40px 120px rgba(0,0,0,.55);backdrop-filter:blur(2px)}
 html:not(.platform-android) .su-nav{background:rgba(5,6,11,.6);padding:30px 14px 22px 18px}
@@ -908,7 +908,7 @@ html.reduce-motion .details.d-one .d-pane .d-shots,body.reduce-motion .details.d
 #setup.wz-win .su-nav{flex-direction:column;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;gap:6px;padding:38px 26px 30px;background:rgba(0,0,0,.28);border-right:1px solid var(--line);border-bottom:0}
 #setup.wz-win .su-brand{display:block;margin:0 0 22px 12px;padding:0;font-size:12.5px;font-weight:600;letter-spacing:.22em;color:var(--faint)}
 #setup.wz-win .su-step{position:relative;display:flex;align-items:center;gap:14px;width:100%;padding:11px 14px;border:0;border-radius:12px;background:none;
-  font:500 17px/1.25 var(--ui,'Lexend',system-ui,sans-serif);color:var(--dim);white-space:nowrap;cursor:pointer}
+  font:500 17px/1.25 var(--ui,'Mona Sans',system-ui,sans-serif);color:var(--dim);white-space:nowrap;cursor:pointer}
 #setup.wz-win .wz-sico{display:inline-flex;flex:none;width:20px;height:20px}
 #setup.wz-win .wz-sico svg{width:20px;height:20px}
 #setup.wz-win .su-step::after{content:attr(data-st);flex:none;margin-left:auto;padding-left:10px;font-size:13px;font-weight:500;color:var(--faint)}

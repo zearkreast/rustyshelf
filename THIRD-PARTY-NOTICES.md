@@ -10,6 +10,7 @@ open-source software, each under its own licence:
 | [three.js](https://threejs.org/) (`renderer/vendor/three.bundle.js`) | MIT | `renderer/vendor/three-LICENSE` |
 | [PDF.js](https://mozilla.github.io/pdf.js/) (`renderer/vendor/pdf.min.js`, `pdf.worker.min.js`) | Apache 2.0 | `renderer/vendor/pdfjs-LICENSE` |
 | [meshoptimizer](https://github.com/zeux/meshoptimizer) (in `renderer/vendor/modelopt.worker.js`) | MIT | `renderer/vendor/meshoptimizer-LICENSE.md` |
+| [Mona Sans](https://github.com/github/mona-sans) | SIL Open Font License 1.1 | `renderer/fonts/LICENSES/` |
 | Fonts from [Fontsource](https://fontsource.org/): Audiowide, Bungee, Chakra Petch, DM Serif Display, IBM Plex Mono, Lexend, Lilita One, Michroma, Syne, Unbounded | SIL Open Font License 1.1 | `renderer/fonts/LICENSES/` |
 | [DejaVu Sans Bold](https://dejavu-fonts.github.io/) (`crates/img-tools/assets/DejaVuSans-Bold.ttf`, in the Rust tools and the native app) | Bitstream Vera Fonts licence | `crates/img-tools/assets/DejaVu-LICENSE.txt` |
 
