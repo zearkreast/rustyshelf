@@ -116,6 +116,8 @@ module.exports = async function readingPass({ browser, base, check, newPage, OUT
     // ---- the reading corner ----
     for (let i = 0; i < 4 && await page.evaluate(() => Shelf.getMode() !== 'browse'); i++) { await page.keyboard.press('Escape'); await pause(900); }
     const lib = await page.evaluate(() => BS_READING.rescan());
+    // the rack on the Classic wall (new installs open the museum in rooms, where it's in the Reading & media room)
+    await page.evaluate(() => { Shelf._mus && Shelf._mus.set('grouping', 'classic'); });
     await page.keyboard.press('m'); await pause(5000);
     await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); for (let i = 0; i < 6 && window.Museum && Museum._dv && Museum._dv(); i++) { Museum.skipDelivery(); await w(800); } });
     const inRack = await until(() => { const r = (window.Museum && Museum._rack && Museum._rack()) || []; return ['Nintendo Power Issue 008', 'Zelda Comic Collection', 'GamePro 1994-05', 'Mario Guide'].every(t => r.some(x => x.d && x.d.title.startsWith(t))); }, null, 60000);
