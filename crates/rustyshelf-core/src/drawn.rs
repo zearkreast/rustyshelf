@@ -6,7 +6,7 @@
 use std::f32::consts::PI;
 use std::sync::LazyLock;
 
-use ab_glyph::{Font, FontRef, OutlineCurve};
+use ab_glyph::{Font, FontRef, OutlineCurve, VariableFont};
 use tiny_skia::{Color, FillRule, GradientStop, LineCap, LineJoin, LinearGradient, Mask, Paint, Path, PathBuilder, Pixmap, Point, Rect, Shader, SpreadMode, Stroke, StrokeDash, Transform};
 
 use crate::looks::{Band, Look};
@@ -154,6 +154,9 @@ struct Fonts {
     lexend: [FontRef<'static>; 5],
     /// the consoles' own lettering: Chakra Petch, Syne, Unbounded, Michroma, IBM Plex Mono, DM Serif Display
     word: [FontRef<'static>; 6],
+    /// Mona Sans as a console's name is lettered without a font of its own (.sys-word): extra bold, wide; Latin
+    /// and Latin Extended
+    mona: [FontRef<'static>; 2],
     wide: FontRef<'static>,
 }
 
@@ -177,6 +180,12 @@ static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
             font(include_bytes!("../assets/fonts/DMSerifDisplay-Italic.ttf")),
         ],
         wide: font(include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf")),
+        mona: mona_sans().map(|bytes| {
+            let mut f = font(bytes);
+            f.set_variation(b"wght", 800.0);
+            f.set_variation(b"wdth", 125.0);
+            f
+        }),
     }
 });
 
@@ -188,6 +197,8 @@ enum Face {
     Lexend(usize),
     /// one of the consoles' lettering fonts
     Word(usize),
+    /// Mona Sans, extra bold and wide
+    Mona,
 }
 
 /// The font a letter is drawn in: the face's own when it has the letter.
@@ -196,9 +207,12 @@ fn font_for(face: Face, c: char) -> &'static FontRef<'static> {
         Face::Title(i) => &FONTS.title[i % 3],
         Face::Lexend(w) => &FONTS.lexend[w.min(4)],
         Face::Word(i) => &FONTS.word[i.min(5)],
+        Face::Mona => &FONTS.mona[0],
     };
     if own.glyph_id(c).0 != 0 {
         own
+    } else if matches!(face, Face::Mona) && FONTS.mona[1].glyph_id(c).0 != 0 {
+        &FONTS.mona[1]
     } else if FONTS.lexend[2].glyph_id(c).0 != 0 {
         &FONTS.lexend[2]
     } else {
@@ -951,6 +965,7 @@ pub fn lettered(text: &str, lettering: &crate::looks::Lettering, size: f32, fill
         "DM Serif Display" => Face::Word(5),
         "Bungee" => Face::Title(1),
         "Audiowide" => Face::Title(2),
+        "Mona Sans" => Face::Mona,
         _ => Face::Lexend(3),
     };
     let text = if lettering.upper { text.to_uppercase() } else { text.to_string() };

@@ -39,7 +39,7 @@ const looks = () => {
   }
   // and its own letters, where it has them (.wm-<id> .wm-main): the font, how far apart, and how large for the window
   // ("size": least, hundredths of the window's width, most); the rest are set as .sys-word sets them
-  const plain = { font: 'Lexend', weight: 800, spacing: 0, size: [22, 2.6, 38], upper: true, italic: false };
+  const plain = { font: 'Mona Sans', weight: 800, spacing: 0, size: [22, 2.6, 38], upper: true, italic: false };
   for (const id of Object.keys(wm)) Object.assign(wm[id], plain);
   for (const f of fs.readdirSync(path.join(ROOT, 'renderer')).filter(f => f.endsWith('.css') && f !== 'bootslide.css').sort()) {
     const css = fs.readFileSync(path.join(ROOT, 'renderer', f), 'utf8');
