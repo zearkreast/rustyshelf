@@ -156,4 +156,24 @@ function emulatorsIn(dir) {
   return { systems, retroarch };
 }
 
-module.exports = { detectAll, detectSystem, findSteam, emulatorsIn, findAllExe };
+// (Haseosama's fork) a folder with one folder of games per console (RetroBat's roms: gc, wii, ps2 …), up to three folders
+// down: { systems: { <console id>: [folders] } }. A console's folder isn't looked into.
+function romFoldersIn(dir) {
+  const systems = {}; if (!dir || !isDir(dir)) return { systems };
+  const byName = new Map();
+  for (const s of CONSOLES) for (const n of s.romFolderNames || []) { const k = n.toLowerCase(); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(s.id); }
+  const queue = [[dir, 0]];
+  let seen = 0;
+  while (queue.length && seen++ < 4000) {
+    const [d, depth] = queue.shift();
+    for (const ent of readDir(d)) {
+      if (!ent.isDirectory() || ent.name.startsWith('.')) continue;
+      const full = path.join(d, ent.name), ids = byName.get(ent.name.toLowerCase());
+      if (ids) { for (const id of ids) { const l = systems[id] = systems[id] || []; if (!l.includes(full)) l.push(full); } continue; }
+      if (depth < 2 && !SKIP_DIRS.test(ent.name)) queue.push([full, depth + 1]);
+    }
+  }
+  return { systems };
+}
+
+module.exports = { detectAll, detectSystem, findSteam, emulatorsIn, findAllExe, romFoldersIn };

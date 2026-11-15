@@ -1025,6 +1025,7 @@ handle('detect:emulators', ({ systemId } = {}) => { const s = CONSOLES.find(c =>
   const found = require('./main/detect').findAllExe(s.emulatorFolders, s.exeNames), ra = s.retro && cfg.retroarch ? emuPath(cfg.retroarch) : '';
   return ra && paths.isFile(ra) && !found.some(x => x.toLowerCase() === ra.toLowerCase()) ? [...found, ra] : found; });
 handle('detect:folder', ({ dir } = {}) => require('./main/detect').emulatorsIn(typeof dir === 'string' ? dir.slice(0, 1024) : ''));
+handle('detect:romFolders', ({ dir } = {}) => require('./main/detect').romFoldersIn(typeof dir === 'string' ? dir.slice(0, 1024) : ''));
 // The last scan is kept on disk so the next launch can show the shelves immediately (as console UIs do) while a fresh
 // scan runs behind them; the renderer only rebuilds if something actually changed.
 // Wii U e-manuals start on their contents page: the box front goes first, so the booklet opens on a cover like a printed one

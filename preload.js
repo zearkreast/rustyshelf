@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('rustyshelf', {
   detect: () => call('detect'),
   emulatorsFound: systemId => call('detect:emulators', { systemId }), // (RustyShelf) every emulator found for a console
   emulatorsIn: dir => call('detect:folder', { dir }), // (RustyShelf) portable emulators in a folder you pick
+  romFoldersIn: dir => call('detect:romFolders', { dir }),
   scan: () => call('library:scan'),
   scanIfChanged: () => call('library:scan', { ifChanged: true }),
   cachedLibrary: () => call('library:cached'),

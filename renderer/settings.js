@@ -167,6 +167,7 @@ function build(){
     F("RetroArch location","retroarch","file","Point to retroarch.exe to use it across all supported retro consoles. Each retro console without its own emulator will use this RetroArch automatically.",{want:"file",rescan:true,ph:"Point to retroarch.exe",filters:[{name:"RetroArch",extensions:["exe","*"]}],keys:"retroarch emulator retro core shared"}),
     A("Find emulators again",()=>detecting?"Searching…":"Search","Looks in the usual install places and your RustyShelf folder for emulators and games folders you haven't set up yet, and fills in any console that has nothing set.",runDetect,{keys:"detect scan auto find"}),
     ...(api.emulatorsIn?[A("Find emulators in a folder",()=>detecting?"Searching…":"Choose","Portable emulators kept anywhere (another drive, a USB stick): choose the folder they're in and RustyShelf looks through it, four folders deep, for every emulator it knows. Each console with no emulator set gets the one found; the ones already set are left as they are.",runFolderDetect,{keys:"portable emulators folder find search usb drive"})]:[]),
+    ...(api.romFoldersIn?[A("Find games folders in a folder",()=>detecting?"Searching…":"Choose","A folder with a folder of games for each console, named after it (like RetroBat's roms folder: gc, wii, ps2, psx…): each console's folder is added to its games folders.",runRomFolderScan,{keys:"roms games folders retrobat scan find"})]:[]),
   ]},
   {g:"Games",id:"pc",name:"PC games",ic:"pc",lead:onLinux()?"Your Steam games, your Epic library and your PC games folder on the PC shelf. Windows games play through Wine / Proton.":"Your installed Steam games, on a shelf of their own.",rows:[
     T("Show installed Steam games","steam.enabled",true,"Adds a PC shelf with every game Steam has installed. Uninstalled games are left out.",{rescan:true,keys:"steam"}),
@@ -196,7 +197,7 @@ function build(){
   {g:"Games",id:"custom",name:"Custom games",ic:"pc",lead:"Recomps, PC ports and any other program. Each goes on the Custom shelf, or on PC or a console's shelf if you choose its Platform. Quiver Launcher's games stay on Custom.",rows:[{t:"dyn",fn:customRows}]},
   {g:"Games",id:"apps",name:"Apps",ic:"apps",dot:()=>Object.values(cfg.apps||{}).some(a=>a&&a.enabled!==false&&a.path)?"ok":null,lead:"Stremio and Nuvio, launched from the Media shelf.",rows:appRows},
   {g:"Look & sound",id:"display",name:"Display",ic:"display",lead:"How the shelf looks from the couch.",rows:[
-    C("Language","ui.language",[["en","English"],["pt","Português (Brasil)"]],"en","The language the screen and the system windows (open, save, errors) are shown in. The screen reloads to switch.",{keys:"language idioma portuguese portugues brasil translate english",live:()=>{(async()=>{try{await save()}catch{}location.reload()})()}}),
+    C("Language","ui.language",[["en","English"],["pt","Português (Brasil)"],["fr","Français"]],"en","The language the screen is shown in (in Português, the system windows too: open, save, errors). The screen reloads to switch.",{keys:"language idioma langue portuguese portugues brasil french francais translate english",live:()=>{(async()=>{try{await save()}catch{}location.reload()})()}}),
     // (RustyShelf, Discord Rich Presence: main/presence.js) "Playing …" on your Discord profile while a game runs
     T("Show what I'm playing on Discord","ui.discordPresence",false,"While a game runs, your Discord profile says \"Playing <title>\". It needs a Discord application id (below): make one free at discord.com/developers, and paste its id.",{keys:"discord presence rich status playing activity"}),
     X("Discord application ID","ui.discordAppId","The number from your Discord application's page (General Information). Nothing is sent anywhere else: RustyShelf only talks to the Discord app on this computer.",{ph:"Paste the id here",keys:"discord application id client"}),
@@ -1209,6 +1210,15 @@ async function runFolderDetect(){if(detecting||!api.emulatorsIn)return;const p=a
     const list=a=>a.length>4?a.slice(0,4).join(", ")+` and ${a.length-4} more`:a.join(", ");
     toast(!found.length?`No emulators found in ${folderName(dir)}`:set.length?`Set up ${list(set)}${had.length?` (${had.length} already had one)`:""}`:`Found emulators for ${list(had)}, which already have one set`);
     if(set.length)changed({rescan:true})}
+  catch(e){toast(e&&e.message||"Couldn't look through that folder")}finally{detecting=false;bump()}}
+// (Haseosama's fork) a games folder with one folder per console (RetroBat's roms): each console's folder is added to it
+async function runRomFolderScan(){if(detecting||!api.romFoldersIn)return;const p=await pick({kind:"folder",title:"Choose the folder with a folder of games per console"}),dir=typeof p==="string"?p:p&&p.path;if(!dir)return;
+  detecting=true;bump();const my=openId;
+  try{const r=await api.romFoldersIn(dir);if(my!==openId||!isOpen){detecting=false;return}
+    let added=0;const found=Object.entries((r&&r.systems)||{});
+    for(const[id,dirs]of found){const c=cfg.systems&&cfg.systems[id];if(!c)continue;c.romDirs=c.romDirs||[];for(const d of dirs)if(!c.romDirs.some(x=>String(x).toLowerCase()===String(d).toLowerCase())){c.romDirs.push(d);added++}}
+    toast(added?`Added ${added} games folder${added===1?"":"s"}`:found.length?"Those folders were already added":`No console's folder found in ${folderName(dir)}`);
+    if(added)changed({rescan:true})}
   catch(e){toast(e&&e.message||"Couldn't look through that folder")}finally{detecting=false;bump()}}
 // (RustyShelf) Export / Import everything (main/dataexport.js); each step is said as it goes
 // (RustyShelf issue 6) its size before a folder is chosen, its progress (bytes, files, time left) on the row, Pause / Cancel
