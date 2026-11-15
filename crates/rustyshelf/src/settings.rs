@@ -215,6 +215,8 @@ pub struct Settings {
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
     /// the achievements last asked for: the game's id, and what came back
     achievements: Option<(String, Result<Option<Value>, String>)>,
+    /// the achievements' order: 0 the set's (story first), 1 rarity, 2 points
+    ach_sort: usize,
     /// the key the Electron app seals API keys with on this computer
     seal_key: Option<[u8; 32]>,
     /// the custom themes found, by id and name; and whether they're to be looked for again
@@ -297,6 +299,7 @@ impl Default for Settings {
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
             achievements: None,
+            ach_sort: 0,
             seal_key: rustyshelf_core::seal::key(&paths::env_var),
             custom_themes: Vec::new(),
             reload_themes: false,
