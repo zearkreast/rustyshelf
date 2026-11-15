@@ -398,6 +398,7 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
     };
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
     // a made back or spine still wants a real scan
+    let locks = lib.config.raw().get("art").and_then(|a| a.get("locks"));
     let incomplete = |g: &Game| g.art.front.is_none() || g.art.back.is_none() || g.art.made_back || g.art.spine.is_none() || g.art.made_spine;
     let mut wanted = Vec::new();
     for shelf in &lib.shelves {
@@ -407,6 +408,10 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
         }
         let mut games = Vec::new();
         for g in shelf.games.iter().filter(|g| g.source == Source::Rom && incomplete(g)) {
+            // a game with a part chosen by hand in the Art Studio is the player's to look after
+            if locks.and_then(|l| l.get(crate::artstudio::lock_key(&shelf.id, &g.file))).and_then(Value::as_object).is_some_and(|parts| !parts.is_empty()) {
+                continue;
+            }
             if memo.get(&g.id).is_some_and(|at| js::truthy(Some(at)) && (now as f64 - js::number(Some(at))) < WEEK) {
                 continue;
             }

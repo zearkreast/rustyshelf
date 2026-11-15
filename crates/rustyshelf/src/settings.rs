@@ -26,6 +26,7 @@ use crate::shelf::Cursor;
 
 mod accounts;
 mod addgames;
+mod art;
 mod collections;
 mod custom;
 mod find;
@@ -91,6 +92,9 @@ enum Screen {
     Phone,
     /// the room the PC games take, by drive
     Storage,
+    /// the chosen game's box art, part by part; and one part's versions
+    Art,
+    ArtPart,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -191,6 +195,7 @@ pub struct Settings {
     adding: addgames::Adding,
     manual_search: manuals::ManualSearch,
     storage: storage::Storage,
+    art_pick: art::ArtPick,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -270,6 +275,7 @@ impl Default for Settings {
             adding: Default::default(),
             manual_search: Default::default(),
             storage: Default::default(),
+            art_pick: Default::default(),
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -1454,6 +1460,9 @@ impl Settings {
                     });
                 }
                 rows.extend(self.manual_rows());
+                if self.can_pick_art() {
+                    rows.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
+                }
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());
                     let turn = move |s: &mut Settings, d: i32| {
@@ -1489,6 +1498,8 @@ impl Settings {
             Screen::Accounts => self.accounts_page(),
             Screen::Phone => self.phone_page(),
             Screen::Storage => self.storage_page(),
+            Screen::Art => self.art_page(),
+            Screen::ArtPart => self.art_part_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
@@ -1793,6 +1804,7 @@ pub fn input(
     s.poll_adding();
     s.poll_manuals();
     s.poll_storage();
+    s.poll_art(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;
@@ -1935,6 +1947,7 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         s.qr = link.and_then(|l| Some((l.clone(), images.add(phone::qr_image(&l)?))));
     }
     let code = s.qr.as_ref().map(|q| q.1.clone());
+    let preview = s.art_preview(&mut images);
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
     let first = if n <= WINDOW { 0 } else { at.saturating_sub(WINDOW / 2).min(n - WINDOW) };
@@ -1969,6 +1982,9 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
             }
             if first + WINDOW < n {
                 p.spawn((Text::new("▼"), font(1.6), TextColor(DIM)));
+            }
+            if let Some(preview) = preview {
+                p.spawn((Node { position_type: PositionType::Absolute, right: vmin(8.0), bottom: vmin(16.0), height: vmin(44.0), ..default() }, ImageNode::new(preview)));
             }
             if let Some(code) = code {
                 p.spawn((

@@ -687,6 +687,14 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   face button confirms and the bottom one goes back, on every screen. A pad Windows shows as an Xbox 360 one is
   asked about as the Electron app asks: the real controllers plugged in (USB or Bluetooth) say whether a
   PlayStation or Switch pad is behind Steam Input or DS4Windows.
+- Has the Art Studio's picker (Details → Box art): for a console game's front, back, spine and disc, every
+  version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps), the picture in use
+  and the ones replaced before it, the best for the console's style first by the Electron app's own points
+  (authentic, HD, a region, special edition), each shown beside the list as it's highlighted. Enter puts one in
+  use: the old picture goes to `replaced` beside it, never deleted, a spine or a back is cut from a full wrap
+  where that's what the source has, and the part is kept as chosen (`art.locks`, which the automatic art check
+  respects in both apps). Put the earlier picture back undoes it. Downloads are kept in `data\art-cand`, the
+  Electron app's own cache.
 - Has the phone companion (Settings → Phone companion): the same page on the phone, served by the same rules as
   the Electron app's server (home-network addresses only, PIN pairing with its lockouts, tokens kept as hashes,
   pictures under random ids) and with the same `data\companion.json`, so a phone paired with one app stays paired
@@ -696,8 +704,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
-full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), the Manual Studio, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+rest of the Art Studio (a style for each console and the re-pick it starts, complete sets, your own picture,
+ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
