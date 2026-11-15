@@ -474,6 +474,10 @@ pub fn navigate(
             }
         },
         // a PC game's launch is counted, its time isn't
+        (_, Source::Pc(pc)) if cfg!(target_os = "linux") && pc.source == "epic" && pc.installed == Some(false) => {
+            toast.text = settings.epic_offer(&pc.app_name, &g.title, now);
+            toast.until = now + 6.0;
+        }
         (_, Source::Pc(pc)) if launch::is_linux_pc(pc) => {
             let (tx, rx) = channel();
             let (game, cfg, root) = ((**pc).clone(), l.config.clone(), l.app_root.clone());

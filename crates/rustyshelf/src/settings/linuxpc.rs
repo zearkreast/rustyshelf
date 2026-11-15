@@ -31,6 +31,8 @@ pub(super) struct EpicUi {
     /// the account's library as Epic last answered; None until it's asked for
     library: Option<Result<Vec<Owned>, String>>,
     busy: Option<&'static str>,
+    /// Play pressed on a game that isn't installed: its app name, and until when a second press installs it
+    offered: Option<(String, f32)>,
 }
 
 /// "45.0% · 5.00 MiB/s · 00:00:12 left"
@@ -187,6 +189,22 @@ impl Settings {
                     s.set(path, json!(""));
                 }
             })),
+        }
+    }
+
+    /// Play on an Epic game that isn't installed: the first press says so, a second one within a few seconds puts it
+    /// in the downloads. What to tell the player.
+    pub fn epic_offer(&mut self, app_name: &str, title: &str, now: f32) -> String {
+        if !self.epic.offered.take().is_some_and(|(app, until)| app == app_name && now <= until) {
+            self.epic.offered = Some((app_name.to_string(), now + 6.0));
+            return format!("{title} isn't installed yet. Press Play again to install it into {}.", short(&self.epic_dir().to_string_lossy()));
+        }
+        let dl = self.epic_downloads();
+        let busy = dl.current().map(|j| j.title);
+        match dl.add(app_name, title, &self.epic_dir().to_string_lossy(), false) {
+            Ok(i) if i.state != State::Queued || busy.is_none() => format!("Installing {title}… Settings → PC games → Downloads shows how far it is."),
+            Ok(_) => format!("{title} will start after {}", busy.unwrap_or_default()),
+            Err(e) => e,
         }
     }
 
