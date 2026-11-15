@@ -24,6 +24,10 @@ const B: u16 = 0x2000;
 
 /// How long the combo is held before it counts (ms).
 pub const HOLD: u64 = 900;
+/// (Linux) Select + Start held this long closes the game whatever the quit combo is (in Steam's Game Mode the Steam
+/// button belongs to Steam). Keep in sync with main/linuxpad.js HOLD_MS.
+#[cfg(target_os = "linux")]
+const SELECT_START_HOLD: u64 = 1500;
 
 /// The buttons of a quit combo as the settings name it (`ui.quitComboKeys`); L3 + R3 for a name that isn't one.
 pub fn mask(combo: &str) -> u16 {
@@ -42,12 +46,16 @@ pub struct Held([Option<u64>; 8]);
 impl Held {
     /// Takes a pad's buttons at `now` (ms); true once it has held all of `mask` for `HOLD`.
     pub fn seen(&mut self, pad: usize, buttons: u16, mask: u16, now: u64) -> bool {
+        self.seen_for(pad, buttons, mask, now, HOLD)
+    }
+
+    fn seen_for(&mut self, pad: usize, buttons: u16, mask: u16, now: u64, hold: u64) -> bool {
         let Some(since) = self.0.get_mut(pad) else { return false };
         if buttons & mask != mask {
             *since = None;
             return false;
         }
-        now - *since.get_or_insert(now) >= HOLD
+        now - *since.get_or_insert(now) >= hold
     }
 }
 
@@ -113,6 +121,8 @@ pub struct Watch {
     mask: u16,
     held: Held,
     view: ViewHeld,
+    #[cfg(target_os = "linux")]
+    select_start: Held,
     stop: Arc<AtomicBool>,
     signals: Option<Mutex<Receiver<Signal>>>,
     quit: bool,
@@ -126,7 +136,17 @@ impl Watch {
     pub fn start(combo: Option<&str>, pid: u32) -> Watch {
         let (mask, stop) = (combo.map_or(0, mask), Arc::new(AtomicBool::new(false)));
         let signals = xinput::watch(mask, pid, stop.clone()).map(Mutex::new);
-        Watch { mask, held: Held::default(), view: ViewHeld::default(), stop, signals, quit: false, home: false }
+        Watch {
+            mask,
+            held: Held::default(),
+            view: ViewHeld::default(),
+            #[cfg(target_os = "linux")]
+            select_start: Held::default(),
+            stop,
+            signals,
+            quit: false,
+            home: false,
+        }
     }
 
     fn hear(&mut self, pads: &Query<&Gamepad>, now: u64) {
@@ -141,6 +161,10 @@ impl Watch {
             }
             None => {
                 self.quit |= self.mask != 0 && held_here(&mut self.held, pads, self.mask, now);
+                #[cfg(target_os = "linux")]
+                for (i, pad) in pads.iter().enumerate() {
+                    self.quit |= self.select_start.seen_for(i, buttons(pad), BACK | START, now, SELECT_START_HOLD);
+                }
                 for (i, pad) in pads.iter().enumerate() {
                     self.home |= pad.just_pressed(GamepadButton::Mode) | self.view.seen(i, buttons(pad), now);
                 }
@@ -465,6 +489,164 @@ mod xinput {
         set
     }
 
+    /// Nintendo, PlayStation and PowerA pads over HID: looked for every 2 s once a game runs, each one found read on a
+    /// thread of its own, as the Electron app's helper reads them.
+    mod hid {
+        use std::ffi::c_void;
+        use std::sync::{Arc, Mutex, OnceLock};
+        use std::time::{Duration, Instant};
+
+        use rustyshelf_core::hidpads::{self, Kind, Report};
+
+        #[repr(C)]
+        #[derive(Default, Clone, Copy)]
+        struct Guid(u32, u16, u16, [u8; 8]);
+
+        #[repr(C)]
+        struct InterfaceData {
+            size: u32,
+            class: Guid,
+            flags: u32,
+            reserved: usize,
+        }
+
+        #[repr(C)]
+        #[derive(Default)]
+        struct Attributes {
+            size: u32,
+            vid: u16,
+            pid: u16,
+            version: u16,
+        }
+
+        #[link(name = "hid")]
+        extern "system" {
+            fn HidD_GetHidGuid(guid: *mut Guid);
+            fn HidD_GetAttributes(h: *mut c_void, a: *mut Attributes) -> u8;
+        }
+        #[link(name = "setupapi")]
+        extern "system" {
+            fn SetupDiGetClassDevsW(guid: *const Guid, enumerator: *const u16, parent: *mut c_void, flags: u32) -> *mut c_void;
+            fn SetupDiEnumDeviceInterfaces(set: *mut c_void, info: *mut c_void, guid: *const Guid, index: u32, data: *mut InterfaceData) -> i32;
+            fn SetupDiGetDeviceInterfaceDetailW(set: *mut c_void, data: *mut InterfaceData, detail: *mut u8, size: u32, required: *mut u32, info: *mut c_void) -> i32;
+            fn SetupDiDestroyDeviceInfoList(set: *mut c_void) -> i32;
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn CreateFileW(name: *const u16, access: u32, share: u32, security: *mut c_void, disposition: u32, flags: u32, template: *mut c_void) -> *mut c_void;
+            fn ReadFile(h: *mut c_void, buf: *mut u8, n: u32, got: *mut u32, overlapped: *mut c_void) -> i32;
+            fn CloseHandle(h: *mut c_void) -> i32;
+        }
+
+        struct Pad {
+            path: String,
+            kind: Kind,
+            last: Option<(Report, Instant)>,
+        }
+
+        static PADS: Mutex<Vec<Arc<Mutex<Pad>>>> = Mutex::new(Vec::new());
+        static SCAN: OnceLock<()> = OnceLock::new();
+
+        /// The paths of the HID devices plugged in now.
+        fn paths() -> Vec<String> {
+            let mut out = Vec::new();
+            let mut guid = Guid::default();
+            // SAFETY: SetupAPI's walk over the HID interfaces present, each detail read into a buffer of the size it
+            // asks for (its first four bytes the structure's size), the list destroyed at the end
+            unsafe {
+                HidD_GetHidGuid(&mut guid);
+                let set = SetupDiGetClassDevsW(&guid, std::ptr::null(), std::ptr::null_mut(), 0x12);
+                if set.is_null() || set as isize == -1 {
+                    return out;
+                }
+                for i in 0..256 {
+                    let mut d = InterfaceData { size: std::mem::size_of::<InterfaceData>() as u32, class: Guid::default(), flags: 0, reserved: 0 };
+                    if SetupDiEnumDeviceInterfaces(set, std::ptr::null_mut(), &guid, i, &mut d) == 0 {
+                        break;
+                    }
+                    let mut need = 0u32;
+                    SetupDiGetDeviceInterfaceDetailW(set, &mut d, std::ptr::null_mut(), 0, &mut need, std::ptr::null_mut());
+                    if need < 8 {
+                        continue;
+                    }
+                    let mut buf = vec![0u8; need as usize];
+                    buf[..4].copy_from_slice(&(if cfg!(target_pointer_width = "64") { 8u32 } else { 6u32 }).to_le_bytes());
+                    if SetupDiGetDeviceInterfaceDetailW(set, &mut d, buf.as_mut_ptr(), need, &mut need, std::ptr::null_mut()) == 0 {
+                        continue;
+                    }
+                    let wide: Vec<u16> = buf[4..].chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).take_while(|&c| c != 0).collect();
+                    out.push(String::from_utf16_lossy(&wide));
+                }
+                SetupDiDestroyDeviceInfoList(set);
+            }
+            out
+        }
+
+        fn scan() {
+            for path in paths() {
+                let lp = path.to_lowercase();
+                let maker = ["vid_057e", "vid&0002057e", "vid_054c", "vid&0002054c", "vid_20d6&pid_a713"].iter().any(|v| lp.contains(v));
+                if !maker || PADS.lock().unwrap().iter().any(|p| p.lock().unwrap().path == lp) {
+                    continue;
+                }
+                let wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+                // SAFETY: a device path from SetupAPI, opened to read (shared, so the game's emulator can open it too)
+                let h = unsafe { CreateFileW(wide.as_ptr(), 0x8000_0000, 3, std::ptr::null_mut(), 3, 0, std::ptr::null_mut()) };
+                if h.is_null() || h as isize == -1 {
+                    continue;
+                }
+                let mut a = Attributes { size: std::mem::size_of::<Attributes>() as u32, ..Attributes::default() };
+                // SAFETY: the handle just opened, and attributes of the size they're told
+                let kind = (unsafe { HidD_GetAttributes(h, &mut a) } != 0).then(|| hidpads::kind(a.vid, a.pid, lp.contains("00001124-0000-1000-8000-00805f9b34fb"))).flatten();
+                let Some(kind) = kind else {
+                    // SAFETY: the handle just opened
+                    unsafe { CloseHandle(h) };
+                    continue;
+                };
+                let pad = Arc::new(Mutex::new(Pad { path: lp, kind, last: None }));
+                PADS.lock().unwrap().push(pad.clone());
+                let h = h as usize;
+                std::thread::spawn(move || {
+                    let mut buf = [0u8; 1024];
+                    let mut got = 0u32;
+                    // SAFETY: blocking reads into a buffer of the size given, on the handle this thread owns
+                    while unsafe { ReadFile(h as *mut c_void, buf.as_mut_ptr(), buf.len() as u32, &mut got, std::ptr::null_mut()) } != 0 {
+                        if let Some(r) = hidpads::parse(kind, &buf[..got as usize]) {
+                            pad.lock().unwrap().last = Some((r, Instant::now()));
+                        }
+                    }
+                    // unplugged or out of range: the scan finds it again when it's back
+                    PADS.lock().unwrap().retain(|p| !Arc::ptr_eq(p, &pad));
+                    // SAFETY: the handle this thread owns, closed once
+                    unsafe { CloseHandle(h as *mut c_void) };
+                });
+            }
+        }
+
+        /// What the Nintendo pads (and PowerA's), then the PlayStation ones, hold now, each as one XInput slot.
+        pub fn slots() -> [Option<u16>; 2] {
+            SCAN.get_or_init(|| {
+                std::thread::spawn(|| loop {
+                    scan();
+                    std::thread::sleep(Duration::from_secs(2));
+                });
+            });
+            let pads = PADS.lock().unwrap();
+            let of = |ps: bool| {
+                let list: Vec<(Report, u64)> = pads
+                    .iter()
+                    .filter_map(|p| {
+                        let p = p.lock().unwrap();
+                        let is_ps = matches!(p.kind, Kind::PlayStation { .. });
+                        p.last.filter(|_| is_ps == ps).map(|(r, at)| (r, at.elapsed().as_millis() as u64))
+                    })
+                    .collect();
+                hidpads::combined(&list)
+            };
+            [of(false), of(true)]
+        }
+    }
+
     pub fn watch(mask: u16, pid: u32, stop: Arc<AtomicBool>) -> Option<Receiver<Signal>> {
         let get = reader()?;
         let (tx, rx) = channel();
@@ -474,21 +656,31 @@ mod xinput {
             let (start, mut held, mut view) = (Instant::now(), Held::default(), ViewHeld::default());
             // an empty slot is slow to ask (XInput looks for a device each time): again after a while
             let mut retry = [start; 4];
-            let mut before = [0u16; 4];
+            let mut before = [0u16; 6];
             let (mut fam, mut fam_at) = (family(pid), start);
             while !stop.load(Ordering::Relaxed) {
                 let now = Instant::now();
-                for (slot, retry) in retry.iter_mut().enumerate() {
-                    if now < *retry {
-                        continue;
-                    }
+                let hid = hid::slots();
+                for slot in 0..6 {
                     let mut state = State::default();
-                    // SAFETY: XInputGetState with a state of its own to fill
-                    if unsafe { get(slot as u32, &mut state) } != 0 {
-                        *retry = now + Duration::from_millis(1500);
-                        held.seen(slot, 0, mask, 0);
-                        before[slot] = 0;
-                        continue;
+                    if slot >= 4 {
+                        let Some(b) = hid[slot - 4] else {
+                            held.seen(slot, 0, mask, 0);
+                            before[slot] = 0;
+                            continue;
+                        };
+                        state.buttons = b;
+                    } else {
+                        if now < retry[slot] {
+                            continue;
+                        }
+                        // SAFETY: XInputGetState with a state of its own to fill
+                        if unsafe { get(slot as u32, &mut state) } != 0 {
+                            retry[slot] = now + Duration::from_millis(1500);
+                            held.seen(slot, 0, mask, 0);
+                            before[slot] = 0;
+                            continue;
+                        }
                     }
                     let ms = now.duration_since(start).as_millis() as u64;
                     let quit = mask != 0 && held.seen(slot, state.buttons, mask, ms);
@@ -522,6 +714,14 @@ mod xinput {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_longer_hold() {
+        let mut h = Held::default();
+        assert!(!h.seen_for(0, BACK | START, BACK | START, 0, 1500));
+        assert!(!h.seen_for(0, BACK | START, BACK | START, 1400, 1500));
+        assert!(h.seen_for(0, BACK | START | B, BACK | START, 1500, 1500));
+    }
 
     #[test]
     fn combo_counts_once_held() {

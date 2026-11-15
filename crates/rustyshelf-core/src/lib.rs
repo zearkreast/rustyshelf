@@ -28,6 +28,7 @@ pub mod gamelist;
 pub mod find;
 pub mod gametdb;
 pub mod gamewatch;
+pub mod hidpads;
 pub mod history;
 pub mod homemenu;
 pub mod i18n;
