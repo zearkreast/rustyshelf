@@ -12,6 +12,7 @@ mod home;
 mod hud;
 mod idle;
 mod loading;
+mod console_model;
 mod museum;
 mod rack;
 mod music;
@@ -48,15 +49,20 @@ fn main() {
     paths::quiet_drive_errors();
     std::thread::spawn(|| rustyshelf_core::emucfg::init(&paths::env_var));
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "RustyShelf".into(),
-                mode: window_mode(),
-                resolution: (1280, 720).into(),
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "RustyShelf".into(),
+                        mode: window_mode(),
+                        resolution: (1280, 720).into(),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                // your own 3D consoles are loaded from themes\<system>, outside the assets folder
+                .set(bevy::asset::AssetPlugin { unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow, ..default() }),
+        )
         .insert_resource(loading::start_library())
         .init_resource::<loading::Refresh>()
         .init_resource::<loading::Base>()
@@ -100,7 +106,7 @@ fn main() {
                 phone::run,
                 idle::run,
                 home::run,
-                (reader::run, museum::run).chain(),
+                (reader::run, museum::run, console_model::fit).chain(),
                 shelf::inspect,
                 settings::input,
                 play::navigate,

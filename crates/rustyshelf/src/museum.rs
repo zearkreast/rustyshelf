@@ -286,6 +286,8 @@ pub struct Museum {
     reader_here: bool,
     reading_was: bool,
     style: Style,
+    /// what loads your own console models
+    assets: Option<AssetServer>,
     /// the case in your hands: how it's turned (and where it's turning to), in radians; how far it has come up to you,
     /// 0 to 1; and the cases whose backs have been put on
     held: Option<Held>,
@@ -569,7 +571,11 @@ fn build(
         }
         let console_w = (sw * 1.7).max(1.3);
         if last_of(k) {
-            stand_in(commands, parent, &style, Vec3::new(x + 0.3 + console_w / 2.0, top, 0.0), console_w, meshes, materials);
+            let foot = Vec3::new(x + 0.3 + console_w / 2.0, top, 0.0);
+            let stand = stand_in(commands, parent, &style, foot, console_w, meshes, materials);
+            if let (Some(assets), Some((path, opts))) = (&m.assets, crate::console_model::find(&lib.app_root, &s.id)) {
+                crate::console_model::spawn(commands, assets, parent, &path, opts, (foot, console_w, 1.0, DEPTH), Some(stand), layer());
+            }
         }
         let total = parts(si);
         let part = seen.entry(si).and_modify(|n| *n += 1).or_insert(1usize);
@@ -763,7 +769,7 @@ fn section_tabs(
 
 /// The original stand-in console at a row's end, its foot at `at`: a low slab in the shelf's colours with a lit strip,
 /// and a controller in front of it.
-fn stand_in(commands: &mut Commands, parent: Entity, style: &looks::Look, at: Vec3, w: f32, meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) {
+fn stand_in(commands: &mut Commands, parent: Entity, style: &looks::Look, at: Vec3, w: f32, meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) -> Entity {
     let (h, d) = (0.34, DEPTH * 0.7);
     let body = materials.add(StandardMaterial { base_color: color(style.case_side), perceptual_roughness: 0.45, metallic: 0.1, clearcoat: 0.5, ..default() });
     let shell = materials.add(StandardMaterial { base_color: color(style.case_color), perceptual_roughness: 0.3, clearcoat: 0.7, ..default() });
@@ -773,7 +779,8 @@ fn stand_in(commands: &mut Commands, parent: Entity, style: &looks::Look, at: Ve
         c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w * 0.5, h * 0.12, 0.01))), MeshMaterial3d(strip), Transform::from_xyz(0.0, -h * 0.2, d / 2.0 + 0.005)));
         c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w * 0.9, 0.01, d * 0.9))), MeshMaterial3d(shell), Transform::from_xyz(0.0, h / 2.0, 0.0)));
         c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w * 0.32, h * 0.35, d * 0.5))), MeshMaterial3d(pad), Transform::from_xyz(w * 0.1, -h / 2.0 + h * 0.18, d / 2.0 + d * 0.4)));
-    });
+    })
+    .id()
 }
 
 /// What a row's plaque says under its name: how many games and how much they've been played, the most played one,
@@ -855,6 +862,7 @@ pub struct Making<'w> {
     materials: ResMut<'w, Assets<StandardMaterial>>,
     mona: Res<'w, crate::hud::MonaSans>,
     images: ResMut<'w, Assets<Image>>,
+    assets: Res<'w, AssetServer>,
 }
 
 /// The wall's moving parts: the cases, the row lights and the card.
@@ -900,7 +908,10 @@ pub fn run(
     mut text: Query<&mut Text, With<MuseumText>>,
 ) {
     let LibraryState::Ready(l) = &lib.0 else { return };
-    let Making { covers, loader, meshes, materials, mona, images } = &mut making;
+    let Making { covers, loader, meshes, materials, mona, images, assets } = &mut making;
+    if m_needs_assets(&museum) {
+        museum.assets = Some((**assets).clone());
+    }
     let mona = &**mona;
     let (covers, loader, meshes, materials, images) = (&mut **covers, &**loader, &mut **meshes, &mut **materials, &mut **images);
     let now = time.elapsed_secs();
@@ -1725,6 +1736,10 @@ fn gallery(
             put(commands, Rectangle::new(fw * 0.8, fh * 0.8).into(), pic, Transform::from_xyz(px, py, -DEPTH / 2.0 + 0.058));
         }
     }
+}
+
+fn m_needs_assets(m: &Museum) -> bool {
+    m.assets.is_none()
 }
 
 /// A shelf's own glow colour, which its row's lamp takes in Neon night.
