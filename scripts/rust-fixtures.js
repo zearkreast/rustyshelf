@@ -1320,6 +1320,121 @@ function padsFixtures() {
   out.devices.push({ text: devices[2].join('\n') + '\n', pads: padsense.parse(devices[2].join('\n') + '\n') });
   return out;
 }
+// Manual spreads cut into pages, and the manual collections on the Internet Archive (a made-up one, answered here).
+async function manualcollFixtures() {
+  const https = require('https'), { EventEmitter } = require('events'), { PassThrough } = require('stream');
+  const M = require('../main/manuals'), C = require('../main/manualcoll'), spreads = require('../main/spreads');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-coll-')), out = {};
+  // (a game's key is its file in lower case)
+  const there = v => JSON.parse(JSON.stringify(v).split(JSON.stringify(tmp).slice(1, -1)).join('<tmp>').split(JSON.stringify(tmp.toLowerCase()).slice(1, -1)).join('<tmp>'));
+  const page = (w, h) => Buffer.concat([pngHead(w, h), Buffer.alloc(2960)]);
+  const tree = dir => { const o = []; const walk = (d, rel) => { for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) { const r = rel ? rel + '/' + e.name : e.name;
+    if (e.isDirectory()) walk(path.join(d, e.name), /^\d{4}-\d\d-\d\dT[\d-]+$/.test(e.name) ? rel + '/<stamp>' : r); else o.push(r); } }; try { walk(dir, ''); } catch {} return o.sort(); };
+
+  // ---- spreads: each manual is its pages' sizes; a cut half says which page it was and which side
+  const manuals = {
+    'scanned open': { pages: [['01.png', 2000, 1400], ['02.png', 2000, 1400], ['03.jpg', 1000, 1400], ['04.png', 2000, 1400]] },
+    'upright': { pages: [['01.png', 1000, 1400], ['02.png', 1000, 1400]] },
+    'one poster': { pages: [['01.png', 1000, 1400], ['02.png', 2000, 1400], ['03.png', 1000, 1400], ['04.png', 1000, 1400]] },
+    'sideways': { pages: [['01.png', 1400, 1000], ['02.png', 1400, 1000], ['03.png', 1400, 1000]] },
+    'two sideways': { pages: [['01.png', 1400, 1000], ['02.png', 1400, 1000]] },
+    'screens': { pages: [['01.png', 640, 480], ['02.png', 640, 480]] },
+    'small spreads': { pages: [['01.png', 1000, 700], ['02.png', 1000, 700], ['03.png', 500, 700]] },
+    'squarish scan': { pages: [['01.png', 1650, 1400], ['02.png', 1650, 1400]], opts: { scan: true } },
+    'squarish no scan': { pages: [['01.png', 1650, 1400], ['02.png', 1650, 1400]] },
+    'scan discarded': { pages: [['1.png', 2000, 1400], ['2.png', 1000, 1400], ['10.png', 2000, 1400]], opts: { scan: true, discard: true } },
+    'too narrow for repair': { pages: [['01.png', 2000, 1400], ['02.png', 2000, 1400]], opts: { minW: 2400 } },
+    'wide enough for repair': { pages: [['01.png', 2000, 1400], ['02.png', 2000, 1400]], opts: { minW: 1800 } },
+    'too wide': { pages: [['01.png', 2400, 1400], ['02.png', 2400, 1400]] },
+    'nothing': { pages: [] },
+  };
+  out.spreads = [];
+  for (const [base, m] of Object.entries(manuals)) {
+    const dir = path.join(tmp, 'sp', base); fs.mkdirSync(dir, { recursive: true });
+    for (const [n, w, h] of m.pages) fs.writeFileSync(path.join(dir, `${base}-manual-${n}`), Buffer.concat([/\.jpg$/.test(n) ? jpegHead(w, h, 0) : pngHead(w, h), Buffer.from('whole:' + n)]));
+    fs.writeFileSync(path.join(dir, `${base}-front.png`), 'not a page'); fs.writeFileSync(path.join(dir, `${base}-manual-x.png`), 'not numbered');
+    const crop = async (file, side) => Buffer.from(side + ':' + path.basename(file).split('-manual-')[1]);
+    const n = await spreads.splitManual(dir, base, crop, m.opts || {});
+    const now = Object.fromEntries(fs.readdirSync(dir).filter(f => f.includes('-manual-') && !f.endsWith('-x.png')).sort().map(f => { const t = fs.readFileSync(path.join(dir, f)).toString('latin1'), k = t.lastIndexOf('whole:'); return [f, k >= 0 ? t.slice(k) : t]; }));
+    out.spreads.push({ base, pages: m.pages, opts: m.opts || {}, n, now, kept: tree(path.join(dir, '.manual-originals')), median: spreads.medianWidth(dir, base) });
+  }
+  out.isSpread = [[1400, 1000], [1250, 1000], [1251, 1000], [1620, 1000], [1619, 1000], [1000, 1400], null].map(z => [z, spreads.isSpread(z)]);
+
+  // ---- names
+  out.clean = ['Legend of Omega, The - The Sigma Waker (USA)', 'Zeta Run (Europe) (En,Fr,De) (v1.1)', 'Tau_Racers_(USA)_(Disc 2)', 'Phi Party [4D5307E6] (World)', 'Rho, A (Japan) (4d5307e6)', 'Alpha, An - Beta', 'Plain', 'Omega Quest, The', '(USA)', 'Gamma [b] Force (Disc 12) (Disc 3)', 'A, The, The'].map(t => [t, C.clean(t)]);
+  out.keys = [['ProfessorZetaAndTheOmegaFutureusa', 'squash'], ['ZetaRun2Skiesusaenfres', 'squash'], ['Wii Games/Wii_Zeta_Run_Brawl', 'loose'], ['Nintendo 64 Games/Manual_Nintendo64_OmegaKart64_EN', 'loose'], ['DS Games/NTR_NSMB_Single_Sheet', 'loose'], ['GBA Games/AGB_LoZ_Sigma_Cap_EN', 'loose'],
+    ['x/DKC2_e-manual_digital', 'loose'], ['Gamecube Games/GCN_Tau_Racers_Double_Dash', 'loose'], ['2020bb', 'set'], ['Sets/MSLUG', 'set'], ['Zeta Run (USA)', ''], ['usa', 'squash'], ['Europeeur', 'squash']].map(([stem, mode]) => [stem, mode, C._entryKeys(stem, mode)]);
+
+  // ---- the Internet Archive, as far as this goes
+  const md = id => `https://archive.org/metadata/${id}`, pdf = (name, size = 4e6) => ({ name, size: String(size) }), zip = name => ({ name: name.replace(/\.pdf$/, '_jp2.zip') });
+  const both = (name, size) => [pdf(name, size), zip(name)];
+  const listing = (col, stem, n) => ({ [`https://archive.org/download/${col}/${stem.split('/').map(encodeURIComponent).join('/')}_jp2.zip/`]: { body: '<html>' + Array.from({ length: n }, (_, i) => { const f = `${path.posix.basename(stem)}_jp2/${path.posix.basename(stem)}_${String(i).padStart(4, '0')}.jp2`;
+    return `<a href="//archive.org/download/${col}/${encodeURIComponent(stem + '_jp2.zip')}/${encodeURIComponent(f)}">x</a> <a href="?${encodeURIComponent(f)}&ext=jpg">jpg</a>`; }).reverse().join('\n') + '</html>' } });
+  const full = (server, dir, col, stem, i) => `https://${server}/BookReader/BookReaderImages.php?zip=${encodeURIComponent(dir + '/' + stem + '_jp2.zip')}&file=${encodeURIComponent(`${path.posix.basename(stem)}_jp2/${path.posix.basename(stem)}_${String(i).padStart(4, '0')}.jp2`)}&id=${encodeURIComponent(col)}&scale=1&rotate=0`;
+  const half = (col, stem, i) => `https://archive.org/download/${col}/${stem.split('/').map(encodeURIComponent).join('/')}_jp2.zip/${encodeURIComponent(`${path.posix.basename(stem)}_jp2/${path.posix.basename(stem)}_${String(i).padStart(4, '0')}.jp2`)}&ext=jpg`;
+  const GC = 'NintendoGameCubeManuals', GC2 = 'GCN-GBA-manuals', HI = 'Nintendo-Hi-Res-Manuals-2026', F2 = 'Gamecube/Game Manuals/';
+  const site = {
+    [md(GC)]: { json: { server: 'ia9.example.org', dir: '/7/items/gc', d2: 'ia8.example.org', files: [...both('Zeta Run (USA).pdf'), ...both('Zeta Run (Japan).pdf'), ...both('Zeta Run 2 (USA).pdf'), ...both('Omega Quest (Europe) (En,Fr,De).pdf'), ...both('Omega Quest (USA) (v1.1).pdf'), ...both('Sigma, The (USA).pdf'),
+      pdf('Tau Racers (USA).pdf'), ...both('Rho (USA).pdf'), ...both('Alpha Tale (USA).pdf'), ...both('Blurry Game (USA).pdf'), ...both('Locked Game (USA).pdf'), pdf('Zeta Run (USA)_text.pdf'), { name: 'Zeta Run (USA)_djvu.txt' }, ...both('Legend of Gamma, The - The Long Way (USA) (Disc 2).pdf'), ...both('Legend of Gamma, The - The Long Way (USA).pdf'),
+      ...both('Disney Pixar Delta Cars (USA).pdf'), ...both('Epsilon & Friends (USA).pdf')] } },
+    [md(GC2)]: { json: { d1: 'ia7.example.org', dir: '/3/items/gcn', files: [...both(F2 + 'GCN_Alpha Tale (USA).pdf'), ...both(F2 + 'Kappa Storm (USA).pdf'), ...both('GBA/Game Manuals/Zeta Run (USA).pdf')] } },
+    [md(HI)]: { json: { server: 'ia6.example.org', dir: '/1/items/hi', files: [...both('Gamecube Games/GCN_Lambda_Golf_EN.pdf'), ...both('Gamecube Games/Nintendo_GameCube_Health_and_Safety.pdf'), ...both('Wii Games/Wii_Lambda_Golf.pdf'), ...both('Gamecube Games/DK_Jungle_Mu.pdf')] } },
+    ...listing(GC, 'Zeta Run (USA)', 3), ...listing(GC, 'Omega Quest (USA) (v1.1)', 2), ...listing(GC, 'Sigma, The (USA)', 2), ...listing(GC, 'Rho (USA)', 3), ...listing(GC, 'Blurry Game (USA)', 2), ...listing(GC2, F2 + 'GCN_Alpha Tale (USA)', 2), ...listing(HI, 'Gamecube Games/GCN_Lambda_Golf_EN', 2),
+    ...Object.fromEntries([0, 1, 2].map(i => [full('ia9.example.org', '/7/items/gc', GC, 'Zeta Run (USA)', i), { png: [1200, 1700] }])),
+    [full('ia9.example.org', '/7/items/gc', GC, 'Omega Quest (USA) (v1.1)', 0)]: { status: 500 }, [half(GC, 'Omega Quest (USA) (v1.1)', 0)]: { png: [1200, 1700] }, [full('ia9.example.org', '/7/items/gc', GC, 'Omega Quest (USA) (v1.1)', 1)]: { png: [1210, 1700] },
+    ...Object.fromEntries([0, 1].map(i => [full('ia9.example.org', '/7/items/gc', GC, 'Sigma, The (USA)', i), { png: [1200, 1700] }])),
+    [full('ia9.example.org', '/7/items/gc', GC, 'Rho (USA)', 0)]: { png: [1200, 1700] }, [full('ia9.example.org', '/7/items/gc', GC, 'Rho (USA)', 2)]: { png: [1200, 1700] },
+    ...Object.fromEntries([0, 1].map(i => [full('ia9.example.org', '/7/items/gc', GC, 'Blurry Game (USA)', i), { png: [400, 600] }])),
+    ...Object.fromEntries([0, 1].map(i => [full('ia7.example.org', '/3/items/gcn', GC2, F2 + 'GCN_Alpha Tale (USA)', i), { png: [1300, 1800] }])),
+    ...Object.fromEntries([0, 1].map(i => [full('ia6.example.org', '/1/items/hi', HI, 'Gamecube Games/GCN_Lambda_Golf_EN', i), { png: [2800, 3600] }])),
+  };
+  const asked = [], real = https.get;
+  https.get = (url, opts, cb) => { asked.push(url); const r = site[url] || { status: 404 }, req = new EventEmitter(); req.setTimeout = () => {}; req.destroy = e => { if (e) req.emit('error', e); };
+    setImmediate(() => { const res = new PassThrough(); res.statusCode = r.status || 200; res.headers = {}; cb(res); res.end(r.json ? JSON.stringify(r.json) : r.png ? page(r.png[0], r.png[1]) : r.body || ''); }); return req; };
+  try {
+    out.site = site;
+    const data = path.join(tmp, 'data'); fs.mkdirSync(data);
+    C.init({ cacheDir: path.join(data, 'boxart-cache'), memoFile: path.join(data, 'manual-collections.json') });
+    const { COLLECTIONS } = C;
+    out.collections = Object.fromEntries(Object.entries(COLLECTIONS).map(([k, v]) => [k, v.map(c => ({ id: c.id, folder: c.folder || '', names: c.names || '', digital: !!c.digital }))]));
+    const strip = ix => ({ ...ix, at: 0, entries: ix.entries.map(e => Object.fromEntries(Object.entries(e).filter(([k]) => k[0] !== '_'))) });
+    out.indexes = []; const ixs = {};
+    for (const col of COLLECTIONS.gc) { const ix = await C.index(col); ixs[col.id] = ix; out.indexes.push(strip(ix)); }
+    out.cached = fs.readdirSync(path.join(data, 'boxart-cache')).sort();
+    const game = (title, more = {}) => ({ title, file: `/roms/${title}.iso`, ...more });
+    const games = [game('Zeta Run'), game('Zeta Run', { region: 'Japan' }), game('Zeta Run 2 (USA)'), game('Omega Quest'), game('The Sigma'), game('Sigma, The'), game('Legend of Gamma, The - The Long Way'), game('The Legend of Gamma: The Long Way (USA) (Disc 2)'),
+      game('Delta Cars'), game('Disney-Pixar Delta Cars'), game('Epsilon and Friends'), game('Epsilon Friends'), game('Zeta'), game('Run Zeta'), game('Zeta Runs'), game('Nothing Like It'), game('Alpha Tale'), game('Kappa Storm'), game('Lambda Golf'), game('Lambda Golf 2'),
+      game('Donkey Kong Jungle Mu'), game('DK: Jungle Mu'), game('Jungle'), game(''), game('Rho', { titleId: 'abcd1234' })];
+    out.matches = games.map(g => [g, COLLECTIONS.gc.map(col => C.matches(ixs[col.id].entries, g).map(e => e.name))]);
+    const sets = [{ name: 'a/2020bb.pdf', stem: 'a/2020bb', title: '2020bb', tags: [], mode: 'set', set: '2020bb' }, { name: 'mslug.pdf', stem: 'mslug', title: 'mslug', tags: [], mode: 'set', set: 'mslug' }];
+    out.sets = { entries: sets, games: [{ title: 'Zeta Ball', file: 'C:\\roms\\2020BB.zip' }, { title: 'mslug', file: '/roms/other.zip' }, { title: 'x', file: '' }].map(g => [g, C.matches(sets, g).map(e => e.name)]) };
+    out.pages = there(await C.jp2Pages(COLLECTIONS.gc[1], ixs[GC2], ixs[GC2].entries[0]));
+
+    // ---- a run over a made-up GameCube folder
+    const { CONSOLES } = require('../main/systems'), roms = path.join(tmp, 'roms'), covers = path.join(roms, 'covers');
+    fs.mkdirSync(covers, { recursive: true });
+    const titles = ['Zeta Run (USA)', 'Omega Quest (USA)', 'Sigma, The (USA)', 'Tau Racers (USA)', 'Phi (USA)', 'Rho (USA)', 'Alpha Tale (USA)', 'Blurry Game (USA)', 'Locked Game (USA)', 'Lambda Golf (USA)'];
+    for (const t of titles) fs.writeFileSync(path.join(roms, t + '.iso'), 'rom');
+    const has = (t, sizes) => sizes.forEach(([w, h], i) => fs.writeFileSync(path.join(covers, `${t}-manual-${String(i + 1).padStart(2, '0')}.jpg`), page(w, h)));
+    out.had = { 'Omega Quest (USA)': [[800, 1100], [800, 1100]], 'Sigma, The (USA)': [[2600, 3600], [2600, 3600], [2600, 3600]], 'Blurry Game (USA)': [[900, 1300], [900, 1300]], 'Locked Game (USA)': [[500, 700]] };
+    for (const [t, sizes] of Object.entries(out.had)) has(t, sizes);
+    const key = t => 'gc|' + path.join(roms, t + '.iso').toLowerCase();
+    const rejects = { [key('Alpha Tale (USA)')]: ['coll:' + GC + '/Alpha Tale (USA).pdf'] }, studio = { locks: { [key('Locked Game (USA)')]: true } };
+    out.rejects = there(rejects); out.studio = there(studio);
+    fs.writeFileSync(path.join(data, 'manual-rejects.json'), JSON.stringify(rejects)); M.setRejectStore(path.join(data, 'manual-rejects.json'));
+    fs.writeFileSync(path.join(data, 'manual-studio.json'), JSON.stringify(studio));
+    const sys = [{ def: CONSOLES.find(c => c.id === 'gc'), cfg: { romDirs: [roms], enabled: true } }];
+    out.games = there(require('../main/scanner').scanSystem(sys[0].def, sys[0].cfg).map(g => ({ title: g.title, file: g.file, region: g.region || '', titleId: g.titleId || null })));
+    const before = asked.length, report = [];
+    out.done = await C.run(sys, { report, locked: (id, f) => /Locked Game/.test(f) });
+    const memo = () => there(Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(path.join(data, 'manual-collections.json'), 'utf8'))).map(([k, v]) => { const { at, altTried, render, ...rest } = v; return [k, rest]; })));
+    out.report = report.sort((a, b) => (a.title < b.title ? -1 : 1)); out.memo = memo(); out.tree = tree(covers); out.asked = asked.length - before;
+    const again = asked.length; out.doneAgain = await C.run(sys, { report: [], locked: (id, f) => /Locked Game/.test(f) }); out.askedAgain = asked.length - again;
+    out.recent = C.recent(30).map(r => { const { at, ...rest } = r; return rest; }).sort((a, b) => (a.title < b.title ? -1 : 1));
+    out.forgot = [C.forget(key('Zeta Run (USA)')), C.forget(key('Phi (USA)')), C.forget('gc|nothing')]; out.memoAfter = memo();
+    return out;
+  } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1333,6 +1448,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'companion.json'), JSON.stringify(await companionFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'pcach.json'), JSON.stringify(await pcachFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'pads.json'), JSON.stringify(padsFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'manualcoll.json'), JSON.stringify(await manualcollFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');

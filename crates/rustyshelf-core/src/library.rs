@@ -3,7 +3,7 @@
 //! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
 //! the Custom shelf's Quiver apps and programs added by hand.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
@@ -317,27 +317,70 @@ pub fn upkeep(lib: &Library) -> bool {
     changed | auto_manuals(lib, &data_dir)
 }
 
-/// Manuals for the console games that have none, when fetching them is switched on: the confident matches on
-/// archive.org and GamesDatabase.org, forty games a run at most, each looked at again only when it's due. The
-/// Wii U reads its games' own. True when a manual came in.
+/// Manuals, when fetching them is switched on. First the scan collections on the Internet Archive, for every
+/// console that has one: the sharpest manuals there are, also over a manual that's there (eighty games a run at
+/// most). Then, for the console games still without one, the confident matches on archive.org and
+/// GamesDatabase.org, forty games a run at most, each looked at again only when it's due. Last, manuals scanned
+/// open are cut into pages. The Wii U reads its games' own. True when a manual changed.
 fn auto_manuals(lib: &Library, data_dir: &Path) -> bool {
     use crate::manuals::{auto_fetch, Online, Stores, Wanted};
+    use crate::{manualcoll, spreads};
     if !lib.config.auto_manuals() {
         return false;
     }
     let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
-    let mut games = Vec::new();
+    let mut all = Vec::new();
     for shelf in lib.shelves.iter().filter(|s| s.id != "wiiu") {
         let ShelfKind::Console { config, .. } = &shelf.kind else { continue };
-        for g in shelf.games.iter().filter(|g| g.source == Source::Rom && g.art.manual.is_empty() && g.art.manual_pdf.is_none()) {
-            games.push(Wanted { sys: shelf.id.clone(), title: g.title.clone(), file: g.file.to_string_lossy().into_owned(), dir: art.manual_dir_for(config, &g.file, &lib.app_root), base: crate::art::art_base(&g.file) });
+        for g in shelf.games.iter().filter(|g| g.source == Source::Rom) {
+            let game = manualcoll::Game {
+                sys: shelf.id.clone(),
+                system: shelf.name.clone(),
+                title: g.title.clone(),
+                title_id: g.title_id.clone(),
+                file: g.file.to_string_lossy().into_owned(),
+                region: g.region.clone(),
+                dir: art.manual_dir_for(config, &g.file, &lib.app_root),
+                base: crate::art::art_base(&g.file),
+            };
+            all.push((game, g.art.manual_pdf.is_some()));
         }
     }
-    if games.is_empty() {
+    if all.is_empty() {
         return false;
     }
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
-    auto_fetch(&Online, &games, &mut Stores::load(data_dir), now, &|| false).1 > 0
+    let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+    let mut stores = Stores::load(data_dir);
+    let games: Vec<manualcoll::Game> = all.iter().map(|g| g.0.clone()).collect();
+    // (the collections are English, North American: not for a console set to another language or region)
+    let mut changed = !manualcoll::run(&Online, data_dir, &games, &stores, &now, &|sys| stores.pref(sys) != "best", &|| false).is_empty();
+    // each folder is listed once, not once a game
+    let with_manual = |games: &[(manualcoll::Game, bool)]| -> HashSet<(PathBuf, String)> {
+        let mut have = HashSet::new();
+        for dir in games.iter().map(|g| &g.0.dir).collect::<HashSet<_>>() {
+            for name in std::fs::read_dir(dir).into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().to_lowercase()) {
+                if let Some(base) = name.strip_suffix("-manual.pdf") {
+                    have.insert((dir.clone(), base.to_string()));
+                } else if [".jpg", ".jpeg", ".png", ".webp"].iter().any(|e| name.ends_with(e)) {
+                    have.extend(name.match_indices("-manual-").map(|(i, _)| (dir.clone(), name[..i].to_string())));
+                }
+            }
+        }
+        have
+    };
+    let have = with_manual(&all);
+    let has = |g: &manualcoll::Game, have: &HashSet<(PathBuf, String)>| have.contains(&(g.dir.clone(), g.base.to_lowercase()));
+    let wanted: Vec<Wanted> = all
+        .iter()
+        .filter(|(g, pdf)| !pdf && !has(g, &have))
+        .map(|(g, _)| Wanted { sys: g.sys.clone(), title: g.title.clone(), file: g.file.clone(), dir: g.dir.clone(), base: g.base.clone() })
+        .collect();
+    changed |= auto_fetch(&Online, &wanted, &mut stores, now(), &|| false).1 > 0;
+    let have = with_manual(&all);
+    for (g, _) in all.iter().filter(|g| has(&g.0, &have)) {
+        changed |= spreads::split_manual(&g.dir, &g.base, spreads::Split::default()).is_ok_and(|pages| pages > 0);
+    }
+    changed
 }
 
 /// Box art for the console games missing a front, a back or a spine, unless box art downloads are off. Each game is

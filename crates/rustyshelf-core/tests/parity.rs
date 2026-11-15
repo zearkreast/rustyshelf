@@ -1908,3 +1908,231 @@ fn controllers_are_told_apart_as_in_the_js() {
         assert_eq!(pads::parse(d["text"].as_str().unwrap()), real(&d["pads"]), "{}", d["text"]);
     }
 }
+
+#[test]
+fn manual_collections_and_spreads_match_the_js() {
+    use image::{Rgb, RgbImage};
+    use rustyshelf_core::manualcoll::{self as coll, Game};
+    use rustyshelf_core::manuals::{Stores, Web, WebError};
+    use rustyshelf_core::spreads::{self, Split};
+    use serde_json::json;
+    use std::sync::Mutex;
+    let f = fixture("manualcoll.json");
+    // numbers by their value, objects by their keys
+    fn same(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Number(x), Value::Number(y)) => x.as_f64() == y.as_f64(),
+            (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| same(p, q)),
+            (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, p)| y.get(k).is_some_and(|q| same(p, q))),
+            _ => a == b,
+        }
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let stamp = regex::Regex::new(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9-]+$").unwrap();
+    let tree = |dir: &Path| -> Vec<String> {
+        fn walk(d: &Path, rel: String, stamp: &regex::Regex, out: &mut Vec<String>) {
+            for e in fs::read_dir(d).into_iter().flatten().flatten() {
+                let name = e.file_name().to_string_lossy().into_owned();
+                if e.path().is_dir() {
+                    let shown = if stamp.is_match(&name) { "<stamp>".to_string() } else { name };
+                    walk(&e.path(), if rel.is_empty() { shown } else { format!("{rel}/{shown}") }, stamp, out);
+                } else {
+                    out.push(if rel.is_empty() { name } else { format!("{rel}/{name}") });
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(dir, String::new(), &stamp, &mut out);
+        out.sort();
+        out
+    };
+
+    // each page is drawn with its number in its green, red on its left half and blue on its right
+    for s in f["spreads"].as_array().unwrap() {
+        let base = s["base"].as_str().unwrap();
+        let dir = tmp.path().join("sp").join(base);
+        fs::create_dir_all(&dir).unwrap();
+        let mut whole = Vec::new();
+        for (i, p) in s["pages"].as_array().unwrap().iter().enumerate() {
+            let (n, w, h) = (p[0].as_str().unwrap(), p[1].as_u64().unwrap() as u32, p[2].as_u64().unwrap() as u32);
+            let green = 20 * i as u8 + 20;
+            let file = dir.join(format!("{base}-manual-{n}"));
+            RgbImage::from_fn(w, h, |x, _| if x < w / 2 { Rgb([200, green, 0]) } else { Rgb([0, green, 200]) }).save(&file).unwrap();
+            whole.push((n.to_string(), fs::read(&file).unwrap()));
+        }
+        fs::write(dir.join(format!("{base}-front.png")), "not a page").unwrap();
+        fs::write(dir.join(format!("{base}-manual-x.png")), "not numbered").unwrap();
+        let opts = Split { scan: s["opts"]["scan"] == true, min_w: s["opts"]["minW"].as_u64().unwrap_or(0) as u32, discard: s["opts"]["discard"] == true };
+        assert_eq!(spreads::split_manual(&dir, base, opts).unwrap() as u64, s["n"].as_u64().unwrap(), "{base}");
+        let mut now = serde_json::Map::new();
+        let mut names: Vec<String> = fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.contains("-manual-") && !n.ends_with("-x.png") && !n.starts_with('.')).collect();
+        names.sort();
+        for name in names {
+            let bytes = fs::read(dir.join(&name)).unwrap();
+            let what = match whole.iter().find(|w| w.1 == bytes) {
+                Some((n, _)) => format!("whole:{n}"),
+                None => {
+                    let half = image::load_from_memory(&bytes).unwrap().into_rgb8();
+                    let px = half.get_pixel(half.width() / 2, half.height() / 2).0;
+                    let page = ((f32::from(px[1]) - 20.0) / 20.0).round() as usize;
+                    let of = &s["pages"][page];
+                    assert_eq!(u64::from(half.width()), of[1].as_u64().unwrap() / 2, "{base} {name}");
+                    format!("{}:{}", if px[0] > px[2] { "left" } else { "right" }, of[0].as_str().unwrap())
+                }
+            };
+            now.insert(name, json!(what));
+        }
+        assert_eq!(Value::Object(now), s["now"], "{base}");
+        assert_eq!(json!(tree(&dir.join(".manual-originals"))), s["kept"], "{base}");
+        // (the fixture's halves aren't pictures: a cut manual's width is only known here)
+        if s["n"] == 0 {
+            assert_eq!(u64::from(spreads::median_width(&dir, base)), s["median"].as_u64().unwrap(), "{base}");
+        }
+    }
+    for z in f["isSpread"].as_array().unwrap() {
+        let size = z[0].as_array().map(|z| (z[0].as_u64().unwrap() as u32, z[1].as_u64().unwrap() as u32));
+        assert_eq!(spreads::is_spread(size), z[1].as_bool().unwrap(), "{}", z[0]);
+    }
+
+    for c in f["clean"].as_array().unwrap() {
+        let got = coll::clean(c[0].as_str().unwrap());
+        assert_eq!(json!({ "title": got.title, "tags": got.tags, "titleId": got.title_id, "disc": got.disc }), c[1], "{}", c[0]);
+    }
+    for (sys, cols) in f["collections"].as_object().unwrap() {
+        let got: Vec<Value> = coll::collections(sys).iter().map(|c| json!({ "id": c.id, "folder": c.folder, "names": c.names, "digital": c.digital })).collect();
+        assert_eq!(&Value::Array(got), cols, "{sys}");
+    }
+    assert!(coll::collections("wiiu").is_empty());
+    for k in f["keys"].as_array().unwrap() {
+        let (title, sq, set) = coll::name_keys(k[0].as_str().unwrap(), k[1].as_str().unwrap());
+        let got: serde_json::Map<String, Value> = [("title", title.map(Value::from)), ("sq", sq.map(Value::from)), ("set", set.map(Value::from))].into_iter().filter_map(|(name, v)| Some((name.to_string(), v?))).collect();
+        assert_eq!(Value::Object(got), k[2], "{} as {}", k[0], k[1]);
+    }
+
+    struct Site<'a>(&'a Value, Mutex<usize>);
+    impl Site<'_> {
+        fn answer(&self, url: &str) -> Result<Vec<u8>, WebError> {
+            *self.1.lock().unwrap() += 1;
+            let Some(r) = self.0.get(url) else { return Err(WebError::Http(404)) };
+            match r["status"].as_u64() {
+                Some(code) if code != 200 => Err(WebError::Http(code as u16)),
+                _ => Ok(match (r.get("json"), r["png"].as_array()) {
+                    (Some(j), _) => j.to_string().into_bytes(),
+                    (None, Some(size)) => page(size[0].as_u64().unwrap() as u32, size[1].as_u64().unwrap() as u32),
+                    _ => r["body"].as_str().unwrap_or("").as_bytes().to_vec(),
+                }),
+            }
+        }
+    }
+    impl Web for Site<'_> {
+        fn json(&self, url: &str) -> Result<Value, WebError> {
+            serde_json::from_slice(&self.answer(url)?).map_err(|_| WebError::Unreadable)
+        }
+        fn text(&self, url: &str) -> Result<String, WebError> {
+            Ok(String::from_utf8(self.answer(url)?).unwrap())
+        }
+        fn file(&self, url: &str, dest: &Path) -> Result<bool, WebError> {
+            match self.answer(url) {
+                Ok(bytes) => {
+                    fs::write(dest, bytes).unwrap();
+                    Ok(true)
+                }
+                Err(_) => Ok(false),
+            }
+        }
+        fn pause(&self, _: u64) {}
+    }
+    // a picture's header with its size, as the fixture's pages are
+    fn page(w: u32, h: u32) -> Vec<u8> {
+        let mut b = vec![0u8; 3000];
+        b[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
+        b[8..12].copy_from_slice(&13u32.to_be_bytes());
+        b[12..16].copy_from_slice(b"IHDR");
+        b[16..20].copy_from_slice(&w.to_be_bytes());
+        b[20..24].copy_from_slice(&h.to_be_bytes());
+        b
+    }
+    let site = Site(&f["site"], Mutex::new(0));
+    let asked = || *site.1.lock().unwrap();
+    let data = tmp.path().join("data");
+    let cache = data.join("boxart-cache");
+    let dir = tmp.path().to_string_lossy().into_owned();
+    let here = |v: &Value| -> Value { serde_json::from_str(&v.to_string().replace("<tmp>", &dir)).unwrap() };
+    // (a game's key is its file in lower case)
+    let here_low = |v: &Value| -> Value { serde_json::from_str(&v.to_string().replace("<tmp>", &dir.to_lowercase())).unwrap() };
+    let there = |v: &Value| -> Value { serde_json::from_str(&v.to_string().replace(&dir, "<tmp>").replace(&dir.to_lowercase(), "<tmp>")).unwrap() };
+    let mut indexes = Vec::new();
+    for (col, want) in coll::collections("gc").iter().zip(f["indexes"].as_array().unwrap()) {
+        let ix = coll::index(&site, &cache, col, 1e12).unwrap();
+        let mut got = serde_json::to_value(&ix).unwrap();
+        got["at"] = json!(0);
+        assert!(same(&got, want), "{}: {got}\nthe JS listed {want}", col.id);
+        indexes.push(ix);
+    }
+    let mut cached: Vec<String> = fs::read_dir(&cache).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    cached.sort();
+    assert_eq!(json!(cached), f["cached"]);
+    // listed within the month: not asked for again; older, it is
+    let before = asked();
+    coll::index(&site, &cache, &coll::collections("gc")[0], 1e12 + 29.0 * 86_400_000.0).unwrap();
+    assert_eq!(asked(), before);
+    assert_eq!(coll::index(&site, &cache, &coll::collections("gc")[0], 1e12 + 31.0 * 86_400_000.0).unwrap().at, 1e12 + 31.0 * 86_400_000.0);
+    assert_eq!(asked(), before + 1);
+    fs::write(cache.join("ia-NintendoGameCubeManuals.json"), serde_json::to_string(&indexes[0]).unwrap()).unwrap();
+
+    let game = |g: &Value| Game { sys: "gc".into(), system: "GameCube".into(), title: g["title"].as_str().unwrap().into(), title_id: g["titleId"].as_str().map(String::from), file: g["file"].as_str().unwrap().into(), region: g["region"].as_str().unwrap_or("").into(), ..Game::default() };
+    for m in f["matches"].as_array().unwrap() {
+        let got: Vec<Vec<&str>> = indexes.iter().map(|ix| coll::matches(&ix.entries, &game(&m[0])).iter().map(|e| e.name.as_str()).collect()).collect();
+        assert_eq!(json!(got), m[1], "{}", m[0]);
+    }
+    let sets: Vec<coll::Entry> = serde_json::from_value(f["sets"]["entries"].clone()).unwrap();
+    for m in f["sets"]["games"].as_array().unwrap() {
+        let got: Vec<&str> = coll::matches(&sets, &game(&m[0])).iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(json!(got), m[1], "{}", m[0]);
+    }
+    let pages: Vec<Value> = coll::scan_pages(&site, &coll::collections("gc")[1], &indexes[1], &indexes[1].entries[0]).unwrap().into_iter().map(|(full, half)| json!({ "full": full, "half": half })).collect();
+    assert_eq!(Value::Array(pages), f["pages"]);
+
+    // a run over a made-up GameCube folder
+    let covers = tmp.path().join("roms/covers");
+    fs::create_dir_all(&covers).unwrap();
+    for (title, sizes) in f["had"].as_object().unwrap() {
+        for (i, z) in sizes.as_array().unwrap().iter().enumerate() {
+            fs::write(covers.join(format!("{title}-manual-{:02}.jpg", i + 1)), page(z[0].as_u64().unwrap() as u32, z[1].as_u64().unwrap() as u32)).unwrap();
+        }
+    }
+    fs::write(data.join("manual-rejects.json"), here_low(&f["rejects"]).to_string()).unwrap();
+    fs::write(data.join("manual-studio.json"), here_low(&f["studio"]).to_string()).unwrap();
+    let games: Vec<Game> = here(&f["games"]).as_array().unwrap().iter().map(|g| { let g2 = game(g); Game { dir: covers.clone(), base: Path::new(&g2.file).file_stem().unwrap().to_string_lossy().into_owned(), ..g2 } }).collect();
+    // (within the month of the collections' listings above)
+    let clock = Mutex::new(1e12 + 2.0 * 86_400_000.0);
+    let now = || { let mut t = clock.lock().unwrap(); *t += 1000.0; *t };
+    let before = asked();
+    let stores = Stores::load(&data);
+    let mut changes: Vec<Value> = coll::run(&site, &data, &games, &stores, &now, &|_| false, &|| false).iter().map(|c| json!({ "title": c.title, "upgraded": c.upgraded })).collect();
+    changes.sort_by_key(|c| c["title"].as_str().unwrap().to_string());
+    assert_eq!(Value::Array(changes.clone()), f["report"]);
+    assert_eq!(changes.len() as u64, f["done"].as_u64().unwrap());
+    assert_eq!((asked() - before) as u64, f["asked"].as_u64().unwrap());
+    let memo = || -> Value {
+        let kept: Value = serde_json::from_slice(&fs::read(data.join("manual-collections.json")).unwrap()).unwrap();
+        there(&Value::Object(kept.as_object().unwrap().iter().map(|(k, v)| { let mut v = v.clone(); for gone in ["at", "altTried", "render"] { v.as_object_mut().unwrap().remove(gone); } (k.clone(), v) }).collect()))
+    };
+    assert!(same(&memo(), &f["memo"]), "{}\nthe JS kept {}", memo(), f["memo"]);
+    assert_eq!(json!(tree(&covers)), f["tree"]);
+    // nothing is asked for again (the Electron app downloads a manual it then keeps its own over, every start)
+    let before = asked();
+    assert!(coll::run(&site, &data, &games, &stores, &now, &|_| false, &|| false).is_empty() && f["doneAgain"] == 0);
+    assert_eq!(asked(), before);
+    let mut kept = coll::Memo::load(&data);
+    let mut recent: Vec<Value> = kept.recent(30).into_iter().map(|mut r| { r.as_object_mut().unwrap().remove("at"); r }).collect();
+    recent.sort_by_key(|r| r["title"].as_str().unwrap().to_string());
+    assert!(same(&Value::Array(recent.clone()), &f["recent"]), "{recent:?}");
+    let key = |title: &str| format!("gc|{}", tmp.path().join(format!("roms/{title}.iso")).to_string_lossy().to_lowercase());
+    assert_eq!(json!([kept.forget(&key("Zeta Run (USA)"), now()), kept.forget(&key("Phi (USA)"), now()), kept.forget("gc|nothing", now())]), f["forgot"]);
+    assert!(same(&memo(), &f["memoAfter"]), "{}\nthe JS kept {}", memo(), f["memoAfter"]);
+    // a console set to another language is left alone
+    let before = asked();
+    let _ = fs::remove_file(data.join("manual-collections.json"));
+    assert!(coll::run(&site, &data, &games, &stores, &now, &|sys| sys == "gc", &|| false).is_empty() && asked() == before);
+}
