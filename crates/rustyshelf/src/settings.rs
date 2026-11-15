@@ -96,6 +96,8 @@ enum Screen {
     /// the chosen game's collections, and all of them
     GameCollections,
     Collections,
+    /// one of your collections, by its id: search for games to put on it
+    MyShelf(String),
     Find,
     Accounts,
     Achievements,
@@ -243,6 +245,8 @@ pub struct Settings {
     /// the filters this library can use, and every game's title by its id (for the hidden ones)
     filters: Vec<(String, String)>,
     titles: std::collections::HashMap<String, String>,
+    /// what's typed in a collection's Search games
+    shelf_q: String,
     note: String,
     repeat: (i32, f32),
     editing: Option<text::Editing>,
@@ -357,6 +361,7 @@ impl Default for Settings {
             chosen: None,
             filters: Vec::new(),
             titles: std::collections::HashMap::new(),
+            shelf_q: String::new(),
             note: String::new(),
             repeat: (0, 0.0),
             editing: None,
@@ -1061,7 +1066,7 @@ impl Settings {
                     open("Consoles", String::new(), "Each console's emulator and games folders", Screen::Consoles),
                     open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
                     open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
-                    open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
+                    open("Collections", String::new(), "Shelves you make yourself, mixing games from any console: make one, name it, search for games to put on it.", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                 ]);
                 ("Your consoles, their emulators and your games: where RustyShelf finds them and what goes on the shelves.", rows)
@@ -1553,6 +1558,7 @@ impl Settings {
             Screen::EmuSetup(id) => self.setup_page(id),
             Screen::GameCollections => self.game_collections_page(),
             Screen::Collections => self.collections_page(),
+            Screen::MyShelf(id) => self.my_shelf_page(id),
             Screen::Custom => self.custom_page(),
             Screen::CustomGame(i) => self.custom_game_page(*i),
             Screen::AddGames => self.add_games_page(),

@@ -1,8 +1,9 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the pages and their wording follow
 // Collections in Boxshelf's renderer/settings.js, as RustyShelf has them.
 //! Your collections: shelves of your own, each a name and the games put on it (`ui.collections` in the settings:
-//! `[{ id, name, ids, tag? }]`; a tag shelf also gathers every game with that genre). Details → Collections puts the
-//! chosen game on them; Settings → Collections renames and deletes them and adds tag shelves.
+//! `[{ id, name, ids, tag?, rule? }]`; a tag shelf also gathers every game with that genre). Details → Add to… puts the
+//! chosen game on them; Settings → Collections makes them, and each one's page searches for games to put on it, renames
+//! and deletes it.
 
 use super::*;
 
@@ -137,8 +138,7 @@ impl Settings {
         self.say(if on { format!("{title} added to {name}") } else { format!("{title} taken off {name}") });
     }
 
-    /// Settings → Collections: the automatic shelves, then each of yours (its name, Enter renames it; what fills it;
-    /// Delete, pressed twice).
+    /// Settings → Collections: the automatic shelves, Make a new shelf, each of yours (opening its own page), tag shelves.
     pub(super) fn collections_page(&self) -> Page {
         let mut rows = Vec::new();
         // (beta.14) the automatic shelves, each off until switched on, after Home
@@ -156,76 +156,30 @@ impl Settings {
             let flip = move |s: &mut Settings| s.set(&["ui", "autoShelves", k], json!(!on));
             rows.push(Row { label: name.into(), value: on_off(on), hint: format!("{hint} It shows after Home."), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) });
         }
+        const NEW: &str = "Give it a name and press Enter; then search your games and switch them on.";
+        rows.push(Row {
+            label: "Make a new shelf".into(),
+            value: "Couch co-op, Racing, Finished…".into(),
+            hint: NEW.into(),
+            press: Some(Box::new(|s: &mut Settings| s.edit("Make a new shelf", NEW, String::new(), Box::new(|s: &mut Settings, name: String| s.new_shelf(&name))))),
+            step: None,
+        });
         for col in self.collections() {
             let (Some(id), Some(name)) = (col["id"].as_str().map(String::from), col["name"].as_str().map(String::from)) else { continue };
             let n = col["ids"].as_array().map_or(0, Vec::len);
-            let (id2, name2, name3, id4) = (id.clone(), name.clone(), name.clone(), id.clone());
-            let rule = rule_of(&col);
             rows.push(Row {
                 label: name.clone(),
-                value: if rule == "off" { format!("{n} game{}", if n == 1 { "" } else { "s" }) } else { "Automatic".into() },
-                hint: "The shelf's name. Enter renames it.".into(),
+                value: if col.get("rule").is_some() { "Automatic".into() } else { format!("{n} game{}", if n == 1 { "" } else { "s" }) },
+                hint: format!("Open {name}: search for games to add, take games off, rename or delete it."),
                 press: Some(Box::new(move |s: &mut Settings| {
-                    let id = id.clone();
-                    s.edit(
-                        "Name",
-                        "The collection's name.",
-                        name2.clone(),
-                        Box::new(move |s: &mut Settings, text: String| {
-                            let text = named(&text);
-                            if !text.is_empty() {
-                                s.change_collection(&id, |c| c["name"] = json!(text));
-                            }
-                        }),
-                    );
+                    s.shelf_q.clear();
+                    s.go(Screen::MyShelf(id.clone()));
                 })),
                 step: None,
             });
-            // (beta.14) Fill it automatically: off (the games you pick), or every game of a Status, genre or console, or the
-            // ones never played
-            let choices = self.rule_choices(&rule);
-            let at_now = choices.iter().position(|c| c.0 == rule).unwrap_or(0);
-            let turn = move |s: &mut Settings, d: i32| {
-                let (v, _) = &choices[(at_now as i32 + d).rem_euclid(choices.len() as i32) as usize];
-                let v = v.clone();
-                s.change_collection(&id4, |c| match v.as_str() {
-                    "off" => {
-                        if let Some(o) = c.as_object_mut() {
-                            o.remove("rule");
-                        }
-                    }
-                    "never" => c["rule"] = json!({ "kind": "never", "value": "" }),
-                    _ => {
-                        let (kind, value) = v.split_once(':').unwrap_or((&v, ""));
-                        c["rule"] = json!({ "kind": kind, "value": value });
-                    }
-                });
-            };
-            rows.push(Row {
-                label: format!("{name}: fill it automatically"),
-                value: self.rule_name(&rule),
-                hint: "Off: the games you pick. Or the shelf fills itself, with every game of a Status, genre or console, or the ones you never played.".into(),
-                press: Some(Box::new({
-                    let turn = turn.clone();
-                    move |s: &mut Settings| turn(s, 1)
-                })),
-                step: Some(Box::new(turn)),
-            });
-            rows.push(Row {
-                label: format!("Delete {name3}"),
-                hint: "Takes the shelf away. Its games stay where they are.".into(),
-                press: Some(Box::new(move |s: &mut Settings| {
-                    if !s.twice(&format!("collection:{id2}"), "Press again to delete it") {
-                        return;
-                    }
-                    let left: Vec<Value> = s.collections().into_iter().filter(|c| c["id"] != id2.as_str()).collect();
-                    s.set(&["ui", "collections"], json!(left));
-                })),
-                ..Row::default()
-            });
         }
-        if rows.is_empty() {
-            rows.push(Row { label: "No collections yet".into(), hint: "Open a game's Details and choose Collections to make one, or add a tag shelf below.".into(), ..Row::default() });
+        if self.collections().is_empty() {
+            rows.push(Row { label: "No shelves of your own yet".into(), hint: "Make one above, or choose Add to… in any game's Details".into(), ..Row::default() });
         }
         // a tag shelf: every game with that genre, from every console, plus any added to it by hand
         let has = |g: &str| self.collections().iter().any(|c| c.get("tag").and_then(Value::as_str).is_some_and(|t| t.to_lowercase() == g.to_lowercase()));
@@ -243,6 +197,155 @@ impl Settings {
             });
         }
         Page { title: "Collections".into(), lead: "Shelves of your own, right after Home.".into(), rows }
+    }
+
+    /// Makes a collection of this name (or finds the one there is) and opens it.
+    fn new_shelf(&mut self, name: &str) {
+        let name = named(name);
+        if name.is_empty() {
+            return;
+        }
+        let mut list = self.collections();
+        let same = |c: &Value| c.get("name").and_then(Value::as_str).is_some_and(|n| n.to_lowercase() == name.to_lowercase());
+        let id = match list.iter().find(|c| same(c)) {
+            Some(c) => c["id"].as_str().unwrap_or("").to_string(),
+            None if list.len() >= MOST => return self.say(format!("That's the most collections there can be ({MOST}).")),
+            None => {
+                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+                let id = format!("c{}", custom::base36(now));
+                list.push(json!({ "id": id, "name": name, "ids": [] }));
+                self.set(&["ui", "collections"], json!(list));
+                id
+            }
+        };
+        self.shelf_q.clear();
+        self.go(Screen::MyShelf(id));
+    }
+
+    /// One of your collections: what fills it; Search games and the games that match, each with a switch; the games on
+    /// it; its name; Delete, pressed twice.
+    pub(super) fn my_shelf_page(&self, id: &str) -> Page {
+        let Some(col) = self.collections().into_iter().find(|c| c["id"] == id) else {
+            return Page { title: "Collections".into(), lead: String::new(), rows: vec![Row { label: "This shelf was deleted".into(), ..Row::default() }] };
+        };
+        let name = col["name"].as_str().unwrap_or("Collection").to_string();
+        let ids: Vec<String> = col["ids"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
+        let mut rows = Vec::new();
+        let rule = rule_of(&col);
+        let choices = self.rule_choices(&rule);
+        let at_now = choices.iter().position(|c| c.0 == rule).unwrap_or(0);
+        let id4 = id.to_string();
+        let turn = move |s: &mut Settings, d: i32| {
+            let (v, _) = &choices[(at_now as i32 + d).rem_euclid(choices.len() as i32) as usize];
+            let v = v.clone();
+            s.change_collection(&id4, |c| match v.as_str() {
+                "off" => {
+                    if let Some(o) = c.as_object_mut() {
+                        o.remove("rule");
+                    }
+                }
+                "never" => c["rule"] = json!({ "kind": "never", "value": "" }),
+                _ => {
+                    let (kind, value) = v.split_once(':').unwrap_or((&v, ""));
+                    c["rule"] = json!({ "kind": kind, "value": value });
+                }
+            });
+        };
+        rows.push(Row {
+            label: "Fill it automatically".into(),
+            value: self.rule_name(&rule),
+            hint: "Off: the games you pick. Or the shelf fills itself, with every game of a Status, genre or console, or the ones you never played.".into(),
+            press: Some(Box::new({
+                let turn = turn.clone();
+                move |s: &mut Settings| turn(s, 1)
+            })),
+            step: Some(Box::new(turn)),
+        });
+        let toggle = |game: &str, title: &str| {
+            let on = ids.iter().any(|i| i == game);
+            let (cid, game) = (id.to_string(), game.to_string());
+            let flip = move |s: &mut Settings| {
+                let game = game.clone();
+                s.change_collection(&cid, move |c| {
+                    if let Some(ids) = c.get_mut("ids").and_then(Value::as_array_mut) {
+                        match ids.iter().position(|i| *i == game) {
+                            Some(at) => {
+                                ids.remove(at);
+                            }
+                            None => ids.push(json!(game)),
+                        }
+                    }
+                })
+            };
+            let flip2 = flip.clone();
+            Row { label: title.to_string(), value: on_off(on), hint: format!("On: {title} is on {name}."), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip2(s))) }
+        };
+        if rule == "off" {
+            const SEARCH: &str = "Type part of a game's name, then Enter: the games that match show below, each with a switch to put it on this shelf.";
+            rows.push(Row {
+                label: "Search games".into(),
+                value: if self.shelf_q.is_empty() { "Zelda, Mario Kart, Crash…".into() } else { self.shelf_q.clone() },
+                hint: SEARCH.into(),
+                press: Some(Box::new(|s: &mut Settings| {
+                    let now = s.shelf_q.clone();
+                    s.edit("Search games", SEARCH, now, Box::new(|s: &mut Settings, q: String| s.shelf_q = q));
+                })),
+                step: None,
+            });
+            let q = self.shelf_q.trim().to_lowercase();
+            if !q.is_empty() {
+                let mut hits: Vec<(&String, &String, usize)> = self.titles.iter().filter_map(|(gid, t)| t.to_lowercase().find(&q).map(|at| (gid, t, at))).collect();
+                hits.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| rustyshelf_core::collate::compare(a.1, b.1)));
+                let label = if hits.is_empty() { format!("No game matches “{}”", self.shelf_q.trim()) } else { format!("Games matching “{}”", self.shelf_q.trim()) };
+                rows.push(Row { label, value: if hits.len() > 40 { format!("first 40 of {}", hits.len()) } else { String::new() }, ..Row::default() });
+                rows.extend(hits.iter().take(40).map(|(gid, t, _)| toggle(gid, t)));
+            }
+            let on: Vec<(&String, &String)> = ids.iter().filter_map(|g| self.titles.get(g).map(|t| (g, t))).collect();
+            rows.push(Row { label: "On this shelf".into(), value: format!("{} game{}", on.len(), if on.len() == 1 { "" } else { "s" }), ..Row::default() });
+            if on.is_empty() {
+                rows.push(Row { label: "No games yet".into(), hint: "Search above and switch a game on to add it".into(), ..Row::default() });
+            }
+            rows.extend(on.iter().map(|(g, t)| toggle(g, t)));
+        } else {
+            rows.push(Row { label: format!("Fills itself: {}", self.rule_name(&rule)), hint: "Games join and leave by themselves. Off brings back the ones you picked.".into(), ..Row::default() });
+        }
+        let (id2, id3, name2) = (id.to_string(), id.to_string(), name.clone());
+        rows.push(Row {
+            label: "Rename".into(),
+            value: name.clone(),
+            hint: "The shelf's name, as it shows beside Home. Enter renames it.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let id = id2.clone();
+                s.edit(
+                    "Rename",
+                    "The shelf's name, as it shows beside Home. Enter renames it.",
+                    name2.clone(),
+                    Box::new(move |s: &mut Settings, text: String| {
+                        let text = named(&text);
+                        if !text.is_empty() {
+                            s.change_collection(&id, |c| c["name"] = json!(text));
+                        }
+                    }),
+                );
+            })),
+            step: None,
+        });
+        let name3 = name.clone();
+        rows.push(Row {
+            label: "Delete this shelf".into(),
+            hint: "Removes the shelf (its games stay everywhere else). Press twice.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                if !s.twice(&format!("collection:{id3}"), "Press again to delete it") {
+                    return;
+                }
+                let left: Vec<Value> = s.collections().into_iter().filter(|c| c["id"] != id3.as_str()).collect();
+                s.set(&["ui", "collections"], json!(left));
+                s.back();
+                s.say(format!("{name3} deleted"));
+            })),
+            ..Row::default()
+        });
+        Page { title: name, lead: "Search your games and switch them on to put them on this shelf. It shows beside Home once it has a game on it.".into(), rows }
     }
 
     /// The choices for a shelf that fills itself: its value ("off", "never", "status:finished", "genre:Racing",

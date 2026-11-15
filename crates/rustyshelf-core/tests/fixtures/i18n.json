@@ -1275,6 +1275,18 @@
     "Chaque dossier qu'il contient est un portage ou une recompilation PC, sur l'étagère Ports & Recomps ; un dossier au nom d'une console (N64, GameCube…) contient les siens, dans sa boîte · Entrée le choisit, ◀ l'oublie"
    ],
    [
+    "This shelf was deleted",
+    "Cette étagère a été supprimée"
+   ],
+   [
+    "Games join and leave by themselves. Off brings back the ones you picked.",
+    "Les jeux arrivent et partent d'eux-mêmes. Désactivé ramène ceux que vous aviez choisis."
+   ],
+   [
+    "Make one above, or choose Add to… in any game's Details",
+    "Créez-en une ci-dessus, ou choisissez Ajouter à… dans les Détails d'un jeu"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Pas comme avant cette version : Zeta Run. Réglages → Système peut remettre la copie"
    ],
@@ -2513,6 +2525,30 @@
    [
     "Omega Quest taken off Continue & favorites",
     "Omega Quest retiré de Reprendre et favoris"
+   ],
+   [
+    "Fills itself: Continue & favorites",
+    "Se remplit seule : Reprendre et favoris"
+   ],
+   [
+    "first 40 of ",
+    "first 40 of "
+   ],
+   [
+    "Games matching “Zeta Run”",
+    "Jeux correspondant à « Zeta Run »"
+   ],
+   [
+    "No game matches “Omega Quest”",
+    "Aucun jeu ne correspond à « Omega Quest »"
+   ],
+   [
+    "Continue & favorites deleted",
+    "Reprendre et favoris supprimé"
+   ],
+   [
+    "On:  is on Zeta Run.",
+    "On:  is on Zeta Run."
    ],
    [
     "  Add games  ",
@@ -3984,6 +4020,18 @@
     "İçindeki her klasör bir PC portu ya da recomp'tur ve Ports & Recomps rafına konur; bir konsolun adını taşıyan klasör (N64, GameCube…) o konsolunkileri tutar, onun kutusunda · Enter seçer, ◀ unutur"
    ],
    [
+    "Fill it automatically",
+    "Kendiliğinden doldur"
+   ],
+   [
+    "Rename",
+    "Yeniden adlandır"
+   ],
+   [
+    "Shelves you make yourself, mixing games from any console: make one, name it, search for games to put on it.",
+    "Kendi yaptığın, her konsoldan oyunları karıştıran raflar: bir tane yap, adlandır, üzerine koymak için oyun ara."
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Bu sürümden önceki gibi değil: Zeta Run. Ayarlar → Sistem kopyayı geri koyabilir"
    ],
@@ -5053,7 +5101,7 @@
    ],
    [
     "Rename ",
-    "Rename "
+    "Yeniden adlandır "
    ],
    [
     "Found: Zeta Run",
@@ -5230,6 +5278,30 @@
    [
     " taken off Zeta Run",
     " taken off Zeta Run"
+   ],
+   [
+    "Fills itself: Zeta Run",
+    "Kendiliğinden doluyor: Zeta Run"
+   ],
+   [
+    "first 40 of Omega Quest",
+    "first 40 of Omega Quest"
+   ],
+   [
+    "Games matching “Continue & favorites”",
+    "“Devam et ve favoriler” ile eşleşen oyunlar"
+   ],
+   [
+    "No game matches “”",
+    "“” ile eşleşen oyun yok"
+   ],
+   [
+    "Zeta Run deleted",
+    "Zeta Run silindi"
+   ],
+   [
+    "On: Omega Quest is on Continue & favorites.",
+    "Açık: Omega Quest, Devam et ve favoriler rafında."
    ],
    [
     "  Add games  ",
