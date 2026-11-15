@@ -91,6 +91,8 @@ pub struct Museum {
     room: usize,
     /// each wall's place and turn (the left and right walls face into the room)
     walls: [(Vec3, f32); 3],
+    /// walking through the arcade
+    walk: Option<crate::arcade::Walk>,
 }
 
 impl Museum {
@@ -376,6 +378,22 @@ pub fn run(
         return;
     }
     settings.keys_taken = true;
+    if m.walk.is_some() {
+        return walk_on(&mut commands, m, l, &time, &keys, &pads, &settings, &mut cursor, &mut sounds, (covers, loader, meshes, materials), &mut camera, &things, &mut text, &mut others.shelf_camera);
+    }
+    // into the arcade: W, or Y on a pad
+    if keys.just_pressed(KeyCode::KeyW) || pad(GamepadButton::North) {
+        let cap = l.config.raw().get("ui").and_then(|u| u.get("arcadeCap")).and_then(|c| c.as_f64());
+        if let Some(w) = crate::arcade::Walk::start(l, cap) {
+            for (e, _) in things.iter().filter(|(_, hud)| !hud) {
+                commands.entity(e).despawn();
+            }
+            crate::arcade::build(&mut commands, &w, l, meshes, materials, covers, loader, || (MuseumThing, layer()));
+            m.walk = Some(w);
+            sounds.play("open", 1);
+            return;
+        }
+    }
     // another room: [ and ], or L1 and R1 (the media room has no shelves yet: it's passed by)
     let to_room = (keys.just_pressed(KeyCode::BracketRight) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::BracketLeft) || pad(GamepadButton::LeftTrigger)) as i32;
     if let Some(n) = m.plan.as_ref().map(|p| p.rooms.iter().filter(|r| !r.segments.is_empty()).count()).filter(|n| *n > 1 && to_room != 0) {
@@ -482,6 +500,80 @@ pub fn run(
 
 fn ease(k: f32) -> f32 {
     k * k * (3.0 - 2.0 * k)
+}
+
+/// A step through the arcade: walking and turning, Enter at a cabinet plays its game, Escape walks back out to the
+/// museum's wall.
+#[allow(clippy::too_many_arguments)]
+fn walk_on(
+    commands: &mut Commands,
+    m: &mut Museum,
+    l: &rustyshelf_core::library::Library,
+    time: &Time,
+    keys: &ButtonInput<KeyCode>,
+    pads: &Query<&Gamepad>,
+    settings: &crate::settings::Settings,
+    cursor: &mut Cursor,
+    sounds: &mut crate::sound::Sounds,
+    (covers, loader, meshes, materials): (&mut Covers, &ArtLoader, &mut Assets<Mesh>, &mut Assets<StandardMaterial>),
+    camera: &mut Query<(&mut Camera, &mut Transform), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>,
+    things: &Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
+    text: &mut Query<&mut Text, With<MuseumText>>,
+    shelf_camera: &mut Query<&mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
+) {
+    let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
+    if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1) {
+        m.walk = None;
+        for (e, _) in things.iter().filter(|(_, hud)| !hud) {
+            commands.entity(e).despawn();
+        }
+        let held_cursor = Cursor { shelf: usize::MAX, ..Cursor::default() };
+        build(commands, m, l, &held_cursor, meshes, materials, covers, loader);
+        sounds.play("back", 1);
+        return;
+    }
+    let Some(w) = m.walk.as_mut() else { return };
+    if keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0) {
+        if let Some(k) = w.nearest() {
+            (cursor.shelf, cursor.game, cursor.land) = (w.shelf, w.cabinets[k].0, false);
+            settings_play(commands);
+            m.walk = None;
+            return close(commands, m, things, camera, shelf_camera, sounds);
+        }
+    }
+    let dt = time.delta_secs().min(0.05);
+    let key = |a: KeyCode, b: KeyCode| (keys.pressed(a) || keys.pressed(b)) as i32 as f32;
+    let (mut forward, mut side, mut turn) = (key(KeyCode::ArrowUp, KeyCode::KeyW) - key(KeyCode::ArrowDown, KeyCode::KeyS), key(KeyCode::KeyD, KeyCode::KeyD) - key(KeyCode::KeyA, KeyCode::KeyA), key(KeyCode::ArrowLeft, KeyCode::KeyQ) - key(KeyCode::ArrowRight, KeyCode::KeyE));
+    for p in pads {
+        let (l, r, d) = (p.left_stick(), p.right_stick(), p.dpad());
+        let dead = |v: f32| if v.abs() > 0.18 { v } else { 0.0 };
+        forward += dead(l.y) + d.y;
+        side += dead(l.x);
+        turn -= dead(r.x) + d.x;
+    }
+    let fast = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+    let speed = if fast { 4.2 } else { 3.2 } * dt;
+    w.ry += turn.clamp(-1.0, 1.0) * 2.2 * dt;
+    if forward != 0.0 || side != 0.0 {
+        let k = Vec2::new(side, forward).length().max(1.0);
+        w.step(forward / k * speed, side / k * speed);
+    }
+    if let Ok((_, mut t)) = camera.single_mut() {
+        *t = w.eye();
+    }
+    if let Ok(mut text) = text.single_mut() {
+        let lang = l.config.raw().get("ui").and_then(|u| u.get("language")).and_then(|v| v.as_str()).unwrap_or("en");
+        let near = w.nearest().map(|k| {
+            let g = &l.shelves[w.shelf].games[w.cabinets[k].0];
+            format!("{}  {}", rustyshelf_core::i18n::tr(lang, "Enter  Play"), g.title)
+        });
+        text.0 = format!("{}\n{}", w.place(), near.unwrap_or_else(|| rustyshelf_core::i18n::tr(lang, "Up / Down  walk  ·  Left / Right  turn  ·  Esc  back to the museum")));
+    }
+}
+
+/// Asks the shelf to play the game under the cursor once the museum has closed.
+fn settings_play(commands: &mut Commands) {
+    commands.queue(|world: &mut World| world.resource_mut::<crate::settings::Settings>().play = true);
 }
 
 /// The game in view and its row, under the wall.
