@@ -296,6 +296,8 @@ pub struct Museum {
     held: Option<Held>,
     lift: f32,
     backed: std::collections::HashSet<(usize, usize)>,
+    /// each opened case's lid, and where it hinges on the case
+    lids: std::collections::HashMap<(usize, usize), (Entity, Vec3)>,
     /// the games waiting in a box (new since the last visit, or not unpacked yet), and the box in this room
     mail: Vec<String>,
     delivery: Option<crate::mail::Delivery>,
@@ -319,6 +321,9 @@ struct Held {
     ry: f32,
     to_rx: f32,
     to_ry: f32,
+    /// opened (its lid swung back to show the disc and the booklet), and how far, 0 to 1
+    open: bool,
+    k: f32,
 }
 
 /// Where to come back to after a game played from the museum: where you stood in the arcade, if you were walking;
@@ -440,6 +445,7 @@ fn build(
     m.dust.clear();
     (m.held, m.lift) = (None, 0.0);
     m.backed.clear();
+    m.lids.clear();
     // what stands on the walls: (wall, the shelf, its games' places there)
     let groups: Vec<(usize, usize, Vec<usize>)> = match m.plan.as_ref().and_then(|p| p.rooms.get(m.room)) {
         Some(room) => {
@@ -1167,9 +1173,24 @@ pub fn run(
         return;
     }
     if let Some(h) = m.held.as_mut() {
-        if pick || backing {
+        if backing {
             m.held = None;
             sounds.play("slideBack", 1);
+            return;
+        }
+        if pick {
+            h.open = !h.open;
+            sounds.play(if h.open { "caseOpen" } else { "caseClose" }, 1);
+            // the inside, made the first time this case is opened
+            if h.open && !m.lids.contains_key(&(m.row, m.col)) {
+                let r = &m.rows[m.row];
+                let g = &l.shelves[r.shelf].games[r.games[m.col]];
+                let cover = r.sheets[m.col].1.clone();
+                if let Some((e, c, _, _)) = wall.cases.iter().find(|(_, c, _, _)| c.row == m.row && c.col == m.col) {
+                    let lid = open_case(&mut commands, e, (c.w, c.h, c.d), cover, g, meshes, materials, covers, loader);
+                    m.lids.insert((m.row, m.col), (lid, Vec3::new(c.d / 2.0, 0.0, c.w / 2.0)));
+                }
+            }
             return;
         }
         let turn = ((keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32) as f32;
@@ -1389,9 +1410,17 @@ pub fn run(
         let k = 1.0 - (-dt * 6.0).exp();
         h.rx += (h.to_rx - h.rx) * k;
         h.ry += (h.to_ry - h.ry) * k;
+        h.k += ((h.open as u8 as f32) - h.k) * (1.0 - (-dt * 5.0).exp());
+    }
+    // the open case's lid swings on its hinge; a case put down closes
+    let opened = m.held.as_ref().map_or(0.0, |h| ease(h.k.clamp(0.0, 1.0)));
+    for (&at, &(lid, hinge)) in &m.lids {
+        let k = if at == (m.row, m.col) { opened } else { 0.0 };
+        commands.entity(lid).insert(Transform::from_translation(hinge).with_rotation(Quat::from_rotation_y(-3.0 * k)));
     }
     let (turned_x, turned_y) = m.held.as_ref().map_or((0.0, 0.0), |h| (h.rx, h.ry));
-    let hand = m.rows.get(m.row).map(|r| Vec3::new(r.xs.get(m.col).copied().unwrap_or(0.0) - 0.2, r.y, 2.2));
+    // (an open case moves over so both halves are in view)
+    let hand = m.rows.get(m.row).map(|r| Vec3::new(r.xs.get(m.col).copied().unwrap_or(0.0) - 0.2 + r.w * 0.5 * opened, r.y, 2.2 - 0.7 * opened));
     for (_, c, mut t, _) in &mut wall.cases {
         let mine = c.row == m.row && c.col == m.col;
         let k = if mine { m.pull } else { 0.0 };
@@ -1451,7 +1480,8 @@ pub fn run(
         } else if m.held.is_some() && !r.games.is_empty() {
             let g = &l.shelves[r.shelf].games[r.games[m.col]];
             let read = if g.art.manual.is_empty() { String::new() } else { format!("  ·  {}", tr("M  Manual")) };
-            format!("{}\n{}{read}", g.title, tr("Arrows  Turn it  ·  Enter  Play  ·  Esc  Put it back"))
+            let open = if m.held.as_ref().is_some_and(|h| h.open) { tr("Space  Close it") } else { tr("Space  Open it") };
+            format!("{}\n{}  ·  {open}{read}", g.title, tr("Arrows  Turn it  ·  Enter  Play  ·  Esc  Put it back"))
         } else if let (true, Some((u, x))) = (m.wide, unit) {
             let k = m.rack.pieces.iter().filter(|p| p.unit == u).count();
             format!("{room}{}  ·  {}\n{}", tr(x.label), tr(&if k == 1 { "1 issue".to_string() } else { format!("{k} issues") }), tr("Enter  Zoom in  ·  Esc  Leave"))
@@ -1614,6 +1644,50 @@ fn show_frame(m: &mut Museum, now: f32, dt: f32, materials: &mut Assets<Standard
         *t = Transform::from_translation(at + turn * p).with_rotation(turn).with_scale(size);
         *vis = if m.frame_k > 0.01 { Visibility::Inherited } else { Visibility::Hidden };
     }
+}
+
+/// An opened case's inside: a dark tray with the disc (its own art, or a plain silver one) and, on a lid that swings
+/// back from the spine, the cover outside and the booklet's first page inside. Returns the lid's hinge.
+#[allow(clippy::too_many_arguments)]
+fn open_case(
+    commands: &mut Commands,
+    case: Entity,
+    (w, h, d): (f32, f32, f32),
+    cover: Handle<StandardMaterial>,
+    g: &rustyshelf_core::scanner::Game,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    covers: &mut Covers,
+    loader: &ArtLoader,
+) -> Entity {
+    let face = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let tray = materials.add(StandardMaterial { base_color: Color::srgb_u8(0x1c, 0x1e, 0x22), perceptual_roughness: 0.5, ..default() });
+    let disc = match &g.art.disc {
+        Some(path) => {
+            let m = materials.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.25, metallic: 0.3, ..default() });
+            covers.want(Art::File(path.clone()), (m.clone(), 1.0), loader, materials);
+            m
+        }
+        None => materials.add(StandardMaterial { base_color: Color::srgb_u8(0xc8, 0xcc, 0xd2), perceptual_roughness: 0.18, metallic: 0.9, ..default() }),
+    };
+    let hub = materials.add(StandardMaterial { base_color: Color::srgb_u8(0x30, 0x32, 0x36), perceptual_roughness: 0.6, ..default() });
+    let inside = materials.add(StandardMaterial { base_color: Color::srgb_u8(0xee, 0xec, 0xe6), perceptual_roughness: 0.8, ..default() });
+    if let Some(page) = g.art.manual.first() {
+        covers.want(Art::File(page.clone()), (inside.clone(), w / h), loader, materials);
+    }
+    let r = w.min(h) * 0.42;
+    let lid = commands.spawn((layer(), Transform::from_xyz(d / 2.0, 0.0, w / 2.0), Visibility::Inherited, ChildOf(case))).id();
+    commands.entity(case).with_children(|c| {
+        c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.97, h * 0.98))), MeshMaterial3d(tray), Transform::from_xyz(d / 2.0 + 0.002, 0.0, 0.0).with_rotation(face)));
+        c.spawn((layer(), Mesh3d(meshes.add(Circle::new(r))), MeshMaterial3d(disc), Transform::from_xyz(d / 2.0 + 0.004, 0.0, 0.0).with_rotation(face)));
+        c.spawn((layer(), Mesh3d(meshes.add(Circle::new(r * 0.16))), MeshMaterial3d(hub), Transform::from_xyz(d / 2.0 + 0.005, 0.0, 0.0).with_rotation(face)));
+    });
+    commands.entity(lid).with_children(|c| {
+        // the lid stands just off the tray, running from the hinge across the case's width
+        c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.98, h * 0.98))), MeshMaterial3d(cover), Transform::from_xyz(0.008, 0.0, -w / 2.0).with_rotation(face)));
+        c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.94, h * 0.94))), MeshMaterial3d(inside), Transform::from_xyz(0.007, 0.0, -w / 2.0).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))));
+    });
+    lid
 }
 
 /// The card beside the pulled case: drawn (off the frame) once the case is mostly out, faded in when it's out,
