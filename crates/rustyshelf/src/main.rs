@@ -13,6 +13,7 @@ mod hud;
 mod idle;
 mod loading;
 mod console_model;
+mod mail;
 mod museum;
 mod rack;
 mod music;

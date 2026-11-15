@@ -258,6 +258,8 @@ pub enum Art {
     RackCover { guide: bool, title: String, series: String },
     NamePlate { label: String },
     RackNote { heading: [String; 2], lines: Vec<String> },
+    /// a delivery's label: its values and its words (drawn::delivery_label)
+    Label { values: [String; 4], words: [String; 7] },
 }
 
 impl Art {
@@ -279,6 +281,7 @@ impl Art {
             Art::RackCover { guide, title, series } => PathBuf::from(format!("drawn:rackcover|{guide}|{title}|{series}")),
             Art::NamePlate { label } => PathBuf::from(format!("drawn:plate|{label}")),
             Art::RackNote { heading, lines } => PathBuf::from(format!("drawn:racknote|{}|{}", heading.join("|"), lines.join("|"))),
+            Art::Label { values, words } => PathBuf::from(format!("drawn:label|{}|{}", values.join("|"), words.join("|"))),
         }
     }
 
@@ -306,6 +309,7 @@ impl Art {
             Art::RackCover { guide, title, series } => drawn(rustyshelf_core::drawn::rack_cover(*guide, title, series)),
             Art::NamePlate { label } => drawn(rustyshelf_core::drawn::name_plate(label)),
             Art::RackNote { heading, lines } => drawn(rustyshelf_core::drawn::rack_note([&heading[0], &heading[1]], lines)),
+            Art::Label { values, words } => drawn(rustyshelf_core::drawn::delivery_label(values.each_ref().map(String::as_str), words.each_ref().map(String::as_str))),
         }
     }
 }

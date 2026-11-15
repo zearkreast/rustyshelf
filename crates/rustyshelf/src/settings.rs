@@ -1535,6 +1535,7 @@ impl Settings {
                     flag("Velvet ropes", "ropes", false, ""),
                     flag("Museum bench", "bench", false, ""),
                     flag("Posters of your favourites", "posters", false, ""),
+                    flag("New games arrive by mail", "mail", true, "From your next visit"),
                 ];
                 Page { title: "Museum".into(), lead: "Hold View on the shelf, or press M, to walk in.".into(), rows }
             }

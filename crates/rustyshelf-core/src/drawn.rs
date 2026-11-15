@@ -1120,6 +1120,43 @@ pub fn museum_surface(what: &str, kind: &str) -> Option<Picture> {
     }
 }
 
+/// The label on a delivery of new games, 320 × 420: who it's for, the shelf, what's in it, its condition and the day
+/// it came, with a bar code and a "handle with care" stamp. The words come in the reader's language: `words` are the
+/// headings DELIVERED TO, SHELF, CONTENTS (or ITEM), CONDITION, then the arrival line, the stamp and the subtitle.
+pub fn delivery_label(values: [&str; 4], words: [&str; 7]) -> Picture {
+    let (w, h) = (320.0, 420.0);
+    let mut c = Canvas { pix: Pixmap::new(320, 420).expect("a label's size"), clip: None, t: Transform::identity() };
+    let ink = solid(rgba(0x2a, 0x20, 0x18, 1.0));
+    c.rect(0.0, 0.0, w, h, &solid(rgba(0xf4, 0xef, 0xe4, 1.0)));
+    c.stroke(Rect::from_xywh(8.0, 8.0, w - 16.0, h - 16.0).map(PathBuilder::from_rect), &ink, &width(4.0));
+    let (rusty, shelf) = (text_width(Face::Lexend(3), "RUSTY", 28.0), text_width(Face::Lexend(3), "SHELF", 28.0));
+    let left = w / 2.0 - (rusty + shelf) / 2.0;
+    c.text(Face::Lexend(3), "RUSTY", 28.0, left, 50.0, 0.0, &solid(rgba(0x8e, 0x2f, 0x12, 1.0)));
+    c.text(Face::Lexend(3), "SHELF", 28.0, left + rusty, 50.0, 0.0, &ink);
+    c.text(Face::Lexend(2), words[6], 13.0, w / 2.0, 70.0, 0.5, &ink);
+    c.rect(24.0, 84.0, w - 48.0, 3.0, &ink);
+    for (i, (k, v)) in words[..4].iter().zip(values).enumerate() {
+        let y = 108.0 + i as f32 * 44.0;
+        c.text(Face::Lexend(4), k, 12.0, 26.0, y, 0.0, &solid(rgba(0x6b, 0x5a, 0x44, 1.0)));
+        let mut v: String = v.to_string();
+        while text_width(Face::Lexend(2), &v, 18.0) > w - 52.0 && v.chars().count() > 3 {
+            v.pop();
+        }
+        c.text(Face::Lexend(2), &v, 18.0, 26.0, y + 21.0, 0.0, &ink);
+    }
+    c.text(Face::Lexend(1), words[4], 12.0, 26.0, 290.0, 0.0, &solid(rgba(0x6b, 0x5a, 0x44, 1.0)));
+    for i in 0..46 {
+        c.rect(26.0 + i as f32 * 5.6, 300.0, 1.0 + ((i * 7) % 3) as f32, 46.0, &ink);
+    }
+    let red = solid(rgba(0xb3, 0x26, 0x1e, 1.0));
+    let t0 = c.t;
+    c.t = t0.pre_concat(Transform::from_translate(w / 2.0 + 34.0, 384.0)).pre_concat(Transform::from_rotate(-0.1f32.to_degrees()));
+    c.stroke(Rect::from_xywh(-104.0, -22.0, 208.0, 42.0).map(PathBuilder::from_rect), &red, &width(4.0));
+    c.text(Face::Lexend(3), words[5], 19.0, 0.0, 7.0, 0.5, &red);
+    c.t = t0;
+    picture(c)
+}
+
 /// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).
 fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
     let r = (((12.0 * sigma * sigma / 3.0 + 1.0).sqrt() - 1.0) / 2.0).round().max(1.0) as usize;

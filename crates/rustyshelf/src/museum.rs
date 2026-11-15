@@ -122,6 +122,8 @@ struct Style {
     /// how strong the beam on the chosen case is, 0 to 2, and how much dust drifts in the lamps' light
     spot: f32,
     dust: f32,
+    /// new games arrive in a box
+    mail: bool,
     /// the gallery pieces: display plinths, velvet ropes, a bench, posters of your favourites
     plinths: bool,
     ropes: bool,
@@ -131,7 +133,7 @@ struct Style {
 
 impl Default for Style {
     fn default() -> Self {
-        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), spot: 1.0, dust: 1.0, plinths: false, ropes: false, bench: false, posters: false }
+        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), spot: 1.0, dust: 1.0, mail: true, plinths: false, ropes: false, bench: false, posters: false }
     }
 }
 
@@ -162,6 +164,7 @@ impl Style {
             shelf: text("shelf", "walnut"),
             spot: st("spot").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
             dust: st("dust").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+            mail: st("mail").and_then(|v| v.as_bool()).unwrap_or(true),
             plinths: on("plinths"),
             ropes: on("ropes"),
             bench: on("bench"),
@@ -293,6 +296,9 @@ pub struct Museum {
     held: Option<Held>,
     lift: f32,
     backed: std::collections::HashSet<(usize, usize)>,
+    /// the games waiting in a box (new since the last visit, or not unpacked yet), and the box in this room
+    mail: Vec<String>,
+    delivery: Option<crate::mail::Delivery>,
     /// each row's dust: its motes (where they are, and each one's own drift), and their look
     dust: Vec<Dust>,
     /// the surfaces drawn so far, by their finish
@@ -543,7 +549,7 @@ fn build(
             let spine = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.36, ..default() });
             let front = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.42, ..default() });
             commands
-                .spawn((Case { row: ri, col, home, w, d, h: ch }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), ChildOf(parent)))
+                .spawn((Case { row: ri, col, home, w, d, h: ch }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), if m.mail.contains(&g.id) { Visibility::Hidden } else { Visibility::Inherited }, ChildOf(parent)))
                 .with_children(|c| {
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(d * 0.96, ch * 0.98))), MeshMaterial3d(spine.clone()), Transform::from_xyz(0.0, 0.0, w / 2.0 + 0.001)));
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.96, ch * 0.98))), MeshMaterial3d(front.clone()), Transform::from_xyz(d / 2.0 + 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))));
@@ -615,6 +621,20 @@ fn build(
             Transform::from_xyz(x / 2.0, y + ROW - 0.62, 0.9).looking_at(Vec3::new(x / 2.0, y - 0.5, 0.0), Vec3::Y),
         ));
         m.rows.push(Row { wall, shelf: si, name, games, sheets, xs, y, end, console: (x + 0.3 + console_w / 2.0, console_w), w: sw, painted: false, lamp_on: lit, plaque });
+    }
+    // this room's new games, in a box
+    m.delivery = None;
+    let mailed: Vec<(usize, usize)> = m.rows.iter().enumerate().flat_map(|(ri, r)| r.games.iter().enumerate().filter(|(_, &gi)| m.mail.contains(&lib.shelves[r.shelf].games[gi].id)).map(move |(c, _)| (ri, c))).collect();
+    if let Some(&(r0, _)) = mailed.first() {
+        let tr = |t: &str| rustyshelf_core::i18n::tr(&m.lang, t);
+        let n = mailed.len();
+        let case_w = mailed.iter().map(|&(ri, _)| m.rows[ri].w).fold(0.7, f32::max);
+        let today = chrono::Local::now().format("%-d %b %Y").to_string();
+        let label = Art::Label {
+            values: [tr("The Collection"), m.rows[r0].name.to_uppercase(), if n == 1 { tr("New arrival") } else { tr(&format!("{n} games")) }, tr("Factory sealed")],
+            words: [tr("DELIVERED TO"), tr("SHELF"), if n == 1 { tr("ITEM") } else { tr("CONTENTS") }, tr("CONDITION"), tr(&format!("Arrived {today}")), tr("HANDLE WITH CARE"), tr("COLLECTOR'S DELIVERY")],
+        };
+        m.delivery = Some(crate::mail::build(commands, mailed, case_w, label, layer(), meshes, materials, covers, loader));
     }
     // the Reading & media room has no game shelves: its rack's ledges are level with rows of their own
     let media = m.plan.as_ref().and_then(|p| p.rooms.get(m.room)).filter(|r| r.kind == "media").map(|r| r.title.clone());
@@ -868,7 +888,7 @@ pub struct Making<'w> {
 /// The wall's moving parts: the cases, the row lights and the card.
 #[derive(SystemParam)]
 pub struct Wall<'w, 's> {
-    cases: Query<'w, 's, (Entity, &'static Case, &'static mut Transform), (Without<MuseumCamera>, Without<RowLight>, Without<MuseumCard>)>,
+    cases: Query<'w, 's, (Entity, &'static Case, &'static mut Transform, &'static mut Visibility), (Without<MuseumCamera>, Without<RowLight>, Without<MuseumCard>)>,
     lights: Query<'w, 's, (&'static RowLight, &'static mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
     card: Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
     frame: Query<'w, 's, (&'static FrameSide, &'static mut Transform, &'static mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
@@ -984,6 +1004,19 @@ pub fn run(
             m.intro = walk_in.then_some(0.0);
             m.wide = !walk_in;
             m.style = Style::read(ui);
+            let data = rustyshelf_core::paths::data_dir(&l.app_root);
+            let ids: std::collections::HashSet<String> = m.about.keys().cloned().collect();
+            let (seen, pending) = crate::mail::load(&data);
+            m.mail = if m.style.mail {
+                let fresh = seen.map(|seen| ids.iter().filter(|id| !seen.contains(*id)).cloned().collect::<Vec<_>>()).unwrap_or_default();
+                let mut all: Vec<String> = pending.into_iter().chain(fresh).filter(|id| ids.contains(id)).collect();
+                all.sort();
+                all.dedup();
+                all
+            } else {
+                Vec::new()
+            };
+            crate::mail::save(&data, &ids, &m.mail);
             build(&mut commands, m, l, &cursor, meshes, materials, covers, loader, images);
             if let Ok((mut cam, _, _)) = camera.single_mut() {
                 cam.is_active = true;
@@ -1092,6 +1125,9 @@ pub fn run(
         }
         return;
     }
+    if m.delivery.is_some() {
+        return deliver(&mut commands, m, l, &time, &keys, &pads, &settings, (materials, meshes, covers, loader), &mut wall, &mut camera, &mut text, &mut sounds);
+    }
     // into the arcade: W, or Y on a pad
     if m.held.is_none() && (keys.just_pressed(KeyCode::KeyW) || pad(GamepadButton::North)) {
         let cap = l.config.raw().get("ui").and_then(|u| u.get("arcadeCap")).and_then(|c| c.as_f64());
@@ -1163,7 +1199,7 @@ pub fn run(
             };
             let sheet = materials.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.42, ..default() });
             covers.want(art, (sheet.clone(), look.ratio), loader, materials);
-            if let Some((e, c, _)) = wall.cases.iter().find(|(_, c, _)| c.row == m.row && c.col == m.col) {
+            if let Some((e, c, _, _)) = wall.cases.iter().find(|(_, c, _, _)| c.row == m.row && c.col == m.col) {
                 commands.entity(e).with_child((layer(), Mesh3d(meshes.add(Rectangle::new(c.w * 0.96, c.h * 0.98))), MeshMaterial3d(sheet), Transform::from_xyz(-c.d / 2.0 - 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))));
             }
         }
@@ -1356,7 +1392,7 @@ pub fn run(
     }
     let (turned_x, turned_y) = m.held.as_ref().map_or((0.0, 0.0), |h| (h.rx, h.ry));
     let hand = m.rows.get(m.row).map(|r| Vec3::new(r.xs.get(m.col).copied().unwrap_or(0.0) - 0.2, r.y, 2.2));
-    for (_, c, mut t) in &mut wall.cases {
+    for (_, c, mut t, _) in &mut wall.cases {
         let mine = c.row == m.row && c.col == m.col;
         let k = if mine { m.pull } else { 0.0 };
         let (out, face) = (ease((k / 0.62).min(1.0)), ease(((k - 0.55) / 0.45).clamp(0.0, 1.0)));
@@ -1432,6 +1468,83 @@ pub fn run(
             let g = &l.shelves[r.shelf].games[r.games[m.col]];
             format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, n)
         };
+    }
+}
+
+/// A box of new games in front of you: confirm opens it and the games go to their places, back or Space skips to
+/// the end.
+#[allow(clippy::too_many_arguments)]
+fn deliver(
+    commands: &mut Commands,
+    m: &mut Museum,
+    l: &rustyshelf_core::library::Library,
+    time: &Time,
+    keys: &ButtonInput<KeyCode>,
+    pads: &Query<&Gamepad>,
+    settings: &crate::settings::Settings,
+    (materials, _meshes, _covers, _loader): (&mut Assets<StandardMaterial>, &mut Assets<Mesh>, &mut Covers, &ArtLoader),
+    wall: &mut Wall,
+    camera: &mut Cam,
+    text: &mut Query<&mut Text, With<MuseumText>>,
+    sounds: &mut crate::sound::Sounds,
+) {
+    let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
+    // the room behind it, as the wide view has it
+    let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
+    let (to_eye, to_look) = if m.wide { m.overview(aspect) } else { m.view() };
+    let f = 1.0 - (-time.delta_secs() * 5.0).exp();
+    (m.eye, m.look) = (m.eye.lerp(to_eye, f), m.look.lerp(to_look, f));
+    if let Ok((_, mut t, _)) = camera.single_mut() {
+        *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
+    }
+    let Some(d) = m.delivery.as_mut() else { return };
+    let skip = keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || keys.just_pressed(KeyCode::Space) || pad(settings.confirm().1);
+    if d.opened.is_none() && (keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0)) {
+        d.opened = Some(0.0);
+        sounds.play("caseOpen", 1);
+    }
+    let finish = skip || d.done();
+    let eye = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
+    let heights: Vec<f32> = d.cases.iter().map(|_| 1.0).collect();
+    let moves = d.step(time.delta_secs(), time.elapsed_secs(), eye, &heights, commands, materials);
+    let cases = d.cases.clone();
+    for (_, c, mut t, mut vis) in &mut wall.cases {
+        let Some(k) = cases.iter().position(|&(r, col)| r == c.row && col == c.col) else { continue };
+        if finish {
+            (t.translation, t.rotation, t.scale) = (c.home, Quat::IDENTITY, Vec3::ONE);
+            *vis = Visibility::Inherited;
+            continue;
+        }
+        match moves[k] {
+            None => *vis = Visibility::Hidden,
+            Some((from, turn, go)) => {
+                *vis = Visibility::Inherited;
+                let (at, wall_turn) = m.walls[m.rows[c.row].wall];
+                let back = Quat::from_rotation_y(wall_turn).inverse();
+                let start = back * (from - at);
+                let e = go * go * (3.0 - 2.0 * go);
+                t.translation = start.lerp(c.home, go) + Vec3::Y * (std::f32::consts::PI * go).sin() * 0.3;
+                t.rotation = (back * turn).slerp(Quat::IDENTITY, e);
+                t.scale = Vec3::splat(0.4 + 0.6 * go);
+            }
+        }
+    }
+    if finish {
+        let done: Vec<String> = cases.iter().map(|&(r, c)| l.shelves[m.rows[r].shelf].games[m.rows[r].games[c]].id.clone()).collect();
+        m.mail.retain(|id| !done.contains(id));
+        let data = rustyshelf_core::paths::data_dir(&l.app_root);
+        let seen: std::collections::HashSet<String> = m.about.keys().cloned().collect();
+        crate::mail::save(&data, &seen, &m.mail);
+        if let Some(d) = m.delivery.take() {
+            commands.entity(d.root()).despawn();
+        }
+        m.moved_at = time.elapsed_secs();
+        sounds.play("slideBack", 1);
+    }
+    if let Ok(mut text) = text.single_mut() {
+        let tr = |t: &str| rustyshelf_core::i18n::tr(&m.lang, t);
+        let n = cases.len();
+        text.0 = format!("{}\n{}", if n == 1 { tr("A new game has come") } else { tr(&format!("{n} new games have come")) }, tr("Enter  Open it  ·  Esc  Skip"));
     }
 }
 
