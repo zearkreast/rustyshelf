@@ -761,6 +761,23 @@ function i18nFixtures(lang) {
   const texts = [...keys.filter((_, i) => i % 7 === 0), ...made, '  Add games  ', 'Add\n  games', '12:30', '', 'Not a known text at all', keys[3].toUpperCase()];
   return { lang, cases: texts.map(t => [t, win.BS_tr(t)]) };
 }
+// ---- Brazilian Portuguese (renderer/i18n.js and i18n-pt-data.js, Thanks2111's): its own matching, templates with
+// plurals, capitals and fragments of longer texts ----
+function i18nPtFixtures() {
+  const vm = require('vm'), read = f => fs.readFileSync(path.join(__dirname, '..', 'renderer', f), 'utf8');
+  const doc = { documentElement: { setAttribute() {} }, title: '', addEventListener() {}, createTreeWalker: () => ({ nextNode: () => null }) };
+  const win = { localStorage: { getItem: () => 'pt' }, document: doc, MutationObserver: class { observe() {} }, NodeFilter: {} };
+  win.window = win; vm.createContext(win);
+  vm.runInContext(read('i18n-pt-data.js'), win); vm.runInContext(read('i18n.js'), win);
+  const D = win.__BS_PT, keys = Object.keys(D.d), tr = win.__bsI18n.tr;
+  // each template's text with its groups filled: words, a number, a plural's two forms
+  const fills = [['Zeta Run', '3', ''], ['Omega Quest', '1', 's'], [keys[5], '12', 's']];
+  const made = D.t.flatMap(([src], i) => fills.slice(0, i % 3 === 0 ? 3 : 1).map(f => { let g = 0; return src.replace(/\((?:\.\*\?|\.\+\?|\[[^\]]*\][+*]|s\|)\)|\(s\|\)/g, m => /s\|/.test(m) ? f[2] : /\\d|\d/.test(m) ? f[1] : f[(g++) % 2 === 0 ? 0 : 0]).replace(/\\(.)/g, '$1'); }));
+  const long = keys.filter(k => k.length >= 8 && /\s/.test(k)).slice(0, 40);
+  const texts = [...keys.filter((_, i) => i % 9 === 0), ...made, ...keys.filter((_, i) => i % 41 === 0).map(k => k.toUpperCase()),
+    ...long.map((k, i) => `Zeta ${i}: ${k} and more`), 'Page 3 of 12', '  Home  ', 'Home\n shelf', '', '12:30', 'Not a known text at all', tr(keys[0])];
+  return { lang: 'pt', cases: texts.map(t => [t, tr(t)]) };
+}
 // ---- Steam achievements for the Trophies screen (main/steamach.js), over a made-up Steam API ----
 async function steamachFixtures() {
   const https = require('https'), { EventEmitter } = require('events');
@@ -1727,7 +1744,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
-  fs.writeFileSync(path.join(OUT, 'i18n.json'), JSON.stringify(['fr', 'tr'].map(i18nFixtures), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'i18n.json'), JSON.stringify([...['fr', 'tr'].map(i18nFixtures), i18nPtFixtures()], null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamach.json'), JSON.stringify(await steamachFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
