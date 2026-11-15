@@ -164,8 +164,8 @@ const SPIN: f32 = 150.0;
 pub struct InspectKeys;
 
 /// Inspect's keys: V or the right stick's click holds the chosen case up; the arrows or a stick turn it, F shows
-/// its other side, Page Up and Page Down (or the triggers) bring it nearer and further; Enter plays it, Escape
-/// puts it back.
+/// its other side, Page Up and Page Down (or the triggers) bring it nearer and further; M reads its manual, Enter
+/// plays it, Escape puts it back.
 pub fn inspect(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -177,8 +177,17 @@ pub fn inspect(
     mut sounds: ResMut<crate::sound::Sounds>,
     mut inspect: ResMut<Inspect>,
     mut hint: Query<(&mut Visibility, &mut Text), With<InspectKeys>>,
+    reader: Res<crate::reader::Reader>,
 ) {
     let (now, dt) = (time.elapsed_secs(), time.delta_secs());
+    // (its manual is open over it, or was until this frame's key; or the Home menu is up: the keys are theirs)
+    if reader.is_open() || settings.keys_taken {
+        return;
+    }
+    let manual = match &lib.0 {
+        LibraryState::Ready(l) => l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).map(|g| g.art.manual.clone()).filter(|m| !m.is_empty()),
+        _ => None,
+    };
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
     let (confirm, back) = settings.confirm();
     let game = matches!(&lib.0, LibraryState::Ready(l) if l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).is_some_and(|g| !matches!(g.source, Source::Tile(_))));
@@ -205,6 +214,9 @@ pub fn inspect(
         }
         let near = (keys.pressed(KeyCode::PageUp) || pads.iter().any(|p| p.pressed(GamepadButton::RightTrigger2))) as i32 - (keys.pressed(KeyCode::PageDown) || pads.iter().any(|p| p.pressed(GamepadButton::LeftTrigger2))) as i32;
         inspect.zoom = (inspect.zoom + near as f32 * dt).clamp(0.7, 1.5);
+        if let Some(pages) = manual.clone().filter(|_| keys.just_pressed(KeyCode::KeyM) || pad(GamepadButton::West)) {
+            settings.manual = Some(pages);
+        }
         let play = keys.just_pressed(KeyCode::Enter) || pad(confirm);
         if play || toggle || !game || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) {
             (inspect.on, inspect.held) = (false, Eased { from: held, to: 0.0, since: now });
@@ -217,7 +229,8 @@ pub fn inspect(
     if let Ok((mut seen, mut text)) = hint.single_mut() {
         seen.set_if_neq(if inspect.on { Visibility::Inherited } else { Visibility::Hidden });
         if inspect.on && text.0.is_empty() || inspect.is_changed() && inspect.on {
-            let keys = format!("◀ ▶ ▲ ▼  Turn      F · {}  Other side      PgUp · PgDn  Nearer, further      Enter · {}  Play      Esc · {}  Put it back", settings.cap("tri"), settings.cap("x"), settings.cap("o"));
+            let read = if manual.is_some() { format!("      M · {}  Manual", settings.cap("sq")) } else { String::new() };
+            let keys = format!("◀ ▶ ▲ ▼  Turn      F · {}  Other side      PgUp · PgDn  Nearer, further{read}      Enter · {}  Play      Esc · {}  Put it back", settings.cap("tri"), settings.cap("x"), settings.cap("o"));
             if text.0 != keys {
                 text.0 = keys;
             }

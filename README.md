@@ -688,8 +688,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   asked about as the Electron app asks: the real controllers plugged in (USB or Bluetooth) say whether a
   PlayStation or Switch pad is behind Steam Input or DS4Windows.
 - Has a first Inspect (V, or the right stick's click): the chosen case comes up off the shelf to be turned
-  freely with the arrows or a stick, tipped, flipped to its other side and brought nearer or further; Enter
-  plays it, Escape puts it back. The case doesn't open yet.
+  freely with the arrows or a stick, tipped, flipped to its other side and brought nearer or further; M reads
+  its manual, Enter plays it, Escape puts it back. The case doesn't open yet.
 - Has the Art Studio's picker (Details → Box art): for a console game's front, back, spine and disc, every
   version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps), the picture in use
   and the ones replaced before it, the best for the console's style first by the Electron app's own points
