@@ -58,6 +58,7 @@ pub mod pkg;
 pub mod presence;
 pub mod provenance;
 pub mod ra;
+pub mod romm;
 pub mod racores;
 pub mod rocket;
 pub mod raemu;
