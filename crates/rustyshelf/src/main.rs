@@ -84,6 +84,7 @@ fn main() {
             Update,
             (
                 loading::poll_library,
+                loading::recheck_folders,
                 play::watch_game,
                 phone::run,
                 home::run,

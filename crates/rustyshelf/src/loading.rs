@@ -106,6 +106,28 @@ pub fn reshow(lib: &mut LibraryRes, base: &Library, history: &rustyshelf_core::h
 #[derive(Resource, Default)]
 pub struct Refresh(Option<Mutex<Receiver<Library>>>);
 
+/// A games folder that was out of reach is looked at again every minute; back, the library is read again behind the
+/// shelf.
+pub fn recheck_folders(time: Res<Time>, mut next: Local<f32>, base: Res<Base>, mut refresh: ResMut<Refresh>) {
+    if *next == 0.0 {
+        *next = 60.0;
+    }
+    if time.elapsed_secs() < *next || refresh.0.is_some() {
+        return;
+    }
+    *next = time.elapsed_secs() + 60.0;
+    let Some(root) = base.0.as_ref().map(|l| l.app_root.clone()).filter(|_| rustyshelf_core::library::folders_gone()) else { return };
+    let (tx, rx) = channel();
+    thread::spawn(move || {
+        if rustyshelf_core::library::folders_back() {
+            if let Ok(fresh) = Library::load_from(&root) {
+                let _ = tx.send(fresh);
+            }
+        }
+    });
+    refresh.0 = Some(Mutex::new(rx));
+}
+
 pub fn start_library() -> LibraryRes {
     let (tx, rx) = channel();
     thread::spawn(move || {

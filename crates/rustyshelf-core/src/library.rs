@@ -188,12 +188,77 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
     (stores, mine)
 }
 
+/// The games folders that didn't answer at the last read, and each console's games then.
+static GONE: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+static KEPT: std::sync::LazyLock<std::sync::Mutex<HashMap<String, Vec<Game>>>> = std::sync::LazyLock::new(Default::default);
+
+/// The folders of these that don't answer within 5 s, or aren't there.
+fn unreachable(dirs: &[String]) -> Vec<String> {
+    let asks: Vec<_> = dirs
+        .iter()
+        .filter(|d| !d.is_empty())
+        .map(|d| {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let at = crate::art::resolve(Path::new(d));
+            // (a thread of its own: a network drive that's gone can hold a folder read up far longer)
+            std::thread::spawn(move || {
+                let _ = tx.send(std::fs::read_dir(at).is_ok());
+            });
+            (d.clone(), rx)
+        })
+        .collect();
+    asks.into_iter().filter(|(_, rx)| !rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap_or(false)).map(|(d, _)| d).collect()
+}
+
+/// A console's games: its folders that answer are read, and a folder that can't be reached (a network drive gone for a
+/// moment) keeps the games it had at the last read, instead of the shelf coming out empty.
+fn reachable_games(c: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &ScanData) -> Vec<Game> {
+    if sc.rom_dirs.is_empty() {
+        return Vec::new();
+    }
+    let gone = unreachable(&sc.rom_dirs);
+    let mut games = if gone.is_empty() {
+        scanner::scan(c, sc, art_dirs, data)
+    } else {
+        let here = SystemConfig { rom_dirs: sc.rom_dirs.iter().filter(|d| !gone.contains(d)).cloned().collect(), ..sc.clone() };
+        if here.rom_dirs.is_empty() { Vec::new() } else { scanner::scan(c, &here, art_dirs, data) }
+    };
+    let mut kept = KEPT.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if !gone.is_empty() {
+        let roots: Vec<PathBuf> = gone.iter().map(|d| crate::art::resolve(Path::new(d))).collect();
+        let have: HashSet<PathBuf> = games.iter().map(|g| g.file.clone()).collect();
+        let from_before: Vec<Game> = kept.get(&c.id).into_iter().flatten().filter(|g| !have.contains(&g.file) && roots.iter().any(|r| g.file.starts_with(r))).cloned().collect();
+        games.extend(from_before);
+        GONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner).extend(gone);
+    }
+    kept.insert(c.id.clone(), games.clone());
+    games
+}
+
+/// Whether a games folder that couldn't be reached at the last read answers again: the library is then read again.
+pub fn folders_back() -> bool {
+    let was = std::mem::take(&mut *GONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+    if was.is_empty() {
+        return false;
+    }
+    let still = unreachable(&was);
+    let back = still.len() < was.len();
+    GONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner).extend(still);
+    back
+}
+
+/// Whether a games folder was out of reach at the last read.
+pub fn folders_gone() -> bool {
+    !GONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_empty()
+}
+
 impl Library {
     pub fn load() -> Result<Library, LoadError> {
         Self::load_from(&paths::app_root())
     }
 
     pub fn load_from(app_root: &Path) -> Result<Library, LoadError> {
+        GONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clear();
         let data_dir = paths::data_dir(app_root);
         let config = Config::load(&data_dir)?;
         crate::provenance::init(&data_dir);
@@ -217,7 +282,7 @@ impl Library {
                     s.spawn(move || Shelf {
                         id: c.id.clone(),
                         name: c.name.clone(),
-                        games: if sc.rom_dirs.is_empty() { Vec::new() } else { scanner::scan(c, &sc, &dirs, data) },
+                        games: reachable_games(c, &sc, &dirs, data),
                         kind: ShelfKind::Console { console: Box::new(c.clone()), config: sc },
                         from: Vec::new(),
                     })
@@ -505,6 +570,35 @@ fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
 mod tests {
     use super::*;
 
+    /// (the folders out of reach are kept for the whole app: one read at a time here)
+    static ONE_LOAD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn a_games_folder_out_of_reach_keeps_its_games() {
+        let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for f in ["near/Zeta Run (USA).gb", "far/Omega Quest (USA).gb", "emu/gb.exe"] {
+            touch(&root.join(f));
+        }
+        let at = |f: &str| root.join(f).to_string_lossy().replace('\\', "/");
+        let cfg = serde_json::json!({ "steam": { "enabled": false }, "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false },
+            "systems": { "gb": { "romDirs": [at("near"), at("far")], "emulator": at("emu/gb.exe") } } });
+        touch(&root.join("data/config.json"));
+        std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+        let titles = |lib: &Library| lib.shelves.iter().find(|s| s.id == "gb").map(|s| s.games.iter().map(|g| g.title.clone()).collect::<Vec<_>>()).unwrap_or_default();
+        assert_eq!(titles(&Library::load_from(root).unwrap()), ["Omega Quest", "Zeta Run"]);
+        assert!(!folders_gone());
+        // the network drive goes for a moment: its game stays on the shelf, and it's looked at again
+        std::fs::rename(root.join("far"), root.join("away")).unwrap();
+        let lib = Library::load_from(root).unwrap();
+        assert_eq!(titles(&lib).len(), 2, "{:?}", titles(&lib));
+        assert!(folders_gone() && !folders_back());
+        std::fs::rename(root.join("away"), root.join("far")).unwrap();
+        assert!(folders_back() && !folders_gone());
+        assert_eq!(titles(&Library::load_from(root).unwrap()), ["Omega Quest", "Zeta Run"]);
+    }
+
     fn touch(p: &Path) {
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, b"x").unwrap();
@@ -548,6 +642,7 @@ mod tests {
         });
         touch(&root.join("data/config.json"));
         std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+        let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
         assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("media", vec!["Stremio"])]);
