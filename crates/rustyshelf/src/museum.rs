@@ -195,6 +195,7 @@ pub struct Case {
     home: Vec3,
     w: f32,
     d: f32,
+    h: f32,
 }
 
 struct Row {
@@ -283,8 +284,21 @@ pub struct Museum {
     reader_here: bool,
     reading_was: bool,
     style: Style,
+    /// the case in your hands: how it's turned (and where it's turning to), in radians; how far it has come up to you,
+    /// 0 to 1; and the cases whose backs have been put on
+    held: Option<Held>,
+    lift: f32,
+    backed: std::collections::HashSet<(usize, usize)>,
     /// the surfaces drawn so far, by their finish
     surfaces: std::collections::HashMap<String, Handle<Image>>,
+}
+
+#[derive(Default)]
+struct Held {
+    rx: f32,
+    ry: f32,
+    to_rx: f32,
+    to_ry: f32,
 }
 
 /// Where to come back to after a game played from the museum: where you stood in the arcade, if you were walking;
@@ -403,6 +417,8 @@ fn build(
     images: &mut Assets<Image>,
 ) {
     m.rows.clear();
+    (m.held, m.lift) = (None, 0.0);
+    m.backed.clear();
     // what stands on the walls: (wall, the shelf, its games' places there)
     let groups: Vec<(usize, usize, Vec<usize>)> = match m.plan.as_ref().and_then(|p| p.rooms.get(m.room)) {
         Some(room) => {
@@ -512,7 +528,7 @@ fn build(
             let spine = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.36, ..default() });
             let front = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.42, ..default() });
             commands
-                .spawn((Case { row: ri, col, home, w, d }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), ChildOf(parent)))
+                .spawn((Case { row: ri, col, home, w, d, h: ch }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), ChildOf(parent)))
                 .with_children(|c| {
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(d * 0.96, ch * 0.98))), MeshMaterial3d(spine.clone()), Transform::from_xyz(0.0, 0.0, w / 2.0 + 0.001)));
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.96, ch * 0.98))), MeshMaterial3d(front.clone()), Transform::from_xyz(d / 2.0 + 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))));
@@ -814,7 +830,7 @@ pub struct Making<'w> {
 /// The wall's moving parts: the cases, the row lights and the card.
 #[derive(SystemParam)]
 pub struct Wall<'w, 's> {
-    cases: Query<'w, 's, (&'static Case, &'static mut Transform), (Without<MuseumCamera>, Without<RowLight>, Without<MuseumCard>)>,
+    cases: Query<'w, 's, (Entity, &'static Case, &'static mut Transform), (Without<MuseumCamera>, Without<RowLight>, Without<MuseumCard>)>,
     lights: Query<'w, 's, (&'static RowLight, &'static mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
     card: Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
     frame: Query<'w, 's, (&'static FrameSide, &'static mut Transform, &'static mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
@@ -1064,7 +1080,49 @@ pub fn run(
         sounds.play("shelf", to_room);
         return;
     }
-    let back = keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1);
+    // a case in your hands: the arrows (or the stick) turn it, Space / X or back puts it down, confirm still plays it
+    let pick = keys.just_pressed(KeyCode::Space) || pad(GamepadButton::West);
+    let backing = keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1);
+    let holding = m.held.is_some();
+    if let Some(h) = m.held.as_mut() {
+        if pick || backing {
+            m.held = None;
+            sounds.play("slideBack", 1);
+            return;
+        }
+        let turn = ((keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32) as f32;
+        let tilt = ((keys.just_pressed(KeyCode::ArrowDown) || pad(GamepadButton::DPadDown)) as i32 - (keys.just_pressed(KeyCode::ArrowUp) || pad(GamepadButton::DPadUp)) as i32) as f32;
+        let stick = pads.iter().map(|p| p.left_stick() + p.right_stick()).find(|v| v.length() > 0.2).unwrap_or(Vec2::ZERO);
+        let dt = time.delta_secs();
+        h.to_ry += turn * std::f32::consts::FRAC_PI_2 + stick.x * 2.6 * dt;
+        h.to_rx = (h.to_rx + tilt * 30f32.to_radians() - stick.y * 1.6 * dt).clamp(-60f32.to_radians(), 60f32.to_radians());
+        if turn != 0.0 || tilt != 0.0 {
+            sounds.play("tick", 1);
+        }
+    } else if pick && !m.wide && m.rack_sel.is_none() && m.pull > 0.9 && !m.rows[m.row].games.is_empty() {
+        m.held = Some(Held::default());
+        sounds.play("lift", 1);
+        // its back, put on the first time it's picked up
+        if m.backed.insert((m.row, m.col)) {
+            let r = &m.rows[m.row];
+            let s = &l.shelves[r.shelf];
+            let g = &s.games[r.games[m.col]];
+            let look = looks::look_for(&s.id, g);
+            let art = match g.art.back.clone() {
+                Some(path) => Art::File(path),
+                None => {
+                    let facts = crate::settings::facts_of(g, &crate::settings::emulator_of(s), rustyshelf_core::shelfview::played(g, &others.plays.0));
+                    Art::Back { look: Box::new(look.clone()), title: g.title.clone(), facts: facts.into_iter().take(5).collect(), blurb: g.info.as_ref().and_then(|i| i.description()).unwrap_or_default() }
+                }
+            };
+            let sheet = materials.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.42, ..default() });
+            covers.want(art, (sheet.clone(), look.ratio), loader, materials);
+            if let Some((e, c, _)) = wall.cases.iter().find(|(_, c, _)| c.row == m.row && c.col == m.col) {
+                commands.entity(e).with_child((layer(), Mesh3d(meshes.add(Rectangle::new(c.w * 0.96, c.h * 0.98))), MeshMaterial3d(sheet), Transform::from_xyz(-c.d / 2.0 - 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))));
+            }
+        }
+    }
+    let back = !holding && backing;
     if m.rows.is_empty() || keys.just_pressed(KeyCode::KeyM) || (back && m.wide) {
         return close(&mut commands, m, &things, &mut camera, &mut others.shelf_camera, &mut sounds);
     }
@@ -1087,6 +1145,7 @@ pub fn run(
         ((keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32) as f32,
         ((keys.just_pressed(KeyCode::ArrowDown) || pad(GamepadButton::DPadDown)) as i32 - (keys.just_pressed(KeyCode::ArrowUp) || pad(GamepadButton::DPadUp)) as i32) as f32,
     );
+    let (held, tap) = if holding { (Vec2::ZERO, Vec2::ZERO) } else { (held, tap) };
     let fresh = tap != Vec2::ZERO;
     let held = if fresh { tap } else { held };
     if held == Vec2::ZERO {
@@ -1243,13 +1302,29 @@ pub fn run(
     let settle = now - m.moved_at > 0.15 && !m.wide && m.rack_sel.is_none();
     m.pull = if settle { (m.pull + dt * 3.0).min(1.0) } else { (m.pull - dt * 6.0).max(0.0) };
     let mut chosen_at = Vec3::ZERO;
-    for (c, mut t) in &mut wall.cases {
-        let k = if c.row == m.row && c.col == m.col { m.pull } else { 0.0 };
+    m.lift += ((m.held.is_some() as u8 as f32) - m.lift) * (1.0 - (-dt * 6.0).exp());
+    if let Some(h) = m.held.as_mut() {
+        let k = 1.0 - (-dt * 6.0).exp();
+        h.rx += (h.to_rx - h.rx) * k;
+        h.ry += (h.to_ry - h.ry) * k;
+    }
+    let (turned_x, turned_y) = m.held.as_ref().map_or((0.0, 0.0), |h| (h.rx, h.ry));
+    let hand = m.rows.get(m.row).map(|r| Vec3::new(r.xs.get(m.col).copied().unwrap_or(0.0) - 0.2, r.y, 2.2));
+    for (_, c, mut t) in &mut wall.cases {
+        let mine = c.row == m.row && c.col == m.col;
+        let k = if mine { m.pull } else { 0.0 };
         let (out, face) = (ease((k / 0.62).min(1.0)), ease(((k - 0.55) / 0.45).clamp(0.0, 1.0)));
         t.translation = c.home + Vec3::new(0.0, out * 0.06, out * (c.w * PULL + c.d));
         t.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2 * face);
-        if k > 0.0 || (c.row == m.row && c.col == m.col) {
+        if mine {
             chosen_at = t.translation;
+            // in your hands: up in front of you, turned as you turn it
+            if let (Some(hand), true) = (hand, m.lift > 0.001) {
+                let e = ease(m.lift.min(1.0));
+                t.translation = t.translation.lerp(hand, e);
+                t.rotation = t.rotation.slerp(Quat::from_rotation_x(turned_x) * Quat::from_rotation_y(turned_y) * t.rotation, e);
+                chosen_at = t.translation;
+            }
         }
     }
     show_card(m, l, chosen_at, dt, materials, images, &mut wall.card);
@@ -1277,7 +1352,7 @@ pub fn run(
         *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
     }
     for (_, mut s) in &mut wall.lights {
-        s.intensity += (m.style.lamp() - s.intensity) * f;
+        s.intensity += (m.style.lamp() * (1.0 - 0.55 * m.lift) - s.intensity) * f;
     }
     show_frame(m, now, dt, materials, &mut wall.frame);
     if let Ok(mut text) = text.single_mut() {
@@ -1290,6 +1365,9 @@ pub fn run(
         let note = m.note.as_ref().filter(|(_, until)| now < *until).map(|(t, _)| t.clone());
         text.0 = if let Some(note) = note {
             note
+        } else if m.held.is_some() && !r.games.is_empty() {
+            let g = &l.shelves[r.shelf].games[r.games[m.col]];
+            format!("{}\n{}", g.title, tr("Arrows  Turn it  ·  Enter  Play  ·  Esc  Put it back"))
         } else if let (true, Some((u, x))) = (m.wide, unit) {
             let k = m.rack.pieces.iter().filter(|p| p.unit == u).count();
             format!("{room}{}  ·  {}\n{}", tr(x.label), tr(&if k == 1 { "1 issue".to_string() } else { format!("{k} issues") }), tr("Enter  Zoom in  ·  Esc  Leave"))
@@ -1381,7 +1459,7 @@ fn show_card(
         }
         parts.shows = Some(for_sel);
     }
-    let mine = parts.shows == Some(sel) && parts.asked == Some(sel);
+    let mine = parts.shows == Some(sel) && parts.asked == Some(sel) && m.held.is_none();
     let want = if mine { ease(((m.pull - 0.7) / 0.3).clamp(0.0, 1.0)) } else { 0.0 };
     parts.fade += (want - parts.fade) * (1.0 - (-dt * if mine { 10.0 } else { 25.0 }).exp());
     for (h, rgb) in [(&parts.face, [1.0, 1.0, 1.0]), (&parts.board, [0x8a as f32 / 255.0, 0x6a as f32 / 255.0, 0x34 as f32 / 255.0])] {
@@ -1455,7 +1533,7 @@ fn card_of(g: &rustyshelf_core::scanner::Game, shelf: &str, row: &str, about: Op
         history,
         since,
         chips,
-        foot: format!("{}{}", if fav { format!("{}    ", tr("♥ favorite")) } else { String::new() }, tr("Enter  Play")),
+        foot: format!("{}{}", if fav { format!("{}    ", tr("♥ favorite")) } else { String::new() }, tr("Enter  Play  ·  Space  Pick it up")),
     }
 }
 
