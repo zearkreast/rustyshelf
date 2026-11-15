@@ -209,9 +209,20 @@ fn cfg_get(text: &str, key: &str) -> Option<String> {
     Regex::new(&format!(r#"(?m)^\s*{}\s*=\s*"([^"]*)""#, regex::escape(key))).ok()?.captures(text).map(|m| m[1].to_string())
 }
 
+/// A folder in use: BIOS files, or any folder (RetroArch's system\ often holds only the cores' own subfolders).
 fn has_bios_files(d: &str) -> bool {
     static BIOS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(bin|rom|zip|img|bios)$").unwrap());
-    std::fs::read_dir(d).is_ok_and(|rd| rd.flatten().any(|e| BIOS.is_match(&e.file_name().to_string_lossy())))
+    std::fs::read_dir(d).is_ok_and(|rd| rd.flatten().any(|e| e.file_type().is_ok_and(|t| t.is_dir()) || BIOS.is_match(&e.file_name().to_string_lossy())))
+}
+
+fn file_hash(f: &str) -> Option<String> {
+    use sha1::Digest;
+    std::fs::read(f).ok().map(|b| sha1::Sha1::digest(&b).iter().map(|x| format!("{x:02x}")).collect())
+}
+
+/// The copy of a file as it was when setup first touched it (main/emusetup.js).
+fn snapshot_of(f: &str) -> String {
+    format!("{f}.rustyshelf-setup")
 }
 
 /// The pad's inputs as SDL names them, in the order DuckStation and PCSX2 list a pad's buttons.
@@ -302,6 +313,12 @@ fn pairs(want: &[(&str, &str)]) -> Vec<(String, String)> {
 /// RetroArch's retroarch.cfg: `key = "value"` lines, no sections. As safe as the ini writer: a file that can't be
 /// read, or isn't UTF-8 text, is left alone. True if the file changed.
 pub fn set_cfg(f: &str, want: &[(String, String)]) -> std::io::Result<bool> {
+    let want: Vec<(String, Option<String>)> = want.iter().map(|(k, v)| (k.clone(), Some(v.clone()))).collect();
+    set_cfg_or_drop(f, &want)
+}
+
+/// `set_cfg` where a key set to None goes.
+pub fn set_cfg_or_drop(f: &str, want: &[(String, Option<String>)]) -> std::io::Result<bool> {
     static KEY: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*([A-Za-z0-9_]+)\s*=").unwrap());
     let buf = match std::fs::read(f) {
         Ok(b) => Some(b),
@@ -319,17 +336,30 @@ pub fn set_cfg(f: &str, want: &[(String, String)]) -> std::io::Result<bool> {
     let nl = if src.contains("\r\n") { "\r\n" } else { "\n" };
     let mut lines: Vec<String> = if src.is_empty() { Vec::new() } else { NL.split(&src).map(String::from).collect() };
     let (mut seen, mut changed) = (Vec::new(), false);
-    for line in lines.iter_mut() {
-        let Some(k) = KEY.captures(line).map(|m| m[1].to_string()) else { continue };
-        let Some((_, v)) = want.iter().rev().find(|(w, _)| *w == k) else { continue };
+    let mut i = 0;
+    while i < lines.len() {
+        let Some(k) = KEY.captures(&lines[i]).map(|m| m[1].to_string()) else {
+            i += 1;
+            continue;
+        };
+        let Some((_, v)) = want.iter().rev().find(|(w, _)| *w == k) else {
+            i += 1;
+            continue;
+        };
+        seen.push(k.clone());
+        let Some(v) = v else {
+            lines.remove(i);
+            changed = true;
+            continue;
+        };
         let set = format!("{k} = \"{v}\"");
-        seen.push(k);
-        if *line != set {
-            *line = set;
+        if lines[i] != set {
+            lines[i] = set;
             changed = true;
         }
+        i += 1;
     }
-    for (k, v) in want.iter().filter(|(k, _)| !seen.contains(k)) {
+    for (k, v) in want.iter().filter(|(k, _)| !seen.contains(k)).filter_map(|(k, v)| Some((k, v.as_ref()?))) {
         if lines.last().is_some_and(String::is_empty) {
             lines.pop();
         }
@@ -585,10 +615,28 @@ impl Setup<'_> {
         let key = Self::key_of(kind, exe);
         let mut rec = m.get(&key).filter(|r| r.is_object()).cloned().unwrap_or_else(|| json!({ "kind": kind.id(), "exe": exe, "files": [], "created": [], "groups": [] }));
         let listed = |rec: &Value, k: &str| -> Vec<String> { rec.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default() };
-        let (mut files, mut created) = (listed(&rec, "files"), listed(&rec, "created"));
+        let (mut files, mut created, mut made_bak) = (listed(&rec, "files"), listed(&rec, "created"), listed(&rec, "madeBak"));
+        // each key's value before RustyShelf first changed it (null: it wasn't there), so Undo puts back just those keys;
+        // a file setup touches first is also copied as it is (snapshot_of) and its text after setup fingerprinted (hash)
+        for k in ["prev", "hash"] {
+            if !rec.get(k).is_some_and(Value::is_object) {
+                rec[k] = json!({});
+            }
+        }
         let mut done = Vec::new();
         for (c, w) in &by_file {
             let existed = is_file(Path::new(&c.file));
+            let first = !files.contains(&c.file);
+            let bak_had = is_file(Path::new(&emucfg::bak_of(&c.file)));
+            let text = read_text(&c.file);
+            let section = if c.cfg { Vec::new() } else { ini_section(&text, &c.section) };
+            let before: Vec<(String, Value)> = w
+                .iter()
+                .map(|(k, _)| (k.clone(), if c.cfg { cfg_get(&text, k) } else { section.iter().find(|(x, _)| x == k).map(|(_, v)| v.clone()) }.map_or(Value::Null, Value::from)))
+                .collect();
+            if first && existed {
+                let _ = std::fs::copy(&c.file, snapshot_of(&c.file));
+            }
             let refs: Vec<(&str, &str)> = w.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
             let changed = if c.cfg { set_cfg(&c.file, w) } else { emucfg::set_ini(&c.file, &c.section, &refs) };
             match changed {
@@ -600,9 +648,34 @@ impl Setup<'_> {
                         created.push(c.file.clone());
                     }
                     done.push(c.file.clone());
+                    if !bak_had && is_file(Path::new(&emucfg::bak_of(&c.file))) && !made_bak.contains(&c.file) {
+                        made_bak.push(c.file.clone());
+                    }
+                    let pk = format!("{}\0{}", c.file, c.section);
+                    let e = rec["prev"].as_object_mut().unwrap().entry(pk).or_insert_with(|| json!({ "file": c.file, "fmt": if c.cfg { "cfg" } else { "ini" }, "section": if c.section.is_empty() { Value::Null } else { json!(c.section) }, "keys": {} }));
+                    if let Some(keys) = e.get_mut("keys").and_then(Value::as_object_mut) {
+                        for (k, v) in before {
+                            keys.entry(k).or_insert(v);
+                        }
+                    }
                 }
-                Ok(false) => {}
-                Err(e) => return fail(format!("couldn't write {} ({e})", js::basename(&c.file))),
+                Ok(false) => {
+                    if first && existed {
+                        let _ = std::fs::remove_file(snapshot_of(&c.file));
+                    }
+                }
+                Err(e) => {
+                    // what was already written in this run is on record, so Undo can still put it back
+                    if !done.is_empty() {
+                        (rec["files"], rec["created"], rec["madeBak"], rec["at"]) = (json!(files), json!(created), json!(made_bak), json!(now));
+                        m.insert(key, rec);
+                        self.save_manifest(m);
+                    }
+                    return fail(format!("couldn't write {} ({e})", js::basename(&c.file)));
+                }
+            }
+            if files.contains(&c.file) {
+                rec["hash"][&c.file] = file_hash(&c.file).map_or(Value::Null, Value::from);
             }
         }
         let mut groups: Vec<&'static str> = Vec::new();
@@ -615,6 +688,7 @@ impl Setup<'_> {
         all.extend(groups.iter().filter(|g| !all.contains(&g.to_string())).map(|g| g.to_string()).collect::<Vec<_>>());
         rec["files"] = json!(files);
         rec["created"] = json!(created);
+        rec["madeBak"] = json!(made_bak);
         rec["groups"] = json!(all);
         rec["at"] = json!(now);
         m.insert(key, rec);
@@ -622,8 +696,11 @@ impl Setup<'_> {
         Applied { ok: true, why: String::new(), applied: groups, skipped: p.skipped.into_iter().filter(|(g, _)| want(g)).collect(), files: done }
     }
 
-    /// Puts back every file setting this emulator up changed (its copy from before), and removes the files it
-    /// started from nothing. Returns the files put back.
+    /// Puts back just the keys setting this emulator up changed, as they were (one that wasn't there goes again): the
+    /// emulator writes its own settings into these files after setup, and putting the old copy back wiped them. A file
+    /// still as setup left it gets its copy from before back exactly (or goes, if setup made it). A setup recorded by
+    /// an older version (no per-key record) is undone only for a file that hasn't changed since. Returns the files put
+    /// back.
     pub fn undo(&self, exe: &str) -> Vec<String> {
         let Some(kind) = kind_of(exe) else { return Vec::new() };
         let mut m = self.manifest();
@@ -632,7 +709,49 @@ impl Setup<'_> {
         let listed = |k: &str| -> Vec<String> { rec.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default() };
         let created = listed("created");
         let mut restored = Vec::new();
+        if let (Some(prev), Some(hash)) = (rec.get("prev").and_then(Value::as_object), rec.get("hash").and_then(Value::as_object)) {
+            let made_bak = listed("madeBak");
+            for f in listed("files") {
+                let snap = snapshot_of(&f);
+                let same = is_file(Path::new(&f)) && hash.get(&f).and_then(Value::as_str).is_some_and(|h| file_hash(&f).as_deref() == Some(h));
+                if same && created.contains(&f) {
+                    if std::fs::remove_file(&f).is_ok() {
+                        restored.push(f.clone());
+                    }
+                } else if same && is_file(Path::new(&snap)) {
+                    let tmp = format!("{f}.tmp");
+                    if std::fs::copy(&snap, &tmp).and_then(|_| std::fs::rename(&tmp, &f)).is_ok() {
+                        restored.push(f.clone());
+                    }
+                } else {
+                    for e in prev.values().filter(|e| e["file"] == f.as_str()) {
+                        let keys: Vec<(String, Option<String>)> = e["keys"].as_object().into_iter().flatten().map(|(k, v)| (k.clone(), v.as_str().map(String::from))).collect();
+                        let changed = if e["fmt"] == "cfg" {
+                            set_cfg_or_drop(&f, &keys)
+                        } else {
+                            let refs: Vec<(&str, Option<&str>)> = keys.iter().map(|(k, v)| (k.as_str(), v.as_deref())).collect();
+                            emucfg::set_ini_or_drop(&f, e["section"].as_str().unwrap_or(""), &refs)
+                        };
+                        if changed.unwrap_or(false) && !restored.contains(&f) {
+                            restored.push(f.clone());
+                        }
+                    }
+                }
+                let _ = std::fs::remove_file(&snap);
+                if same && made_bak.contains(&f) {
+                    let _ = std::fs::remove_file(emucfg::bak_of(&f));
+                }
+            }
+            m.shift_remove(&key);
+            self.save_manifest(m);
+            return restored;
+        }
+        let at = rec.get("at").and_then(Value::as_u64).unwrap_or(0);
         for f in listed("files") {
+            let mtime = Path::new(&f).metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64);
+            if mtime != 0 && at != 0 && mtime > at + 5000 {
+                continue;
+            }
             if created.contains(&f) {
                 if !is_file(Path::new(&f)) || std::fs::remove_file(&f).is_ok() {
                     restored.push(f);

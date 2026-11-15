@@ -294,31 +294,44 @@ pub fn quiet_eden(exe: &str, var: Var) -> bool {
 
 /// Sets keys in one `[section]` of an ini (`Key = Value`); true if the file changed.
 pub fn set_ini(f: &str, sect: &str, want: &[(&str, &str)]) -> std::io::Result<bool> {
+    let want: Vec<(&str, Option<&str>)> = want.iter().map(|(k, v)| (*k, Some(*v))).collect();
+    set_ini_or_drop(f, sect, &want)
+}
+
+/// `set_ini` where a key set to None goes from the section (an undo of "it wasn't there").
+pub fn set_ini_or_drop(f: &str, sect: &str, want: &[(&str, Option<&str>)]) -> std::io::Result<bool> {
     let Some(ini) = read_ini(f, false) else { return Ok(false) };
     let (mut lines, nl) = if ini.src.is_empty() { (Vec::new(), "\n") } else { lines_of(&ini.src) };
     let (mut sec, mut at, mut changed) = (String::new(), None, false);
     let mut seen = Vec::new();
-    for (i, line) in lines.iter_mut().enumerate() {
-        if let Some(s) = section(line) {
+    let mut i = 0;
+    while i < lines.len() {
+        if let Some(s) = section(&lines[i]) {
             sec = s.to_string();
             if sec == sect {
                 at = Some(i);
             }
+            i += 1;
             continue;
         }
-        if sec != sect {
-            continue;
-        }
-        if let Some((k, v)) = want.iter().find(|(k, _)| *k == key(line)) {
-            seen.push(*k);
-            let value = line.split_once('=').map_or("", |x| x.1);
-            if js::trim(value) != *v {
-                *line = format!("{k} = {v}");
-                changed = true;
+        if sec == sect {
+            if let Some((k, v)) = want.iter().find(|(k, _)| *k == key(&lines[i])) {
+                let Some(v) = v else {
+                    lines.remove(i);
+                    changed = true;
+                    continue;
+                };
+                seen.push(*k);
+                let value = lines[i].split_once('=').map_or("", |x| x.1);
+                if js::trim(value) != *v {
+                    lines[i] = format!("{k} = {v}");
+                    changed = true;
+                }
             }
         }
+        i += 1;
     }
-    let missing: Vec<String> = want.iter().filter(|(k, _)| !seen.contains(k)).map(|(k, v)| format!("{k} = {v}")).collect();
+    let missing: Vec<String> = want.iter().filter(|(k, _)| !seen.contains(k)).filter_map(|(k, v)| v.map(|v| format!("{k} = {v}"))).collect();
     if !missing.is_empty() {
         changed = true;
         match at {
