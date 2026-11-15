@@ -7,7 +7,7 @@
 // manual is never swapped for a noticeably blurrier one.
 const fs = require('fs');
 const path = require('path');
-const { scanSystem } = require('./scanner');
+const { scanSystemAsync } = require('./scanner'); // (fork) async: see manuals.js
 const { artBase, manualDirFor: artDirFor } = require('./paths'); // manuals: their own folder in an art library
 const M = require('./manuals');
 const spreads = require('./spreads');
@@ -103,9 +103,11 @@ function entryKeys(stem, mode) {
   if (mode === 'set') return { set: path.basename(stem).toLowerCase() };
   return {};
 }
+const ixMem = new Map(); // each collection's index parsed once, not read back from disk and parsed again for every console and every run
 async function index(col) {
   const f = path.join(cacheDir, `ia-${col.id}${col.folder ? '-' + col.folder.replace(/[^a-z0-9]+/gi, '_') : ''}.json`); // (one per folder: a collection can serve several consoles)
-  try { const c = JSON.parse(fs.readFileSync(f, 'utf8')); if (c.v === INDEX_V && Date.now() - c.at < INDEX_DAYS * 864e5) return c; } catch {}
+  { const c = ixMem.get(f); if (c && c.v === INDEX_V && Date.now() - c.at < INDEX_DAYS * 864e5) return c; }
+  try { const c = JSON.parse(await fs.promises.readFile(f, 'utf8')); if (c.v === INDEX_V && Date.now() - c.at < INDEX_DAYS * 864e5) { ixMem.set(f, c); return c; } } catch {}
   const m = await M.getJson(`https://archive.org/metadata/${encodeURIComponent(col.id)}`);
   const files = m.files || [], names = new Set(files.map(x => x.name));
   const mode = col.names || '';
@@ -116,7 +118,7 @@ async function index(col) {
   });
   const out = { v: INDEX_V, at: Date.now(), id: col.id, server: m.server || m.d1 || '', alt: m.d2 || '', dir: m.dir || '', entries };
   try { fs.mkdirSync(cacheDir, { recursive: true }); fs.writeFileSync(f, JSON.stringify(out)); } catch {}
-  return out;
+  ixMem.set(f, out); return out;
 }
 
 // the best entry for a game, or null. Exact title id (Xbox 360), else the same name after cleaning, else a very close one
@@ -324,7 +326,7 @@ async function run(systems, opts = {}) {
     const cols = COLLECTIONS[def.id]; if (!cols) continue;
     if (opts.skipSystem && opts.skipSystem(def)) continue; // Manual Studio: a console set to another language / region (the collections are English, North American)
     await new Promise(r => setImmediate(r)); // (beta.9: a breath between consoles)
-    let games = []; try { games = scanSystem(def, cfg).filter(g => !g.extra); } catch { continue; }
+    let games = []; try { games = (await scanSystemAsync(def, cfg)).filter(g => !g.extra); } catch { continue; }
     const idx = [];
     for (const col of cols) { try { idx.push({ col, ix: await index(col) }); } catch (e) { log('Manual collections:', col.id, 'unavailable', e.message); } }
     if (!idx.length) continue;
