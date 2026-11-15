@@ -4,6 +4,7 @@
 pub mod addgames;
 pub mod arcade;
 pub mod art;
+pub mod artjob;
 pub mod artstudio;
 pub mod boxart;
 pub mod collate;

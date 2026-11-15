@@ -705,7 +705,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   WebP of your own in (for a spine, also cut from a picture of the whole box opened flat). Downloads are kept in `data\art-cand`, the
   Electron app's own cache. A console's page has its Box art style (Authentic, HD, a region's boxes, Special
   editions), kept as the Electron app keeps it (`art.styles`): the picker puts that look's best first, and the
-  automatic art check takes its parts in that look's order and region.
+  automatic art check takes its parts in that look's order and region. Changing a console's style picks its games'
+  pictures again in the background, two games at a time, with its progress on that row: every part whose look
+  changed, was picked by hand (that pick gives way) or is missing gets the new look's best, a game locked as it is
+  is left alone, and the old pictures go to `replaced`.
 - Has the phone companion (Settings → Phone companion): the same page on the phone, served by the same rules as
   the Electron app's server (home-network addresses only, PIN pairing with its lockouts, tokens kept as hashes,
   pictures under random ids) and with the same `data\companion.json`, so a phone paired with one app stays paired
@@ -715,7 +718,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (the re-pick of a console's pictures when its style changes, complete sets,
+rest of the Art Studio (complete sets,
 ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar

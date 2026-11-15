@@ -4,8 +4,10 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
-use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Sources, Studio};
-use rustyshelf_core::{boxart, covers, gametdb, paths};
+use rustyshelf_core::artjob::{self, Job, Remote};
+use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
+use rustyshelf_core::paths;
+use std::sync::atomic::Ordering;
 
 use super::*;
 
@@ -35,6 +37,17 @@ pub(super) struct ArtPick {
     shown: Option<(String, Handle<Image>)>,
     /// previews that couldn't be had
     failed: Vec<String>,
+    /// the consoles being restyled, and how each run ends
+    restyles: Vec<Restyle>,
+    /// per console, every style its shelf may still partly show (a restyle stopped leaves some games in the one
+    /// before)
+    stale: std::collections::HashMap<String, Vec<Value>>,
+}
+
+struct Restyle {
+    sys: String,
+    job: std::sync::Arc<Job>,
+    ended: Mutex<Receiver<String>>,
 }
 
 fn now_ms() -> f64 {
@@ -94,16 +107,57 @@ impl Settings {
                 style["region"] = json!(region);
             }
             let base = rustyshelf_core::settings::default_art_style(s.cfg.get("ui"));
+            let before = studio::style_for(&s.cfg, &id);
             s.set(&["art", "styles", &id], rustyshelf_core::settings::clean_art_style(&style, &base));
+            s.restyle(&id, before);
         };
         let again = turn.clone();
+        let running = self.art_pick.restyles.iter().find(|r| r.sys == console).map(|r| (r.job.done.load(Ordering::Relaxed), r.job.total.load(Ordering::Relaxed)));
+        let value = at.map_or("Set in the Electron app", |a| STYLES[a].2).to_string();
         Row {
             label: "Box art style".into(),
-            value: at.map_or("Set in the Electron app", |a| STYLES[a].2).into(),
-            hint: "Which version of a box the Art Studio puts first for this console's games (Details → Box art). The automatic art check still takes the first picture it finds.".into(),
+            value: match running {
+                Some((done, total)) if total > 0 => format!("{value} · restyling {done} of {total}"),
+                Some(_) => format!("{value} · restyling"),
+                None => value,
+            },
+            hint: "Which version of a box this console's games get. Changing it picks their pictures again in the background (the old ones go to the replaced folder); a part you chose by hand gives way to it, a game you locked doesn't.".into(),
             press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
             step: Some(Box::new(again)),
         }
+    }
+
+    /// The console's pictures picked again for its style, now `before` has given way to it: what the player picked
+    /// by hand for its games goes, and a run already going on it stops first.
+    fn restyle(&mut self, sys: &str, before: Value) {
+        let after = studio::style_for(&self.cfg, sys);
+        let stale = self.art_pick.stale.entry(sys.to_string()).or_default();
+        stale.push(before);
+        let mut seen = std::collections::HashSet::new();
+        stale.retain(|s| seen.insert(artjob::sig_key(s)));
+        let bases: Vec<Value> = stale.iter().rev().take(6).rev().cloned().collect();
+        *stale = bases.clone();
+        let earlier: Vec<std::sync::Arc<Job>> = self.art_pick.restyles.iter().filter(|r| r.sys == sys).map(|r| r.job.clone()).collect();
+        for j in &earlier {
+            j.cancel.store(true, Ordering::Relaxed);
+        }
+        let cfg = self.cfg.clone();
+        let mut cleared = self.cfg.clone();
+        artjob::clear_picks(&mut cleared, sys);
+        if cleared["art"]["locks"] != self.cfg["art"]["locks"] {
+            self.set(&["art", "locks"], cleared["art"]["locks"].clone());
+        }
+        let (job, (tx, rx)) = (std::sync::Arc::new(Job::default()), channel());
+        let (app_root, id, mine) = (self.app_root.clone(), sys.to_string(), job.clone());
+        std::thread::spawn(move || {
+            // (the run it replaces stops after the parts in flight: never two writing one game's pictures)
+            while earlier.iter().any(|j| std::sync::Arc::strong_count(j) > 2) {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            drop(earlier);
+            let _ = tx.send(artjob::restyle(&app_root, &cfg, &id, &bases, &after, now_ms(), &mine));
+        });
+        self.art_pick.restyles.push(Restyle { sys: sys.to_string(), job, ended: Mutex::new(rx) });
     }
 
     pub(super) fn can_pick_art(&self) -> bool {
@@ -117,16 +171,9 @@ impl Settings {
         let (tx, rx) = channel();
         let game = g.clone();
         std::thread::spawn(move || {
-            let cache = data.join("boxart-cache");
-            let mut index = boxart::ready_index(&cache);
-            let shard = covers::launchbox_platform(&game.sys).and_then(|plat| index.as_mut()?.platform(plat));
-            let libretro = if part == "front" { boxart::libretro_names(&cache, &game.sys) } else { None };
-            let tdb = if gametdb::has(&game.sys) && part != "disc" { gametdb::index(&cache, &game.sys) } else { None };
             let region = style["region"].as_str().unwrap_or("usa");
-            let names = covers::lookup_names(&game.title);
-            let wiki = |part: &str| rustyshelf_core::wikiart::find(&cache, &game.sys, &names, part, "usa", now_ms(), &rustyshelf_core::wikiart::ask);
-            let from = Sources { launchbox: shard, libretro: libretro.as_ref(), gametdb: tdb.as_ref(), disc_id: covers::disc_id(&game.file), region, wiki: Some(&wiki) };
-            let list = Studio::new(&data).list_for(&game, part, studio::candidates(&game.sys, &game.title, &game.file, part, &from), now_ms());
+            let remote = Remote::new(&data, &game.sys).cands(&game, part, region, true, now_ms());
+            let list = Studio::new(&data).list_for(&game, part, remote, now_ms());
             // the best for the console's style first
             let shown: Vec<Cand> = studio::shown(&list).cloned().collect();
             let ctx = Ctx { style: &style, game_region: &game.region, sharp: None };
@@ -167,6 +214,30 @@ impl Settings {
 
     /// What the lists, the previews and a picture being placed came to since the last frame.
     pub(super) fn poll_art(&mut self, now: f32) {
+        let mut ended = Vec::new();
+        for (i, r) in self.art_pick.restyles.iter().enumerate() {
+            match r.ended.lock().unwrap().try_recv() {
+                Ok(msg) => ended.push((i, Some(msg))),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => ended.push((i, None)),
+                Err(_) => {}
+            }
+        }
+        if !self.art_pick.restyles.is_empty() && self.stack.last().is_some_and(|p| matches!(&p.0, Screen::Console(_))) {
+            self.redraw = true;
+        }
+        for (i, msg) in ended.into_iter().rev() {
+            let r = self.art_pick.restyles.remove(i);
+            let cancelled = r.job.cancel.load(Ordering::Relaxed);
+            if !cancelled && !self.art_pick.restyles.iter().any(|x| x.sys == r.sys) {
+                // the shelf is all in this style now
+                self.art_pick.stale.remove(&r.sys);
+            }
+            if let Some(msg) = msg.filter(|_| !cancelled) {
+                let name = rustyshelf_core::systems::systems().console(&r.sys).map_or(r.sys.clone(), |c| c.name.clone());
+                self.say(format!("{name}: {msg}."));
+                self.changed = true;
+            }
+        }
         let on_page = self.stack.last().is_some_and(|p| p.0 == Screen::ArtPart);
         if let Some(list) = self.art_pick.listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
             (self.art_pick.listing, self.art_pick.list, self.redraw) = (None, list, true);
