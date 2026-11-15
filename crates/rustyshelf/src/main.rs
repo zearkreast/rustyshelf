@@ -25,6 +25,7 @@ mod romm;
 mod settings;
 mod shelf;
 mod sound;
+mod wiimote;
 
 use bevy::prelude::*;
 use bevy::window::{MonitorSelection, WindowMode};
@@ -92,6 +93,7 @@ fn main() {
         .init_resource::<idle::Idle>()
         .init_resource::<museum::Museum>()
         .init_resource::<romm::Sync>()
+        .init_resource::<wiimote::Remote>()
         .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, museum::setup).chain())
         .add_systems(Update, appicon::set)
@@ -101,7 +103,7 @@ fn main() {
             (
                 loading::poll_library,
                 loading::recheck_folders,
-                romm::run,
+                (romm::run, wiimote::run),
                 play::watch_game,
                 phone::run,
                 idle::run,

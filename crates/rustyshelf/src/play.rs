@@ -552,7 +552,17 @@ pub fn navigate(
                     if !launch::is_rocket(&exe) {
                         emucfg::before_launch(&console.id, &exe, cfg.quit_combo().as_deref(), &paths::env_var);
                     }
-                    Ok((launch::start(&p)?, exe, still))
+                    // Dolphin connects to the Wii remote itself: RustyShelf lets go of it first
+                    let dolphin = cfg!(windows) && rustyshelf_core::wiimote::for_dolphin(&console.id, &p.exe);
+                    if dolphin {
+                        rustyshelf_core::wiimote::REMOTE.pause();
+                    }
+                    let child = launch::start(&p).inspect_err(|_| {
+                        if dolphin {
+                            rustyshelf_core::wiimote::REMOTE.resume();
+                        }
+                    })?;
+                    Ok((child, exe, still))
                 });
                 let _ = tx.send(started);
             });

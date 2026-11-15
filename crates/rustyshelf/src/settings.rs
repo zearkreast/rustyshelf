@@ -43,6 +43,7 @@ mod storage;
 mod text;
 mod trophies;
 mod update;
+mod wiimote;
 
 
 const STEEL: Color = Color::srgb(0.87, 0.89, 0.92);
@@ -1827,7 +1828,10 @@ impl Settings {
                                 step: Some(Box::new(move |s: &mut Settings, _| turn(s))),
                             }
                         },
-                    ],
+                    ]
+                    .into_iter()
+                    .chain(self.wiimote_rows())
+                    .collect(),
                 }
             }
             Screen::System => Page {
