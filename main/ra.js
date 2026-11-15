@@ -124,4 +124,40 @@ async function recent(minutes) {
 async function test(user, key) { const who = user !== undefined ? { user: String(user || '').trim(), key: String(key || '').trim() } : creds; if (!who.user || !who.key) throw new Error('Fill in the username and web API key first.');
   const p = await call('API_GetUserProfile', { u: who.user }, who); if (!p || !p.User) throw new Error('No profile came back. Check the username and web API key.'); return { user: p.User, points: p.TotalPoints }; }
 
-module.exports = { init, setCredentials, enabled, progress, shelfProgress, profile, recent, test, CONSOLE_ID, matchGame, norm };
+// Trophies: the whole account on one screen, like a console's trophy list. Every game the account has played
+// (completion list, the same cache as the shelf badges), the last 30 days of unlocks, and how rare the newest ones are
+// (each game's own NumAwarded / NumDistinctPlayers: a few games at most, one at a time, cached like Details' lists).
+async function trophies(force) {
+  if (!enabled()) return null;
+  const age = force ? 0 : 10 * 60e3;
+  const [prof, done, rec] = await Promise.all([
+    profile().catch(() => null),
+    cached(`completed-${userKey()}`, age, () => call('API_GetUserCompletionProgress', { u: creds.user, c: 500 }).then(r => need(r && r.Results))),
+    cached(`recent30-${userKey()}`, force ? 0 : 5 * 60e3, () => call('API_GetUserRecentAchievements', { u: creds.user, m: 43200 }).then(r => need(r)))
+  ]);
+  const games = done.map(r => {
+    const total = +r.MaxPossible || 0, earned = Math.max(+r.NumAwarded || 0, +r.NumAwardedHardcore || 0);
+    return { id: r.GameID, title: String(r.Title || ''), console: String(r.ConsoleName || ''), icon: r.ImageIcon ? MEDIA + r.ImageIcon : null,
+      total, earned, pct: total ? Math.round(100 * earned / total) : 0, award: r.HighestAwardKind || null, last: r.MostRecentAwardedDate || null };
+  }).filter(g => g.total > 0).sort((a, b) => String(b.last || '').localeCompare(String(a.last || '')));
+  const recent = rec.map(a => ({ id: a.AchievementID, title: String(a.Title || ''), desc: String(a.Description || ''), points: +a.Points || 0,
+    badge: `${MEDIA}/Badge/${a.BadgeName}.png`, game: String(a.GameTitle || ''), gameId: a.GameID, console: String(a.ConsoleName || ''),
+    hardcore: a.HardcoreMode === 1 || a.HardcoreMode === '1', date: a.Date || null, rarity: null }))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 60);
+  const ids = [...new Set(recent.slice(0, 15).map(a => a.gameId).filter(Boolean))].slice(0, 5);
+  for (const gid of ids) {
+    try {
+      const d = await cached(`game-${gid}-${userKey()}`, 10 * 60e3, () => call('API_GetGameInfoAndUserProgress', { g: gid, u: creds.user, a: 1 }));
+      const n = d && +d.NumDistinctPlayers; if (!n || !d.Achievements) continue;
+      const by = new Map(Object.values(d.Achievements).map(x => [String(x.ID), x]));
+      for (const a of recent) if (a.gameId === gid) { const x = by.get(String(a.id)); if (x && x.NumAwarded != null) a.rarity = Math.max(0.1, Math.round(1000 * x.NumAwarded / n) / 10); }
+    } catch (e) { log('RA: rarity for game', gid, 'skipped:', e.message); }
+  }
+  const tot = k => games.filter(g => k.includes(g.award)).length;
+  return { user: prof && prof.user || creds.user, pic: prof && prof.pic || null, points: prof && prof.points || 0, softcore: prof && prof.softcore || 0, games, recent,
+    totals: { games: games.length, unlocked: games.reduce((s, g) => s + g.earned, 0), mastered: tot(['mastered', 'completed']), beaten: tot(['beaten-hardcore', 'beaten-softcore']),
+      avg: games.length ? Math.round(games.reduce((s, g) => s + g.pct, 0) / games.length) : 0 } };
+}
+
+
+module.exports = { init, setCredentials, enabled, progress, shelfProgress, profile, recent, trophies, test, CONSOLE_ID, matchGame, norm };

@@ -141,6 +141,7 @@ contextBridge.exposeInMainWorld('rustyshelf', {
   pcAchievements: appid => call('pc:achievements', { appid }), // (RustyShelf) a Steam game's achievements, read from Steam's own files
   raShelf: (systemId, titles) => call('ra:shelf', { systemId, titles }),
   raProfile: () => call('ra:profile'),
+  raTrophies: force => call('ra:trophies', { force: !!force }), // (fork) the whole account: games, recent unlocks, rarity
   raEnabled: () => call('ra:enabled'),
   findModel: (systemId, name, site) => call('models:find', { systemId, name, site }),
   onModelInstalled: fn => ipcRenderer.on('models:installed', (e, r) => fn(r)),

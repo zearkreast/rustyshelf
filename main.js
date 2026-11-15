@@ -2425,6 +2425,7 @@ let lastLaunch = null;
 handle('ra:progress', ({ systemId, title, force }) => ra.progress(systemId, title, !!force));
 handle('ra:shelf', ({ systemId, titles }) => ra.shelfProgress(systemId, titles || []));
 handle('ra:profile', () => ra.profile());
+handle('ra:trophies', ({ force } = {}) => ra.trophies(!!force)); // (fork) the Trophies screen
 handle('ra:enabled', () => ({ enabled: ra.enabled(), systems: Object.keys(ra.CONSOLE_ID) }));
 handle('models:find', ({ systemId, name, site }) => modelfind.start(systemId, name, site, r => { if (alive()) win.webContents.send('models:installed', r); }));
 handle('history:get', () => loadHistory());

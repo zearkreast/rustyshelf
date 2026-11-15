@@ -2172,6 +2172,7 @@ function back(){
   if(mode==="build"){bpDone("");return}
   if(mode==="cover"){cpDone();sfx.back();return}
   if(mode==="achv"){closeAchievements();return}
+  if(mode==="troph"){closeTrophies();return}
   if(mode==="boot"){endBoot(true);return}
   if(mode==="customize"){if(!czClosePick())closeCustomize();return}
   if(mode==="launch"&&runningKind==="watch"){watchBack();return} // (beta.12) Seamless play: a watched game not up yet
@@ -2223,7 +2224,7 @@ const RA={on:false,systems:[],shelf:{},game:new Map(),profile:null};
 async function raInit(){
   try{const e=await api.raEnabled();RA.on=!!(e&&e.enabled);RA.systems=e&&e.systems||[]}catch{RA.on=false}
   const pts=$("raPts");if(!RA.on){pts.hidden=true;return}
-  try{RA.profile=await api.raProfile();if(RA.profile){pts.innerHTML="";if(RA.profile.pic){const im=new Image();im.src=RA.profile.pic;im.alt="";pts.append(im)}const b=document.createElement("b");b.textContent=RA.profile.points.toLocaleString()+" pts";pts.append(b,document.createTextNode(" · "+RA.profile.user));pts.hidden=false}}catch{}
+  try{RA.profile=await api.raProfile();if(RA.profile){pts.innerHTML="";if(RA.profile.pic){const im=new Image();im.src=RA.profile.pic;im.alt="";pts.append(im)}const b=document.createElement("b");b.textContent=RA.profile.points.toLocaleString()+" pts";pts.append(b,document.createTextNode(" · "+RA.profile.user));pts.hidden=false;if(api.raTrophies&&!pts.dataset.tro){pts.dataset.tro="1";pts.classList.add("troph-link");pts.title="Trophies";pts.addEventListener("click",()=>openTrophies())}}}catch{}
   raShelfLoad();
 }
 function raHas(s){return RA.on&&s&&RA.systems.includes(s.id)}
@@ -2308,7 +2309,61 @@ function showUnlocks(list){
   // refresh cached progress for the game(s) involved
   RA.game.clear();RA.shelf={};raShelfLoad(); // all shelves: the game may not be on cur() (a Surprise pick from another shelf)
 }
-api.onRaUnlocks&&api.onRaUnlocks(showUnlocks);
+api.onRaUnlocks&&api.onRaUnlocks(list=>{tro.data=null;showUnlocks(list)}); // new unlocks: the Trophies screen reloads next time
+/* ---------- Trophies: the whole RetroAchievements account on one screen ----------
+   Every game the account has played (completion, Mastered / Beaten), the last 30 days of unlocks with how rare they are,
+   and the account's totals. Opened from the quick menu's Trophies row or the points under the shelf's title; built on the
+   achievement list (same look, same grid, same controls). Y reloads from the site. */
+const tro={open:false,data:null,tab:"games",items:[],sel:0,busy:false};
+const TRO_TABS=[["games","Games"],["recent","Recent unlocks"],["mastered","Mastered"]];
+const troAward=a=>a==="mastered"?"Mastered":a==="completed"?"Completed":a==="beaten-hardcore"?"Beaten":a==="beaten-softcore"?"Beaten (softcore)":"";
+async function openTrophies(force){
+  if(!RA.on){if(window.Setup)Setup.open({page:"ra"});return}
+  if(!api.raTrophies||tro.busy||(!tro.open&&((mode!=="browse"&&mode!=="details")||qm.open||sysBusy())))return;
+  let d=force?null:tro.data;
+  if(!d){tro.busy=true;if(!tro.open)toast("Loading your trophies…");try{d=await api.raTrophies(!!force)}catch(e){toast(e&&e.message||"RetroAchievements didn't answer");return}finally{tro.busy=false}}
+  if(!d){toast("RetroAchievements didn't answer");return}
+  tro.data=d;
+  if(tro.open){troHead();troList();troSelect();toast("Trophies updated");return} // Y: reloaded in place
+  if((mode!=="browse"&&mode!=="details")||qm.open)return; // something else opened while it loaded
+  tro.open=true;tro.tab="games";troHead();troList();
+  const el=$("troph");el.classList.add("on");el.setAttribute("aria-hidden","false");mode="troph";troHints();sfx.flip();troSelect();
+}
+function troHead(){const d=tro.data,t=d.totals||{},ic=$("troIcon");if(d.pic){ic.src=d.pic;ic.hidden=false}else ic.hidden=true;
+  $("troTitle").textContent=d.user||"RetroAchievements";
+  $("troSub").textContent=`${(d.points||0).toLocaleString()} points`+(d.softcore?` · ${d.softcore.toLocaleString()} softcore`:"");
+  const st=$("troStats");st.innerHTML="";
+  [[t.unlocked,"Unlocked"],[t.games,"Games"],[t.mastered,"Mastered"],[t.beaten,"Beaten"],[(t.avg||0)+"%","Average"]].forEach(([v,l])=>{
+    const s=document.createElement("div");s.className="troph-stat";const b=document.createElement("b");b.textContent=typeof v==="number"?v.toLocaleString():String(v==null?0:v);
+    const sp=document.createElement("span");sp.textContent=l;s.append(b,sp);st.append(s)})}
+function troHints(){const pad=showPad(),h=$("troHints");h.innerHTML="";
+  [[pad?["L1","R1"]:["Q","E"],"Games · Recent · Mastered",()=>troTab(tro.tab==="mastered"?-2:1)],[pad?["dpad"]:["↑","↓"],"Browse",null],[pad?["tri"]:["R"],"Reload",()=>openTrophies(true)],[pad?["o"]:["Esc"],"Close",()=>closeTrophies()]].forEach(([keys,label,act])=>{
+    const b=document.createElement("button");b.type="button";b.className="hint";b.innerHTML=keys.map(k=>pad?glyph(k):`<span class="g">${k}</span>`).join("");b.append(document.createTextNode(label));if(act)b.addEventListener("click",act);else b.tabIndex=-1;h.append(b)})}
+function troRow(img,title,sub,meta,right,cls){
+  const row=document.createElement("div");row.className="ach"+(cls?" "+cls:"");const im=new Image();im.alt="";im.loading="lazy";if(img)im.src=img;
+  const main=document.createElement("div");main.className="ach-main";const b=document.createElement("b");b.textContent=title;const s=document.createElement("span");s.textContent=sub;main.append(b,s);
+  if(meta)main.append(meta);const p=document.createElement("div");p.className="ach-pts";if(right instanceof Node)p.append(right);else p.textContent=right;row.append(im,main,p);return {row,main,p}}
+function troList(){
+  const d=tro.data,f=tro.tab;tro.items=f==="recent"?d.recent:f==="mastered"?d.games.filter(g=>g.award==="mastered"||g.award==="completed"):d.games;
+  tro.sel=Math.min(tro.sel,Math.max(0,tro.items.length-1));
+  const tabs=$("troTabs");tabs.innerHTML="";TRO_TABS.forEach(([id,label])=>{const n=id==="recent"?d.recent.length:id==="mastered"?d.games.filter(g=>g.award==="mastered"||g.award==="completed").length:d.games.length;
+    const b=document.createElement("button");b.type="button";b.className="ach-tab"+(id===f?" on":"");b.textContent=`${label} ${n}`;b.addEventListener("click",()=>{if(tro.tab!==id){tro.tab=id;tro.sel=0;troList();troSelect();play_("tick")}});tabs.append(b)});
+  const list=$("troList");list.innerHTML="";list.scrollTop=0;
+  if(!tro.items.length){const e=document.createElement("div");e.className="ach-empty";e.textContent=f==="recent"?"No unlocks in the last 30 days. Go earn some!":f==="mastered"?"No mastered game yet. The Games tab shows how close you are.":"No game with achievements on this account yet.";list.append(e);return}
+  tro.items.forEach((x,i)=>{let r;
+    if(f==="recent"){const meta=document.createElement("div");meta.className="ach-meta";meta.textContent=(x.date?x.date.slice(0,10):"")+(x.hardcore?" · hardcore":"");
+      if(x.rarity!=null){const rr=document.createElement("span");rr.className=x.rarity<=10?"troph-rare":"";rr.textContent=` · ${x.rarity}% of players`;meta.append(rr)}
+      r=troRow(x.badge,x.title,x.game+(x.desc?" · "+x.desc:""),meta,x.points+" pts","")}
+    else{const meta=document.createElement("div");meta.className="ach-meta";meta.textContent=`${x.earned} / ${x.total}`+(x.last?` · ${String(x.last).slice(0,10)}`:"");
+      const bar=document.createElement("div");bar.className="troph-gbar";const bi=document.createElement("i");bi.style.width=x.pct+"%";bar.append(bi);
+      const aw=troAward(x.award);r=troRow(x.icon,x.title,x.console,meta,aw?aw+"\n"+x.pct+"%":x.pct+"%",aw?"troph-done":"");r.main.append(bar);if(aw){r.p.classList.add("troph-award");r.p.style.whiteSpace="pre-line"}}
+    r.row.dataset.i=i;if(i===tro.sel)r.row.classList.add("sel");r.row.addEventListener("click",()=>{tro.sel=i;troSelect()});list.append(r.row)});
+}
+function troTab(d){const i=TRO_TABS.findIndex(t=>t[0]===tro.tab);const n=Math.max(0,Math.min(TRO_TABS.length-1,i+d));if(n===i)return;tro.tab=TRO_TABS[n][0];tro.sel=0;troList();troSelect();play_("tick")}
+function troSelect(){const rows=$("troList").children;[...rows].forEach((r,i)=>r.classList.toggle("sel",i===tro.sel));const r=rows[tro.sel];if(r)r.scrollIntoView({block:"nearest"})}
+function troMove(d){if(!tro.items.length)return;const cols=Math.max(1,(getComputedStyle($("troList")).gridTemplateColumns||"").split(" ").filter(Boolean).length);tro.sel=Math.max(0,Math.min(tro.items.length-1,tro.sel+d*cols));troSelect();play_("tick")}
+function troSide(d){if(!tro.items.length)return;tro.sel=Math.max(0,Math.min(tro.items.length-1,tro.sel+d));troSelect();play_("tick")}
+function closeTrophies(){if(!tro.open)return;tro.open=false;const el=$("troph");el.classList.remove("on");el.setAttribute("aria-hidden","true");mode=$("details").getAttribute("aria-hidden")==="false"?"details":"browse";renderHints();sfx.back()}
 api.onModelInstalled&&api.onModelInstalled(async r=>{toast(`Installed ${r.file} as the ${r.name} console model`);await reloadThemes();if(mode==="browse"&&INSERT_3D)testModel(r.sysId);if(musAdd.wait&&musAdd.wait===r.sysId){musAdd.wait="";musAfterModel(r.sysId)}}); // (beta.11) asked for from the museum: back there with Fit on shelf // (Test shows the start-up animation, which is off: the museum shows the model)
 // a note about new manuals waits for the shelf if it arrives during a game or a panel (it used to be dropped)
 let pendingNote="";
@@ -2534,7 +2589,7 @@ function qsRows(){const ui=qsUi(),r=qsAch(),g=qsGame(),out=[];
   out.push({id:"cz3d",icon:QS_I.cube,lbl:"3D & logos",val:qsCzVal,go:1});
   out.push({id:"sort",icon:QS_I.sort,lbl:"Sort & filter",val:()=>qsName(SORTS,sortBy)+(filterBy!=="all"?" · "+filterName(filterBy):""),lines:()=>[{k:"sort",l:"Sort by",opts:SORTS,cur:sortBy},{k:"filter",l:"Show",opts:filterList(),cur:filterBy}]});
   out.push({id:"ach",icon:QS_I.trophy,lbl:"Trophies",val:()=>!RA.on?"Not connected":r&&r.total?`${r.earned} / ${r.total}`+(RA.profile?` · ${RA.profile.points.toLocaleString()} pts`:""):RA.profile?`${RA.profile.points.toLocaleString()} points`:"",
-    lines:()=>!RA.on?[{k:"note",note:"Sign in once and RustyShelf tracks every unlock."},{k:"go",opts:[["rasetup","Connect RetroAchievements ›"]],big:1}]:[{k:"achinfo",info:1},...(r&&r.total?[{k:"go",opts:[["achg","See this game's achievements ›"]],big:1}]:[])]});
+    lines:()=>!RA.on?[{k:"note",note:"Sign in once and RustyShelf tracks every unlock."},{k:"go",opts:[["rasetup","Connect RetroAchievements ›"]],big:1}]:[{k:"achinfo",info:1},{k:"go",opts:[...(r&&r.total?[["achg","See this game's achievements ›"]]:[]),...(api.raTrophies?[["trophies","All my trophies ›"]]:[])],big:1}].filter(x=>!x.opts||x.opts.length)});
   out.push({id:"mus",icon:QS_I.museum,lbl:"Museum",val:()=>"Walk your collection",go:1});
   if(ANDROID)qsAndroidOrder(out,ui); // (0.3.2) the Thor's order: Museum, Art Studio, Trophies first; then the looks, sounds and sorting
   // (beta.10) while box art downloads in the background: the controller's way to its Pause / Resume and Cancel (the card in
@@ -2704,7 +2759,7 @@ function qsChoose(){const f=qsFocusEl();if(!f)return;const k=f.dataset.k,v=f.dat
   if(f.dataset.hold){qsHoldStart(f);return}
   if(k==="artrun"){artCmd(v);return} // (beta.10) the background box art run
   if(k==="epdl"){EPDL.cmd(v);return} // (RustyShelf) the Epic downloads
-  if(k==="go"){qmClose(true);play_("open");if(v==="achg")openAchievements();else if(v==="rasetup")Setup.open({page:"ra"});return}
+  if(k==="go"){qmClose(true);play_("open");if(v==="achg")openAchievements();else if(v==="trophies")openTrophies();else if(v==="rasetup")Setup.open({page:"ra"});return}
   if(k==="pow"){qmClose(true);if(v==="quit")api.quit("quick menu: Power → Exit");else if(api.power)api.power(v);return} // Windows: sleep (restart / shut down are held); Android: its own options
   if(k==="song"){if(window.Sound&&Sound.nextSong){Sound.nextSong("shelf");play_("tick",{dir:1})}qsSoft();return}
   if(k==="theme"){clearTimeout(qsThemeT);qsThemeT=0;ui.theme=v;themeOverride=null;qm.pv=null;applyTheme();updateBg();play_("open")}
@@ -2873,7 +2928,7 @@ function companionStep(){const c=compPlay;if(!c)return;if(performance.now()>c.un
   if(mode==="setup"){if(window.Settings&&Settings.isOpen&&Settings.isOpen())Settings.close();else if(window.Setup)Setup.close();return again(450)}
   if(window.BS_FIND&&BS_FIND.isOpen()){BS_FIND.close();return again(200)} /* (upstream beta.12) Find a game closes, then the game starts */
   if(mode==="museum"){closeMuseum();return again(500)}if(mode==="inspect"){closeInspect();return again(400)}
-  if(mode==="sort"){closeSort();return again(200)}if(mode==="achv"){closeAchievements();return again(200)}if(mode==="customize"){closeCustomize();return again(300)}
+  if(mode==="sort"){closeSort();return again(200)}if(mode==="achv"){closeAchievements();return again(200)}if(mode==="troph"){closeTrophies();return again(200)}if(mode==="customize"){closeCustomize();return again(300)}
   if(qm.open)qmClose(true);
   const si=shelves.findIndex(s=>s.id===c.p.shelf),sh=shelves[si],has=L=>(L||[]).find(x=>x&&x.id===c.p.id),g=sh&&(has(sh.items)||has(sh.games));compPlay=null;
   if(!g){toast(`${c.p.title||"That game"} isn't on the shelf right now`);return}
@@ -3657,7 +3712,7 @@ function updateSkipText(){const el=document.querySelector(".b-skip");if(el)el.te
 let kbdEver=false;
 const showPad=()=>inputMode==="pad"||(!!padSeen&&(inputMode!=="kbd"||!kbdEver));
 function renderHints(){pvGuard();
-  try{paintMenuGlyph();if(qm.open)qsHints();if(mode==="achv")achHints();if(mode==="customize")custSwitchText();if(mode==="shot")svPaint()}catch{} // the quick menu's own hint bar follows a switch between pad and keyboard too
+  try{paintMenuGlyph();if(qm.open)qsHints();if(mode==="achv")achHints();if(mode==="troph")troHints();if(mode==="customize")custSwitchText();if(mode==="shot")svPaint()}catch{} // the quick menu's own hint bar follows a switch between pad and keyboard too
   const usePad=showPad();const g=curGame();if(DV2&&mode==="details")dvCapGlyph(usePad); /* (upstream beta.12) */
   const es=!g&&!!emptyShelf();const sig=usePad+"|"+glyphStyle()+"|"+(g&&g.kind)+"|"+!!(g&&g.pick)+"|"+es+"|"+(mode==="details")+"|"+(mode==="details"?detailsYLab().join():"")+"|"+canInspect(rawItem());if(sig===renderHints.sig&&$("hints").childElementCount)return;renderHints.sig=sig; // only rebuilt when something it shows changed
   const h=$("hints");h.innerHTML="";
@@ -3788,6 +3843,7 @@ addEventListener("keydown",e=>{
     else if(k==="Enter"||k===" "){if(!e.repeat&&!padActivate(pn)&&document.activeElement&&pn.contains(document.activeElement))document.activeElement.click()}
     else if(k==="Escape"||k==="Backspace"||k==="t"||k==="T"){if(!e.repeat&&!((k==="Escape"||k==="Backspace")&&czClosePick()))closeCustomize()}else if(k==="F11")api.toggleFullscreen();else return;e.preventDefault();return}
   if(mode==="note"){e.preventDefault();setInput("kbd");const k=e.key;if(e.repeat)return;if(k==="ArrowLeft"||k==="ArrowUp"||(k==="Tab"&&e.shiftKey))noteMove(-1);else if(k==="ArrowRight"||k==="ArrowDown"||k==="Tab")noteMove(1);else if(k==="Enter"||k===" ")notePick();else if(k==="Escape"||k==="Backspace")noteClose();return} // (beta.7) the note card
+  if(mode==="troph"){const k=e.key;setInput("kbd");if(k==="q"||k==="Q"||(k==="Tab"&&e.shiftKey)){e.preventDefault();troTab(-1)}else if(k==="e"||k==="E"||k==="Tab"){e.preventDefault();troTab(1)}else if(k==="ArrowDown")troMove(1);else if(k==="ArrowUp")troMove(-1);else if(k==="ArrowRight")troSide(1);else if(k==="ArrowLeft")troSide(-1);else if(k==="r"||k==="R"){if(!e.repeat)openTrophies(true)}else if(k==="Escape"||k==="Backspace"||k==="Enter"){if(!e.repeat)closeTrophies()}else return;e.preventDefault();return} // (fork) Trophies
   if(mode==="achv"){const k=e.key;setInput("kbd");if(k==="q"||k==="Q"||(k==="Tab"&&e.shiftKey)){e.preventDefault();achTab(-1)}else if(k==="e"||k==="E"||k==="Tab"){e.preventDefault();achTab(1)}else if(k==="ArrowDown")achMove(1);else if(k==="ArrowUp")achMove(-1);else if(k==="ArrowRight")achSide(1);else if(k==="ArrowLeft")achSide(-1);else if(k==="Escape"||k==="Backspace"||k==="Enter"){if(!e.repeat)closeAchievements()}else return;e.preventDefault();return}
   // (beta.7) Details' More menu: up / down walk it, Enter picks (Esc closes it, through back())
   if(mode==="details"&&!$("dMenu").hidden){const dir={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"up",ArrowRight:"down"}[e.key];if(dir){e.preventDefault();setInput("kbd");padNav($("dMenu"),dir);return}if(e.key==="Enter"||e.key===" "){e.preventDefault();if(!e.repeat&&!padActivate($("dMenu"))&&document.activeElement&&$("dMenu").contains(document.activeElement))document.activeElement.click();return}}
@@ -4093,6 +4149,11 @@ function pollBody(t){
     if(mode==="sort"){
       if(h&&!prevBtn.h){setInput("pad");sortStep(h)}if(v&&!prevBtn.v){setInput("pad");spRow=1-spRow;play_("tick",{dir:v});renderSort()}prevBtn.v=!!v;prevBtn.h=!!h;
       edge(gp,0,()=>closeSort());edge(gp,1,()=>closeSort());edge(gp,9,()=>closeSort());edge(gp,4,()=>{closeSort();letter(-1)});edge(gp,5,()=>{closeSort();letter(1)});return;
+    }
+    if(mode==="troph"){ // Trophies: like the achievement list, plus Y to reload
+      if(v&&!prevBtn.v){setInput("pad");troMove(v)}if(h&&!prevBtn.h){setInput("pad");troSide(h)}prevBtn.v=!!v;prevBtn.h=!!h;
+      const ry3=ax[3]||0;if(Math.abs(ry3)>.5&&t-(prevBtn.troT||0)>140){prevBtn.troT=t;troMove(ry3>0?1:-1)}
+      edge(gp,4,()=>troTab(-1));edge(gp,5,()=>troTab(1));edge(gp,3,()=>openTrophies(true));edge(gp,1,()=>closeTrophies());edge(gp,0,()=>closeTrophies());return;
     }
     if(mode==="achv"){
       if(v&&!prevBtn.v){setInput("pad");achMove(v)}if(h&&!prevBtn.h){setInput("pad");achSide(h)}prevBtn.v=!!v;prevBtn.h=!!h;
