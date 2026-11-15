@@ -172,6 +172,11 @@ impl Config {
         self.raw.get("ui").and_then(|u| u.get("autoManuals")).and_then(Value::as_bool) == Some(true)
     }
 
+    /// Settings → Box art → HD only: sharpest scans first, low-res pictures replaced. On unless switched off.
+    pub fn art_hd(&self) -> bool {
+        self.raw.get("ui").and_then(|u| u.get("artHD")) != Some(&Value::Bool(false))
+    }
+
     /// Settings → Box art region: "auto", "usa", "eur" or "jpn".
     pub fn art_region(&self) -> &str {
         str_of(self.raw.get("ui").and_then(|u| u.get("artRegion")), "auto")

@@ -569,8 +569,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Downloads box art for console games missing a front, a back or a spine, unless box art downloads are off: fronts
   from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
   downloaded and built once), and where those have none a spine cut from LaunchBox's full box wrap, a spine (GameCube, Wii) or a spine and a back (Switch,
-  3DS) cut from GameTDB's full cover scan, or a Switch 2 front or back from the Super Mario Wiki. Each game is looked at once a week at most; a picture that's there is
-  never replaced.
+  3DS) cut from GameTDB's full cover scan, or a Switch 2 front or back from the Super Mario Wiki. Each game is looked at once a week at most. With
+  Settings → Box art → Sharpest scans first (on unless switched off), the sharpest version comes first and a low-res
+  picture RustyShelf downloaded is replaced by a clearly sharper one; any other picture that's there is never
+  replaced. Both apps keep the same record of which pictures they placed (`data/art-provenance.json`).
 - With your own SteamGridDB key (Settings → Accounts, with a check of the key) and box art downloads on, gives PC
   games, ports and recomps that have no cover at all SteamGridDB's best poster, as the Electron app does (their
   titles are sent to SteamGridDB). The key is kept encrypted like the RetroAchievements one, and the lookups are

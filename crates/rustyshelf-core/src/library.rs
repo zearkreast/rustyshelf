@@ -435,7 +435,7 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
     let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
     let cancel = std::sync::atomic::AtomicBool::new(false);
     let cache = data_dir.join("boxart-cache");
-    let run = crate::boxart::Run { art: &art, app_root: &lib.app_root, cache_dir: &cache, kinds: &["front", "back", "spine", "disc"], region: lib.config.art_region() };
+    let run = crate::boxart::Run { art: &art, app_root: &lib.app_root, cache_dir: &cache, kinds: &["front", "back", "spine", "disc"], region: lib.config.art_region(), hd: lib.config.art_hd(), explicit: false };
     let report = crate::boxart::download(&run, &wanted, &|_, _, _| {}, &cancel);
     // saved once the run has finished: a run cut short mustn't skip these games for a week
     let tmp = data_dir.join("cover-checks.json.tmp");

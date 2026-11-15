@@ -1102,6 +1102,7 @@ impl Settings {
                 let mut rows = vec![
                     toggle("Download box art", &["ui", "autoCovers"], false, "Covers come from the libretro thumbnail library and the LaunchBox Games Database; game names are sent to them"),
                     Row { label: "Region".into(), value: REGIONS[at].1.into(), hint: "Which region's box comes first".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) },
+                    toggle("Sharpest scans first", &["ui", "artHD"], true, "Takes the sharpest version there is and swaps out low-res pictures RustyShelf downloaded; one you put there yourself is never replaced"),
                     toggle("Fetch manuals for new games", &["ui", "autoManuals"], false, "Finds a game's manual on archive.org and GamesDatabase.org and saves its pages beside the box art, to read from Details; game names are sent to them"),
                     Row {
                         label: "Art library".into(),

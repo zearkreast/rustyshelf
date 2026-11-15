@@ -443,6 +443,11 @@ pub struct Run<'a> {
     pub kinds: &'a [&'a str],
     /// Settings → Box art region
     pub region: &'a str,
+    /// sharpest first, and a low-res picture RustyShelf placed is replaced by a clearly sharper one
+    pub hd: bool,
+    /// started by the user (who's told it replaces low-res art): pictures from before the first look may be
+    /// replaced too
+    pub explicit: bool,
 }
 
 /// A console and the games of it to look at.
@@ -462,6 +467,8 @@ pub struct ConsoleReport {
     pub back: usize,
     pub spine: usize,
     pub disc: usize,
+    /// low-res pictures replaced by sharper ones
+    pub upgraded: usize,
     /// games that had everything asked for already
     pub had: usize,
     /// games still missing a part
@@ -538,13 +545,31 @@ pub fn cut_wrap(file: &Path, console: &str, part: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// Puts a part cut from a full cover in its place, unless it's too small to be one.
-fn place_cut(bytes: &[u8], dir: &Path, base: &str, suffix: &str) -> bool {
+/// A picture, and clearly sharper than the one it would replace.
+fn sharper(new: &Path, replacing: Option<&Path>) -> bool {
+    let longest = |f: &Path| size_of(f).map(|z| f64::from(z.0.max(z.1)));
+    longest(new).is_some_and(|b| replacing.and_then(longest).is_none_or(|a| b >= a * 1.15))
+}
+
+/// Whether a picture is low-res: its longest side under what a sharp one of that part has (pixels). A format whose
+/// size can't be read counts as fine.
+fn is_low(file: &Path, part: &str) -> bool {
+    // (main/covers.js HD_MIN: keep in sync)
+    let min = match part {
+        "spine" => 700,
+        "disc" => 480,
+        _ => 900,
+    };
+    size_of(file).is_some_and(|z| z.0.max(z.1) < min)
+}
+
+/// Puts a part cut from a full cover in its place, unless it's too small to be one or no sharper than `replacing`.
+fn place_cut(bytes: &[u8], dir: &Path, base: &str, suffix: &str, replacing: Option<&Path>) -> bool {
     if bytes.len() <= 1500 || fs::create_dir_all(dir).is_err() {
         return false;
     }
     let incoming = dir.join(format!("{base}{suffix}.incoming-tdb.jpg"));
-    let placed = fs::write(&incoming, bytes).is_ok() && size_of(&incoming).is_some() && place_art(dir, base, suffix, &incoming, ".jpg").is_ok();
+    let placed = fs::write(&incoming, bytes).is_ok() && sharper(&incoming, replacing) && place_art(dir, base, suffix, &incoming, ".jpg").is_ok();
     if !placed {
         let _ = fs::remove_file(&incoming);
     }
@@ -552,13 +577,13 @@ fn place_cut(bytes: &[u8], dir: &Path, base: &str, suffix: &str) -> bool {
 }
 
 /// A GameCube or Wii game's spine, cut from GameTDB's full cover scan of its disc (found by the id in the disc).
-fn gametdb_spine(console: &str, file: &Path, dir: &Path, base: &str, cache_dir: &Path, region: &str) -> bool {
+fn gametdb_spine(console: &str, file: &Path, dir: &Path, base: &str, replacing: Option<&Path>, cache_dir: &Path, region: &str) -> bool {
     let Some(id) = covers::disc_id(file) else { return false };
     for r in covers::tdb_regions(&id, region) {
         for kind in ["coverfullHQ", "coverfull"] {
             let tmp = cache_dir.join(format!(".tdb-{}-{id}-{r}-{kind}.png", std::process::id()));
             let got = matches!(download_ex(&format!("https://art.gametdb.com/wii/{kind}/{r}/{id}.png"), &tmp, false), Ok(Outcome::Ok));
-            let placed = got && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine"));
+            let placed = got && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine", replacing));
             let _ = fs::remove_file(&tmp);
             if placed {
                 return true;
@@ -576,7 +601,7 @@ fn launchbox_wraps(shard: &ShardFile, title: &str, region: &str) -> Vec<String> 
 }
 
 /// A spine cut from one of these wraps: usually far sharper than a spine scan.
-fn wrap_spine(wraps: &[String], console: &str, dir: &Path, base: &str, cache_dir: &Path, cancel: &AtomicBool) -> bool {
+fn wrap_spine(wraps: &[String], console: &str, dir: &Path, base: &str, replacing: Option<&Path>, cache_dir: &Path, cancel: &AtomicBool) -> bool {
     static COUNT: AtomicUsize = AtomicUsize::new(0);
     for file in wraps {
         if cancel.load(Ordering::Relaxed) {
@@ -586,7 +611,7 @@ fn wrap_spine(wraps: &[String], console: &str, dir: &Path, base: &str, cache_dir
         let tmp = cache_dir.join(format!(".wrap-{}-{}{ext}", std::process::id(), COUNT.fetch_add(1, Ordering::Relaxed)));
         let got = matches!(download_ex(&format!("{}{}", covers::LB_IMG, js::encode_uri(file)), &tmp, false), Ok(Outcome::Ok));
         // (wider than tall, or it isn't a wrap)
-        let placed = got && !size_of(&tmp).is_some_and(|(w, h)| (w as f32) < h as f32 * 1.2) && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine"));
+        let placed = got && !size_of(&tmp).is_some_and(|(w, h)| (w as f32) < h as f32 * 1.2) && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine", replacing));
         let _ = fs::remove_file(&tmp);
         if placed {
             return true;
@@ -616,10 +641,9 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
-// TODO: still Electron-only: the Art Studio's styles, sharper scans over low-res pictures, the wrap's spine
-// before the spine scans when looking for HD, SteamGridDB posters and drawn cartridges
+// TODO: still Electron-only: the Art Studio's styles, SteamGridDB posters and drawn cartridges
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
-    let Run { art, app_root, cache_dir, kinds, region } = *run;
+    let Run { art, app_root, cache_dir, kinds, region, hd, explicit } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
     let want = |k: &str| kinds.contains(&k) || kinds.contains(&format!("redo-{k}").as_str());
     let redo = |k: &str| kinds.contains(&format!("redo-{k}").as_str());
@@ -654,7 +678,8 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                     continue;
                 }
                 let old = art_file(&dir, &base, suffix);
-                if old.is_some() && !redo(key) {
+                let upgrade = hd && !redo(key) && old.as_deref().is_some_and(|f| is_low(f, key) && crate::provenance::may_replace(f, explicit));
+                if old.is_some() && !redo(key) && !upgrade {
                     continue;
                 }
                 let kind = match key {
@@ -663,22 +688,32 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                     "spine" => "Box - Spine",
                     _ => "Disc",
                 };
-                // libretro first for a front: its names match file names best
-                let mut cands: Vec<(String, String)> = Vec::new();
-                if key == "front" {
+                // libretro first for a front (its names match file names best), or last for HD: LaunchBox's scans are
+                // usually 1000–2500 px, libretro's thumbnails smaller
+                let lr: Vec<(String, String)> = if key == "front" {
                     let hit = names.as_ref().and_then(|n| n.find(&game.file, &game.title, &game.region, region));
-                    cands.extend(hit.and_then(|h| covers::libretro_url(id, &h)).map(|u| (u, ".png".to_string())));
-                }
-                if let (Some(index), Some(plat)) = (&index, platform) {
-                    let mut index = index.lock().unwrap();
-                    cands.extend(index.platform(plat).map(|shard| launchbox_candidates(shard, &game.title, kind, region)).unwrap_or_default());
-                }
-                let mut ok = false;
-                for (url, ext) in &cands {
+                    hit.and_then(|h| covers::libretro_url(id, &h)).map(|u| (u, ".png".to_string())).into_iter().collect()
+                } else {
+                    Vec::new()
+                };
+                let lb: Vec<(String, String)> = match (&index, platform) {
+                    (Some(index), Some(plat)) => index.lock().unwrap().platform(plat).map(|shard| launchbox_candidates(shard, &game.title, kind, region)).unwrap_or_default(),
+                    _ => Vec::new(),
+                };
+                let cands: Vec<(String, String)> = if hd { [lb, lr].concat() } else { [lr, lb].concat() };
+                let wraps = || match (&index, platform) {
+                    (Some(index), Some(plat)) => index.lock().unwrap().platform(plat).map(|shard| launchbox_wraps(shard, &game.title, region)).unwrap_or_default(),
+                    _ => Vec::new(),
+                };
+                // a full box wrap gives a far sharper spine than most spine scans: tried first for HD, after them
+                // otherwise (never both: a wrap turned down here would only be downloaded and turned down again)
+                let wrap_first = key == "spine" && hd;
+                let mut ok = wrap_first && !cancel.load(Ordering::Relaxed) && wrap_spine(&wraps(), id, &dir, &base, old.as_deref(), cache_dir, cancel);
+                for (url, ext) in cands.iter().filter(|_| !ok) {
                     if cancel.load(Ordering::Relaxed) {
                         break;
                     }
-                    match fetch_into(url, &dir, &base, suffix, ext, old.as_deref(), false) {
+                    match fetch_into(url, &dir, &base, suffix, ext, old.as_deref(), upgrade) {
                         Fetched::Placed => {
                             ok = true;
                             break;
@@ -699,21 +734,22 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                         ok = matches!(fetch_into(&w.url, &dir, &base, suffix, &format!(".{}", w.ext), None, false), Fetched::Placed);
                     }
                 }
-                if let (false, None, "spine", Some(index), Some(plat), false) = (ok, &old, key, &index, platform, stopped()) {
-                    let wraps = index.lock().unwrap().platform(plat).map(|shard| launchbox_wraps(shard, &game.title, region)).unwrap_or_default();
-                    ok = wrap_spine(&wraps, id, &dir, &base, cache_dir, cancel);
+                if !ok && !wrap_first && key == "spine" && !stopped() {
+                    ok = wrap_spine(&wraps(), id, &dir, &base, old.as_deref(), cache_dir, cancel);
                 }
+                let against = old.as_deref().filter(|_| upgrade);
                 // GameCube / Wii spines: GameTDB has a full cover scan for nearly every disc, by its game id
-                if !ok && old.is_none() && key == "spine" && matches!(id, "gc" | "wii") && !stopped() {
-                    ok = gametdb_spine(id, &game.file, &dir, &base, cache_dir, region);
+                if !ok && (old.is_none() || upgrade) && key == "spine" && matches!(id, "gc" | "wii") && !stopped() {
+                    ok = gametdb_spine(id, &game.file, &dir, &base, against, cache_dir, region);
                 }
                 // Switch / 3DS: the spine and the back cut from GameTDB's full cover, found by the game's title
-                if let (false, None, "spine" | "back", Some(map), false) = (ok, &old, key, &tdb, stopped()) {
+                if let (false, true, "spine" | "back", Some(map), false) = (ok, old.is_none() || upgrade, key, &tdb, stopped()) {
                     let full_cover = wrap.get_or_insert_with(|| gametdb_wrap(map, id, &game.title, cache_dir, region, cancel));
-                    ok = full_cover.as_ref().and_then(|f| cut_wrap(f, id, key)).is_some_and(|cut| place_cut(&cut, &dir, &base, suffix));
+                    ok = full_cover.as_ref().and_then(|f| cut_wrap(f, id, key)).is_some_and(|cut| place_cut(&cut, &dir, &base, suffix, against));
                 }
                 let mut rep = rep.lock().unwrap();
                 match (ok, key) {
+                    (true, _) if upgrade => rep.upgraded += 1,
                     (true, "front") => rep.front += 1,
                     (true, "back") => rep.back += 1,
                     (true, "spine") => rep.spine += 1,
@@ -756,6 +792,20 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
 mod wrap_tests {
     use super::*;
 
+    #[test]
+    fn a_low_res_picture_is_only_replaced_by_a_clearly_sharper_one() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pic = |name: &str, w: u32, h: u32| {
+            let f = tmp.path().join(name);
+            image::RgbImage::new(w, h).save(&f).unwrap();
+            f
+        };
+        let (small, big, bit_bigger) = (pic("small.png", 400, 560), pic("big.png", 1000, 1400), pic("near.png", 420, 600));
+        assert!(is_low(&small, "front") && !is_low(&big, "front") && !is_low(&pic("spine.png", 60, 800), "spine") && is_low(&pic("disc.png", 400, 400), "disc"));
+        assert!(!is_low(&tmp.path().join("missing.png"), "front"));
+        assert!(sharper(&big, Some(&small)) && !sharper(&bit_bigger, Some(&small)) && sharper(&small, None) && !sharper(&tmp.path().join("missing.png"), None));
+    }
+
     /// A made-up full cover: a blue back, a dark spine and a red front, in a GameCube case's proportions.
     #[test]
     fn a_spine_and_a_back_are_cut_from_a_full_cover() {
@@ -785,8 +835,8 @@ mod wrap_tests {
         image::RgbImage::new(284, 400).save(tmp.path().join("front.png")).unwrap();
         assert!(cut_wrap(&tmp.path().join("front.png"), "gc", "spine").is_none());
         let art = tmp.path().join("art");
-        assert!(place_cut(&cut, &art, "Zeta Run (USA)", "-spine") && art_file(&art, "Zeta Run (USA)", "-spine").is_some());
-        assert!(!place_cut(&[0; 100], &art, "Other", "-spine") && art_file(&art, "Other", "-spine").is_none());
+        assert!(place_cut(&cut, &art, "Zeta Run (USA)", "-spine", None) && art_file(&art, "Zeta Run (USA)", "-spine").is_some());
+        assert!(!place_cut(&[0; 100], &art, "Other", "-spine", None) && art_file(&art, "Other", "-spine").is_none());
         assert_eq!((case_of("n3ds"), case_of("sw2"), case_of("nothing")), ((1.127, 0.112), (0.618, 0.059), (0.711, 0.074)));
     }
 }
