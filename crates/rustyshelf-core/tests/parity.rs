@@ -2489,3 +2489,27 @@ fn art_sets_match_electron() {
         assert_eq!(Value::from(got), c["sets"], "{}", c["ui"]);
     }
 }
+
+#[test]
+fn manual_studio_ranks_as_electron() {
+    use rustyshelf_core::manualstudio as ms;
+    let fx = fixture("manualstudio.json");
+    for q in fx["quality"].as_array().unwrap() {
+        let (k, label) = ms::quality(q[0].as_u64().unwrap() as u32, q[1].as_f64().unwrap());
+        assert_eq!(serde_json::json!({ "q": k, "label": label }), q[2], "{q}");
+    }
+    for e in fx["expect"].as_array().unwrap() {
+        let list: Vec<ms::Cand> = e[0].as_array().unwrap().iter().map(ms::from_json).collect();
+        assert_eq!(ms::expect_json(&ms::expect_of(&list)), e[1]);
+    }
+    let cands: Vec<ms::Cand> = fx["cands"].as_array().unwrap().iter().map(ms::from_json).collect();
+    let expect: std::collections::BTreeMap<String, u32> = fx["expectUsed"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_u64().unwrap() as u32)).collect();
+    for r in fx["ranks"].as_array().unwrap() {
+        let pref = r[0].as_str().unwrap();
+        for (c, want) in cands.iter().zip(r[1].as_array().unwrap()) {
+            let (complete, missing, text) = ms::completeness(c, &expect);
+            assert_eq!(ms::rank(c, pref, &expect), want[0].as_f64().unwrap(), "{pref} {}", c.key);
+            assert_eq!(serde_json::json!({ "complete": complete, "missing": missing, "text": text }), want[1], "{}", c.key);
+        }
+    }
+}

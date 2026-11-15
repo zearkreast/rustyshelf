@@ -40,6 +40,7 @@ pub mod library;
 pub mod looks;
 pub mod manualcoll;
 pub mod manuals;
+pub mod manualstudio;
 pub mod music;
 pub mod n3ds;
 pub mod net;

@@ -33,6 +33,11 @@ pub fn pages(pdf: &[u8], size: u32, max: usize, last: bool) -> Result<Vec<Vec<u8
     Ok(out)
 }
 
+/// How many pages a PDF has, or None when it can't be read.
+pub fn count(pdf: &[u8]) -> Option<usize> {
+    Pdf::new(pdf.to_vec()).ok().map(|d| d.pages().len())
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;

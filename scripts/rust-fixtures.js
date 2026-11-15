@@ -1619,6 +1619,25 @@ function artsetsFixtures() {
   fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }
+function manualstudioFixtures() {
+  const S = inner('main/manualstudio.js', ['quality']), T = S._t, out = {};
+  out.quality = [[0, 0], [1600, 0], [1400, 0], [1399, 0], [900, 0], [899, 0], [600, 0], [599, 0], [0, 300000], [0, 250000], [0, 249999], [0, 120000], [0, 50000], [0, 512.4]].map(([w, b]) => [w, b, S.__inner.quality(w, b)]);
+  const C = (key, more) => ({ key, source: 'archive', label: key, title: key, lang: 'en', region: 'usa', pages: 24, w: 1000, rel: 8, ...more });
+  const lists = [
+    [C('cur', { source: 'current', src: 'ia:a' }), C('earlier:x', { source: 'earlier', src: 'ia:a' }), C('ia:a'), C('ia:b'), C('ia:c', { pages: 20 }), C('ia:d', { lang: 'fr', pages: 30 }), C('ia:e', { lang: 'fr', pages: 30 }), C('ia:f', { lang: '', pages: 22 })],
+    [C('ia:a', { pages: 10 }), C('ia:b', { pages: 12 }), C('gdb:x', { source: 'gamesdatabase', pages: 12, pdfOnly: true })],
+    [C('ia:a', { pages: 12 }), C('ia:b', { pages: 10 }), C('ia:c', { pages: 12 }), C('ia:d', { pages: 10 })],
+    [],
+  ];
+  out.expect = lists.map(l => [l, T.expectOf(l)]);
+  const cands = [C('ia:a'), C('ia:b', { pages: 20 }), C('ia:c', { incomplete: true }), C('ia:d', { junk: 1 }), C('ia:e', { junk: 3 }), C('ia:f', { pages: null }), C('ia:g', { lang: 'fr', pages: 30 }), C('ia:h', { lang: 'ja', region: 'jpn', pages: 18 }),
+    C('ia:i', { lang: 'de', expected: 40, pages: 39 }), C('coll:x', { source: 'collection', rel: 12, w: 1600 }), C('gdb:y', { source: 'gamesdatabase', rel: 9.5, w: 0, bpp: 300000, pdf: '/x.pdf', pages: 90 }), C('gdb:z', { source: 'gamesdatabase', rel: 15, w: 0, bpp: 130000, region: 'eur' }),
+    C('ia:j', { w: 500, region: 'eur' }), C('ia:k', { w: 650, region: '' }), C('ia:l', { w: 0, bpp: 50000 }), C('ia:m', { pages: 70 }), C('ia:n', { lang: '', region: 'eur' })];
+  const expect = { en: 24, fr: 30 };
+  out.cands = cands; out.expectUsed = expect;
+  out.ranks = ['best', 'region:eur', 'region:jpn', 'lang:fr', 'lang:de', '', 'weird'].map(pref => [pref, cands.map(c => [T.rank(c, pref, expect), T.completeness(c, expect)])]);
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1635,6 +1654,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'manualcoll.json'), JSON.stringify(await manualcollFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'provenance.json'), JSON.stringify(await provenanceFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'artsets.json'), JSON.stringify(artsetsFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'manualstudio.json'), JSON.stringify(manualstudioFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'wikiart.json'), JSON.stringify(await wikiartFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'artstudio.json'), JSON.stringify(await artstudioFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
