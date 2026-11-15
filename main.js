@@ -1016,7 +1016,8 @@ function applyCfg(next) { const prev = cfg, hadMenu = cfg.ui.homeMenu !== false;
   // (upstream beta.12) RomM's address or its settings changed: used from now on, its library read again on the next build
   if (JSON.stringify(prev.romm || {}) !== JSON.stringify(cfg.romm || {})) { rommApply(); rommLib = null; rommSyncedOnce = false; }
   return cfg; }
-handle('detect', () => detectAll());
+handle('detect', a => detectAll(a && Array.isArray(a.drives) ? a.drives.map(String).slice(0, 26) : undefined));
+handle('drives:list', () => require('./main/detect').listDrives());
 // (RustyShelf) Settings → Consoles → Find emulators in a folder: the emulator programs in a folder the player picked
 // (RustyShelf, its discussions #10) every copy of this console's emulators found (Settings lists them on the console's page)
 // (disc 10, again) a console that runs in RetroArch always lists the RetroArch set in Settings too: one kept outside the

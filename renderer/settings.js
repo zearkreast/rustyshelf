@@ -1240,7 +1240,8 @@ function importEverything(){if(dataBusy||!api.importData)return;twice("dataimpor
   dataBusy="import";dataProg=null;bump();toast("Importing…");
   try{const r=await api.importData(dir);toast(`Imported${r.skipped&&r.skipped.length?` (${r.skipped.length} art folder${r.skipped.length===1?"":"s"} had nowhere to go: see the log)`:""}. RustyShelf starts again in a moment…`)}catch(e){toast(errMsg(e)||"The import didn't finish");dataBusy="";bump()}},"Press again: the export's settings and downloads replace these")}
 async function runDetect(){if(detecting||!api.detect)return;detecting=true;bump();const my=openId;
-  try{const d0=await api.detect();
+  try{const drives=window.BS_askDrives?await window.BS_askDrives():[];if(drives===null){detecting=false;bump();return}
+    const d0=await api.detect(drives);
     // Settings closed (or reopened) while it searched: its config was already saved, so filling it in now would save a stale copy over newer changes
     if(my!==openId||!isOpen){detecting=false;return}
     det=d0;emuFound={};let n=0;
@@ -2782,6 +2783,7 @@ function musLook(){const st=musStyleNow(),el=E.mus;el.style.setProperty("--mus0"
 /* ---------- one set of actions, from controller, keyboard and mouse ---------- */
 function input(a,rep){
   if(!active)return;
+  if(window.BS_drvInput&&BS_drvInput(a==="a"?"ok":a==="b"?"back":a))return;
   if(a!=="a")emuAsk=null;
   if(studio&&focus==="page"&&a==="search"&&studio.v==="pick"){studioInput("flt",rep);return} // View / − / Create: the picker's filters
   if(studio&&focus==="page"&&a!=="search"){studioInput(a,rep);return}

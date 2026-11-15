@@ -121,13 +121,70 @@ async function findSteam() {
   return null;
 }
 
-async function detectAll() {
+// (Haseosama's fork) the drives there are (Windows), for the search to ask which to look through
+function listDrives() {
+  if (process.platform !== 'win32') return [];
+  const out = [], sys = String(process.env.SystemDrive || 'C:').replace(':', '').toUpperCase();
+  for (let c = 65; c <= 90; c++) {
+    const l = String.fromCharCode(c);
+    try { require('fs').readdirSync(l + ':\\'); out.push({ letter: l, path: l + ':\\', system: l === sys }); } catch {}
+  }
+  return out;
+}
+
+// (Haseosama's fork) the drives chosen, looked through five folders deep, nearest the top first: emulators by their program's
+// name, and games folders by a console's folder name, only somewhere a folder above says roms / games / emulation (a
+// "psx" folder anywhere else is someone's photos). Each drive stops after 400,000 folders or three minutes.
+const DRIVE_SKIP = new Set(['windows', '$recycle.bin', 'system volume information', 'node_modules', 'appdata', 'programdata', 'winsxs', 'recovery', 'perflogs', '$windows.~bt', 'msocache', '.git']);
+const ROMISH = ['rom', 'game', 'iso', 'emul', 'retro', 'batocera', 'recalbox', 'jeux'];
+async function scanDrives(drives) {
+  const names = new Map(), pats = [], romNames = new Map();
+  const add = (m, k, id) => { k = k.toLowerCase(); if (!m.has(k)) m.set(k, []); m.get(k).push(id); };
+  for (const s of CONSOLES) {
+    for (const n of s.exeNames || []) { if (!n.startsWith('re:')) add(names, n, s.id); else try { pats.push([new RegExp(n.slice(3), 'i'), s.id]); } catch {} }
+    for (const n of s.romFolderNames || []) add(romNames, n, s.id);
+  }
+  const systems = {}, get = id => (systems[id] = systems[id] || { emulator: null, romDirs: [] });
+  let steps = 0;
+  for (const dr of drives || []) {
+    const root = String(dr || '').replace(/[\\/]*$/, '') + '\\';
+    if (!/^[A-Za-z]:\\$/.test(root) || !isDir(root)) continue;
+    const queue = [[root, 0, false]], t0 = Date.now();
+    let head = 0;
+    while (head < queue.length && head < 400000 && Date.now() - t0 < 180000) {
+      const [d, depth, romish] = queue[head]; queue[head++] = null;
+      if (++steps % 300 === 0) await new Promise(r => setImmediate(r));
+      for (const ent of readDir(d)) {
+        const full = path.join(d, ent.name), low = ent.name.toLowerCase();
+        if (ent.isFile()) {
+          for (const id of names.get(low) || []) { const e = get(id); if (!e.emulator) e.emulator = full; }
+          if (low.endsWith('.exe')) for (const [re, id] of pats) if (re.test(low)) { const e = get(id); if (!e.emulator) e.emulator = full; }
+        } else if (ent.isDirectory() && !DRIVE_SKIP.has(low) && !low.startsWith('$')) {
+          const ids = romNames.get(low);
+          if (ids && romish) { for (const id of ids) { const e = get(id); if (!e.romDirs.includes(full)) e.romDirs.push(full); } continue; }
+          if (depth < 5) queue.push([full, depth + 1, romish || ROMISH.some(w => low.includes(w))]);
+        }
+      }
+    }
+  }
+  return systems;
+}
+
+async function detectAll(drives) {
   const systems = {}, index = makeIndex();
   let foundRetroarch = '';
   for (const s of CONSOLES) {
     const emu = findExe(s.emulatorFolders, s.exeNames, index);
     if (!foundRetroarch && s.retro && emu && /retroarch/i.test(path.basename(emu))) foundRetroarch = emu;
     systems[s.id] = { emulator: emu, emulators: emu ? findAllExe(s.emulatorFolders, s.exeNames, index) : [], romDirs: withOwnDirs(s, emu, findRomDirs(s)) };
+  }
+  if (Array.isArray(drives) && drives.length) {
+    for (const [id, e] of Object.entries(await scanDrives(drives))) {
+      const s = systems[id]; if (!s) continue;
+      if (e.emulator && !s.emulators.some(x => x.toLowerCase() === e.emulator.toLowerCase())) s.emulators.push(e.emulator);
+      if (!s.emulator && e.emulator) s.emulator = e.emulator;
+      for (const d of e.romDirs) if (!s.romDirs.some(x => x.toLowerCase() === d.toLowerCase())) s.romDirs.push(d);
+    }
   }
   const apps = {};
   for (const a of APPS) apps[a.id] = { path: findExe(a.folders, a.exeNames, index) };
@@ -176,4 +233,4 @@ function romFoldersIn(dir) {
   return { systems };
 }
 
-module.exports = { detectAll, detectSystem, findSteam, emulatorsIn, findAllExe, romFoldersIn };
+module.exports = { detectAll, detectSystem, findSteam, emulatorsIn, findAllExe, romFoldersIn, listDrives };

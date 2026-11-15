@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('rustyshelf', {
   crumb: t => ipcRenderer.send('ui:crumb', String(t).slice(0, 200)), // (beta.9) the screen's last steps, logged only if it crashes
   uiBusy: () => ipcRenderer.send('ui:busy'),
   saveConfig: cfg => call('config:save', cfg),
-  detect: () => call('detect'),
+  detect: drives => call('detect', Array.isArray(drives) ? { drives: drives.map(String).slice(0, 26) } : undefined), listDrives: () => call('drives:list'),
   emulatorsFound: systemId => call('detect:emulators', { systemId }), // (RustyShelf) every emulator found for a console
   emulatorsIn: dir => call('detect:folder', { dir }), // (RustyShelf) portable emulators in a folder you pick
   romFoldersIn: dir => call('detect:romFolders', { dir }),
