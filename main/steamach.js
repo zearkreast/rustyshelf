@@ -152,4 +152,17 @@ async function test(k) {
   } catch (e) { return { ok: false, error: e.message }; } finally { getKey = was; }
 }
 
-module.exports = { init, enabled, trophies, test, steamId };
+// RetroAchievements' and Steam's halves on one screen; either alone is enough. errs: why a side asked didn't answer
+const trDate = s => s ? String(s).replace('T', ' ').slice(0, 19) : '';
+function combine(r, s, errs) {
+  if (!r && !s) throw new Error(errs[0] || 'Neither RetroAchievements nor Steam answered.');
+  const games = [...(r ? r.games.map(g => ({ ...g, src: 'ra' })) : []), ...(s ? s.games : [])].map(g => ({ ...g, last: trDate(g.last) })).sort((a, b) => b.last.localeCompare(a.last));
+  const recent = [...(r ? r.recent.map(a => ({ ...a, src: 'ra' })) : []), ...(s ? s.recent : [])].map(a => ({ ...a, date: trDate(a.date) })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80);
+  const tot = k => games.filter(g => k.includes(g.award)).length;
+  return { user: r && r.user || s && s.user || '', pic: r && r.pic || s && s.pic || null, points: r ? r.points : 0, softcore: r ? r.softcore : 0, games, recent,
+    sources: { ra: !!r, steam: !!s, steamUser: s ? s.user : '' }, warn: errs.length ? errs[0] : '',
+    totals: { games: games.length, unlocked: games.reduce((n, g) => n + g.earned, 0), mastered: tot(['mastered', 'completed']), beaten: tot(['beaten-hardcore', 'beaten-softcore']),
+      avg: games.length ? Math.round(games.reduce((n, g) => n + g.pct, 0) / games.length) : 0 } };
+}
+
+module.exports = { init, enabled, trophies, test, steamId, combine };

@@ -642,6 +642,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Shows a Steam game's achievements in Details, read from what Steam keeps on this PC (its `appcache\stats`
   files, for the account last signed in), as the Electron app does: nothing is asked of Steam, and a game never
   started on this PC has none.
+- Has the Trophies screen (Settings → Trophies): the whole RetroAchievements account and, with your own Steam Web
+  API key (Settings → Accounts, kept encrypted like the other keys, with a check), the Steam achievements of the
+  account signed in to Steam on this PC, side by side: every game with how far it is, the last 30 days' unlocks
+  with how rare each is, and the mastered games. The lookups are kept where the Electron app keeps them
+  (`data\ra`, `data\steam-ach`).
 - Lists the room the PC games take (Settings → PC games and apps → Storage): the installed Steam, Epic, GOG,
   HoYoPlay and PC games folder games by drive, the biggest first, with each drive's free space.
 - Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf

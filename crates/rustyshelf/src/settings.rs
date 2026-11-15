@@ -37,6 +37,7 @@ mod phone;
 pub mod setup;
 mod storage;
 mod text;
+mod trophies;
 mod update;
 
 
@@ -91,6 +92,8 @@ enum Screen {
     Find,
     Accounts,
     Achievements,
+    /// RetroAchievements and Steam achievements, the whole account
+    Trophies,
     Phone,
     /// the room the PC games take, by drive
     Storage,
@@ -202,6 +205,7 @@ pub struct Settings {
     adding: addgames::Adding,
     manual_search: manuals::ManualSearch,
     mstudio: mstudio::MStudio,
+    trophies: trophies::Trophies,
     storage: storage::Storage,
     art_pick: art::ArtPick,
     finding: find::Finding,
@@ -283,6 +287,7 @@ impl Default for Settings {
             adding: Default::default(),
             manual_search: Default::default(),
             mstudio: Default::default(),
+            trophies: Default::default(),
             storage: Default::default(),
             art_pick: Default::default(),
             finding: Default::default(),
@@ -769,7 +774,8 @@ impl Settings {
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
-                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, ScreenScraper", Screen::Accounts),
+                    Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() },
+                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, Steam, ScreenScraper", Screen::Accounts),
                     open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
@@ -1041,6 +1047,7 @@ impl Settings {
             Screen::AddGames => self.add_games_page(),
             Screen::Manuals => self.manuals_page(),
             Screen::ManualStudio => self.manual_studio_page(),
+            Screen::Trophies => self.trophies_page(),
             Screen::Playnite => self.playnite_page(),
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
@@ -1819,6 +1826,7 @@ pub fn input(
     s.poll_adding();
     s.poll_manuals();
     s.poll_manual_studio();
+    s.poll_trophies();
     s.poll_storage();
     s.poll_art(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it

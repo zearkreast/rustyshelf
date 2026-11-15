@@ -852,6 +852,7 @@ fn retroachievements_match_the_js() {
     assert_eq!(or_null(ra.profile().unwrap()), fx["profile"]);
     assert_eq!(Value::from(ra.recent(12.2).unwrap()), fx["recent"]);
     assert_eq!(ra.test("Other One", "x").unwrap(), fx["test"]);
+    assert_eq!(or_null(ra.trophies(false).unwrap()), fx["trophies"]);
     assert_eq!(Value::from(asked.lock().unwrap().clone()), fx["asked"]);
     // asked again within the cache's time: nothing new goes to the site
     ra.progress("gc", "Zeta Run", false).unwrap();
@@ -2528,4 +2529,66 @@ fn manual_studio_ranks_as_electron() {
             assert_eq!(serde_json::json!({ "complete": complete, "missing": missing, "text": text }), want[1], "{}", c.key);
         }
     }
+}
+
+#[test]
+fn steam_achievements_match_electron() {
+    use rustyshelf_core::steamach::{combine, steam_id, SteamAch};
+    use serde_json::json;
+    use std::sync::{Arc, Mutex};
+    let fx = fixture("steamach.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let put = |rel: &str, text: &str| {
+        let f = tmp.path().join(rel);
+        std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+        std::fs::write(f, text).unwrap();
+    };
+    put("steam/config/loginusers.vdf", "\u{feff}\"users\"\n{\n\t\"76561197960265999\"\n\t{\n\t\t\"AccountName\"\t\"other\"\n\t\t\"MostRecent\"\t\"0\"\n\t\t\"Timestamp\"\t\"1700000000\"\n\t}\n\t\"76561197960265851\"\n\t{\n\t\t\"AccountName\"\t\"madeup\"\n\t\t\"MostRecent\"\t\"1\"\n\t\t\"Timestamp\"\t\"1600000000\"\n\t}\n\t\"123\"\n\t{\n\t}\n}\n");
+    for d in ["0", "77", "notanid"] {
+        put(&format!("bare/userdata/{d}/config/localconfig.vdf"), "");
+    }
+    assert_eq!(Value::from(steam_id(&tmp.path().join("steam"))), fx["ids"]["main"]);
+    assert_eq!(Value::from(steam_id(&tmp.path().join("bare"))), fx["ids"]["bare"]);
+    let key = fx["key"].as_str().unwrap().to_string();
+    let site_of = |site: Value, asked: Arc<Mutex<Vec<String>>>, key: String| -> rustyshelf_core::steamach::Fetch {
+        Box::new(move |u: &str| {
+            asked.lock().unwrap().push(u.replace(&key, "KEY"));
+            let name = u.split('/').nth(4).unwrap_or("");
+            let id = u.split(['?', '&']).find_map(|p| p.strip_prefix("appid=").or_else(|| p.strip_prefix("gameid="))).unwrap_or("");
+            let a = site.get(format!("{name}-{id}")).or_else(|| site.get(name)).cloned().unwrap_or(json!({ "s": 404, "j": null }));
+            Ok((a["s"].as_u64().unwrap() as u16, Some(a["j"].clone()).filter(|j| !j.is_null())))
+        })
+    };
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let now = fx["now"].as_f64().unwrap();
+    let root = Some(tmp.path().join("steam"));
+    let sa = SteamAch::with(&tmp.path().join("data"), &format!(" {key} "), root.clone(), site_of(fx["site"].clone(), asked.clone(), key.clone()));
+    let got = sa.trophies(false, now).unwrap().unwrap();
+    assert_eq!(got, fx["trophies"]);
+    let tests: Vec<Value> = [key.clone(), "short".into(), format!(" {} ", key.to_lowercase())].iter().map(|k| sa.test(k)).collect();
+    assert_eq!(Value::from(tests), fx["tests"]);
+    // the games are asked four at a time, so in any order
+    let mut a = asked.lock().unwrap().clone();
+    let mut want: Vec<String> = fx["asked"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    a.sort();
+    want.sort();
+    assert_eq!(a, want);
+    // asked again within the cache's time: only the icons that failed are asked again
+    sa.trophies(false, now).unwrap();
+    assert_eq!(asked.lock().unwrap()[want.len()..], ["https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=KEY&appid=20&l=english"]);
+    let mut site = fx["site"].clone();
+    for (k, v) in fx["priv"].as_object().unwrap() {
+        site[k] = v.clone();
+    }
+    let p = SteamAch::with(&tmp.path().join("data2"), &key, root, site_of(site, Arc::default(), key.clone()));
+    assert_eq!(Value::from(p.trophies(false, now).err()), fx["private"]);
+    let c = &fx["combined"];
+    let ra = c["ra2"].clone();
+    let mut ra_blank = ra.clone();
+    (ra_blank["user"], ra_blank["pic"]) = (json!(""), Value::Null);
+    assert_eq!(combine(Some(ra.clone()), Some(got.clone()), &[]).unwrap(), c["both"]);
+    assert_eq!(combine(None, Some(got), &["RetroAchievements: down".into()]).unwrap(), c["steam"]);
+    assert_eq!(combine(Some(ra_blank), None, &[]).unwrap(), c["ra"]);
+    assert_eq!(Value::from(combine(None, None, &["why".into()]).err()), c["none"]);
+    assert_eq!(Value::from(combine(None, None, &[]).err()), c["nothing"]);
 }

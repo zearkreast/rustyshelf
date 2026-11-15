@@ -196,7 +196,7 @@ fn user_stats_file(dir: &Path, appid: &str, account: &str) -> Option<PathBuf> {
 }
 
 /// "1999-11-21 08:00:00" (UTC) for a time in seconds since 1970; None for one JavaScript has no date for.
-fn stamp(seconds: f64) -> Option<String> {
+pub(crate) fn stamp(seconds: f64) -> Option<String> {
     let ms = seconds * 1000.0;
     if !ms.is_finite() || ms.abs() > 8.64e15 {
         return None;

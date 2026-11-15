@@ -66,6 +66,7 @@ pub mod shelfview;
 pub mod sfo;
 pub mod spreads;
 pub mod steam;
+pub mod steamach;
 pub mod steamart;
 pub mod steamgrid;
 pub mod storage;

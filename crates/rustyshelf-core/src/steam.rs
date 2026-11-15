@@ -108,6 +108,13 @@ pub fn is_main_steam_within(p: &Path) -> bool {
     within(WAIT, move || is_main_steam(&p)).unwrap_or(false)
 }
 
+/// Steam's own folder (where it keeps playtimes, achievements and who's signed in), from the folder the player gave:
+/// that one when it's Steam's own, else the usual place, else the one given.
+pub fn main_root(given: &str) -> Option<PathBuf> {
+    let given = steam_root(given);
+    given.clone().filter(|r| is_main_steam(r)).or_else(find_steam).or(given)
+}
+
 /// Steam's folder on this computer, when it's in the usual place.
 pub fn find_steam() -> Option<PathBuf> {
     if cfg!(target_os = "linux") {

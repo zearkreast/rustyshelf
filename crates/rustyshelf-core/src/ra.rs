@@ -400,6 +400,97 @@ impl Ra {
         Ok(r.as_array().map(|list| list.iter().map(|a| json!({ "id": a["AchievementID"], "title": a["Title"], "desc": a["Description"], "points": a["Points"], "badge": format!("{MEDIA}/Badge/{}.png", a["BadgeName"].as_str().unwrap_or("")), "game": a["GameTitle"], "hardcore": a["HardcoreMode"] == 1, "date": a["Date"] })).collect()).unwrap_or_default())
     }
 
+    /// The whole account for the Trophies screen: every game with achievements (latest first), the last month's
+    /// unlocks with how rare each is, and the totals. None without an account; `force` asks the site again now.
+    pub fn trophies(&self, force: bool) -> Result<Option<Value>, String> {
+        if !self.enabled() {
+            return Ok(None);
+        }
+        let (user, key) = (self.user(), self.user_key());
+        let prof = self.profile().ok().flatten();
+        let done = self.cached(&format!("completed-{key}"), if force { 0 } else { 600_000 }, || {
+            let r = self.call("API_GetUserCompletionProgress", &[("u", user.clone()), ("c", "500".into())], None)?;
+            Ok(Value::Array(need(r.get("Results").unwrap_or(&Value::Null))?.clone()))
+        })?;
+        let rec = self.cached(&format!("recent30-{key}"), if force { 0 } else { 300_000 }, || {
+            let r = self.call("API_GetUserRecentAchievements", &[("u", user.clone()), ("m", "43200".into())], None)?;
+            Ok(Value::Array(need(&r)?.clone()))
+        })?;
+        let text = |v: Option<&Value>| match v {
+            Some(Value::String(s)) => s.clone(),
+            Some(v) if truthy(Some(v)) => v.to_string(),
+            _ => String::new(),
+        };
+        let or_null = |v: Option<&Value>| v.filter(|v| truthy(Some(v))).cloned().unwrap_or(Value::Null);
+        let mut games: Vec<Value> = done
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|r| {
+                let total = number(r.get("MaxPossible"));
+                let earned = number(r.get("NumAwarded")).max(number(r.get("NumAwardedHardcore")));
+                let icon = r.get("ImageIcon").filter(|v| truthy(Some(v))).map_or(Value::Null, |p| json!(format!("{MEDIA}{}", text(Some(p)))));
+                json!({ "id": r["GameID"], "title": text(r.get("Title")), "console": text(r.get("ConsoleName")), "icon": icon, "total": whole(total), "earned": whole(earned),
+                    "pct": if total != 0.0 { whole((100.0 * earned / total + 0.5).floor()) } else { json!(0) }, "award": or_null(r.get("HighestAwardKind")), "last": or_null(r.get("MostRecentAwardedDate")) })
+            })
+            .filter(|g| number(g.get("total")) > 0.0)
+            .collect();
+        let by = |k: &'static str| move |a: &Value, b: &Value| text(b.get(k)).cmp(&text(a.get(k)));
+        games.sort_by(by("last"));
+        let mut recent: Vec<Value> = rec
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|a| {
+                let mut o = json!({ "id": a["AchievementID"], "title": text(a.get("Title")), "desc": text(a.get("Description")), "points": whole(number(a.get("Points"))),
+                    "badge": format!("{MEDIA}/Badge/{}.png", a.get("BadgeName").map_or("undefined".into(), |b| text(Some(b)))), "game": text(a.get("GameTitle")) });
+                if let Some(g) = a.get("GameID").filter(|g| !g.is_null()) {
+                    o["gameId"] = g.clone();
+                }
+                o["console"] = json!(text(a.get("ConsoleName")));
+                o["hardcore"] = json!(a.get("HardcoreMode").is_some_and(|h| h == 1 || h == "1"));
+                o["date"] = or_null(a.get("Date"));
+                o["rarity"] = Value::Null;
+                o
+            })
+            .collect();
+        recent.sort_by(by("date"));
+        recent.truncate(60);
+        let mut ids: Vec<Value> = Vec::new();
+        for g in recent.iter().take(15).filter_map(|a| a.get("gameId").filter(|g| truthy(Some(g)))) {
+            if !ids.contains(g) {
+                ids.push(g.clone());
+            }
+        }
+        ids.truncate(5);
+        for gid in ids {
+            let id = text(Some(&gid));
+            let Ok(d) = self.cached(&format!("game-{id}-{key}"), 600_000, || self.call("API_GetGameInfoAndUserProgress", &[("g", id.clone()), ("u", user.clone()), ("a", "1".into())], None)) else { continue };
+            let players = number(d.get("NumDistinctPlayers"));
+            let list: Vec<&Value> = match d.get("Achievements") {
+                Some(Value::Object(o)) => o.values().collect(),
+                Some(Value::Array(a)) => a.iter().collect(),
+                _ => continue,
+            };
+            if players == 0.0 {
+                continue;
+            }
+            let by_id: HashMap<String, &Value> = list.into_iter().map(|x| (text(x.get("ID")), x)).collect();
+            for a in recent.iter_mut().filter(|a| a.get("gameId") == Some(&gid)) {
+                if let Some(n) = by_id.get(&text(a.get("id"))).and_then(|x| x.get("NumAwarded")).filter(|n| !n.is_null()) {
+                    a["rarity"] = whole(((1000.0 * number(Some(n)) / players + 0.5).floor() / 10.0).max(0.1));
+                }
+            }
+        }
+        let award = |kinds: &[&str]| games.iter().filter(|g| g["award"].as_str().is_some_and(|k| kinds.contains(&k))).count();
+        let p = |k: &str| prof.as_ref().and_then(|p| p.get(k)).filter(|v| truthy(Some(v))).cloned();
+        let avg = if games.is_empty() { 0.0 } else { (games.iter().map(|g| number(g.get("pct"))).sum::<f64>() / games.len() as f64 + 0.5).floor() };
+        let totals = json!({ "games": games.len(), "unlocked": whole(games.iter().map(|g| number(g.get("earned"))).sum()), "mastered": award(&["mastered", "completed"]),
+            "beaten": award(&["beaten-hardcore", "beaten-softcore"]), "avg": whole(avg) });
+        Ok(Some(json!({ "user": p("user").unwrap_or(json!(user)), "pic": p("pic").unwrap_or(Value::Null), "points": p("points").unwrap_or(json!(0)), "softcore": p("softcore").unwrap_or(json!(0)),
+            "games": games, "recent": recent, "totals": totals })))
+    }
+
     /// Checks a username and key without switching the account in use: the account's name and points.
     pub fn test(&self, user: &str, key: &str) -> Result<Value, String> {
         let (user, key) = (user.trim(), key.trim());

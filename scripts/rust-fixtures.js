@@ -726,9 +726,10 @@ async function raFixtures() {
       Achievements: { 902: { ID: 902, Title: 'Second', Description: 'Do the second thing', Points: '10', BadgeName: '0902', DisplayOrder: 2, NumAwarded: 50, DateEarned: '2026-01-02 10:00:00', type: 'progression' },
         '901': { ID: 901, Title: 'First', Description: 'Do the first thing', Points: 5, BadgeName: '0901', DisplayOrder: 1, NumAwarded: 133, DateEarned: '2026-01-01 09:00:00', DateEarnedHardcore: '2026-01-01 09:00:00', Type: 'progression' },
         903: { ID: 903, Title: 'Last', Description: 'Do the last thing', Points: 25, BadgeName: '0903', DisplayOrder: 2, NumAwarded: 0, Type: null }, 7: { ID: 7, Title: 'Unordered', Description: '', Points: 1, BadgeName: '0007', NumAwarded: 3 } } },
-    API_GetUserCompletionProgress: { Count: 2, Total: 2, Results: [{ GameID: 11, NumAwarded: 20, NumAwardedHardcore: 10, HighestAwardKind: 'beaten-softcore' }, { GameID: 16, NumAwarded: '5', NumAwardedHardcore: 5, HighestAwardKind: 'mastered' }] },
+    API_GetUserCompletionProgress: { Count: 3, Total: 3, Results: [{ GameID: 11, Title: 'Zeta Run', ConsoleName: 'GameCube', ImageIcon: '/Images/000011.png', MaxPossible: 30, NumAwarded: 20, NumAwardedHardcore: 10, HighestAwardKind: 'beaten-softcore', MostRecentAwardedDate: '2026-01-02T10:00:00+00:00' },
+      { GameID: 16, Title: 'The Legend of Tau', ConsoleName: 'GameCube', MaxPossible: '5', NumAwarded: '5', NumAwardedHardcore: 5, HighestAwardKind: 'mastered', MostRecentAwardedDate: '2025-12-30T08:00:00+00:00' }, { GameID: 19, Title: 'Empty Set', MaxPossible: 0, NumAwarded: 0 }] },
     API_GetUserProfile: { User: 'Made Up', TotalPoints: 1234, TotalSoftcorePoints: 56, UserPic: '/UserPic/MadeUp.png', RichPresenceMsg: '' },
-    API_GetUserRecentAchievements: [{ AchievementID: 901, Title: 'First', Description: 'Do the first thing', Points: 5, BadgeName: '0901', GameTitle: 'Zeta Run', HardcoreMode: 1, Date: '2026-01-01 09:00:00' }, { AchievementID: 902, Title: 'Second', Description: '', Points: 10, BadgeName: '0902', GameTitle: 'Zeta Run', HardcoreMode: 0, Date: '2026-01-02 10:00:00' }],
+    API_GetUserRecentAchievements: [{ AchievementID: 901, Title: 'First', Description: 'Do the first thing', Points: 5, BadgeName: '0901', GameTitle: 'Zeta Run', GameID: 11, ConsoleName: 'GameCube', HardcoreMode: 1, Date: '2026-01-01 09:00:00' }, { AchievementID: 902, Title: 'Second', Description: '', Points: 10, BadgeName: '0902', GameTitle: 'Zeta Run', HardcoreMode: 0, Date: '2026-01-02 10:00:00' }],
   };
   const asked = [], real = https.get;
   https.get = (u, _opts, cb) => { asked.push(u); const name = /API\/(\w+)\.php/.exec(u)[1], res = new EventEmitter(); res.statusCode = 200; res.setEncoding = () => {}; res.resume = () => {};
@@ -742,8 +743,64 @@ async function raFixtures() {
       matches: titles.map(t => { const g = ra.matchGame(list, t); return [t, g ? g.id : null]; }),
       progress: await ra.progress('gc', 'Zeta Run', false), none: await ra.progress('gc', 'Nothing Like It', false), other: await ra.progress('sw', 'Zeta Run', false),
       shelf: await ra.shelfProgress('gc', titles), profile: await ra.profile(), recent: await ra.recent(12.2), test: await ra.test('Other One', 'x') };
+    out.trophies = await ra.trophies(false);
     out.asked = asked; return out;
   } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
+}
+// ---- Steam achievements for the Trophies screen (main/steamach.js), over a made-up Steam API ----
+async function steamachFixtures() {
+  const https = require('https'), { EventEmitter } = require('events');
+  const NOW = 1767261600, KEY = 'ABCDEF0123456789abcdef0123456789';
+  const ok = j => ({ s: 200, j });
+  const site = {
+    GetPlayerSummaries: ok({ response: { players: [{ personaname: 'Made Up', avatarfull: 'https://avatars.example/made-up.jpg', communityvisibilitystate: 3 }] } }),
+    GetOwnedGames: ok({ response: { games: [
+      { appid: 10, name: 'Zeta Run', playtime_forever: 50, rtime_last_played: NOW - 100, img_icon_url: 'abc10', has_community_visible_stats: true },
+      { appid: 20, name: 'Omega Quest', playtime_forever: 5, rtime_last_played: NOW - 5000, img_icon_url: 'abc20', has_community_visible_stats: true },
+      { appid: 30, name: 'Never Played', playtime_forever: 0, has_community_visible_stats: true },
+      { appid: 40, name: 'No Stats Flag', playtime_forever: 3, rtime_last_played: NOW - 9000 },
+      { appid: 50, name: 'Alpha Tale', playtime_forever: 9, rtime_last_played: NOW - 200, has_community_visible_stats: true }] } }),
+    'GetPlayerAchievements-10': ok({ playerstats: { success: true, achievements: [
+      { apiname: 'A1', name: 'First Steps', description: 'Start', achieved: 1, unlocktime: NOW - 3600 },
+      { apiname: 'A2', name: '', description: 'Old one', achieved: 1, unlocktime: NOW - 86400 * 40 },
+      { apiname: 'A3', name: 'Later', achieved: 0, unlocktime: 0 }] } }),
+    'GetPlayerAchievements-20': ok({ playerstats: { success: true, achievements: [
+      { apiname: 'B1', name: 'All', description: 'Every one', achieved: 1, unlocktime: NOW - 7200 }, { apiname: 'B2', name: 'Done', achieved: 1, unlocktime: NOW - 7300 }] } }),
+    'GetPlayerAchievements-50': { s: 400, j: { playerstats: { success: false, error: 'Requested app has no stats' } } },
+    'GetSchemaForGame-10': ok({ game: { availableGameStats: { achievements: [{ name: 'A1', icon: 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/10/a1.jpg' }, { name: 'A2' }] } } }),
+    'GetSchemaForGame-20': { s: 500, j: null },
+    'GetGlobalAchievementPercentagesForApp-10': ok({ achievementpercentages: { achievements: [{ name: 'A1', percent: '12.34' }] } }),
+    'GetGlobalAchievementPercentagesForApp-20': ok({ achievementpercentages: { achievements: [{ name: 'B1', percent: 0.01 }, { name: 'B2', percent: 99.96 }] } }),
+  };
+  const priv = { 'GetPlayerAchievements-10': { s: 403, j: { playerstats: { success: false, error: 'Profile is not public' } } }, 'GetPlayerAchievements-20': { s: 403, j: { playerstats: { success: false, error: 'Profile is not public' } } } };
+  let now = site; const asked = [], real = https.get, realNow = Date.now;
+  https.get = (u, _opts, cb) => { asked.push(u.replace(KEY, 'KEY')); const url = new URL(u), name = url.pathname.split('/')[2], id = url.searchParams.get('appid') || url.searchParams.get('gameid');
+    const a = now[`${name}-${id}`] || now[name] || { s: 404, j: null }, res = new EventEmitter(); res.statusCode = a.s; res.setEncoding = () => {};
+    setImmediate(() => { cb(res); res.emit('data', a.j === null ? 'not json' : JSON.stringify(a.j)); res.emit('end'); }); const req = new EventEmitter(); req.setTimeout = () => {}; req.destroy = () => {}; return req; };
+  Date.now = () => NOW * 1000;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-steamach-'));
+  const put = (rel, text) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
+  put('steam/config/loginusers.vdf', '﻿"users"\n{\n\t"76561197960265999"\n\t{\n\t\t"AccountName"\t"other"\n\t\t"MostRecent"\t"0"\n\t\t"Timestamp"\t"1700000000"\n\t}\n\t"76561197960265851"\n\t{\n\t\t"AccountName"\t"madeup"\n\t\t"MostRecent"\t"1"\n\t\t"Timestamp"\t"1600000000"\n\t}\n\t"123"\n\t{\n\t}\n}\n');
+  put('bare/userdata/0/config/localconfig.vdf', ''); put('bare/userdata/77/config/localconfig.vdf', ''); put('bare/userdata/notanid/config/localconfig.vdf', '');
+  const load = dataDir => { delete require.cache[require.resolve('../main/steamach')]; const m = require('../main/steamach'); m.init({ dataDir, key: () => ' ' + KEY + ' ', steamPath: () => path.join(tmp, 'steam') }); return m; };
+  try {
+    const sa = load(path.join(tmp, 'data'));
+    const out = { now: NOW, key: KEY, site, priv, ids: { main: sa.steamId(), bare: (sa.init({ dataDir: path.join(tmp, 'data'), steamPath: () => path.join(tmp, 'bare') }), sa.steamId()) } };
+    sa.init({ dataDir: path.join(tmp, 'data'), steamPath: () => path.join(tmp, 'steam') });
+    out.trophies = await sa.trophies(false);
+    out.tests = [await sa.test(KEY), await sa.test('short'), await sa.test(' ' + KEY.toLowerCase() + ' ')];
+    out.asked = asked.slice();
+    now = { ...site, ...priv };
+    const p = load(path.join(tmp, 'data2'));
+    out.private = await p.trophies(false).then(() => null, e => e.message);
+    const ra = { user: 'Made Up', pic: 'https://media.retroachievements.org/UserPic/MadeUp.png', points: 1234, softcore: 56,
+      games: [{ id: 11, title: 'Zeta Run', console: 'GameCube', total: 30, earned: 20, pct: 67, award: 'beaten-softcore', last: '2026-01-02T10:00:00+00:00' }, { id: 16, title: 'Tau', console: 'GameCube', total: 5, earned: 5, pct: 100, award: 'mastered', last: null }],
+      recent: [{ id: 901, title: 'First', date: '2026-01-01 09:00:00', rarity: 66.5 }] };
+    out.combined = { both: sa.combine(ra, out.trophies, []), steam: sa.combine(null, out.trophies, ['RetroAchievements: down']), ra: sa.combine({ ...ra, user: '', pic: null }, null, []), ra2: ra };
+    try { sa.combine(null, null, ['why']); } catch (e) { out.combined.none = e.message; }
+    try { sa.combine(null, null, []); } catch (e) { out.combined.nothing = e.message; }
+    return out;
+  } finally { https.get = real; Date.now = realNow; fs.rmSync(tmp, { recursive: true, force: true }); }
 }
 // ---- whether each emulator is signed in to RetroAchievements (main/raemu.js), over made-up emulator folders ----
 async function raemuFixtures() {
@@ -1656,6 +1713,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'steamach.json'), JSON.stringify(await steamachFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');

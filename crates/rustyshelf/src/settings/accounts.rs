@@ -1,10 +1,12 @@
 //! Accounts: RetroAchievements (the account's name and web API key, whether each console's emulator is signed in
-//! to it, and a game's achievements in Details), the player's SteamGridDB key and their ScreenScraper account.
+//! to it, and a game's achievements in Details), the player's SteamGridDB and Steam Web API keys and their
+//! ScreenScraper account.
 
 use std::sync::Arc;
 
 use rustyshelf_core::ra::Ra;
 use rustyshelf_core::screenscraper::{Creds, ScreenScraper};
+use rustyshelf_core::steamach::SteamAch;
 use rustyshelf_core::steamgrid::SteamGrid;
 use rustyshelf_core::{raemu, seal};
 
@@ -174,6 +176,38 @@ impl Settings {
             })),
             ..Row::default()
         });
+        let steamweb = self.api_key("steamweb");
+        let typed_steam = |s: &mut Settings| {
+            s.edit(
+                "Steam Web API key",
+                "Free: steamcommunity.com/dev/apikey (any domain name will do). Kept encrypted like the RetroAchievements key.",
+                String::new(),
+                Box::new(|s: &mut Settings, v: String| s.set_api_key("steamweb", v.trim().to_string())),
+            );
+        };
+        rows.push(Row {
+            label: "Steam achievements".into(),
+            value: if steamweb.is_empty() { "(none)".into() } else { "••••••••".into() },
+            hint: "Your own Steam Web API key: the Trophies screen then shows your Steam achievements beside RetroAchievements, for the account signed in to Steam on this PC. The key is sent only to api.steampowered.com. Optional.".into(),
+            press: Some(Box::new(typed_steam)),
+            step: None,
+        });
+        rows.push(Row {
+            label: "Check the Steam key".into(),
+            hint: "Asks Steam for the profile of the account signed in here, with this key.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let (key, dir, given) = (steamweb.clone(), paths::data_dir(&s.app_root), s.text(&["steam", "path"]));
+                s.say("Asking Steam…".into());
+                let (tx, rx) = std::sync::mpsc::channel();
+                s.ra_answer = Some(Mutex::new(rx));
+                std::thread::spawn(move || {
+                    let r = SteamAch::new(&dir, &key, rustyshelf_core::steam::main_root(&given)).test(&key);
+                    let said = if r["ok"] == true { Ok(format!("Steam: the key works · {}", r["user"].as_str().unwrap_or(""))) } else { Err(format!("Steam: {}", r["error"].as_str().unwrap_or("not accepted"))) };
+                    let _ = tx.send(RaAnswer::Tested(said));
+                });
+            })),
+            ..Row::default()
+        });
         let ss = Creds { user: self.api_key("ssUser"), pass: self.api_key("ssPass"), dev_id: self.api_key("ssDevId"), dev_pass: self.api_key("ssDevPass") };
         for (label, name, hint, secret) in [
             ("ScreenScraper username", "ssUser", "Your screenscraper.fr username. Box scans by region for the art sources that use it. Optional, kept encrypted.", false),
@@ -209,7 +243,7 @@ impl Settings {
             })),
             ..Row::default()
         });
-        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover. ScreenScraper: box scans by region.".into(), rows }
+        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover. Steam: your achievements on the Trophies screen. ScreenScraper: box scans by region.".into(), rows }
     }
 
     /// Asks for the chosen game's achievements (again, when `force`).
@@ -222,10 +256,7 @@ impl Settings {
             let (tx, rx) = std::sync::mpsc::channel();
             self.ra_answer = Some(Mutex::new(rx));
             std::thread::spawn(move || {
-                use rustyshelf_core::steam;
-                // Steam's own folder keeps them, whichever library the game is in
-                let given = steam::steam_root(&given);
-                let root = given.clone().filter(|r| steam::is_main_steam(r)).or_else(steam::find_steam).or(given);
+                let root = rustyshelf_core::steam::main_root(&given);
                 let _ = tx.send(RaAnswer::Progress(id, Ok(root.and_then(|r| rustyshelf_core::pcach::steam_progress(&r, &appid)))));
             });
             return;

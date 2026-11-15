@@ -113,20 +113,35 @@
    }
   },
   "API_GetUserCompletionProgress": {
-   "Count": 2,
-   "Total": 2,
+   "Count": 3,
+   "Total": 3,
    "Results": [
     {
      "GameID": 11,
+     "Title": "Zeta Run",
+     "ConsoleName": "GameCube",
+     "ImageIcon": "/Images/000011.png",
+     "MaxPossible": 30,
      "NumAwarded": 20,
      "NumAwardedHardcore": 10,
-     "HighestAwardKind": "beaten-softcore"
+     "HighestAwardKind": "beaten-softcore",
+     "MostRecentAwardedDate": "2026-01-02T10:00:00+00:00"
     },
     {
      "GameID": 16,
+     "Title": "The Legend of Tau",
+     "ConsoleName": "GameCube",
+     "MaxPossible": "5",
      "NumAwarded": "5",
      "NumAwardedHardcore": 5,
-     "HighestAwardKind": "mastered"
+     "HighestAwardKind": "mastered",
+     "MostRecentAwardedDate": "2025-12-30T08:00:00+00:00"
+    },
+    {
+     "GameID": 19,
+     "Title": "Empty Set",
+     "MaxPossible": 0,
+     "NumAwarded": 0
     }
    ]
   },
@@ -145,6 +160,8 @@
     "Points": 5,
     "BadgeName": "0901",
     "GameTitle": "Zeta Run",
+    "GameID": 11,
+    "ConsoleName": "GameCube",
     "HardcoreMode": 1,
     "Date": "2026-01-01 09:00:00"
    },
@@ -496,12 +513,77 @@
   "user": "Made Up",
   "points": 1234
  },
+ "trophies": {
+  "user": "Made Up",
+  "pic": "https://media.retroachievements.org/UserPic/MadeUp.png",
+  "points": 1234,
+  "softcore": 56,
+  "games": [
+   {
+    "id": 11,
+    "title": "Zeta Run",
+    "console": "GameCube",
+    "icon": "https://media.retroachievements.org/Images/000011.png",
+    "total": 30,
+    "earned": 20,
+    "pct": 67,
+    "award": "beaten-softcore",
+    "last": "2026-01-02T10:00:00+00:00"
+   },
+   {
+    "id": 16,
+    "title": "The Legend of Tau",
+    "console": "GameCube",
+    "icon": null,
+    "total": 5,
+    "earned": 5,
+    "pct": 100,
+    "award": "mastered",
+    "last": "2025-12-30T08:00:00+00:00"
+   }
+  ],
+  "recent": [
+   {
+    "id": 902,
+    "title": "Second",
+    "desc": "",
+    "points": 10,
+    "badge": "https://media.retroachievements.org/Badge/0902.png",
+    "game": "Zeta Run",
+    "console": "",
+    "hardcore": false,
+    "date": "2026-01-02 10:00:00",
+    "rarity": null
+   },
+   {
+    "id": 901,
+    "title": "First",
+    "desc": "Do the first thing",
+    "points": 5,
+    "badge": "https://media.retroachievements.org/Badge/0901.png",
+    "game": "Zeta Run",
+    "gameId": 11,
+    "console": "GameCube",
+    "hardcore": true,
+    "date": "2026-01-01 09:00:00",
+    "rarity": 66.5
+   }
+  ],
+  "totals": {
+   "games": 2,
+   "unlocked": 25,
+   "mastered": 1,
+   "beaten": 1,
+   "avg": 84
+  }
+ },
  "asked": [
   "https://retroachievements.org/API/API_GetGameList.php?z=Made+Up&y=k+e%26y%2F1&i=16&f=1&h=0",
   "https://retroachievements.org/API/API_GetGameInfoAndUserProgress.php?z=Made+Up&y=k+e%26y%2F1&g=11&u=Made+Up&a=1",
   "https://retroachievements.org/API/API_GetUserCompletionProgress.php?z=Made+Up&y=k+e%26y%2F1&u=Made+Up&c=500",
   "https://retroachievements.org/API/API_GetUserProfile.php?z=Made+Up&y=k+e%26y%2F1&u=Made+Up",
   "https://retroachievements.org/API/API_GetUserRecentAchievements.php?z=Made+Up&y=k+e%26y%2F1&u=Made+Up&m=13",
-  "https://retroachievements.org/API/API_GetUserProfile.php?z=Other+One&y=x&u=Other+One"
+  "https://retroachievements.org/API/API_GetUserProfile.php?z=Other+One&y=x&u=Other+One",
+  "https://retroachievements.org/API/API_GetUserRecentAchievements.php?z=Made+Up&y=k+e%26y%2F1&u=Made+Up&m=43200"
  ]
 }

@@ -2427,21 +2427,13 @@ handle('ra:shelf', ({ systemId, titles }) => ra.shelfProgress(systemId, titles |
 handle('ra:profile', () => ra.profile());
 // the Trophies screen: RetroAchievements and Steam (main/steamach.js) side by side; either one alone is enough
 const steamach = require('./main/steamach');
-const trDate = s => s ? String(s).replace('T', ' ').slice(0, 19) : '';
 handle('ra:trophies', async ({ force } = {}) => {
   const want = { ra: ra.enabled(), steam: steamach.enabled() }; if (!want.ra && !want.steam) return null;
   const errs = [];
   const [r, s] = await Promise.all([
     want.ra ? ra.trophies(!!force).catch(e => { errs.push(e.message); log('Trophies: RetroAchievements', e.message); return null; }) : null,
     want.steam ? steamach.trophies(!!force).catch(e => { errs.push(e.message); log('Trophies: Steam', e.message); return null; }) : null]);
-  if (!r && !s) throw new Error(errs[0] || 'Neither RetroAchievements nor Steam answered.');
-  const games = [...(r ? r.games.map(g => ({ ...g, src: 'ra' })) : []), ...(s ? s.games : [])].map(g => ({ ...g, last: trDate(g.last) })).sort((a, b) => b.last.localeCompare(a.last));
-  const recent = [...(r ? r.recent.map(a => ({ ...a, src: 'ra' })) : []), ...(s ? s.recent : [])].map(a => ({ ...a, date: trDate(a.date) })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80);
-  const tot = k => games.filter(g => k.includes(g.award)).length;
-  return { user: r && r.user || s && s.user || '', pic: r && r.pic || s && s.pic || null, points: r ? r.points : 0, softcore: r ? r.softcore : 0, games, recent,
-    sources: { ra: !!r, steam: !!s, steamUser: s ? s.user : '' }, warn: errs.length ? errs[0] : '',
-    totals: { games: games.length, unlocked: games.reduce((n, g) => n + g.earned, 0), mastered: tot(['mastered', 'completed']), beaten: tot(['beaten-hardcore', 'beaten-softcore']),
-      avg: games.length ? Math.round(games.reduce((n, g) => n + g.pct, 0) / games.length) : 0 } };
+  return steamach.combine(r, s, errs);
 });
 handle('ra:enabled', () => ({ enabled: ra.enabled(), systems: Object.keys(ra.CONSOLE_ID) }));
 handle('models:find', ({ systemId, name, site }) => modelfind.start(systemId, name, site, r => { if (alive()) win.webContents.send('models:installed', r); }));
