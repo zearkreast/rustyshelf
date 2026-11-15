@@ -17,12 +17,14 @@ function init(dataDir, logger) {
   dir = path.join(dataDir, 'steam-art'); infoFile = path.join(dataDir, 'steam-info.json'); if (logger) log = logger;
   try { info = JSON.parse(fs.readFileSync(infoFile, 'utf8')) || {}; } catch { info = {}; }
 }
+// shared.cloudflare… now redirects to shared.steamstatic.com, the only host with the hashed files (newer games' art)
 const asset = (id, name) => [
+  `https://shared.steamstatic.com/store_item_assets/steam/apps/${id}/${name}`,
   `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${id}/${name}`,
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${name}`
 ];
 const backFile = id => path.join(dir, `${id}_backmade.jpg`);
-const coverFile = id => path.join(dir, `${id}_cover.jpg`), heroFile = id => path.join(dir, `${id}_hero.jpg`), missFile = id => path.join(dir, `${id}.nocover`); // (fork) new name: the old ".missing" marks were set before the store-assets lookup below and are ignored
+const coverFile = id => path.join(dir, `${id}_cover.jpg`), heroFile = id => path.join(dir, `${id}_hero.jpg`), missFile = id => path.join(dir, `${id}.noart`); // (the old ".missing" and ".nocover" marks were set before the store API was asked right, and are ignored)
 
 // Art RustyShelf has already downloaded for this game (used when Steam's own cache has none)
 function local(appid) { return { front: isFile(coverFile(appid)) ? coverFile(appid) : null, hero: isFile(heroFile(appid)) ? heroFile(appid) : null, back: dir && isFile(backFile(appid)) ? backFile(appid) : null }; }
@@ -46,7 +48,8 @@ async function save(urls, dest) {
 // above answer 404 for them. Steam's public store API names the real files.
 async function storeAssets(id) {
   try {
-    const q = encodeURIComponent(JSON.stringify({ ids: [{ appid: +id }], data_request: { include_assets: true } }));
+    // (without a context the store answers {} for some apps, Dressmaker among them)
+    const q = encodeURIComponent(JSON.stringify({ ids: [{ appid: +id }], context: { language: 'english', country_code: 'US' }, data_request: { include_assets: true } }));
     const r = await net.fetch(`https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=${q}`, { headers: { 'User-Agent': 'RustyShelf' }, cache: 'no-store', signal: AbortSignal.timeout(15000) });
     if (!r.ok) return null;
     const it = (((await r.json()) || {}).response || {}).store_items; return (it && it[0] && it[0].assets) || null;

@@ -30,8 +30,10 @@ pub fn is_image(b: &[u8]) -> bool {
     b.len() >= 12 && (b.starts_with(&[0x89, 0x50]) || b.starts_with(&[0xff, 0xd8]) || (b.starts_with(b"RIFF") && &b[8..12] == b"WEBP") || b.starts_with(b"GIF") || b.starts_with(b"BM") || &b[4..8] == b"ftyp")
 }
 
-fn asset(id: &str, name: &str) -> [String; 2] {
-    [format!("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/{name}"), format!("https://cdn.cloudflare.steamstatic.com/steam/apps/{id}/{name}")]
+/// shared.cloudflare… now redirects to shared.steamstatic.com, the only host with the hashed files (newer games' art).
+/// Keep in sync with main/steamart.js asset.
+fn asset(id: &str, name: &str) -> [String; 3] {
+    [format!("https://shared.steamstatic.com/store_item_assets/steam/apps/{id}/{name}"), format!("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/{name}"), format!("https://cdn.cloudflare.steamstatic.com/steam/apps/{id}/{name}")]
 }
 
 enum Saved {
@@ -109,7 +111,8 @@ fn release_date(rel: &str) -> (String, String) {
 fn store_assets(id: &str, keys: &[&str]) -> Vec<String> {
     static NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[\w./-]+$").unwrap());
     let Ok(n) = id.parse::<u64>() else { return Vec::new() };
-    let q = js::encode_uri_component(&json!({ "ids": [{ "appid": n }], "data_request": { "include_assets": true } }).to_string());
+    // (without a context the store answers {} for some apps)
+    let q = js::encode_uri_component(&json!({ "ids": [{ "appid": n }], "context": { "language": "english", "country_code": "US" }, "data_request": { "include_assets": true } }).to_string());
     let Ok(j) = crate::net::get_json(&format!("https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json={q}"), Duration::from_secs(15)) else { return Vec::new() };
     let a = &j["response"]["store_items"][0]["assets"];
     keys.iter().filter_map(|k| a[*k].as_str()).filter(|n| NAME.is_match(n)).flat_map(|n| asset(id, n)).collect()
@@ -246,8 +249,8 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
         let mut tried = TRIED.lock().unwrap();
         games.iter().filter(|g| tried.insert(g.appid.clone())).collect()
     };
-    // (".nocover": a ".missing" mark was set before the store API was asked, and isn't trusted)
-    let missed = |name: &str| dir.join(format!("{name}.nocover"));
+    // (".noart": the ".missing" and ".nocover" marks were set before the store API was asked right, and aren't trusted)
+    let missed = |name: &str| dir.join(format!("{name}.noart"));
     let recently_missed = |name: &str| {
         let at = missed(name).metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok());
         at.is_some_and(|t| (now() as f64 - t.as_millis() as f64) < RETRY)

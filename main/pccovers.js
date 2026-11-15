@@ -17,7 +17,7 @@ const safeId = id => String(id || '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-
 const dir = () => path.join(o.dataDir, 'pc-covers'), cacheDir = () => path.join(o.dataDir, 'pc-cover-cache'), autoDir = () => path.join(o.dataDir, 'pc-covers-auto');
 const isFile = p => { try { return fs.statSync(p).isFile(); } catch { return false; } };
 const sha = s => crypto.createHash('sha1').update(String(s)).digest('hex').slice(0, 24);
-const steamArt = (appid, name) => [`https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${appid}/${name}`, `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/${name}`]; // (Steam's public store CDN, as steamart.js)
+const steamArt = (appid, name) => [`https://shared.steamstatic.com/store_item_assets/steam/apps/${appid}/${name}`, `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${appid}/${name}`, `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/${name}`]; // (Steam's public store CDN, as steamart.js)
 const { isImageBuf: isImg } = require('./imgcheck'); // (beta.10: PNG / JPEG / WebP / GIF / BMP / AVIF by its first bytes)
 const extOf = (u, buf) => { if (buf && buf[0] === 0x89 && buf[1] === 0x50) return 'png'; if (buf && buf.slice(8, 12).toString() === 'WEBP') return 'webp'; const m = /\.(png|webp|jpe?g)(?:$|\?)/i.exec(String(u || '')); return m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg'; };
 
