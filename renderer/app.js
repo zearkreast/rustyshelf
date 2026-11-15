@@ -1797,13 +1797,22 @@ function openReader(){
   // the booklet kept from last time only while it's still the cached one: after 24 others its pages are freed (blob URLs
   // revoked) and the reader showed blank pages; then it's simply made again
   if(!hasManual(g)&&(rd.bookletFor!==g.id||rd.bookletP!==bookletCache.get(g.id))){if(rd.making)return;rd.making=true;toast("Making a booklet for this game…");const bp=makeBooklet(g);bp.then(u=>{rd.making=false;rd.booklet=u;rd.bookletFor=g.id;rd.bookletP=bp;if(mode==="inspect"&&curGame()===g&&!rd.open)openReader()},e=>{rd.making=false;console.warn("booklet",e);toast("Couldn't make a booklet for this game")});return}
-  rd.pages=hasManual(g)?g.art.manual:rd.booklet;rd.i=0;rd.open=true;
+  rd.pages=hasManual(g)?g.art.manual:rd.booklet;rd.one=rdSmall();{const was=rd.pos.get(g.id);rd.i=was>0&&was<rd.pages.length?(rd.one||was%2===1?was:was-1):0}rd.open=true;rd.z=1;rd.px=rd.py=0;rdApply(); /* (beta.12: one page at a time on a small screen; back on the page you left) */
   // a first page that's a whole spread or print sheet: just its front cover, once that's cut out
   if(hasManual(g)&&window.Inspect3D&&Inspect3D.kit&&Inspect3D.kit.coverCrop){const pg=rd.pages;Inspect3D.kit.coverCrop(pg[0]).then(u=>{if(u&&rd.open&&rd.pages===pg){rd.pages=[u].concat(pg.slice(1));showSpread(false)}},()=>{})}
   $("inspect").classList.add("reading");$("reader").classList.add("on");$("reader").setAttribute("aria-hidden","false");
   if(window.Inspect3D)Inspect3D.setPaused(true);
   showSpread(false);renderIspHints();play_("open");
+  if(ANDROID&&rd.one&&rdView()!=="page")rdAutoFit(); /* (as the last manual was left: the whole page, or the page's width) */
 }
+const rdView=()=>{try{return localStorage.getItem("bs:rdView")||"width"}catch{return "width"}};
+/* (beta.12, Android) on a screen wider than the page (the Thor, a tablet or phone on its side) a manual opens at the page's
+   full width, its top first, the way a page is read on a phone: the print near its real size. L2 / a pinch / Whole page
+   shows the whole page; the zoomed page is drawn from the full-size scan once it has settled, so it stays sharp. A phone
+   held upright already shows the page at full width */
+function rdAutoFit(){const R=$("rdRight"),i0=rd.i,go=()=>{if(!rd.open||rd.i!==i0||rd.z!==1)return;const b=rdBase();if(!b.w)return;const f=(innerWidth*.96)/b.w;if(f<1.25)return;
+    rdZoomTo(Math.min(f,3));rdTop();rdApply();bsCtxSoon()};
+  if(R.complete&&R.naturalWidth)requestAnimationFrame(go);else R.addEventListener("load",()=>requestAnimationFrame(go),{once:true})}
 // "this is the wrong game's manual": set it aside (kept in .manual-originals), never pick that copy again, fetch the next
 // best match. Two presses, so a stray button doesn't throw a good manual away.
 // (beta.9) The first press opens a small fix menu for 8 s: Wrong game (the same button again) or Repair (the right game's
@@ -1837,24 +1846,61 @@ async function wrongManual(){const g=curGame();if(!g||!hasManual(g)||wrongBusy)r
     if(r.got){toastWork("Found it. Getting the pages…");await fixPages(g,r);const m=`✓ New manual for ${g.title}`;toastDone(fixReopen(g)?m:m+". Open its case to read it")}
     else toastDone(r.offline?`Set aside. Couldn't search right now (offline?); Settings → Manuals can search later`:`Set aside. No other match for ${g.title} yet; Settings → Manuals can search by hand`)}
   catch(e){fixRun=null;toast("Couldn't replace the manual: "+((e&&e.message)||e))}finally{fixRun=null;wrongBusy=false}}
-function closeReader(){if(!rd.open)return;rd.open=false;if(window.Inspect3D)Inspect3D.setPaused(false);$("inspect").classList.remove("reading");$("reader").classList.remove("on");$("reader").setAttribute("aria-hidden","true");renderIspHints();sfx.back()}
+function closeReader(){if(!rd.open)return;rdKeep();if(ANDROID&&rd.one){try{localStorage.setItem("bs:rdView",rd.z>1.05?"width":"page")}catch{}} /* (beta.12: the next manual opens the same way: whole page or page width) */rdReset();rd.open=false;if(window.Inspect3D)Inspect3D.setPaused(false);$("inspect").classList.remove("reading");$("reader").classList.remove("on");$("reader").setAttribute("aria-hidden","true");renderIspHints();sfx.back()}
 // Page 1 is the cover on its own; after that pages come in pairs like an open booklet.
 // Pages are decoded off the main thread before they're shown, and the next few are warmed up in the background, so turning stays smooth.
 const rdCache=new Map();
 // scans sized to the screen (like the magazine reader), not full resolution; blob:/data: pages pass through unchanged
-function rdSrc(u){return thumb(u,Math.min(innerHeight||1080,2048))}
-function rdImage(src){if(!src)return Promise.resolve(null);src=rdSrc(src);let p=rdCache.get(src);if(!p){const im=new Image();im.decoding="async";im.src=src;p=im.decode().then(()=>im,()=>im);rdCache.set(src,p);if(rdCache.size>24){const k=rdCache.keys().next().value;rdCache.delete(k)}}return p}
+function rdSrc(u,z){return thumb(u,Math.min(Math.round((innerHeight||1080)*Math.max(1,z||1)*(z>1?Math.min(2,devicePixelRatio||1):1)),z>1?3600:2048))} /* (beta.12: zoomed in, a bigger copy) */
+function rdImage(src,z){if(!src)return Promise.resolve(null);src=rdSrc(src,z);let p=rdCache.get(src);if(!p){const im=new Image();im.decoding="async";im.src=src;p=im.decode().then(()=>im,()=>im);rdCache.set(src,p);if(rdCache.size>24){const k=rdCache.keys().next().value;rdCache.delete(k)}}return p}
 function showSpread(anim){
   const L=$("rdLeft"),R=$("rdRight"),n=rd.pages.length;
-  const left=rd.i===0?null:rd.pages[rd.i],right=rd.i===0?rd.pages[0]:rd.pages[rd.i+1];
-  $("rdCount").textContent=rd.i===0?`Cover · ${n} pages`:`Pages ${rd.i+1}${right?"–"+(rd.i+2):""} of ${n}`;$("ispStep").textContent=$("rdCount").textContent;
+  const left=rd.one||rd.i===0?null:rd.pages[rd.i],right=rd.one?rd.pages[rd.i]:rd.i===0?rd.pages[0]:rd.pages[rd.i+1];
+  $("rdCount").textContent=rd.i===0?`Cover · ${n} pages`:rd.one?`Page ${rd.i+1} of ${n}`:`Pages ${rd.i+1}${right?"–"+(rd.i+2):""} of ${n}`;$("ispStep").textContent=$("rdCount").textContent;
+  $("rdBook").classList.toggle("one",!!rd.one);
   // show at once (the browser keeps the old picture until the new one is ready); pre-warm the neighbours in the background
-  L.hidden=!left;const lu=rdSrc(left),ru=rdSrc(right);if(left&&L.src!==lu)L.src=lu;R.hidden=!right;if(right&&R.src!==ru)R.src=ru;
+  // (beta.12) zoomed: the page drawn from a bigger copy once it has decoded, so small print stays sharp
+  L.hidden=!left;const lu=rdSrc(left),ru=rdSrc(right);if(left&&L.src!==lu&&!(rd.z>1&&L.dataset.for===left))L.src=lu;R.hidden=!right;if(right&&R.src!==ru&&!(rd.z>1&&R.dataset.for===right))R.src=ru;L.dataset.for=left||"";R.dataset.for=right||"";
+  if(rd.z>1){const z=rd.z,i0=rd.i;[[L,left],[R,right]].forEach(([el,u])=>{if(!u)return;const big=rdSrc(u,z);if(el.src===big)return;rdImage(u,z).then(()=>{if(rd.open&&rd.i===i0&&rd.z>1&&el.dataset.for===u)el.src=big})})}
   [L,R].forEach(x=>{x.classList.remove("flip-in");if(anim){void x.offsetWidth;x.classList.add("flip-in")}});
   for(let k=rd.i+2;k<Math.min(n,rd.i+5);k++)rdImage(rd.pages[k]);
   if(rd.i>=2)rdImage(rd.pages[rd.i-2]);
+  bsCtxSoon();
 }
-function rdTurn(d){const n=rd.pages.length;let i=rd.i===0?(d>0?1:0):rd.i+d*2;if(i<1)i=0;if(i>=n)return void play_("error");rd.i=i;showSpread(true);play_("page")}
+function rdTurn(d){const n=rd.pages.length;let i=rd.one?rd.i+d:rd.i===0?(d>0?1:0):rd.i+d*2;if(i<1)i=0;if(i>=n)return void play_("error");rd.i=i;rdKeep();if(rd.z>1)rdTop();showSpread(true);play_("page")}
+/* (beta.12) reading on a small screen (the Thor, a phone, the Steam Deck): one page at a time, a zoom that steps to the
+   page's full width and then closer, and moving around the zoomed page. Controller: L2 / R2 zoom, the right stick (or
+   the d-pad up / down) moves, X one page or two. Keyboard: + / - zoom, 0 back to the whole page, arrows up / down move,
+   P one page or two. Touch: pinch, a drag moves a zoomed page, a double tap zooms in there (and back out). The mouse:
+   double click, Ctrl + wheel zooms, the wheel moves. A zoomed page is redrawn sharp once the zoom settles. Each manual
+   opens on the page you left it at (this session) */
+rd.z=1;rd.px=0;rd.py=0;rd.pos=new Map();
+const rdSmall=()=>ANDROID?!(screen.width>=1100&&innerWidth>innerHeight):innerHeight<=820||innerWidth<1000;
+function rdKeep(){const g=curGame();if(g)rd.pos.set(g.id,rd.i)}
+function rdBase(){const L=$("rdLeft"),R=$("rdRight"),vis=[L,R].filter(x=>!x.hidden&&x.offsetWidth>0);return {w:vis.reduce((a,x)=>a+x.offsetWidth,0)+(vis.length>1?2:0),h:vis.length?Math.max(...vis.map(x=>x.offsetHeight)):0}}
+function rdFitW(){const b=rdBase();if(!b.w)return 1.6;const f=(innerWidth*.96)/b.w;return f<1.25?1.6:Math.min(4,f)}
+/* the page's own centre on the screen (the book isn't centred: room is kept under it for the title and the hints), and
+   how far it may move: zoomed in, its edges reach 24 px inside the screen, its bottom up to above the hint bar */
+const RD_EDGE=24,RD_FOOT=110;
+function rdCentre(){const bk=$("rdBook");return {cx:bk.offsetLeft+bk.offsetWidth/2,cy:bk.offsetTop+bk.offsetHeight/2}}
+function rdClamp(){const b=rdBase(),c=rdCentre(),w=b.w*rd.z,h=b.h*rd.z;
+  if(w<=innerWidth-2*RD_EDGE)rd.px=innerWidth/2-c.cx;else{const lo=innerWidth-RD_EDGE-(c.cx+w/2),hi=RD_EDGE-(c.cx-w/2);rd.px=Math.max(lo,Math.min(hi,rd.px))}
+  if(h<=innerHeight-RD_EDGE-RD_FOOT){if(rd.z>1)rd.py=(innerHeight-RD_FOOT+RD_EDGE)/2-c.cy}else{const lo=innerHeight-RD_FOOT-(c.cy+h/2),hi=RD_EDGE-(c.cy-h/2);rd.py=Math.max(lo,Math.min(hi,rd.py))}
+  if(rd.z<=1)rd.px=rd.py=0}
+function rdApply(){const bk=$("rdBook");bk.style.transform=rd.z>1||rd.px||rd.py?`translate(${Math.round(rd.px)}px,${Math.round(rd.py)}px) scale(${rd.z})`:"";bk.classList.toggle("zoomed",rd.z>1);$("reader").classList.toggle("zoomed",rd.z>1)}
+function rdTop(){const b=rdBase(),c=rdCentre();rd.py=RD_EDGE-(c.cy-b.h*rd.z/2);rd.px=0;rdClamp()} /* (the top of the page, as a page is read) */
+let rdSharpT=0;
+function rdZoomTo(z,cx,cy){const old=rd.z;z=Math.max(1,Math.min(4,z));if(z<1.03)z=1;if(Math.abs(z-old)<.005)return;
+  if(cx!=null){const c=rdCentre(),ox=cx-c.cx,oy=cy-c.cy;rd.px=ox-(ox-rd.px)*z/old;rd.py=oy-(oy-rd.py)*z/old} /* (the point under the finger stays put) */
+  rd.z=z;if(z===1)rd.px=rd.py=0;rdClamp();rdApply();clearTimeout(rdSharpT);rdSharpT=setTimeout(()=>{if(rd.open)showSpread(false)},220);if((old>1)!==(z>1))renderIspHints()} /* (the hints change only between zoomed and not: never rebuilt on every frame of a pinch) */
+/* a pinch or a two-finger pan: the page follows the fingers with no easing (it trailed behind them), eased again a moment after */
+function rdFollow(){const b=$("rdBook");b.classList.add("panning");clearTimeout(rdFollow.t);rdFollow.t=setTimeout(()=>b.classList.remove("panning"),160)}
+function rdStep(d){const steps=[1,rdFitW(),Math.min(4,rdFitW()*1.6)];let k=steps.findIndex(s=>s>rd.z+.02);if(d<0){k=-1;for(let j=steps.length-1;j>=0;j--)if(steps[j]<rd.z-.02){k=j;break}}
+  if(k<0)return void play_("error");const was=rd.z;rdZoomTo(steps[k]);if(was===1&&rd.z>1)rdTop(),rdApply();play_("tick")}
+function rdPan(dx,dy){if(rd.z<=1)return;rd.px+=dx;rd.py+=dy;rdClamp();rdApply()}
+function rdPages(one){if(one===rd.one)return;rd.one=one;
+  if(!one){rd.oneI=rd.i;if(rd.i>0&&rd.i%2===0)rd.i--}else if(rd.oneI!=null&&(rd.oneI===rd.i||rd.oneI===rd.i+1))rd.i=rd.oneI; /* (back to one page: the one you were reading, not the spread's left) */rd.z=1;rd.px=rd.py=0;rdApply();showSpread(true);renderIspHints();play_("tick")}
+function rdReset(){rd.z=1;rd.px=rd.py=0;rdApply()}
 function ispAdvance(){
   if(rd.open){closeReader();return}
   const g=curGame();if(g&&g.kind==="steam")return;
@@ -1888,7 +1934,9 @@ function renderIspHints(){
   const box=!!(g&&window.Inspect3D&&Inspect3D.caseForm&&Inspect3D.caseForm((pickShelf()||{}).id)==="box"); // (a cardboard box opens its flap, beta issue 32)
   const next=isp.state===0?(box?"Open box":"Open case"):isp.state===1?(flop?"Take out floppy disk":cart?"Take out cartridge":"Take out disc"):"Hold to play";
   let items,acts;
-  if(rd.open){$("ispStep").textContent=$("rdCount").textContent||"Manual";items=[[pad?["L","R"]:["←","→"],"Turn page"],[pad?["x"]:["Space"],"Next page"],[pad?["o"]:["Esc"],"Put manual back"]];acts=[()=>rdTurn(1),()=>rdTurn(1),closeReader];
+  if(rd.open){$("ispStep").textContent=$("rdCount").textContent||"Manual";
+    /* (beta.12) zoom and one page or two: on the pad L2 / R2 and X, on the keyboard + / - and P; a finger pinches and double taps */
+    const tch=ANDROID&&!pad;items=[[pad?["L","R"]:["←","→"],"Turn page"],[pad?["L2","R2"]:tch?[]:["+","−"],tch?"Pinch or double tap to zoom":rd.z>1?"Zoom · move with "+(pad?"R":"↑ ↓"):"Zoom"],[pad?["sq"]:tch?[]:["P"],rd.one?"Two pages":"One page"],[pad?["o"]:["Esc"],"Put manual back"]];acts=[()=>rdTurn(1),()=>rdStep(1),()=>rdPages(!rd.one),closeReader];
     if(hasManual(curGame())){if(fixOn()){items=[[pad?["tri"]:["W"],"Wrong game: find the right one"],[pad?["sq"]:["R"],"Repair it (cover, pages)"],[pad?["o"]:["Esc"],"Cancel"]];acts=[wrongManual,repairManual,fixCancel]}
       else{items.push([pad?["tri"]:["W"],"Fix manual…"]);acts.push(wrongManual)}}}
   else{items=[[pad?["L","R"]:["←","→"],ispSpins()?"Spin":"Next side"],[pad?["L2","R2"]:["+","−"],"Zoom"],[pad?["tri"]:["F"],"Turn over"],...(isPc?[]:[[pad?["x"]:["Enter"],next]]),[pad?["o"]:["Esc"],isp.state?"Put back":"Close"]];acts=[()=>{ispTurn(90,0,true);ispSnap()},()=>ispZoom(1),()=>ispFlip(),...(isPc?[]:[ispAdvance]),ispBack];
@@ -1903,11 +1951,15 @@ addEventListener("keyup",e=>{if(e.key==="Enter"){holdEnd(false);musHoldEnd(false
 function inspectKey(e){
   const k=e.key;setInput("kbd");let handled=true;
   if(rd.open){
-    if(k==="ArrowRight"||k==="PageDown"||k===" ")rdTurn(1);else if(k==="ArrowLeft"||k==="PageUp")rdTurn(-1);
+    if(e.shiftKey&&rd.z>1&&(k==="ArrowRight"||k==="ArrowLeft"))rdPan(k==="ArrowRight"?-innerWidth*.18:innerWidth*.18,0); /* (beta.12: Shift + ← / → move a zoomed page sideways) */
+    else if(k==="ArrowRight"||k==="PageDown"||k===" ")rdTurn(1);else if(k==="ArrowLeft"||k==="PageUp")rdTurn(-1);
     else if((k==="Escape"||k==="Backspace")&&fixOn()){if(!e.repeat)fixCancel()} // (beta.9: the fix menu first)
     else if((k==="r"||k==="R")&&fixOn()){if(!e.repeat)repairManual()}
     else if(k==="Escape"||k==="Backspace"||k==="Enter"||k==="m"||k==="M"){if(!e.repeat)closeReader()}
-    else if(k==="Home"){rd.i=0;showSpread(true)}else if(k==="w"||k==="W"){if(!e.repeat)wrongManual()}else handled=false;
+    else if(k==="Home"){rd.i=0;showSpread(true)}else if(k==="w"||k==="W"){if(!e.repeat)wrongManual()}
+    else if(k==="+"||k==="="){rdStep(1)}else if(k==="-"||k==="_"){rdStep(-1)}else if(k==="0"){rdReset();showSpread(false);renderIspHints()} /* (beta.12) zoom */
+    else if(k==="ArrowUp"&&rd.z>1)rdPan(0,innerHeight*.18);else if(k==="ArrowDown"&&rd.z>1)rdPan(0,-innerHeight*.18);
+    else if(k==="p"||k==="P"){if(!e.repeat)rdPages(!rd.one)}else handled=false;
     if(handled)e.preventDefault();return;
   }
   if(k==="+"||k==="="||k==="PageUp")ispZoom(1);else if(k==="-"||k==="_"||k==="PageDown")ispZoom(-1);
@@ -1923,9 +1975,26 @@ function inspectKey(e){
 }
 (function(){
   const el=$("inspect");
-  el.addEventListener("pointerdown",e=>{if(mode!=="inspect"||e.target.closest(".isp-hints"))return;if(rd.open){isp.drag={x:e.clientX,y:e.clientY,moved:false};return}if(isp.state===2)holdBegin();isp.drag={x:e.clientX,y:e.clientY,moved:false};el.classList.add("dragging")});
-  addEventListener("pointermove",e=>{if(!isp.drag){if(mode==="inspect"&&window.Inspect3D&&Inspect3D.checkHover)Inspect3D.checkHover(e.clientX,e.clientY);return}const dx=e.clientX-isp.drag.x,dy=e.clientY-isp.drag.y;if(Math.abs(dx)+Math.abs(dy)>4){isp.drag.moved=true;holdEnd(true)}if(isp.tz>1&&e.shiftKey)ispPan(dx,dy);else ispTurn(dx*.22,-dy*.16);isp.drag.x=e.clientX;isp.drag.y=e.clientY});
-  addEventListener("pointerup",e=>{if(!isp.drag)return;const click=!isp.drag.moved;isp.drag=null;el.classList.remove("dragging");if(!click&&!rd.open&&isp.tz<=1)ispSnap();const wasHolding=!!holdT;holdEnd(false);if(click&&mode==="inspect"&&!wasHolding){if(rd.open)rdTurn(e.clientX<innerWidth/2?-1:1);else if(window.Inspect3D&&Inspect3D.hitBooklet&&Inspect3D.hitBooklet(e.clientX,e.clientY))openReader();else ispAdvance()}});
+  el.addEventListener("pointerdown",e=>{if(mode!=="inspect"||e.target.closest(".isp-hints"))return;if(window.BS_PINCH&&BS_PINCH.active())return; /* (beta.12: a second finger is a pinch, not a drag or a tap) */if(rd.open){isp.drag={x:e.clientX,y:e.clientY,moved:false};return}if(isp.state===2)holdBegin();isp.drag={x:e.clientX,y:e.clientY,moved:false};el.classList.add("dragging")});
+  addEventListener("pointermove",e=>{if(!isp.drag){if(mode==="inspect"&&window.Inspect3D&&Inspect3D.checkHover)Inspect3D.checkHover(e.clientX,e.clientY);return}if(window.BS_PINCH&&BS_PINCH.active())return;const dx=e.clientX-isp.drag.x,dy=e.clientY-isp.drag.y;if(Math.abs(dx)+Math.abs(dy)>4){isp.drag.moved=true;holdEnd(true)}if(rd.open){if(rd.z>1){$("rdBook").classList.add("panning");rdPan(dx,dy)}isp.drag.x=e.clientX;isp.drag.y=e.clientY;return} /* (beta.12: a zoomed page follows the finger / mouse) */if(isp.tz>1&&e.shiftKey)ispPan(dx,dy);else ispTurn(dx*.22,-dy*.16);isp.drag.x=e.clientX;isp.drag.y=e.clientY});
+  addEventListener("pointerup",e=>{if(!isp.drag)return;const click=!isp.drag.moved;isp.drag=null;el.classList.remove("dragging");$("rdBook").classList.remove("panning");if(!click&&!rd.open&&isp.tz<=1)ispSnap();const wasHolding=!!holdT;holdEnd(false);if(click&&mode==="inspect"&&!wasHolding){if(rd.open)rdTap(e);else if(window.Inspect3D&&Inspect3D.hitBooklet&&Inspect3D.hitBooklet(e.clientX,e.clientY))openReader();else if(ispTapsManual(e))openReader();else ispAdvance()}});
+  /* (beta.12: Thor, phones, Steam Deck) a finger on the manual in the open case opens it to read; on the disc, or anywhere
+     else, the next step as before (the disc comes out). Only for touch (and on Linux any tap: Steam's Game Mode can turn
+     touches into mouse clicks); a Windows click is unchanged */
+  function ispTapsManual(e){const g=curGame();if(isp.state<1||!g||g.kind!=="rom")return false;
+    const lin=!!((window.bsPlatform&&bsPlatform.os==="linux")||(api.platform&&api.platform.os==="linux"));if(e.pointerType!=="touch"&&!(lin&&e.pointerType==="mouse"))return false;
+    if(window.Inspect3D&&Inspect3D.isActive()&&Inspect3D.hitAt)return Inspect3D.hitAt(e.clientX,e.clientY)==="manual";
+    const el=document.elementFromPoint(e.clientX,e.clientY);return !!(el&&el.closest(".isp-manual")&&!el.closest(".isp-disc"))}
+  /* (beta.12) the reader: a tap at a side turns the page (not zoomed in); a double tap or double click zooms in there, and
+     back out. The single tap waits a moment so a double tap doesn't also turn the page */
+  let tapT=0,tapAt=0,tapX=0,tapY=0;
+  function rdTap(e){const t=performance.now(),x=e.clientX,y=e.clientY;
+    if(e.pointerType==="mouse"){if(rd.z<=1)rdTurn(x<innerWidth/2?-1:1);return} /* (a mouse click turns at once, as before: quick clicks leaf through; the mouse zooms with Ctrl + wheel or + / -) */
+    if(t-tapAt<300&&Math.abs(x-tapX)<40&&Math.abs(y-tapY)<40){clearTimeout(tapT);tapAt=0;if(rd.z>1){rdReset();showSpread(false);renderIspHints()}else{const was=rd.z;rdZoomTo(rdFitW(),x,y);if(was===1&&rd.z>1)rdApply()}play_("tick");return}
+    tapAt=t;tapX=x;tapY=y;clearTimeout(tapT);tapT=setTimeout(()=>{if(rd.open&&rd.z<=1)rdTurn(x<innerWidth/2?-1:1)},260)}
+  el.addEventListener("wheel",e=>{if(mode!=="inspect"||!rd.open)return;e.preventDefault();e.stopPropagation(); /* (the page-wide wheel handler would turn the page a second time) */if(e.ctrlKey){rdZoomTo(rd.z*(e.deltaY<0?1.15:1/1.15),e.clientX,e.clientY);return}if(rd.z>1)rdPan(-e.deltaX,-e.deltaY);else{const t=performance.now(); /* (a touchpad's many small steps add up to a turn, as one mouse notch does) */
+      if(t-(rd.wAt||0)>400||Math.sign(e.deltaY)!==Math.sign(rd.wAcc||0))rd.wAcc=0;rd.wAt=t;rd.wAcc=(rd.wAcc||0)+e.deltaY;
+      if(Math.abs(rd.wAcc)>=40&&t-(rd.wheelAt||0)>350){rd.wheelAt=t;rdTurn(rd.wAcc>0?1:-1);rd.wAcc=0}}},{passive:false});
 })();
 
 // Freeze watch (shelf side): a frame that takes over a quarter second is logged with what was on screen, so a
@@ -3188,7 +3257,17 @@ function libCover(d){if(!libCovers.has(d.id))libCovers.set(d.id,(d.kind==="movie
 const rdr={open:false,item:null,src:null,doc:null,n:0,s:0,zoom:1,px:0,py:0,cache:new Map(),gen:0,dual:true};
 function rdrEl(){let el=document.getElementById("libReader");if(!el){el=document.createElement("div");el.id="libReader";el.className="lib-reader";el.setAttribute("aria-hidden","true");
   el.innerHTML='<div class="lr-top"><div class="lr-title"></div><div class="lr-page"></div></div><div class="lr-stage"><div class="lr-pages"></div><div class="lr-wait">Loading…</div></div><nav class="hints lr-hints"></nav>';
-  el.querySelector(".lr-stage").addEventListener("click",e=>{if(e.target.closest(".lr-hints"))return;rdrTurn(e.clientX<innerWidth/2?-1:1)});
+  /* (beta.12) as the manual reader: a tap at a side turns the page (not zoomed in); a double tap zooms in there and back
+     out; zoomed in, a finger or the mouse drags the page around */
+  {const stg=el.querySelector(".lr-stage");let dr=null,tapT=0,tapAt=0,tx=0,ty=0;
+    /* (a second finger, or the zoom changing while the finger is down, means a pinch: never a tap that turns the page;
+       only the main mouse button counts) */
+    stg.addEventListener("pointerdown",e=>{if(e.button>0||e.target.closest(".lr-hints")||(window.BS_PINCH&&BS_PINCH.active()))return;if(dr&&dr.id!==e.pointerId){dr=null;return}dr={id:e.pointerId,t0:performance.now(),x:e.clientX,y:e.clientY,moved:false}});
+    addEventListener("pointermove",e=>{if(!dr||!rdr.open||(window.BS_PINCH&&BS_PINCH.active()))return;const dx=e.clientX-dr.x,dy=e.clientY-dr.y;if(Math.abs(dx)+Math.abs(dy)>6)dr.moved=true;if(dr.moved&&rdr.zoom>1){rdrPan(-dx,-dy);dr.x=e.clientX;dr.y=e.clientY}});
+    addEventListener("pointerup",e=>{const d=dr;if(d&&e.pointerId!==d.id)return;dr=null;if(!d||d.moved||!rdr.open||e.target.closest(".lr-hints")||(rdr.zAt||0)>d.t0)return;const t=performance.now(),x=e.clientX,y=e.clientY;
+      if(e.pointerType==="mouse"){if(rdr.zoom<=1)rdrTurn(x<innerWidth/2?-1:1);return} /* (a mouse click turns at once, as before) */
+      if(t-tapAt<300&&Math.abs(x-tx)<40&&Math.abs(y-ty)<40){clearTimeout(tapT);tapAt=0;const z=BS_TOUCH.zoom&&BS_TOUCH.zoom();if(z&&z.set){z.set(rdr.zoom>1?1:2);play_("tick")}return}
+      tapAt=t;tx=x;ty=y;clearTimeout(tapT);tapT=setTimeout(()=>{if(rdr.open&&rdr.zoom<=1)rdrTurn(x<innerWidth/2?-1:1)},260)})}
   el.addEventListener("wheel",e=>{e.preventDefault();rdrZoom(e.deltaY<0?1:-1)},{passive:false});
   document.body.appendChild(el)}return el}
 const rdrSpread=s=>!rdr.dual?[s,-1]:s===0?[-1,0]:[2*s-1,2*s<rdr.n?2*s:-1];
@@ -3198,7 +3277,7 @@ async function libOpen(d,insert){
   if(d&&d.kind==="movie"&&!insert){museumWatch(d);return}
   if(rdr.open)return;const el=rdrEl();rdr.open=true;rdr.item=d;rdr.s=0;rdr.zoom=1;rdr.px=rdr.py=0;rdr.n=0;rdr.cache.clear();const gen=++rdr.gen;
   el.querySelector(".lr-title").textContent=d.title+(d.kind==="movie"?" · Insert":d.series?` · ${d.series}`:"");el.querySelector(".lr-page").textContent="";el.querySelector(".lr-pages").innerHTML="";el.querySelector(".lr-wait").textContent="Opening…";el.classList.add("on","waiting");el.setAttribute("aria-hidden","false");
-  rdrHints();play_("flip");Museum.setPaused&&Museum.setPaused(true,"reader");el.classList.remove("has-ph");
+  rdrHints();play_("flip");Museum.setPaused&&Museum.setPaused(true,"reader");el.classList.remove("has-ph");bsCtxSoon();
   // (beta.11) its saved cover shows at once as the first page while the file opens (a big PDF takes a second or two);
   // the real page replaces it (rdrBook writes over .lr-pages)
   if(d.kind!=="movie")libCover(d).then(u=>{if(!u||gen!==rdr.gen||rdr.failed===gen||!el.classList.contains("waiting")||rdr.s>0)return;const box=el.querySelector(".lr-pages");if(box.querySelector(".lr-book"))return;
@@ -3211,7 +3290,7 @@ async function libOpen(d,insert){
     if(!rdr.n)throw new Error("No pages found");
     rdrLayout();rdrShow()}
   catch(e){if(gen!==rdr.gen)return;rdr.failed=gen;el.classList.remove("has-ph");{const bx=el.querySelector(".lr-pages");if(bx&&!bx.querySelector(".lr-book"))bx.textContent=""} /* (beta.11: the stand-in cover goes, so it doesn't look opened) */el.querySelector(".lr-wait").textContent="Couldn't open this one: "+(e&&e.message||e);api.log&&api.log("reader: "+(e&&e.message))}}
-function libClose(){if(!rdr.open)return;rdr.open=false;rdr.gen++;clearTimeout(rdrZoomT);if(rdr.anim)rdr.anim.forEach(x=>{try{x.finish()}catch{}});rdr.turning=false;rdr.queued=null;const el=rdrEl();el.classList.remove("on","waiting","has-ph");el.setAttribute("aria-hidden","true");el.querySelector(".lr-pages").innerHTML="";rdr.cache.forEach(c=>{c.width=c.height=0});rdr.cache.clear();if(rdr.doc){try{rdr.doc.destroy()}catch{}rdr.doc=null}rdr.src=null;Museum.setPaused&&Museum.setPaused(false,"reader");play_("back");renderMusHints()}
+function libClose(){if(!rdr.open)return;rdr.open=false;rdr.gen++;clearTimeout(rdrZoomT);if(rdr.anim)rdr.anim.forEach(x=>{try{x.finish()}catch{}});rdr.turning=false;rdr.queued=null;const el=rdrEl();el.classList.remove("on","waiting","has-ph");el.setAttribute("aria-hidden","true");el.querySelector(".lr-pages").innerHTML="";rdr.cache.forEach(c=>{c.width=c.height=0});rdr.cache.clear();if(rdr.doc){try{rdr.doc.destroy()}catch{}rdr.doc=null}rdr.src=null;Museum.setPaused&&Museum.setPaused(false,"reader");play_("back");renderMusHints();bsCtxSoon()}
 function rdrLayout(){const was=rdrSpread(rdr.s)[0];rdr.dual=innerWidth/innerHeight>1.15;if(rdr.dual){rdr.s=was<=0?0:Math.ceil(was/2)}else rdr.s=Math.max(0,was)}
 // one page drawn at height h (CSS px × devicePixelRatio, capped); kept by "index@height", the last 8 only
 const rdrLoading=new Map();
@@ -4054,7 +4133,12 @@ window.BS_TOUCH=(()=>{let mk=null;
   function zoom(){
     if(mode==="inspect"&&!rd.open)return{min:.88,max:2.6,get:()=>isp.tz,set(z){isp.tz=Math.max(.88,Math.min(2.6,z));if(isp.tz<=.9)isp.tz=.88;isp.last=performance.now()},
       pan:()=>[isp.tpx,isp.tpy],setPan(x,y){const lim=Math.max(0,innerWidth*.35*(isp.tz-1));isp.tpx=Math.max(-lim,Math.min(lim,x));isp.tpy=Math.max(-lim,Math.min(lim,y));isp.last=performance.now()}};
-    if(rdr.open)return{min:1,max:3,get:()=>rdr.zoom,set(z){z=Math.max(1,Math.min(3,z));if(Math.abs(z-rdr.zoom)<.005)return;rdr.zoom=z<1.03?1:z;if(rdr.zoom===1)rdr.px=rdr.py=0;rdrClampPan();rdrApply();clearTimeout(rdrZoomT);rdrZoomT=setTimeout(rdrShow,180)},
+    /* (beta.12) a pinch in the manual reader: pan / setPan count from the screen's centre, as the pinch expects, so the
+       point between the fingers stays under them */
+    if(mode==="inspect"&&rd.open)return{min:1,max:4,get:()=>rd.z,set(z){rdFollow();rdZoomTo(z)},
+      pan(){const c=rdCentre();return [rd.px+c.cx-innerWidth/2,rd.py+c.cy-innerHeight/2]},
+      setPan(x,y){rdFollow();const c=rdCentre();rd.px=x-(c.cx-innerWidth/2);rd.py=y-(c.cy-innerHeight/2);rdClamp();rdApply()}};
+    if(rdr.open)return{min:1,max:3,get:()=>rdr.zoom,set(z){z=Math.max(1,Math.min(3,z));rdr.zAt=performance.now();if(Math.abs(z-rdr.zoom)<.005)return;rdr.zoom=z<1.03?1:z;if(rdr.zoom===1)rdr.px=rdr.py=0;rdrClampPan();rdrApply();clearTimeout(rdrZoomT);rdrZoomT=setTimeout(rdrShow,180)},
       panBy(dx,dy){rdrPan(-dx,-dy)}};
     if(mode==="museum"&&window.Museum&&!musFind.open&&!tvS.guide&&!musRoom.open&&!musFit.open){const h=musHand();
       if(h.reading)return{ratio:1.3,step(d){Museum.readerZoom(d);renderMusHints()},panBy(dx,dy){Museum.readerPan(-dy/innerHeight*1.6)}};
@@ -4080,6 +4164,26 @@ window.BS_TOUCH=(()=>{let mk=null;
         if(p.row!==r.row){Museum.move(0,p.row>r.row?1:-1);return} // a case on another row: go to that row first
         if(p.sel)museumActivate();else if(Museum.pickCol(p.col))bsSelectSoon()}}}
   return{screen,hswipe,mark,cancel,zoom,back,museum}})();
+/* (beta.12) the same pinch on the Steam Deck's screen and Windows / Linux touch screens (the Android build has its own,
+   android-touch.js): two fingers zoom around the point between them and move what's zoomed, in the manual reader, the
+   magazines & guides reader, Inspect and the museum (whatever BS_TOUCH.zoom() says is on screen). Passive listeners,
+   at most one zoom step a frame, nothing at all until a second finger lands */
+if(!ANDROID)(()=>{const pts=new Map();let pz=null,raf=0;
+  const two=()=>{const v=[...pts.values()];return v.length===2?v:null},dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),mid=(a,b)=>[(a.x+b.x)/2,(a.y+b.y)/2];
+  function apply(){raf=0;const p=pz,v=two();if(!p||!v)return;const d=dist(v[0],v[1]),[mx,my]=mid(v[0],v[1]),tz=p.tz,dmx=mx-p.m[0],dmy=my-p.m[1];
+    if(tz.get){const z0=tz.get();tz.set(p.z0*d/p.d0);const r=tz.get()/z0;
+      if(tz.pan){const [px,py]=tz.pan(),cx=innerWidth/2,cy=innerHeight/2;tz.setPan(mx-cx-(p.m[0]-cx-px)*r,my-cy-(p.m[1]-cy-py)*r)}else if(tz.panBy&&(dmx||dmy))tz.panBy(dmx,dmy)}
+    else{while(d/p.ref>=tz.ratio){tz.step(1);p.ref*=tz.ratio}while(d/p.ref<=1/tz.ratio){tz.step(-1);p.ref/=tz.ratio}if(tz.panBy&&(dmx||dmy))tz.panBy(dmx,dmy)}
+    p.m=[mx,my]}
+  addEventListener("pointerdown",e=>{if(e.pointerType!=="touch")return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});const v=two();if(!v||pz)return;
+    const tz=BS_TOUCH.zoom&&BS_TOUCH.zoom();if(!tz)return;try{BS_TOUCH.cancel(true)}catch{} /* (the first finger's drag stops: this is a pinch) */
+    pz={tz,d0:Math.max(1,dist(v[0],v[1])),ref:Math.max(1,dist(v[0],v[1])),m:mid(v[0],v[1]),z0:tz.get?tz.get():1}},{capture:true,passive:true});
+  addEventListener("pointermove",e=>{const q=pts.get(e.pointerId);if(!q)return;q.x=e.clientX;q.y=e.clientY;if(pz&&!raf)raf=requestAnimationFrame(apply)},{capture:true,passive:true});
+  const up=e=>{if(!pts.delete(e.pointerId))return;if(pz&&pts.size<2){pz=null;if(raf){cancelAnimationFrame(raf);raf=0}if(rd.open)setTimeout(()=>{if(rd.open)showSpread(false)},200)}};
+  addEventListener("pointerup",up,{capture:true,passive:true});addEventListener("pointercancel",up,{capture:true,passive:true});
+  /* (a finger whose lift never arrived, the window losing focus mid-touch: forgotten, so one later finger is never taken for two) */
+  const forget=()=>{pts.clear();pz=null};addEventListener("blur",forget);document.addEventListener("visibilitychange",()=>{if(document.hidden)forget()});
+  window.BS_PINCH={active:()=>!!pz}})();
 
 /* ---------- gamepad ---------- */
 const prevBtn={};let held={dir:0,t0:0,tl:0},padSpinActive=false,padName="",quitHoldAt=0,comboCool=0;
@@ -4298,7 +4402,12 @@ function pollBody(t){
       if(padActive)setInput("pad");
       const lx=ax[0]||0,ly=ax[1]||0,rx2=ax[2]||0,ry2=ax[3]||0;
       const sx=Math.abs(rx2)>.15?rx2:Math.abs(lx)>.15?lx:0, sy=Math.abs(ry2)>.15?ry2:Math.abs(ly)>.15?ly:0;
-      if(rd.open){edge(gp,3,()=>wrongManual());edge(gp,4,()=>rdTurn(-1));edge(gp,5,()=>rdTurn(1));edge(gp,14,()=>rdTurn(-1));edge(gp,15,()=>rdTurn(1));const hs=ax[0]>.55?1:ax[0]<-.55?-1:0;if(hs&&!prevBtn.hs)rdTurn(hs);prevBtn.hs=!!hs;/* D-pad via the edges above, stick separately: both fired for one D-pad press and skipped a spread */edge(gp,0,()=>rdTurn(1));edge(gp,1,()=>fixOn()?fixCancel():closeReader());edge(gp,2,()=>fixOn()?repairManual():closeReader()); /* (beta.9: in the fix menu, B leaves it and X repairs) */prevBtn.v=!!v;prevBtn.h=!!h;return}
+      if(rd.open){edge(gp,3,()=>wrongManual());edge(gp,4,()=>rdTurn(-1));edge(gp,5,()=>rdTurn(1));edge(gp,14,()=>rdTurn(-1));edge(gp,15,()=>rdTurn(1));const hs=ax[0]>.55?1:ax[0]<-.55?-1:0;if(hs&&!prevBtn.hs)rdTurn(hs);prevBtn.hs=!!hs;/* D-pad via the edges above, stick separately: both fired for one D-pad press and skipped a spread */edge(gp,0,()=>rdTurn(1));edge(gp,1,()=>fixOn()?fixCancel():closeReader());edge(gp,2,()=>fixOn()?repairManual():rdPages(!rd.one)); /* (beta.9: in the fix menu, B leaves it and X repairs) (beta.12: else X is one page or two) */
+        /* (beta.12) L2 / R2 zoom a step each press; zoomed in, the right stick (or the d-pad / left stick up and down) moves around the page */
+        {const {lt,rt}=trig(gp),zi=rt>.5,zo=lt>.5;if(zi&&!prevBtn.rdZi)rdStep(1);if(zo&&!prevBtn.rdZo)rdStep(-1);prevBtn.rdZi=zi;prevBtn.rdZo=zo;
+          if(rd.z>1){const mx=Math.abs(rx2)>.15?rx2:0,my=Math.abs(ry2)>.15?ry2:Math.abs(ly)>.3?ly:0,dp=(B(12)?-1:0)+(B(13)?1:0),k=18*padF;
+            if(mx||my||dp)rdPan(-mx*Math.abs(mx)*k*1.4,-(my*Math.abs(my)+dp*.6)*k*1.4)}}
+        prevBtn.v=!!v;prevBtn.h=!!h;return}
       const {lt,rt}=trig(gp);if(rt>.08)ispZoom(rt,padF);if(lt>.08)ispZoom(-lt,padF);
       // zoomed in: the left stick pans the view gently, the right stick turns the case; not zoomed: either stick turns it
       if(isp.tz>1){

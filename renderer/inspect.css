@@ -120,7 +120,7 @@ body.reduce-motion .isp-case,body.reduce-motion .isp-lid,body.reduce-motion .isp
 .museum.filling .mus-hud,.museum.filling .mus-hints{opacity:0}
 .mus-hud,.mus-hints{transition:opacity .4s}
 /* manual reader: two-page spread over the inspect scene */
-.reader{position:absolute;inset:0;z-index:4;display:grid;place-items:center;background:rgba(2,3,8,.82);opacity:0;pointer-events:none;transition:opacity .35s}
+.reader{position:absolute;inset:0;z-index:4;display:grid;place-items:center;overflow:hidden;background:rgba(2,3,8,.82);opacity:0;pointer-events:none;transition:opacity .35s}
 .reader.on{opacity:1;pointer-events:auto}
 .rd-book{display:flex;justify-content:center;gap:2px;width:94vw;max-width:94vw;height:76vh;margin-bottom:10vh;perspective:1400px}
 .rd-page{height:100%;width:auto;max-width:46.5vw;min-width:0;flex:0 1 auto;object-fit:contain;background:#f4f2ec;border-radius:3px;box-shadow:0 30px 60px rgba(0,0,0,.5);will-change:transform,opacity}
@@ -128,6 +128,15 @@ body.reduce-motion .isp-case,body.reduce-motion .isp-lid,body.reduce-motion .isp
 .rd-page.flip-in{animation:rdFlip .38s cubic-bezier(.3,.6,.3,1)}
 @keyframes rdFlip{from{opacity:0;transform:rotateY(-18deg) translateX(10px)}to{opacity:1;transform:none}}
 .rd-count{display:none} /* shown in the HUD step line instead, where it can't collide with the hint bar */
+/* (beta.12) the page stays clear of the step line, the title and the hint bar under it; zoom and moving are one
+   transform (no layout), eased; one page at a time on a small screen */
+.inspect.reading .rd-book{height:calc(100vh - 7vh - var(--rd-foot,190px));margin-bottom:var(--rd-foot,190px);margin-top:4vh;transform-origin:50% 50%;transition:transform .18s cubic-bezier(.2,.8,.25,1)}
+.inspect.reading.dragging .rd-book,.rd-book.panning{transition:none}
+.rd-book.one .rd-page{max-width:94vw}
+.reader.zoomed{background:rgba(2,3,8,.94)}
+.inspect.reading .isp-hud{gap:8px}
+.inspect.reading .isp-step{font-size:13px;color:rgba(243,245,251,.78)}
+body.reduce-motion .rd-book{transition:none}
 .inspect.reading .isp-rot{opacity:.2;transition:opacity .4s}
 .isp-hud{z-index:6}
 .isp-hold{position:relative;width:min(320px,70vw);height:28px;border-radius:999px;border:1px solid var(--line);background:rgba(10,12,22,.78);overflow:hidden;opacity:0;transition:opacity .2s;display:grid;place-items:center;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
