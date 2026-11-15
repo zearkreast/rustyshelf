@@ -6,7 +6,7 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
-use bevy::text::{FontSize, LetterSpacing};
+use bevy::text::{FontSize, FontSource, FontWeight, FontWidth, LetterSpacing};
 use rustyshelf_core::{looks, pads};
 use rustyshelf_core::scanner::{Game, Source, Tile};
 
@@ -79,18 +79,23 @@ pub struct Toast {
 #[derive(Resource)]
 pub struct Face(pub Handle<Font>);
 
-/// Lexend, the shelf's font, by weight: 300 to 800.
+/// Mona Sans, the shelf's font: its Latin and Latin Extended files, at any weight.
 #[derive(Resource)]
-pub struct Lexend([Handle<Font>; 6]);
+pub struct MonaSans([Handle<Font>; 2]);
 
-impl Lexend {
+impl MonaSans {
     pub fn font(&self, weight: u32, size: f32) -> TextFont {
         // small light letters on the dark shelf come out heavier here than in the browser: a weight lighter
         let weight = if size < 16.0 { weight.saturating_sub(100).max(300) } else { weight };
-        let mut font = TextFont::from_font_size(FontSize::Px(size)).with_font(self.0[((weight.clamp(300, 800) - 300) / 100) as usize].clone());
-        // the six files are one family: the weight picks the file among them
-        font.weight = bevy::text::FontWeight(weight as u16);
+        let mut font = TextFont::from_font_size(FontSize::Px(size));
+        font.font = FontSource::List(self.0.iter().cloned().map(FontSource::Handle).collect());
+        font.weight = FontWeight(weight.clamp(200, 900) as u16);
         font
+    }
+
+    /// A title, in the font's wide cut.
+    pub fn wide(&self, weight: u32, size: f32) -> TextFont {
+        TextFont { width: FontWidth::EXPANDED, ..self.font(weight, size) }
     }
 }
 
@@ -112,8 +117,8 @@ const FONT: &[u8] = include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf")
 pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
     let face = fonts.add(Font::from_bytes(FONT.to_vec()));
     commands.insert_resource(Face(face.clone()));
-    let lexend = Lexend([300, 400, 500, 600, 700, 800].map(|w| fonts.add(Font::from_bytes(rustyshelf_core::drawn::lexend(w).to_vec()))));
-    let text = |line: Line, weight: u32, size: f32, color: Color, spacing: f32| (line, Text::default(), lexend.font(weight, size), TextColor(color), LetterSpacing::Px(spacing * size));
+    let mona = MonaSans(rustyshelf_core::drawn::mona_sans().map(|file| fonts.add(Font::from_bytes(file.to_vec()))));
+    let text = |line: Line, weight: u32, size: f32, color: Color, spacing: f32| (line, Text::default(), mona.font(weight, size), TextColor(color), LetterSpacing::Px(spacing * size));
     commands.spawn((
         Node { position_type: PositionType::Absolute, width: percent(100), height: percent(100), ..default() },
         Pickable::IGNORE,
@@ -194,7 +199,7 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
             ),
         ],
     ));
-    commands.insert_resource(lexend);
+    commands.insert_resource(mona);
 }
 
 pub fn size(bytes: u64) -> String {
@@ -305,7 +310,7 @@ pub fn update(
     prompts: Res<Prompts>,
     surprise: Res<crate::play::Surprise>,
     cheevos: Res<crate::cheevos::Cheevos>,
-    lexend: Res<Lexend>,
+    mona: Res<MonaSans>,
     face: Res<Face>,
     mut lines: Query<(&mut Text, &mut TextFont, &Line)>,
     mut info: Query<(&mut Node, &mut Visibility), (With<Info>, Without<NoticePill>)>,
@@ -379,7 +384,7 @@ pub fn update(
         };
         if text.0 != *want {
             text.0 = want.clone();
-            // Lexend has the Latin letters only: a line with anything else is set in the font with more
+            // Mona Sans has the Latin letters only: a line with anything else is set in the font with more
             let (weight, size) = match line {
                 Line::Title => (500, 38.0),
                 Line::Meta => (400, 13.0),
@@ -389,7 +394,7 @@ pub fn update(
             if weight > 0 {
                 let latin = want.chars().all(|c| (c as u32) < 0x250 || matches!(c, '·' | '…' | '–' | '—' | '‘' | '’' | '“' | '”' | '★'));
                 let shown = font.font_size;
-                *font = if latin { lexend.font(weight, size) } else { TextFont::default().with_font(face.0.clone()) };
+                *font = if !latin { TextFont::default().with_font(face.0.clone()) } else if matches!(line, Line::Title) { mona.wide(weight, size) } else { mona.font(weight, size) };
                 font.font_size = if matches!(line, Line::Notice) { FontSize::Px(size) } else { shown };
             }
         }
@@ -424,7 +429,7 @@ pub fn top(
     lib: Res<LibraryRes>,
     cursor: Res<Cursor>,
     stage: Res<Stage>,
-    lexend: Res<Lexend>,
+    mona: Res<MonaSans>,
     mut images: ResMut<Assets<Image>>,
     mut word: Query<(&mut ImageNode, &mut Node), With<Word>>,
     lit: Res<crate::shelf::Lit>,
@@ -461,7 +466,7 @@ pub fn top(
         if let Ok((bar, ..)) = tabs.single() {
             commands.entity(bar).despawn_related::<Children>().with_children(|b| {
                 for (i, name) in names.iter().enumerate() {
-                    b.spawn((Tab(i), Node { padding: UiRect::axes(px(14), px(6)), border_radius: BorderRadius::MAX, flex_shrink: 0.0, ..default() }, BackgroundColor(Color::NONE), children![(Text::new(name.clone()), lexend.font(500, 12.0), TextColor(INK_DIM))]));
+                    b.spawn((Tab(i), Node { padding: UiRect::axes(px(14), px(6)), border_radius: BorderRadius::MAX, flex_shrink: 0.0, ..default() }, BackgroundColor(Color::NONE), children![(Text::new(name.clone()), mona.font(500, 12.0), TextColor(INK_DIM))]));
                 }
             });
         }
@@ -513,7 +518,7 @@ pub fn hints(
     mut commands: Commands,
     lib: Res<LibraryRes>,
     mut settings: ResMut<crate::settings::Settings>,
-    lexend: Res<Lexend>,
+    mona: Res<MonaSans>,
     face: Res<Face>,
     keys: Res<ButtonInput<KeyCode>>,
     gamepads: Query<(Entity, &Gamepad, Option<&Name>)>,
@@ -562,8 +567,8 @@ pub fn hints(
     }
     *shown = Some(now);
     let list: Vec<(Vec<&str>, &str)> = if prompts.pad { PAD_KEYS.iter().map(|(caps, label)| (caps.iter().map(|c| settings.cap(c)).collect(), *label)).collect() } else { KEYS.iter().map(|(caps, label)| (caps.to_vec(), *label)).collect() };
-    // the arrows and the heart aren't in Lexend
-    let font = |text: &str, weight: u32, size: f32| if text.is_ascii() { lexend.font(weight, size) } else { TextFont::from_font_size(FontSize::Px(size)).with_font(face.0.clone()) };
+    // the arrows and the heart aren't in Mona Sans
+    let font = |text: &str, weight: u32, size: f32| if text.is_ascii() { mona.font(weight, size) } else { TextFont::from_font_size(FontSize::Px(size)).with_font(face.0.clone()) };
     commands.entity(bar).despawn_related::<Children>().with_children(|b| {
         for (caps, label) in &list {
             b.spawn(Node { padding: UiRect::axes(px(10), px(5)), column_gap: px(7), align_items: AlignItems::Center, ..default() }).with_children(|hint| {

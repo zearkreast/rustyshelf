@@ -11,7 +11,7 @@ use std::sync::Mutex;
 
 use bevy::prelude::*;
 
-use crate::hud::Lexend;
+use crate::hud::MonaSans;
 use crate::loading::to_image;
 use crate::settings::Settings;
 use crate::shelf::Stage;
@@ -202,7 +202,7 @@ pub enum Part {
     Book,
 }
 
-pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::Face>) {
+pub fn setup(mut commands: Commands, mona: Res<MonaSans>, face: Res<crate::hud::Face>) {
     let page = |part: Part| {
         (
             part,
@@ -221,8 +221,8 @@ pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::
         children![
             (Part::Book, UiTransform::default(), Node { column_gap: px(2), justify_content: JustifyContent::Center, ..default() }, children![page(Part::Left), page(Part::Right)]),
             // (over the page when it's zoomed: on a dark pill, as the Electron app's hint bar)
-            (Part::Count, Node { margin: UiRect::top(vh(3)), padding: UiRect::axes(px(10), px(3)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::srgba(0.04, 0.05, 0.09, 0.78)), Text::default(), lexend.font(500, 15.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.8))),
-            // (Lexend has no arrows: the keys are set in the font with more)
+            (Part::Count, Node { margin: UiRect::top(vh(3)), padding: UiRect::axes(px(10), px(3)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::srgba(0.04, 0.05, 0.09, 0.78)), Text::default(), mona.font(500, 15.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.8))),
+            // (Mona Sans has no arrows: the keys are set in the font with more)
             (Part::Keys, Node { margin: UiRect::top(px(8)), padding: UiRect::axes(px(12), px(5)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::srgba(0.04, 0.05, 0.09, 0.78)), Text::default(), TextFont::from_font_size(bevy::text::FontSize::Px(12.0)).with_font(face.0.clone()), TextColor(Color::srgb(0.588, 0.596, 0.627))),
         ],
     ));

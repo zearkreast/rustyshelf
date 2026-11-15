@@ -827,16 +827,10 @@ pub fn lettered(text: &str, lettering: &crate::looks::Lettering, size: f32, fill
 /// The room a wordmark's picture keeps round its letters, in the letters' own pixels.
 pub const WORD_ROOM: f32 = 24.0;
 
-/// Lexend's font file at a weight (300 to 800), for what's written over the shelf.
-pub fn lexend(weight: u32) -> &'static [u8] {
-    match weight {
-        ..=349 => include_bytes!("../assets/fonts/Lexend-Light.ttf"),
-        350..=449 => include_bytes!("../assets/fonts/Lexend-Regular.ttf"),
-        450..=549 => include_bytes!("../assets/fonts/Lexend-Medium.ttf"),
-        550..=649 => include_bytes!("../assets/fonts/Lexend-SemiBold.ttf"),
-        650..=749 => include_bytes!("../assets/fonts/Lexend-Bold.ttf"),
-        _ => include_bytes!("../assets/fonts/Lexend-ExtraBold.ttf"),
-    }
+/// Mona Sans, the interface font: one variable file (weights 200-900, widths 75%-125%) for Latin, one for Latin
+/// Extended.
+pub fn mona_sans() -> [&'static [u8]; 2] {
+    [include_bytes!("../assets/fonts/MonaSans-Latin.ttf"), include_bytes!("../assets/fonts/MonaSans-LatinExt.ttf")]
 }
 
 // ---------- a made back (ported from renderer/img-tools.js back) ----------

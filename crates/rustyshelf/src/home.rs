@@ -14,7 +14,7 @@ use bevy::ui::{UiTransform, Val2};
 use rustyshelf_core::homemenu::{self, Info, Keys, Menu, Out};
 use rustyshelf_core::systems::systems;
 
-use crate::hud::{Lexend, Toast};
+use crate::hud::{MonaSans, Toast};
 use crate::loading::{to_image, LibraryRes, LibraryState};
 use crate::padwatch;
 use crate::play::Playing;
@@ -418,7 +418,7 @@ pub fn draw(
     mut commands: Commands,
     time: Res<Time>,
     stage: Res<Stage>,
-    lexend: Res<Lexend>,
+    mona: Res<MonaSans>,
     face: Option<Res<crate::hud::Face>>,
     settings: Res<Settings>,
     mut home: ResMut<Home>,
@@ -459,10 +459,10 @@ pub fn draw(
     }
     if let Some(menu) = home.menu.as_ref().filter(|_| std::mem::take(&mut home.fresh)) {
         let (title, line) = menu.heading(home.game.as_ref().map_or(0.0, |g| g.started), wall_ms());
-        // Lexend has the Latin letters only: arrows and a pad's own signs are set in the font with more
+        // Mona Sans has the Latin letters only: arrows and a pad's own signs are set in the font with more
         let font = |words: &str, weight: u32, size: f32| match &face {
             Some(face) if words.chars().any(|c| c >= '\u{2190}') => TextFont::from_font_size(bevy::text::FontSize::Px(size)).with_font(face.0.clone()),
-            _ => lexend.font(weight, size),
+            _ => mona.font(weight, size),
         };
         let text = |words: &str, weight: u32, size: f32, color: Color| (Text::new(words), font(words, weight, size), TextColor(color));
         let spaced = |words: &str, weight: u32, size: f32, color: Color, spacing: f32| (Text::new(words), font(words, weight, size), TextColor(color), LetterSpacing::Px(spacing * size));

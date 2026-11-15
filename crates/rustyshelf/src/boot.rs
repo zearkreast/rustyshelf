@@ -8,7 +8,7 @@ use bevy::text::{FontSize, LetterSpacing};
 use bevy::ui::{UiTransform, Val2};
 use rustyshelf_core::looks;
 
-use crate::hud::Lexend;
+use crate::hud::MonaSans;
 use crate::loading::to_image;
 use crate::shelf::{bezier, Stage};
 
@@ -50,8 +50,8 @@ pub enum Part {
     Fill,
 }
 
-pub fn setup(mut commands: Commands, lexend: Res<Lexend>) {
-    let text = |part: Part, weight: u32, size: f32, spacing: f32| (part, Text::default(), lexend.font(weight, size), TextColor(Color::WHITE), LetterSpacing::Px(spacing * size));
+pub fn setup(mut commands: Commands, mona: Res<MonaSans>) {
+    let text = |part: Part, weight: u32, size: f32, spacing: f32| (part, Text::default(), mona.font(weight, size), TextColor(Color::WHITE), LetterSpacing::Px(spacing * size));
     commands.spawn((
         Part::Whole,
         Node { position_type: PositionType::Absolute, width: percent(100), height: percent(100), align_items: AlignItems::Center, justify_content: JustifyContent::Center, padding: UiRect::horizontal(vw(8)), ..default() },
@@ -67,7 +67,7 @@ pub fn setup(mut commands: Commands, lexend: Res<Lexend>) {
                 children![
                     (Node { margin: UiRect::bottom(px(18)), ..default() }, text(Part::Booting, 600, 12.0, 0.32)),
                     (Part::Name, Node::default(), ImageNode::default()),
-                    (Node { margin: UiRect::top(px(26)), ..default() }, text(Part::Title, 700, 40.0, -0.01)),
+                    (Node { margin: UiRect::top(px(26)), ..default() }, (Part::Title, Text::default(), mona.wide(700, 40.0), TextColor(Color::WHITE), LetterSpacing::Px(-0.4))),
                     (Node { margin: UiRect::top(px(10)), ..default() }, text(Part::Emulator, 500, 14.0, 0.0)),
                     (
                         Part::Bar,
