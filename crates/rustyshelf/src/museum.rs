@@ -22,8 +22,8 @@ const ROW: f32 = 1.34;
 const DEPTH: f32 = 0.8;
 const PLANK: f32 = 0.055;
 const GAP: f32 = 0.012;
-/// how far the chosen case comes out of its row
-const PULL: f32 = 0.45;
+/// how far the chosen case comes out of its row, for its width (and then its thickness)
+const PULL: f32 = 0.62;
 /// how long View / Minus is held on the shelf to open the museum, in seconds
 const HOLD: f32 = 0.55;
 /// rows around the one in view whose spines are painted (a big library's every spine would fill the graphics card)
@@ -51,6 +51,9 @@ pub struct Case {
     row: usize,
     col: usize,
     home: Vec3,
+    /// its width (front to back on the shelf) and thickness: how far it comes out
+    w: f32,
+    d: f32,
 }
 
 struct Row {
@@ -104,7 +107,8 @@ impl Museum {
         let x = r.xs.get(self.col).copied().unwrap_or(0.0);
         let (at, turn) = self.walls[r.wall];
         let to_room = |p: Vec3| at + Quat::from_rotation_y(turn) * p;
-        (to_room(Vec3::new(x, r.y + 0.1, 3.3)), to_room(Vec3::new(x, r.y - 0.08, 0.0)))
+        // (as renderer/museum.js rowView: a little left of the case, the row's height, 3.7 out)
+        (to_room(Vec3::new(x - 0.2, r.y + 0.02, 3.7)), to_room(Vec3::new(x - 0.2, r.y - 0.03, 0.0)))
     }
 
     fn room_title(&self) -> Option<&str> {
@@ -223,12 +227,13 @@ fn build(
             let w = ch * look.ratio;
             let d = (w * look.depth).max(0.045);
             x += d / 2.0;
-            let home = Vec3::new(x, y - (1.0 - ch) / 2.0, DEPTH / 2.0 - w / 2.0);
+            // standing against the back of the shelf
+            let home = Vec3::new(x, y - (1.0 - ch) / 2.0, -DEPTH / 2.0 + w / 2.0 + 0.02);
             let case = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.42, ..default() });
             let spine = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.36, ..default() });
             let front = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.42, ..default() });
             commands
-                .spawn((Case { row: ri, col, home }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), ChildOf(parent)))
+                .spawn((Case { row: ri, col, home, w, d }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), ChildOf(parent)))
                 .with_children(|c| {
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(d * 0.96, ch * 0.98))), MeshMaterial3d(spine.clone()), Transform::from_xyz(0.0, 0.0, w / 2.0 + 0.001)));
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.96, ch * 0.98))), MeshMaterial3d(front.clone()), Transform::from_xyz(d / 2.0 + 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))));
@@ -304,6 +309,7 @@ pub fn setup(mut commands: Commands, mut museum: ResMut<Museum>) {
     museum.camera = Some(commands.spawn((
         MuseumCamera,
         Camera3d::default(),
+        Projection::Perspective(PerspectiveProjection { fov: 36f32.to_radians(), near: 0.05, far: 900.0, ..default() }),
         Camera { order: 2, is_active: false, clear_color: ClearColorConfig::Custom(Color::srgb(0.02, 0.02, 0.03)), ..default() },
         AmbientLight { color: Color::srgb(0.8, 0.82, 1.0), brightness: 260.0, ..default() },
         layer(),
@@ -491,11 +497,12 @@ pub fn run(
     let dt = time.delta_secs();
     let settle = now - m.moved_at > 0.15;
     m.pull = if settle { (m.pull + dt * 3.0).min(1.0) } else { (m.pull - dt * 6.0).max(0.0) };
+    // (renderer/museum.js: out over the first 62 %, turning to face you over the last 45 %)
     for (c, mut t) in &mut cases {
-        let on = c.row == m.row && c.col == m.col;
-        let k = if on { ease(m.pull) } else { 0.0 };
-        t.translation = c.home + Vec3::new(0.0, 0.0, PULL * k);
-        t.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2 * k);
+        let k = if c.row == m.row && c.col == m.col { m.pull } else { 0.0 };
+        let (out, face) = (ease((k / 0.62).min(1.0)), ease(((k - 0.55) / 0.45).clamp(0.0, 1.0)));
+        t.translation = c.home + Vec3::new(0.0, out * 0.06, out * (c.w * PULL + c.d));
+        t.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2 * face);
     }
     let (eye, look) = m.view();
     let f = 1.0 - (-dt * 5.0).exp();
