@@ -73,7 +73,7 @@ fn read_frame(pipe: &mut dyn Pipe) -> Option<Value> {
 
 enum Msg {
     Configure { enabled: bool, app_id: String },
-    Game { title: String, shelf: String },
+    Game { title: String, shelf: String, image: String },
     Clear,
 }
 
@@ -141,11 +141,9 @@ impl Worker {
                     self.connect();
                 }
             }
-            Msg::Game { title, shelf } if self.on => {
-                let title = if title.is_empty() { "a game".to_string() } else { js::slice(&title, 120).to_string() };
-                let shelf = if shelf.is_empty() { "RustyShelf".to_string() } else { js::slice(&shelf, 120).to_string() };
+            Msg::Game { title, shelf, image } if self.on => {
                 let start = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
-                self.want = Some(json!({ "details": format!("Playing {title}"), "state": shelf, "timestamps": { "start": start }, "instance": false }));
+                self.want = Some(activity(&title, &shelf, &image, start));
                 if self.pipe.is_some() {
                     self.flush();
                 } else {
@@ -159,6 +157,23 @@ impl Worker {
             Msg::Game { .. } | Msg::Clear => {}
         }
     }
+}
+
+/// RustyShelf's icon, where Discord can fetch it: the picture when there's no cover, and the small one beside a cover.
+const ICON: &str = "https://raw.githubusercontent.com/zearkreast/rustyshelf/rustyshelf/renderer/app-icon.png";
+
+/// What Discord shows: the game's title, the shelf (or store) it's from, the time it began, and `image` (an https
+/// address) its cover. Keep in sync with main/presence.js setGame.
+fn activity(title: &str, shelf: &str, image: &str, start: u64) -> Value {
+    let title = if title.is_empty() { "a game" } else { js::slice(title, 120) };
+    let shelf = if shelf.is_empty() { "RustyShelf" } else { js::slice(shelf, 120) };
+    let good = image.starts_with("https://") && !image.contains(char::is_whitespace) && image.encode_utf16().count() <= 256;
+    let assets = if good {
+        json!({ "large_image": image, "large_text": title, "small_image": ICON, "small_text": "RustyShelf" })
+    } else {
+        json!({ "large_image": ICON, "large_text": "RustyShelf" })
+    };
+    json!({ "type": 0, "details": title, "state": shelf, "timestamps": { "start": start }, "assets": assets, "instance": false })
 }
 
 /// What's shown on Discord, kept on a thread of its own: the socket never makes a frame wait.
@@ -198,8 +213,8 @@ impl Presence {
     }
 
     /// A game started: "Playing <title>" with the shelf's name and the time it began.
-    pub fn set_game(&self, title: &str, shelf: &str) {
-        let _ = self.0.send(Msg::Game { title: title.to_string(), shelf: shelf.to_string() });
+    pub fn set_game(&self, title: &str, shelf: &str, image: Option<&str>) {
+        let _ = self.0.send(Msg::Game { title: title.to_string(), shelf: shelf.to_string(), image: image.unwrap_or("").to_string() });
     }
 
     /// The game closed: nothing shown.
@@ -233,9 +248,9 @@ mod tests {
         let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
         let p = Presence::at(vec![tmp.path().join("nothing").to_string_lossy().into_owned(), path.to_string_lossy().into_owned()]);
         // off: nothing is said
-        p.set_game("Zeta Run", "GameCube");
+        p.set_game("Zeta Run", "GameCube", None);
         p.configure(true, "id 12345");
-        p.set_game("Zeta Run", "GameCube");
+        p.set_game("Zeta Run", "GameCube", Some("https://images.example/zeta.png"));
         p.clear();
         let (mut s, _) = listener.accept().unwrap();
         let hello = read_frame(&mut s).unwrap();
@@ -245,7 +260,8 @@ mod tests {
         assert_eq!(set["cmd"], "SET_ACTIVITY");
         assert_eq!(set["args"]["pid"], std::process::id());
         let a = &set["args"]["activity"];
-        assert_eq!((a["details"].as_str(), a["state"].as_str(), a["instance"].as_bool()), (Some("Playing Zeta Run"), Some("GameCube"), Some(false)));
+        assert_eq!((a["details"].as_str(), a["state"].as_str(), a["instance"].as_bool()), (Some("Zeta Run"), Some("GameCube"), Some(false)));
+        assert_eq!((a["assets"]["large_image"].as_str(), a["assets"]["small_image"].as_str()), (Some("https://images.example/zeta.png"), Some(ICON)));
         assert!(a["timestamps"]["start"].as_u64().unwrap() > 1_700_000_000);
         s.write_all(&frame(FRAME, &json!({ "evt": null }))).unwrap();
         let cleared = read_frame(&mut s).unwrap();

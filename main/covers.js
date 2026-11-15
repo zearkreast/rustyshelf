@@ -898,7 +898,7 @@ function gameInfoRaw(sysId, title) {
   const { overview, release, year, dev, pub, genres, esrb, players, coop, rating, wiki, video } = g;
   const imgs = (infoIdx && infoIdx.images && infoIdx.images[g.id]) || [];
   const urls = re => imgs.filter(x => re.test(x.type)).map(x => 'https://images.launchbox-app.com/' + x.file);
-  return { overview, release, year, dev, pub, genres, esrb, players, coop, rating: rating ? Math.round(+rating * 10) / 10 : undefined, wiki, video, name: g.name, shots: urls(/^Screenshot - Gameplay/).concat(urls(/^Screenshot - (Game Title|Game Select)/)).slice(0, 8), bg: urls(/^Fanart - Background/)[0] || null, logo: urls(/^Clear Logo$/)[0] || null };
+  return { overview, release, year, dev, pub, genres, esrb, players, coop, rating: rating ? Math.round(+rating * 10) / 10 : undefined, wiki, video, name: g.name, shots: urls(/^Screenshot - Gameplay/).concat(urls(/^Screenshot - (Game Title|Game Select)/)).slice(0, 8), bg: urls(/^Fanart - Background/)[0] || null, logo: urls(/^Clear Logo$/)[0] || null, front: urls(/^Box - Front$/)[0] || null };
 }
 function hasInfo() { return idxStamp() > 0; } // cheap: never parses the index just to answer this
 

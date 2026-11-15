@@ -121,7 +121,8 @@
      "https://images.launchbox-app.com/s/title 1.jpg"
     ],
     "bg": "https://images.launchbox-app.com/bg/1.jpg",
-    "logo": "https://images.launchbox-app.com/logo/1.png"
+    "logo": "https://images.launchbox-app.com/logo/1.png",
+    "front": "https://images.launchbox-app.com/f/1.jpg"
    }
   ],
   [
@@ -147,7 +148,8 @@
      "https://images.launchbox-app.com/s/title 1.jpg"
     ],
     "bg": "https://images.launchbox-app.com/bg/1.jpg",
-    "logo": "https://images.launchbox-app.com/logo/1.png"
+    "logo": "https://images.launchbox-app.com/logo/1.png",
+    "front": "https://images.launchbox-app.com/f/1.jpg"
    }
   ],
   [
@@ -173,7 +175,8 @@
      "https://images.launchbox-app.com/s/title 1.jpg"
     ],
     "bg": "https://images.launchbox-app.com/bg/1.jpg",
-    "logo": "https://images.launchbox-app.com/logo/1.png"
+    "logo": "https://images.launchbox-app.com/logo/1.png",
+    "front": "https://images.launchbox-app.com/f/1.jpg"
    }
   ],
   [
@@ -185,7 +188,8 @@
     "name": "Omega Quest: The Tale",
     "shots": [],
     "bg": null,
-    "logo": null
+    "logo": null,
+    "front": null
    }
   ],
   [
@@ -197,7 +201,8 @@
     "name": "Omega Quest: The Tale",
     "shots": [],
     "bg": null,
-    "logo": null
+    "logo": null,
+    "front": null
    }
   ],
   [
@@ -208,7 +213,8 @@
     "name": "Tau Racers Deluxe",
     "shots": [],
     "bg": null,
-    "logo": null
+    "logo": null,
+    "front": null
    }
   ],
   [
@@ -219,7 +225,8 @@
     "name": "Sigma",
     "shots": [],
     "bg": null,
-    "logo": null
+    "logo": null,
+    "front": null
    }
   ],
   [
@@ -265,7 +272,8 @@
      "https://images.launchbox-app.com/s/title 1.jpg"
     ],
     "bg": "https://images.launchbox-app.com/bg/1.jpg",
-    "logo": "https://images.launchbox-app.com/logo/1.png"
+    "logo": "https://images.launchbox-app.com/logo/1.png",
+    "front": "https://images.launchbox-app.com/f/1.jpg"
    }
   ]
  ]

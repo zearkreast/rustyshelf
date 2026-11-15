@@ -845,7 +845,7 @@ homemenu.init({ padwatch, log, getWin: () => (alive() ? win : null), getUi: () =
     if (alive()) { win.webContents.send('shelf:menu', { open: false, action }); bringBack(); }
   } });
 // (beta.12) Seamless play (main/seamless.js): what it uses from here. Off (Settings → Display), nothing of it runs.
-seamless.init({ cfg: () => cfg, log, platform: process.platform, runningName: () => launcher.runningName(),
+seamless.init({ cfg: () => cfg, log, platform: process.platform, runningName: () => launcher.runningName(), presence: g => { try { presence.setGame(g.title, g.systemName, g.image); } catch {} },
   saveUi: patch => { cfg = persistCfg(config.normalize({ ...cfg, ui: { ...cfg.ui, ...patch } })); },
   busyCheck: () => busyCheck(), setLaunching: v => { launching = !!v; }, taskbarHide: () => taskbarHide(), taskbarShow: why => taskbarShow(why),
   beginRun: () => { runKind = 'watch'; pendingPower = null; }, onExit: info => onExit(info), launcher,
@@ -1813,7 +1813,7 @@ const ALT_ARGS = [[/desmume/i, '"{rom}"'], [/visualboyadvance|vbam/i, '"{rom}"']
   lastLaunch = { systemId, at: Date.now(), exe: sc.emulator }; historyStart(systemId + ':' + file); // (exe: the build that ran, named if it closes right away)
   const def = CONSOLES.find(c => c.id === systemId);
   if (cfg.ui.homeMenu !== false) homemenu.begin({ systemId, exe: sc.emulator, systemName: def ? def.name : systemId, hotkeys: sc.hotkeys });
-  try { presence.setGame(require('./main/scanner').cleanTitle(String(file)).title, def ? def.name : systemId); } catch {} // (Discord: "Playing …")
+  try { presence.setGame(require('./main/scanner').cleanTitle(String(file)).title, def ? def.name : systemId, gameImageOf(systemId, file)); } catch {} // (Discord: "Playing …")
   const base = ipl ? (sc.iplCoverSeconds ?? 2.5) : (+sc.coverSeconds || 0);
   // the loading screen now lifts the moment the game's window is up and fullscreen; the per-console seconds (plus a
   // margin for slow starts) are only the latest it waits
@@ -1854,7 +1854,7 @@ async function launchViaRocket(systemId, file, sc) {
   lastLaunch = { systemId, at: Date.now(), exe }; historyStart(systemId + ':' + file);
   const def = CONSOLES.find(c => c.id === systemId);
   if (cfg.ui.homeMenu !== false) homemenu.begin({ systemId, exe, systemName: def ? def.name : systemId, hotkeys: {} });
-  try { presence.setGame(require('./main/scanner').cleanTitle(String(file)).title, def ? def.name : systemId); } catch {}
+  try { presence.setGame(require('./main/scanner').cleanTitle(String(file)).title, def ? def.name : systemId, gameImageOf(systemId, file)); } catch {}
   watchPad({ appPid: r.pid, home: true });
   return { ...r, cover: coverWhileStarting(1) };
 }
@@ -1870,6 +1870,9 @@ handle('rocket:systems', async ({ exe } = {}) => {
 });
 // (busy check first: a .cia still installing, or a game running, must not have its emulator's settings rewritten under it)
 const busyCheck = () => { if (launching || launcher.isRunning()) throw new Error(launcher.busyMessage()); }; // (beta.10: names what's running)
+// a game's cover where Discord can fetch it (an https address from its LaunchBox info, or its Steam store header)
+function gameImageOf(systemId, file) { try { const s = (lastLib || []).find(x => x.id === systemId), lo = String(file).toLowerCase(), g = s && (s.games || []).find(x => String(x.file || '').toLowerCase() === lo); const i = g && g.info; return (i && (i.front || i.header)) || ''; } catch { return ''; } }
+const steamImageOf = sid => { const i = sid && steamart.gameInfo(sid); return (i && (i.header || (i.shots || [])[0])) || ''; };
 // (beta.10) a game's title for that message: the shelf's (the last scan), else its file or folder name, never a path
 function gameTitleOf(systemId, file) { try { const s = (lastLib || []).find(x => x.id === systemId), lo = String(file).toLowerCase(), g = s && (s.games || []).find(x => String(x.file || '').toLowerCase() === lo); if (g && g.title) return String(g.title); } catch {}
   const f = String(file || ''), b = path.basename(f); return /^(main|.+\.rpx)$/i.test(b) ? path.basename(path.dirname(path.dirname(f))) : /^(eboot\.bin|default\.xex)$/i.test(b) ? path.basename(path.dirname(f)) : path.basename(b, path.extname(b)); } // (a Wii U code\x.rpx, a Switch 2 exefs\main: the game's folder)
@@ -1971,7 +1974,7 @@ handle('romm:forget', async () => { await romm.forget().catch(() => {}); rommLib
 // (beta.12) Seamless play on: the Steam game is watched (main/seamless.js: the loading cover, Home menu, playtime and the
 // return to the shelf); off: handed to Steam as before
 handle('launch:steam', ({ appid }) => {
-  if (seamless.on() && /^\d{1,10}$/.test(String(appid))) return seamless.launchWatched({ kind: 'steam', id: 'steam-' + appid, appid: String(appid), dir: gamewatch.steamInstallDir([steamMain, cfg.steam.path], appid), title: pcTitleOf('steam-' + appid, 'Steam game'), systemName: 'Steam', start: () => launcher.launchSteam(appid) });
+  if (seamless.on() && /^\d{1,10}$/.test(String(appid))) return seamless.launchWatched({ kind: 'steam', id: 'steam-' + appid, appid: String(appid), dir: gamewatch.steamInstallDir([steamMain, cfg.steam.path], appid), title: pcTitleOf('steam-' + appid, 'Steam game'), systemName: 'Steam', image: steamImageOf(String(appid)), start: () => launcher.launchSteam(appid) });
   return launcher.launchSteam(appid);
 });
 // (beta.12) a PC game's title from the last scan (for the log and the Home menu; never a path)
@@ -1987,7 +1990,7 @@ handle('launch:pc', async ({ id }) => {
   if (linux.isLinux && (g.source === 'epic' || g.source === 'folder' || linuxpc.isWindowsProgram(g.exe))) return launchLinuxPc(g);
   // (upstream beta.12) Seamless play on (Windows): a store game (Epic, Ubisoft, EA, Xbox) is still started through its store, and watched
   if (seamless.on() && ((g.uri && /^(com\.epicgames\.launcher|uplay|origin2):\/\//i.test(g.uri)) || (g.shellApp && /^[\w.-]+_[a-z0-9]+![\w.-]+$/i.test(g.shellApp))))
-    return seamless.launchWatched({ kind: g.source, id: g.id, dir: g.dir || '', exe: g.exe || '', title: g.title, systemName: STORE_NAME[g.source] || 'PC',
+    return seamless.launchWatched({ kind: g.source, id: g.id, dir: g.dir || '', exe: g.exe || '', title: g.title, systemName: STORE_NAME[g.source] || 'PC', image: steamImageOf(pcgames.steamIdOf(g.title)),
       start: () => { if (g.uri) return shell.openExternal(g.uri); const p = spawn('explorer.exe', ['shell:AppsFolder\\' + g.shellApp], { detached: true, stdio: 'ignore' }); p.on('error', e => log('Xbox launch', e.message)); p.unref(); } });
   // through its store's launcher (Epic, and from beta.7 Ubisoft Connect and the EA app: their sign-in, cloud saves, overlay)
   if (g.uri && /^(com\.epicgames\.launcher|uplay|origin2):\/\//i.test(g.uri)) { busyCheck(); log('PC launch:', g.source, g.title); return shell.openExternal(g.uri).then(() => ({ external: true })); }
@@ -2001,6 +2004,7 @@ handle('launch:pc', async ({ id }) => {
   let r; try { r = launcher.launchApp(g.exe, onExit, launcher.buildArgs(g.args || '', '')); } catch (e) { taskbarShow('the game did not start'); throw e; } runKind = 'app'; pendingPower = null; launcher.setRunningName(g.title); log('PC launch:', g.source, g.title);
   const onCon = g.shelf && CONSOLES.find(c => c.id === g.shelf); // (supalii) put on a console's shelf: the Home menu names that console
   if (cfg.ui.homeMenu !== false) homemenu.begin({ systemId: onCon ? onCon.id : 'pc', exe: g.exe, systemName: onCon ? onCon.name : g.shelf === 'pc' ? 'PC' : PC_SYSTEM[g.source] || 'Custom', title: g.title, hotkeys: {} });
+  try { presence.setGame(g.title, onCon ? onCon.name : g.shelf === 'pc' || !g.shelf ? 'PC' : PC_SYSTEM[g.source] || 'Custom', steamImageOf(STORE_SRC.has(g.source) && pcgames.steamIdOf(g.title))); } catch {}
   if (winMode === 'borderless') windowmode.borderless(r.pid, g.dir || path.dirname(g.exe), log); // (its frame off, over the screen, while it runs)
   log('PC launch window mode:', winMode || 'the game\'s own');
   if (seamless.on()) historyTrack(g.id); // (upstream beta.12, Seamless play: its playtime too)

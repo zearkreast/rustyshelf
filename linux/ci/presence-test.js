@@ -1,6 +1,7 @@
 // RustyShelf's Discord Rich Presence (main/presence.js): against a fake Discord socket on this machine (a made-up
 // XDG_RUNTIME_DIR). Run: node linux/ci/presence-test.js
-//   - on, with an id: the handshake (v 1, the id) is sent, then "Playing <title>" with the shelf's name and a start time
+//   - on, with an id: the handshake (v 1, the id) is sent, then the title with the shelf's name, a start time and
+//     RustyShelf's icon (no cover given)
 //   - a game closing clears it (activity null)
 //   - off, or no id: nothing is sent at all
 'use strict';
@@ -21,7 +22,7 @@ fake.listen(sockPath, async () => {
     await new Promise(r => setTimeout(r, 900));
     const hs = got.find(f => f.op === 0), act = got.filter(f => f.msg && f.msg.cmd === 'SET_ACTIVITY').pop();
     check('the handshake carries the application id (v 1)', !!hs && hs.msg.v === 1 && hs.msg.client_id === '123456789012345678', JSON.stringify(hs));
-    check('"Playing <title>" with the shelf\'s name and a start time', !!act && act.msg.args.activity.details === 'Playing Super Mario Sunshine' && act.msg.args.activity.state === 'GameCube' && typeof act.msg.args.activity.timestamps.start === 'number', JSON.stringify(act));
+    check('the title with the shelf\'s name, a start time and RustyShelf\'s icon', !!act && act.msg.args.activity.details === 'Super Mario Sunshine' && act.msg.args.activity.state === 'GameCube' && typeof act.msg.args.activity.timestamps.start === 'number' && /app-icon\.png$/.test(act.msg.args.activity.assets.large_image), JSON.stringify(act));
     presence.clear(); await new Promise(r => setTimeout(r, 400));
     const last = got.filter(f => f.msg && f.msg.cmd === 'SET_ACTIVITY').pop();
     check('a game closing clears it (activity null)', last && last.msg.args.activity === null, JSON.stringify(last));

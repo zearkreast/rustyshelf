@@ -61,7 +61,7 @@ function recentlyMissed(id) { try { return Date.now() - fs.statSync(missFile(id)
 // Store info in the same shape as the LaunchBox info the console shelves get, plus metacritic
 function gameInfo(appid) {
   const d = info[appid]; if (!d || !d.ok) return null;
-  return { overview: d.overview, release: d.release, year: d.year, dev: d.dev, pub: d.pub, genres: d.genres, metacritic: d.metacritic, shots: d.shots || [], bg: d.bg || null, name: d.name, about: d.about };
+  return { overview: d.overview, release: d.release, year: d.year, dev: d.dev, pub: d.pub, genres: d.genres, metacritic: d.metacritic, shots: d.shots || [], bg: d.bg || null, name: d.name, about: d.about, header: d.header || null };
 }
 const plain = h => String(h || '').replace(/<\/(p|li|h\d|ul|ol)>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
 async function fetchInfo(appid) {
@@ -77,7 +77,7 @@ async function fetchInfo(appid) {
       genres: (d.genres || []).map(g => g.description).join('; ') || undefined,
       metacritic: d.metacritic && d.metacritic.score || undefined,
       overview: String(d.short_description || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").slice(0, 1200) || undefined,
-      about: plain(d.about_the_game).slice(0, 2000) || undefined, v: 2,
+      about: plain(d.about_the_game).slice(0, 2000) || undefined, v: 2, header: /^https:\/\//.test(d.header_image || '') ? d.header_image : undefined,
       shots: (d.screenshots || []).slice(0, 8).map(s => s.path_full).filter(u => /^https:\/\//.test(u)), bg: /^https:\/\//.test(d.background_raw || '') ? d.background_raw : null };
   } catch (e) { log('steam info', appid, e.message); }
 }

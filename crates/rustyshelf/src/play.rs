@@ -71,8 +71,11 @@ pub struct Playing {
     app: bool,
     /// started through RocketLauncher: closed through its emulator, and its log read when it ends
     rocket: Option<std::time::SystemTime>,
-    /// a console game as Discord is told of it: its title from its file, its console's name
-    shown: Option<(String, String)>,
+    /// a game as Discord is told of it: a console game's title from its file and its console's name; a PC game's
+    /// title and its shelf or store
+    shown: Option<(String, String, Option<String>)>,
+    /// `shown` is still to be told to Discord: a PC game once it's started, a store's game once it shows up
+    tell: bool,
     /// a game Steam or a store started, watched until it ends
     watched: Option<Watched>,
     /// keeps a PC game's window borderless while it runs
@@ -178,6 +181,13 @@ impl Playing {
         self.combo = combo;
         self.watched = Some(Watched::start(spec, store));
     }
+}
+
+/// A game's cover where Discord can fetch it: LaunchBox's front cover, or its Steam store header (a screenshot for
+/// store info from before the header was kept).
+fn image_of(g: &rustyshelf_core::scanner::Game) -> Option<String> {
+    let i = g.info.as_ref()?;
+    i.front.clone().or_else(|| i.header.clone()).or_else(|| if matches!(g.source, Source::Rom) { None } else { i.shots.first().cloned() })
 }
 
 /// Starts a console's emulator without a game (Settings → Emulator & advanced); the shelf waits for it as for a game.
@@ -424,6 +434,7 @@ pub fn navigate(
             Ok(()) if l.config.seamless() => {
                 let spec = Spec { kind: "steam".into(), appid: appid.clone(), dir: g.file.to_string_lossy().into_owned(), exe: String::new(), title: g.title.clone() };
                 playing.watching(&g.title, &g.id, combo, spec, "Steam");
+                playing.shown = Some((g.title.clone(), "Steam".into(), image_of(g)));
             }
             Ok(()) => {
                 plays.0.touch(&g.id);
@@ -441,6 +452,7 @@ pub fn navigate(
             Ok(Some(child)) => {
                 plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
+                (playing.shown, playing.tell) = (Some((g.title.clone(), if own.id == "pc" { "PC".to_string() } else { own.name.clone() }, image_of(g))), true);
                 playing.combo = combo;
                 if settings.window_mode(&g.id) == "borderless" {
                     let dir = if pc.dir.is_empty() { rustyshelf_core::js::dirname(&pc.exe) } else { pc.dir.clone() };
@@ -451,6 +463,7 @@ pub fn navigate(
             Ok(None) if l.config.seamless() => {
                 let spec = Spec { kind: pc.source.to_string(), appid: String::new(), dir: pc.dir.clone(), exe: pc.exe.clone(), title: g.title.clone() };
                 playing.watching(&g.title, &g.id, combo, spec, crate::hud::store_name(pc.source));
+                playing.shown = Some((g.title.clone(), crate::hud::store_name(pc.source).into(), image_of(g)));
             }
             // its store starts it and looks after it
             Ok(None) => {
@@ -483,7 +496,7 @@ pub fn navigate(
             playing.title = Some(g.title.clone());
             playing.id = g.id.clone();
             let file = g.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, own.name.clone()));
+            playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, own.name.clone(), image_of(g)));
             playing.combo = combo;
             playing.starting = Some(Mutex::new(rx));
             sounds.play_later("boot", now, 0.7);
@@ -526,6 +539,11 @@ pub fn watch_game(
         let (on, id) = settings.discord();
         discord.0.configure(on, &id);
     }
+    if std::mem::take(&mut playing.tell) {
+        if let Some((title, shelf, image)) = &playing.shown {
+            discord.0.set_game(title, shelf, image.as_deref());
+        }
+    }
     let title = playing.title.clone().unwrap_or_default();
     let now = time.elapsed_secs();
     if playing.watch.as_mut().is_some_and(|w| w.home(&pads, time.elapsed().as_millis() as u64)) {
@@ -551,6 +569,8 @@ pub fn watch_game(
             match e {
                 Event::Started { pid, exe, .. } => {
                     info!("Watching {title} (process {pid}, {exe})");
+                    let image = p.shown.as_ref().and_then(|s| s.2.clone());
+                    discord.0.set_game(&title, w.store, image.as_deref());
                     w.waiting = false;
                     plays.0.start(&p.id);
                     p.watch = Some(Watch::start(p.combo.as_deref(), pid));
@@ -575,6 +595,7 @@ pub fn watch_game(
             }
         }
         if over {
+            discord.0.clear();
             *playing = Playing::default();
             again.0 = true;
         } else if p.closing.is_none() && (p.watch.as_mut().is_some_and(|x| x.quit(&pads, time.elapsed().as_millis() as u64)) | std::mem::take(&mut p.close_asked)) {
@@ -595,8 +616,8 @@ pub fn watch_game(
                 settings.set_pending(list);
             }
             plays.0.start(&playing.id);
-            if let Some((title, shelf)) = &playing.shown {
-                discord.0.set_game(title, shelf);
+            if let Some((title, shelf, image)) = &playing.shown {
+                discord.0.set_game(title, shelf, image.as_deref());
             }
             playing.starting = None;
             playing.running(child);

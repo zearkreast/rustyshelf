@@ -176,6 +176,9 @@ fn fetch_info(appid: &str) -> Option<Value> {
         e.insert("about".into(), json!(js::slice(&about, 2000)));
     }
     e.insert("v".into(), json!(2));
+    if let Some(h) = js::str_of(d.get("header_image")).filter(|u| u.starts_with("https://")) {
+        e.insert("header".into(), json!(h));
+    }
     e.insert("shots".into(), Value::Array(shots));
     e.insert("bg".into(), js::str_of(d.get("background_raw")).filter(|u| u.starts_with("https://")).map_or(Value::Null, Value::from));
     Some(Value::Object(e))

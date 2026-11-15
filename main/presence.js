@@ -69,11 +69,15 @@ function configure({ enabled, appId, logger } = {}) {
   if (!on) { if (retryT) { clearTimeout(retryT); retryT = null; } if (sock) { try { flush(); sock.destroy(); } catch {} sock = null; ready = false; } want = null; }
   else if (want) connect();
 }
-// A game started: "Playing <title>" with the shelf's name and the time it began
-function setGame(title, shelf) {
+// RustyShelf's icon, where Discord can fetch it: the picture when there's no cover, and the small one beside a cover
+const ICON = 'https://raw.githubusercontent.com/zearkreast/rustyshelf/rustyshelf/renderer/app-icon.png';
+// A game started: its title, the shelf (or store) it's from and the time it began; `image` (an https address) is its
+// cover. Keep in sync with crates/rustyshelf-core/src/presence.rs activity
+function setGame(title, shelf, image) {
   if (!on) return;
-  send({ details: `Playing ${String(title || 'a game').slice(0, 120)}`, state: String(shelf || 'RustyShelf').slice(0, 120),
-    timestamps: { start: Math.floor(Date.now() / 1000) }, instance: false });
+  const t = String(title || 'a game').slice(0, 120), img = /^https:\/\/\S+$/.test(String(image || '')) && String(image).length <= 256 ? String(image) : '';
+  send({ type: 0, details: t, state: String(shelf || 'RustyShelf').slice(0, 120), timestamps: { start: Math.floor(Date.now() / 1000) },
+    assets: img ? { large_image: img, large_text: t, small_image: ICON, small_text: 'RustyShelf' } : { large_image: ICON, large_text: 'RustyShelf' }, instance: false });
 }
 // The game closed (or the shelf is back): nothing shown
 function clear() { if (!on) return; want = null; if (sock && ready) flush(); }

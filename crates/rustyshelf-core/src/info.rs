@@ -60,6 +60,12 @@ pub struct Info {
     pub bg: Option<String>,
     #[serde(default)]
     pub logo: Option<String>,
+    /// LaunchBox's front cover
+    #[serde(default)]
+    pub front: Option<String>,
+    /// Steam's store header
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub header: Option<String>,
 }
 
 impl Info {
@@ -152,6 +158,8 @@ fn from_shard(shard: &ShardFile, title: &str) -> Option<Info> {
         shots,
         bg: image_urls(shard, &g.id, &|t| t.starts_with("Fanart - Background")).into_iter().next(),
         logo: image_urls(shard, &g.id, &|t| t == "Clear Logo").into_iter().next(),
+        front: image_urls(shard, &g.id, &|t| t == "Box - Front").into_iter().next(),
+        header: None,
     })
 }
 

@@ -115,6 +115,7 @@ async function launchWatched(g) {
   w.on('started', (pid, info) => {
     if (!run.isCurrent()) return;
     run.setPid(pid); mark('process started');
+    if (c.presence) c.presence(g);
     if (info && info.exe) c.homeMeta({ exe: info.exe });
     if (pid) { c.watchPad({ appPid: pid, home: true }); c.coverAgain(); } // (its window: the cover lifts when it's up fullscreen; gone: the black cover at once. A new helper starts with the cover down: told again)
     c.historyTrack(g.id);
