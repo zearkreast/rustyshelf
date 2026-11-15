@@ -1,7 +1,8 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the manual reader
 // of Boxshelf's renderer/app.js (openReader, showSpread, rdTurn) and renderer/inspect.css, as RustyShelf has them.
 //! The manual reader: a game's manual pages (the pictures beside its box art) as an open booklet. The first
-//! page is the cover on its own; after that the pages come in pairs.
+//! page is the cover on its own; after that the pages come in pairs. On a small screen one page at a time, and a
+//! zoom that steps to the page's full width and closer, with the zoomed page moved around.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -20,6 +21,9 @@ use crate::sound::Sounds;
 const TALLEST: u32 = 1600;
 /// pages kept ready at most
 const KEPT: usize = 24;
+/// how close a zoomed page's edges come to the screen's, in pixels; the room kept under it for the keys
+const EDGE: f32 = 24.0;
+const FOOT: f32 = 110.0;
 
 type Decoded = (PathBuf, Option<(u32, u32, Vec<u8>)>);
 
@@ -30,6 +34,15 @@ pub struct Reader {
     at: usize,
     open: bool,
     fresh: bool,
+    /// one page at a time (a small screen, or P / X)
+    one: bool,
+    /// the zoom, 1 for the whole page, and how far the zoomed page is moved, in pixels
+    z: f32,
+    pan: Vec2,
+    /// the page each manual was left at this session, by its first page
+    left_at: HashMap<PathBuf, usize>,
+    /// how big the pages in view are drawn unzoomed, in pixels
+    base: Vec2,
     /// each page's picture and its width over its height; None for one that couldn't be read
     ready: HashMap<PathBuf, Option<(Handle<Image>, f32)>>,
     asked: HashSet<PathBuf>,
@@ -53,7 +66,7 @@ impl Default for Reader {
                 }
             }
         });
-        Reader { pages: Vec::new(), at: 0, open: false, fresh: false, ready: HashMap::new(), asked: HashSet::new(), ask, read: Mutex::new(read) }
+        Reader { pages: Vec::new(), at: 0, open: false, fresh: false, one: false, z: 1.0, pan: Vec2::ZERO, left_at: HashMap::new(), base: Vec2::ZERO, ready: HashMap::new(), asked: HashSet::new(), ask, read: Mutex::new(read) }
     }
 }
 
@@ -64,31 +77,106 @@ impl Reader {
 
     /// Puts the manual away, as backing out of it does.
     pub fn close(&mut self) {
-        (self.open, self.fresh) = (false, true);
+        self.keep();
+        (self.open, self.fresh, self.z, self.pan) = (false, true, 1.0, Vec2::ZERO);
+    }
+
+    fn keep(&mut self) {
+        if let Some(first) = self.pages.first() {
+            self.left_at.insert(first.clone(), self.at);
+        }
     }
 
     /// The page on the left and the one on the right, as the booklet lies open.
     fn spread(&self) -> (Option<&PathBuf>, Option<&PathBuf>) {
-        if self.at == 0 { (None, self.pages.first()) } else { (self.pages.get(self.at), self.pages.get(self.at + 1)) }
+        if self.one {
+            (None, self.pages.get(self.at))
+        } else if self.at == 0 {
+            (None, self.pages.first())
+        } else {
+            (self.pages.get(self.at), self.pages.get(self.at + 1))
+        }
     }
 
     fn count(&self) -> String {
         let n = self.pages.len();
         match self.at {
             0 => format!("Cover · {n} pages"),
+            at if self.one => format!("Page {} of {n}", at + 1),
             at if at + 1 < n => format!("Pages {}–{} of {n}", at + 1, at + 2),
             at => format!("Pages {} of {n}", at + 1),
         }
     }
 
-    /// Turns a spread on (1) or back (-1); false at the last page.
+    /// Turns a page (one at a time) or a spread on (1) or back (-1); false at the last page.
     fn turn(&mut self, by: i32) -> bool {
-        let to = if self.at == 0 { by.max(0) } else { (self.at as i32 + by * 2).max(0) };
+        let to = if self.one { self.at as i32 + by } else if self.at == 0 { by.max(0) } else { self.at as i32 + by * 2 }.max(0);
         if to as usize >= self.pages.len() {
             return false;
         }
         (self.at, self.fresh) = (to as usize, true);
+        self.keep();
+        if self.z > 1.0 {
+            self.top();
+        }
         true
+    }
+
+    /// One page at a time or two; the page being read stays in view.
+    fn pages_at_once(&mut self, one: bool) {
+        if one == self.one {
+            return;
+        }
+        self.one = one;
+        if !one && self.at > 0 && self.at.is_multiple_of(2) {
+            self.at -= 1;
+        }
+        (self.z, self.pan, self.fresh) = (1.0, Vec2::ZERO, true);
+    }
+
+    /// The zoom that makes the pages in view as wide as the screen.
+    fn fit_width(&self, screen: Vec2) -> f32 {
+        if self.base.x <= 0.0 {
+            return 1.6;
+        }
+        let f = screen.x * 0.96 / self.base.x;
+        if f < 1.25 { 1.6 } else { f.min(4.0) }
+    }
+
+    /// A step of zoom in (1) or out (-1): the whole page, the page's width, then closer. False when there's none.
+    fn step(&mut self, by: i32, screen: Vec2) -> bool {
+        let fit = self.fit_width(screen);
+        let steps = [1.0, fit, (fit * 1.6).min(4.0)];
+        let to = if by > 0 { steps.iter().find(|s| **s > self.z + 0.02) } else { steps.iter().rev().find(|s| **s < self.z - 0.02) };
+        let Some(&to) = to else { return false };
+        let was = self.z;
+        self.z = to;
+        if to <= 1.0 {
+            self.pan = Vec2::ZERO;
+        } else if was <= 1.0 {
+            self.top();
+        }
+        self.clamp(screen);
+        self.fresh = true;
+        true
+    }
+
+    /// The top of the page in view, as a page is read.
+    fn top(&mut self) {
+        self.pan = Vec2::new(0.0, f32::MAX);
+    }
+
+    /// Keeps a zoomed page's edges within reach: never further in than EDGE from the screen's edges, its foot above
+    /// the keys.
+    fn clamp(&mut self, screen: Vec2) {
+        if self.z <= 1.0 {
+            self.pan = Vec2::ZERO;
+            return;
+        }
+        let size = self.base * self.z;
+        let room_x = ((size.x - screen.x) / 2.0 + EDGE).max(0.0);
+        let room_y = ((size.y - (screen.y - FOOT)) / 2.0 + EDGE).max(0.0);
+        self.pan = Vec2::new(self.pan.x.clamp(-room_x, room_x), self.pan.y.clamp(-room_y, room_y));
     }
 }
 
@@ -99,6 +187,8 @@ pub enum Part {
     Right,
     Count,
     Keys,
+    /// the pages together: zoomed and moved as one
+    Book,
 }
 
 pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::Face>) {
@@ -118,10 +208,11 @@ pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::
         GlobalZIndex(44),
         Visibility::Hidden,
         children![
-            (Node { column_gap: px(2), justify_content: JustifyContent::Center, ..default() }, children![page(Part::Left), page(Part::Right)]),
-            (Part::Count, Node { margin: UiRect::top(vh(3)), ..default() }, Text::default(), lexend.font(500, 15.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.8))),
+            (Part::Book, UiTransform::default(), Node { column_gap: px(2), justify_content: JustifyContent::Center, ..default() }, children![page(Part::Left), page(Part::Right)]),
+            // (over the page when it's zoomed: on a dark pill, as the Electron app's hint bar)
+            (Part::Count, Node { margin: UiRect::top(vh(3)), padding: UiRect::axes(px(10), px(3)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::srgba(0.04, 0.05, 0.09, 0.78)), Text::default(), lexend.font(500, 15.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.8))),
             // (Lexend has no arrows: the keys are set in the font with more)
-            (Part::Keys, Node { margin: UiRect::top(px(10)), ..default() }, Text::default(), TextFont::from_font_size(bevy::text::FontSize::Px(12.0)).with_font(face.0.clone()), TextColor(Color::srgb(0.588, 0.596, 0.627))),
+            (Part::Keys, Node { margin: UiRect::top(px(8)), padding: UiRect::axes(px(12), px(5)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::srgba(0.04, 0.05, 0.09, 0.78)), Text::default(), TextFont::from_font_size(bevy::text::FontSize::Px(12.0)).with_font(face.0.clone()), TextColor(Color::srgb(0.588, 0.596, 0.627))),
         ],
     ));
 }
@@ -129,6 +220,8 @@ pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::
 /// Opens the manual Details asked for, turns its pages and lays them out.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn run(
+    time: Res<Time>,
+    mut wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     keys: Res<ButtonInput<KeyCode>>,
     pads: Query<&Gamepad>,
     stage: Res<Stage>,
@@ -136,12 +229,15 @@ pub fn run(
     mut sounds: ResMut<Sounds>,
     mut reader: ResMut<Reader>,
     mut images: ResMut<Assets<Image>>,
-    mut parts: Query<(&Part, &mut Node, &mut Visibility, Option<&mut Text>, Option<&Children>)>,
+    mut parts: Query<(&Part, &mut Node, &mut Visibility, Option<&mut Text>, Option<&Children>, Option<&mut UiTransform>)>,
     mut pictures: Query<(&mut Node, &mut ImageNode), Without<Part>>,
 ) {
     let reader = &mut *reader;
     if let Some(pages) = settings.manual.take().filter(|p| !p.is_empty()) {
-        (reader.pages, reader.at, reader.open, reader.fresh) = (pages, 0, true, true);
+        let back_at = pages.first().and_then(|f| reader.left_at.get(f)).copied().filter(|&at| at < pages.len()).unwrap_or(0);
+        reader.one = stage.h <= 820.0 || stage.w < 1000.0;
+        let back_at = if reader.one || !back_at.is_multiple_of(2) || back_at == 0 { back_at } else { back_at - 1 };
+        (reader.pages, reader.at, reader.open, reader.fresh, reader.z, reader.pan) = (pages, back_at, true, true, 1.0, Vec2::ZERO);
         reader.ready.clear();
         reader.asked.clear();
         sounds.play("open", 1);
@@ -156,8 +252,45 @@ pub fn run(
             (reader.at, reader.fresh) = (0, true);
             sounds.play("page", -1);
         }
+        let screen = Vec2::new(stage.w, stage.h);
+        let zoom = (keys.just_pressed(KeyCode::Equal) || keys.just_pressed(KeyCode::NumpadAdd) || pad(GamepadButton::RightTrigger2)) as i32
+            - (keys.just_pressed(KeyCode::Minus) || keys.just_pressed(KeyCode::NumpadSubtract) || pad(GamepadButton::LeftTrigger2)) as i32;
+        if zoom != 0 {
+            let stepped = reader.step(zoom, screen);
+            sounds.play(if stepped { "tick" } else { "error" }, zoom);
+        }
+        if keys.just_pressed(KeyCode::Digit0) || keys.just_pressed(KeyCode::Numpad0) {
+            (reader.z, reader.pan, reader.fresh) = (1.0, Vec2::ZERO, true);
+        }
+        if keys.just_pressed(KeyCode::KeyP) || pad(GamepadButton::West) {
+            let one = !reader.one;
+            reader.pages_at_once(one);
+            sounds.play("tick", 1);
+        }
+        // zoomed in, the arrows up and down, the d-pad's, the mouse wheel or the right stick move around the page
+        if reader.z > 1.0 {
+            let dt = time.delta_secs();
+            let mut by = Vec2::ZERO;
+            by.y += (keys.pressed(KeyCode::ArrowUp) as i32 - keys.pressed(KeyCode::ArrowDown) as i32) as f32 * 900.0 * dt;
+            for p in &pads {
+                let (r, d) = (p.right_stick(), p.dpad());
+                let r = Vec2::new(if r.x.abs() > 0.15 { r.x } else { 0.0 }, if r.y.abs() > 0.15 { r.y } else { 0.0 });
+                by += Vec2::new(-r.x * r.x.abs(), r.y * r.y.abs() + d.y * 0.6) * 1100.0 * dt;
+            }
+            for w in wheel.read() {
+                let px = if w.unit == bevy::input::mouse::MouseScrollUnit::Line { 60.0 } else { 1.0 };
+                by += Vec2::new(w.x, w.y) * px;
+            }
+            if by != Vec2::ZERO {
+                reader.pan += by;
+                reader.clamp(screen);
+                reader.fresh = true;
+            }
+        } else {
+            wheel.clear();
+        }
         if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1) {
-            (reader.open, reader.fresh) = (false, true);
+            reader.close();
             sounds.play("back", 1);
         }
         settings.keys_taken = true;
@@ -189,8 +322,15 @@ pub fn run(
     }
     let (left, right) = reader.spread();
     let (left, right) = (left.and_then(|p| reader.ready.get(p)).cloned().flatten(), right.and_then(|p| reader.ready.get(p)).cloned().flatten());
-    let (tall, widest) = (stage.h * 0.76, stage.w * 0.465);
-    for (part, mut node, mut seen, text, children) in &mut parts {
+    let (tall, widest) = (stage.h * 0.76, stage.w * if reader.one { 0.94 } else { 0.465 });
+    let wide_of = |page: &Option<(Handle<Image>, f32)>| page.as_ref().map_or(0.0, |(_, shape)| (tall * shape).min(widest));
+    let shown = [&left, &right].iter().filter(|p| p.is_some()).count();
+    reader.base = Vec2::new(wide_of(&left) + wide_of(&right) + if shown > 1 { 2.0 } else { 0.0 }, tall);
+    if reader.pan.y == f32::MAX {
+        reader.pan.y = ((reader.base.y * reader.z - (stage.h - FOOT)) / 2.0 + EDGE).max(0.0);
+    }
+    reader.clamp(Vec2::new(stage.w, stage.h));
+    for (part, mut node, mut seen, text, children, moved) in &mut parts {
         match part {
             Part::Whole => {
                 seen.set_if_neq(if reader.open { Visibility::Inherited } else { Visibility::Hidden });
@@ -202,7 +342,14 @@ pub fn run(
             }
             Part::Keys => {
                 if let Some(mut text) = text {
-                    text.0 = format!("◀ ▶  Turn the page      Home  Cover      Esc · {}  Back", settings.cap("o"));
+                    let zoom = if reader.z > 1.0 { "+ −  Zoom · move with ▲ ▼" } else { "+ −  Zoom" };
+                    let pages = if reader.one { "P  Two pages" } else { "P  One page" };
+                    text.0 = format!("◀ ▶  Turn the page      {zoom}      {pages}      Home  Cover      Esc · {}  Back", settings.cap("o"));
+                }
+            }
+            Part::Book => {
+                if let Some(mut t) = moved {
+                    *t = UiTransform { translation: Val2::px(reader.pan.x, reader.pan.y), scale: Vec2::splat(reader.z), ..default() };
                 }
             }
             Part::Left | Part::Right => {
@@ -239,5 +386,27 @@ mod tests {
         assert!(!r.turn(1));
         assert!(r.turn(-1) && r.turn(-1) && r.turn(-1));
         assert_eq!(r.at, 0);
+    }
+
+    #[test]
+    fn one_page_at_a_time_and_zoom_steps() {
+        let mut r = Reader { pages: (1..=6).map(|n| PathBuf::from(format!("p{n}"))).collect(), one: true, base: Vec2::new(500.0, 700.0), ..Reader::default() };
+        assert!(r.turn(1) && r.turn(1));
+        assert_eq!((r.at, r.count()), (2, "Page 3 of 6".into()));
+        // to two pages: the page being read is the spread's right
+        r.pages_at_once(false);
+        assert_eq!((r.at, r.count()), (1, "Pages 2–3 of 6".into()));
+        let screen = Vec2::new(1280.0, 720.0);
+        assert!(r.step(1, screen));
+        assert!((r.z - 1280.0 * 0.96 / 500.0).abs() < 1e-3);
+        assert!(r.step(1, screen) && !r.step(1, screen));
+        let z = 1280.0 * 0.96 / 500.0 * 1.6;
+        assert!((r.z - z).abs() < 1e-3);
+        r.pan = Vec2::new(1e6, -1e6);
+        r.clamp(screen);
+        let room = Vec2::new((500.0 * r.z - 1280.0) / 2.0 + EDGE, -((700.0 * r.z - (720.0 - FOOT)) / 2.0 + EDGE));
+        assert!((r.pan - room).length() < 1e-2, "{:?} {room:?}", r.pan);
+        assert!(r.step(-1, screen) && r.step(-1, screen) && !r.step(-1, screen));
+        assert_eq!((r.z, r.pan), (1.0, Vec2::ZERO));
     }
 }
