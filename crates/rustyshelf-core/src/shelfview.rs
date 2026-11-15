@@ -171,7 +171,18 @@ static TAG_SPLIT: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|
 /// first, then the favourites by title), All (every game by title, when the settings ask for it) and your
 /// collections (each one's games in the order they were added). They keep their own order whatever the shelves'
 /// order and filter are; hidden games aren't on them. Home is there once it has a game, a collection too.
+// From sassiestrhihno's 1.82.0-beta.14 source (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the
+// automatic shelves and the shelves that fill themselves are ported from renderer/app.js (autoBuilt, autoRuleGames).
+/// The automatic shelves, as `ui.autoShelves` switches them on: each its key, name and words under it.
+pub const AUTO_SHELVES: [(&str, &str, &str); 5] = [("recent", "Recently played", "Your last games"), ("most", "Most played", "By play time"), ("playing", "Playing", "Your status"), ("finished", "Finished", "Your status"), ("never", "Never played", "Not started yet")];
+
+/// The shelves made of games from every console: Home, All, the automatic ones switched on and your collections.
+/// `status` is each game's Status from Details (`games.<id>.status`), by id.
 pub fn mixed_shelves(shelves: &[Shelf], ui: Option<&Value>, history: &History) -> Vec<Shelf> {
+    mixed_shelves_with(shelves, ui, history, &|_| String::new())
+}
+
+pub fn mixed_shelves_with(shelves: &[Shelf], ui: Option<&Value>, history: &History, status: &dyn Fn(&str) -> String) -> Vec<Shelf> {
     let view = View::from_ui(ui);
     let all: Vec<(&Game, &str)> = shelves.iter().filter(|s| !matches!(s.kind, ShelfKind::Mixed)).flat_map(|s| s.games.iter().map(move |g| (g, s.id.as_str()))).filter(|(g, _)| !view.hidden.contains(&g.id)).collect();
     let mixed = |id: String, name: String, games: Vec<(&Game, &str)>| Shelf { id, name, kind: ShelfKind::Mixed, from: games.iter().map(|(_, s)| s.to_string()).collect(), games: games.into_iter().map(|(g, _)| g.clone()).collect() };
@@ -203,8 +214,87 @@ pub fn mixed_shelves(shelves: &[Shelf], ui: Option<&Value>, history: &History) -
     let mut seen = HashSet::new();
     let mut by_title: Vec<(&Game, &str)> = all.iter().copied().filter(|(g, _)| seen.insert(g.id.as_str())).collect();
     by_title.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
+    // the automatic shelves switched on, after Home
+    let autos = ui.and_then(|u| u.get("autoShelves"));
+    let auto_on = |k: &str| autos.and_then(|a| a.get(k)) == Some(&Value::Bool(true));
+    let mut unique: Vec<(&Game, &str)> = by_id.values().copied().collect();
+    unique.sort_by(|a, b| crate::collate::compare(&a.0.title, &b.0.title).then_with(|| a.0.id.cmp(&b.0.id)));
+    let plays = |g: &Game| played(g, history);
+    let (last, ms, count) = (|g: &Game| plays(g).map_or(0, |p| p.last), |g: &Game| plays(g).map_or(0, |p| p.ms), |g: &Game| plays(g).map_or(0, |p| p.count));
+    for (k, name, _) in AUTO_SHELVES {
+        if !auto_on(k) {
+            continue;
+        }
+        let mut games: Vec<(&Game, &str)> = match k {
+            "recent" => unique.iter().copied().filter(|(g, _)| count(g) > 0 && last(g) > 0).collect(),
+            "most" => unique.iter().copied().filter(|(g, _)| ms(g) > 0).collect(),
+            "playing" | "finished" => unique.iter().copied().filter(|(g, _)| status(&g.id) == k).collect(),
+            _ => unique.iter().copied().filter(|(g, _)| count(g) == 0).collect(),
+        };
+        match k {
+            "recent" => {
+                games.sort_by_key(|(g, _)| std::cmp::Reverse(last(g)));
+                games.truncate(30);
+            }
+            "most" => {
+                games.sort_by(|a, b| ms(b.0).cmp(&ms(a.0)).then(count(b.0).cmp(&count(a.0))));
+                games.truncate(30);
+            }
+            "playing" => games.sort_by_key(|(g, _)| std::cmp::Reverse(last(g))),
+            "never" => games.truncate(60),
+            _ => {}
+        }
+        if !games.is_empty() {
+            out.push(mixed(format!("auto-{k}"), name.into(), games));
+        }
+    }
+    // By genre: a shelf for each genre with 4 games or more, the 8 biggest, each A to Z (up to 100)
+    if auto_on("genre") {
+        let mut by_genre: Vec<(String, Vec<(&Game, &str)>)> = Vec::new();
+        for x in &unique {
+            for g in x.0.info.as_ref().map(|i| i.genres()).unwrap_or_default() {
+                match by_genre.iter_mut().find(|e| e.0 == g) {
+                    Some(e) => e.1.push(*x),
+                    None => by_genre.push((g.to_string(), vec![*x])),
+                }
+            }
+        }
+        by_genre.retain(|e| e.1.len() >= 4);
+        by_genre.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then_with(|| crate::collate::compare(&a.0, &b.0)));
+        let mut used = HashSet::new();
+        for (name, mut games) in by_genre.into_iter().take(8) {
+            let slug: String = name.to_lowercase().chars().map(|c| if c.is_ascii_lowercase() || c.is_ascii_digit() { c } else { '-' }).collect::<String>().split('-').filter(|p| !p.is_empty()).collect::<Vec<_>>().join("-");
+            let mut id = format!("auto-genre-{}", if slug.is_empty() { "x" } else { &slug });
+            while !used.insert(id.clone()) {
+                id.push('-');
+            }
+            games.truncate(100);
+            out.push(mixed(id, name, games));
+        }
+    }
     for c in ui.and_then(|u| u.get("collections")).and_then(Value::as_array).into_iter().flatten() {
         let (Some(id), Some(ids)) = (c.get("id").and_then(Value::as_str).filter(|i| !i.is_empty()), c.get("ids").and_then(Value::as_array)) else { continue };
+        let name = c.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or("Collection");
+        // a shelf that fills itself: every game of a Status, genre or console, or the ones never played (up to 300)
+        if let Some(kind) = c.get("rule").and_then(|r| r.get("kind")).and_then(Value::as_str) {
+            let v = c["rule"].get("value").and_then(Value::as_str).unwrap_or("");
+            let games: Vec<(&Game, &str)> = unique
+                .iter()
+                .copied()
+                .filter(|(g, from)| match kind {
+                    "status" => status(&g.id) == v,
+                    "never" => count(g) == 0,
+                    "genre" => g.info.as_ref().is_some_and(|i| i.genres().contains(&v)),
+                    "console" => *from == v,
+                    _ => false,
+                })
+                .take(300)
+                .collect();
+            if !games.is_empty() {
+                out.push(mixed(format!("col-{id}"), name.to_string(), games));
+            }
+            continue;
+        }
         let mut games: Vec<(&Game, &str)> = ids.iter().filter_map(|i| by_id.get(i.as_str()?).copied()).collect();
         // a tag shelf: after the games added by hand, every game whose genres include the tag ("Racing" finds
         // "Racing / Driving" too), by title
@@ -216,7 +306,6 @@ pub fn mixed_shelves(shelves: &[Shelf], ui: Option<&Value>, history: &History) -
         if games.is_empty() {
             continue;
         }
-        let name = c.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or("Collection");
         out.push(mixed(format!("col-{id}"), name.to_string(), games));
     }
     out
@@ -309,6 +398,38 @@ mod tests {
         assert!(mixed.iter().all(|s| matches!(s.kind, ShelfKind::Mixed)));
         // nothing played, no favourite, no All shelf asked for: no shelf of the kind
         assert!(mixed_shelves(&shelves, Some(&serde_json::json!({})), &History::default()).is_empty());
+    }
+
+    #[test]
+    fn automatic_shelves_and_shelves_that_fill_themselves() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("history.json"), r#"{"a":{"count":2,"ms":50,"last":100},"b":{"count":1,"ms":90,"last":900},"c":{"count":1,"ms":0,"last":500}}"#).unwrap();
+        let history = History::load(tmp.path());
+        let shelf = |id: &str, games: Vec<Game>| Shelf { id: id.into(), name: id.into(), kind: ShelfKind::Pc, games, from: Vec::new() };
+        let g = |id: &str, title: &str, genres: &str| game(id, title, None, Some(genres), None);
+        let shelves = vec![
+            shelf("gc", vec![g("a", "Alpha", "Racing"), g("b", "Beta", "Racing"), g("c", "Gamma", "Racing; Puzzle")]),
+            shelf("pc", vec![g("d", "Delta", "Racing"), g("e", "Epsilon", "Puzzle")]),
+        ];
+        let ui = serde_json::json!({ "autoShelves": { "recent": true, "most": true, "playing": true, "never": true, "genre": true, "finished": false },
+            "collections": [{ "id": "s", "name": "Done", "ids": ["e"], "rule": { "kind": "status", "value": "finished" } }, { "id": "k", "name": "GC", "ids": [], "rule": { "kind": "console", "value": "gc" } }] });
+        let status = |id: &str| match id { "a" => "playing".to_string(), "e" => "finished".into(), _ => String::new() };
+        let mixed = mixed_shelves_with(&shelves, Some(&ui), &history, &status);
+        let ids: Vec<(&str, Vec<&str>)> = mixed.iter().filter(|s| s.id != "home").map(|s| (s.id.as_str(), s.games.iter().map(|g| g.id.as_str()).collect())).collect();
+        assert_eq!(
+            ids,
+            [
+                ("auto-recent", vec!["b", "c", "a"]),
+                ("auto-most", vec!["b", "a"]),
+                ("auto-playing", vec!["a"]),
+                ("auto-never", vec!["d", "e"]),
+                // only genres with four games or more
+                ("auto-genre-racing", vec!["a", "b", "d", "c"]),
+                // a rule's games, not the ones picked by hand
+                ("col-s", vec!["e"]),
+                ("col-k", vec!["a", "b", "c"]),
+            ]
+        );
     }
 
     #[test]

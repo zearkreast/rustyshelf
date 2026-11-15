@@ -619,7 +619,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -2088,6 +2088,27 @@ impl Settings {
                     },
                     open("Collections", String::new(), "This game on shelves of your own", Screen::GameCollections),
                 ];
+                // (beta.14) its Status: the Playing and Finished shelves, and shelves that fill themselves, follow it
+                {
+                    const STATUS: [(&str, &str); 4] = [("", "Not started"), ("playing", "Playing"), ("finished", "Finished"), ("abandoned", "Abandoned")];
+                    let now = self.text(&["games", &g.id, "status"]);
+                    let now = if now == "notstarted" { String::new() } else { now };
+                    let i = STATUS.iter().position(|x| x.0 == now).unwrap_or(0);
+                    let gid = g.id.clone();
+                    let turn = move |s: &mut Settings, d: i32| {
+                        let v = STATUS[(i as i32 + d).rem_euclid(STATUS.len() as i32) as usize].0;
+                        if v.is_empty() {
+                            // (set, so the shelves are made again, then taken out: Not started is no status)
+                            s.set(&["games", &gid, "status"], Value::Null);
+                            if let Some(o) = s.cfg.get_mut("games").and_then(|x| x.get_mut(&gid)).and_then(Value::as_object_mut) {
+                                o.remove("status");
+                            }
+                        } else {
+                            s.set(&["games", &gid, "status"], json!(v));
+                        }
+                    };
+                    rows.insert(2, Row { label: "Status".into(), value: STATUS[i].1.into(), hint: "Where you are with it. The Playing and Finished shelves (Settings → Collections) follow it.".into(), press: Some(Box::new({ let turn = turn.clone(); move |s: &mut Settings| turn(s, 1) })), step: Some(Box::new(turn)) });
+                }
                 if let Some(line) = self.achievements_line() {
                     let whose = match (&g.source, c.console.as_str()) {
                         (Source::Steam { .. }, _) => "Your Steam achievements for this game, read from Steam's own files on this PC",

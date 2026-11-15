@@ -1263,6 +1263,14 @@
     "Les notes de l'application native, la plus récente d'abord."
    ],
    [
+    "Every game whose Status is Playing (in its Details). It shows after Home.",
+    "Chaque jeu dont le Statut est En cours (dans ses Détails). Elle s'affiche après l'Accueil."
+   ],
+   [
+    "Status: Playing",
+    "Statut : En cours"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Pas comme avant cette version : Zeta Run. Réglages → Système peut remettre la copie"
    ],
@@ -2461,6 +2469,18 @@
    [
     "  ·  Hidden",
     "  ·  Hidden"
+   ],
+   [
+    "Zeta Run: fill it automatically",
+    "Zeta Run : se remplit seule"
+   ],
+   [
+    "Console: Omega Quest",
+    "Console : Omega Quest"
+   ],
+   [
+    "Genre: Continue & favorites",
+    "Genre : Reprendre et favoris"
    ],
    [
     "  Add games  ",
@@ -3920,6 +3940,14 @@
     "Yerel uygulamanın notları, en yenisi önce."
    ],
    [
+    "Every game whose Status is Playing (in its Details). It shows after Home.",
+    "Durumu Oynuyorum olan her oyun (Ayrıntılar'ından). Ana sayfadan sonra görünür."
+   ],
+   [
+    "Status: Finished",
+    "Durum: Bitirdim"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Bu sürümden önceki gibi değil: Zeta Run. Ayarlar → Sistem kopyayı geri koyabilir"
    ],
@@ -5126,6 +5154,18 @@
    [
     "Omega Quest  ·  Hidden",
     "Omega Quest  ·  Hidden"
+   ],
+   [
+    "Continue & favorites: fill it automatically",
+    "Devam et ve favoriler: kendiliğinden dolsun"
+   ],
+   [
+    "Console: ",
+    "Console: "
+   ],
+   [
+    "Genre: Zeta Run",
+    "Tür: Zeta Run"
    ],
    [
     "  Add games  ",

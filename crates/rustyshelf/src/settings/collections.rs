@@ -98,16 +98,33 @@ impl Settings {
         Page { title: "Collections".into(), lead: format!("Shelves of your own, right after Home. {title} can be on as many as you like."), rows }
     }
 
-    /// Settings → Collections: each one's name (Enter renames it) and Delete (pressed twice).
+    /// Settings → Collections: the automatic shelves, then each of yours (its name, Enter renames it; what fills it;
+    /// Delete, pressed twice).
     pub(super) fn collections_page(&self) -> Page {
         let mut rows = Vec::new();
+        // (beta.14) the automatic shelves, each off until switched on, after Home
+        let hints = [
+            ("recent", "The games you played last, newest first. Up to 30."),
+            ("most", "The games you played longest, most first. Up to 30."),
+            ("playing", "Every game whose Status is Playing (in its Details)."),
+            ("finished", "Every game whose Status is Finished (in its Details)."),
+            ("never", "Games you haven't started yet, A to Z. Up to 60."),
+            ("genre", "A shelf for each genre with 4 games or more, the 8 biggest."),
+        ];
+        for (k, hint) in hints {
+            let name = rustyshelf_core::shelfview::AUTO_SHELVES.iter().find(|a| a.0 == k).map_or("By genre", |a| a.1);
+            let on = at(&self.cfg, &["ui", "autoShelves", k]).and_then(Value::as_bool).unwrap_or(false);
+            let flip = move |s: &mut Settings| s.set(&["ui", "autoShelves", k], json!(!on));
+            rows.push(Row { label: name.into(), value: on_off(on), hint: format!("{hint} It shows after Home."), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) });
+        }
         for col in self.collections() {
             let (Some(id), Some(name)) = (col["id"].as_str().map(String::from), col["name"].as_str().map(String::from)) else { continue };
             let n = col["ids"].as_array().map_or(0, Vec::len);
-            let (id2, name2, name3) = (id.clone(), name.clone(), name.clone());
+            let (id2, name2, name3, id4) = (id.clone(), name.clone(), name.clone(), id.clone());
+            let rule = rule_of(&col);
             rows.push(Row {
                 label: name.clone(),
-                value: format!("{n} game{}", if n == 1 { "" } else { "s" }),
+                value: if rule == "off" { format!("{n} game{}", if n == 1 { "" } else { "s" }) } else { "Automatic".into() },
                 hint: "The shelf's name. Enter renames it.".into(),
                 press: Some(Box::new(move |s: &mut Settings| {
                     let id = id.clone();
@@ -124,6 +141,36 @@ impl Settings {
                     );
                 })),
                 step: None,
+            });
+            // (beta.14) Fill it automatically: off (the games you pick), or every game of a Status, genre or console, or the
+            // ones never played
+            let choices = self.rule_choices(&rule);
+            let at_now = choices.iter().position(|c| c.0 == rule).unwrap_or(0);
+            let turn = move |s: &mut Settings, d: i32| {
+                let (v, _) = &choices[(at_now as i32 + d).rem_euclid(choices.len() as i32) as usize];
+                let v = v.clone();
+                s.change_collection(&id4, |c| match v.as_str() {
+                    "off" => {
+                        if let Some(o) = c.as_object_mut() {
+                            o.remove("rule");
+                        }
+                    }
+                    "never" => c["rule"] = json!({ "kind": "never", "value": "" }),
+                    _ => {
+                        let (kind, value) = v.split_once(':').unwrap_or((&v, ""));
+                        c["rule"] = json!({ "kind": kind, "value": value });
+                    }
+                });
+            };
+            rows.push(Row {
+                label: format!("{name}: fill it automatically"),
+                value: self.rule_name(&rule),
+                hint: "Off: the games you pick. Or the shelf fills itself, with every game of a Status, genre or console, or the ones you never played.".into(),
+                press: Some(Box::new({
+                    let turn = turn.clone();
+                    move |s: &mut Settings| turn(s, 1)
+                })),
+                step: Some(Box::new(turn)),
             });
             rows.push(Row {
                 label: format!("Delete {name3}"),
@@ -159,6 +206,32 @@ impl Settings {
         Page { title: "Collections".into(), lead: "Shelves of your own, right after Home.".into(), rows }
     }
 
+    /// The choices for a shelf that fills itself: its value ("off", "never", "status:finished", "genre:Racing",
+    /// "console:gc") and its name; the one it has now is always among them.
+    fn rule_choices(&self, now: &str) -> Vec<(String, String)> {
+        let mut out: Vec<(String, String)> = [("off", "Off (you pick)"), ("status:playing", "Status: Playing"), ("status:finished", "Status: Finished"), ("status:notstarted", "Status: Not started"), ("status:abandoned", "Status: Abandoned"), ("never", "Never played")]
+            .iter()
+            .map(|(v, n)| (v.to_string(), n.to_string()))
+            .collect();
+        out.extend(self.console_shelves.iter().map(|(id, name)| (format!("console:{id}"), format!("Console: {name}"))));
+        out.extend(self.genres.iter().map(|(g, _)| (format!("genre:{g}"), format!("Genre: {g}"))));
+        if !out.iter().any(|c| c.0 == now) {
+            out.push((now.to_string(), self.rule_name(now)));
+        }
+        out
+    }
+
+    fn rule_name(&self, v: &str) -> String {
+        match v.split_once(':') {
+            _ if v == "off" => "Off".into(),
+            _ if v == "never" => "Never played".into(),
+            Some(("status", x)) => format!("Status: {}", match x { "playing" => "Playing", "finished" => "Finished", "notstarted" => "Not started", "abandoned" => "Abandoned", other => other }),
+            Some(("genre", x)) => format!("Genre: {x}"),
+            Some(("console", x)) => format!("Console: {}", self.console_shelves.iter().find(|c| c.0 == x).map_or(x, |c| c.1.as_str())),
+            _ => v.into(),
+        }
+    }
+
     fn add_tag_shelf(&mut self, genre: &str) {
         let mut list = self.collections();
         if list.iter().any(|c| c.get("tag").and_then(Value::as_str).is_some_and(|t| t.to_lowercase() == genre.to_lowercase())) {
@@ -174,5 +247,14 @@ impl Settings {
         list.push(json!({ "id": format!("t{}", custom::base36(now)), "name": name, "ids": [], "tag": name }));
         self.set(&["ui", "collections"], json!(list));
         self.say(format!("{genre} shelf added"));
+    }
+}
+
+/// A shelf's rule as one value: "off", "never", "status:finished", "genre:Racing", "console:gc".
+fn rule_of(c: &Value) -> String {
+    match c.get("rule").and_then(|r| r.get("kind")).and_then(Value::as_str) {
+        None => "off".into(),
+        Some("never") => "never".into(),
+        Some(kind) => format!("{kind}:{}", c["rule"].get("value").and_then(Value::as_str).unwrap_or("")),
     }
 }

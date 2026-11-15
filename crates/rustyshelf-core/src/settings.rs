@@ -452,6 +452,15 @@ pub fn sanitize(cfg: &mut Value) {
                 if let Some(tag) = c.get("tag").and_then(Value::as_str).filter(|t| !js::trim(t).is_empty()) {
                     o["tag"] = json!(tidy(tag, 40));
                 }
+                // a shelf that fills itself (beta.14): { kind, value }
+                if let Some(kind) = c.get("rule").and_then(|r| r.get("kind")).and_then(Value::as_str).filter(|k| ["genre", "status", "never", "console"].contains(k)) {
+                    let v = match c["rule"].get("value") {
+                        Some(Value::String(x)) => js::slice(x, 80).to_string(),
+                        Some(Value::Number(n)) => js::slice(&n.to_string(), 80).to_string(),
+                        _ => String::new(),
+                    };
+                    o["rule"] = json!({ "kind": kind, "value": if kind == "never" { String::new() } else { v } });
+                }
                 o
             })
             .collect();

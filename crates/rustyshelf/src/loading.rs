@@ -78,7 +78,9 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
         lib.shelves.sort_by_key(|s| place[&s.id]);
     }
     // Home, All and the collections come first, in their own order
-    let mut shelves = rustyshelf_core::shelfview::mixed_shelves(&base.shelves, base.config.raw().get("ui"), history);
+    let games = base.config.raw().get("games");
+    let status = |id: &str| games.and_then(|g| g.get(id)).and_then(|g| g.get("status")).and_then(|s| s.as_str()).unwrap_or("").to_string();
+    let mut shelves = rustyshelf_core::shelfview::mixed_shelves_with(&base.shelves, base.config.raw().get("ui"), history, &status);
     if !kid.is_empty() {
         for s in shelves.iter_mut() {
             let keep: Vec<bool> = s.from.iter().map(|f| !kid.contains(f)).collect();
