@@ -321,7 +321,7 @@ pub struct Making<'w> {
     loader: Res<'w, ArtLoader>,
     meshes: ResMut<'w, Assets<Mesh>>,
     materials: ResMut<'w, Assets<StandardMaterial>>,
-    lexend: Res<'w, crate::hud::Lexend>,
+    mona: Res<'w, crate::hud::MonaSans>,
 }
 
 /// What has the keys instead (a game running, Inspect, the manual reader), and the shelf's camera, which rests
@@ -356,8 +356,8 @@ pub fn run(
     mut text: Query<&mut Text, With<MuseumText>>,
 ) {
     let LibraryState::Ready(l) = &lib.0 else { return };
-    let Making { covers, loader, meshes, materials, lexend } = &mut making;
-    let lexend = &**lexend;
+    let Making { covers, loader, meshes, materials, mona } = &mut making;
+    let mona = &**mona;
     let (covers, loader, meshes, materials) = (&mut **covers, &**loader, &mut **meshes, &mut **materials);
     let now = time.elapsed_secs();
     let m = &mut *museum;
@@ -393,7 +393,7 @@ pub fn run(
             if let Ok(mut shelf) = others.shelf_camera.single_mut() {
                 shelf.is_active = false;
             }
-            spawn_text(&mut commands, m.camera, lexend);
+            spawn_text(&mut commands, m.camera, mona);
             (m.pull, m.moved_at, m.shown_front) = (0.0, now, None);
             sounds.play("open", 1);
             settings.keys_taken = true;
@@ -600,13 +600,13 @@ fn settings_play(commands: &mut Commands) {
 }
 
 /// The game in view and its row, under the wall.
-fn spawn_text(commands: &mut Commands, camera: Option<Entity>, lexend: &crate::hud::Lexend) {
+fn spawn_text(commands: &mut Commands, camera: Option<Entity>, mona: &crate::hud::MonaSans) {
     let Some(camera) = camera else { return };
     commands.spawn((
         MuseumHud,
         UiTargetCamera(camera),
         Node { position_type: PositionType::Absolute, bottom: px(28), width: percent(100), justify_content: JustifyContent::Center, ..default() },
-        children![(MuseumText, Text::default(), lexend.font(500, 20.0), TextLayout::justify(Justify::Center), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)))],
+        children![(MuseumText, Text::default(), mona.font(500, 20.0), TextLayout::justify(Justify::Center), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)))],
     ));
 }
 
