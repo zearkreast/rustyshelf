@@ -105,6 +105,8 @@ enum Screen {
     Drives,
     /// the museum's reading corner: where the magazines and guides are kept
     Reading,
+    /// the museum's rooms, lighting and finishes
+    Museum,
     /// the chosen game's box art, part by part; and one part's versions
     Art,
     ArtPart,
@@ -1052,6 +1054,7 @@ impl Settings {
                     open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
                     open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
                     open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
+                    open("Museum", String::new(), "Its rooms, lighting, walls, floor and shelves", Screen::Museum),
                     open("Magazines & guides", String::new(), "The museum's reading corner: where your magazines and strategy guides are kept", Screen::Reading),
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
@@ -1432,6 +1435,52 @@ impl Settings {
                 }
                 let lead = if self.wizard { "Step 2 of 3 · The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." } else { "The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." };
                 Page { title: "PC games and apps".into(), lead: lead.into(), rows }
+            }
+            Screen::Museum => {
+                // keep in sync with museum.rs: the scenes and finishes it draws
+                const GROUPINGS: [(&str, &str); 3] = [("classic", "Classic wall"), ("manufacturer", "Rooms by maker"), ("genre", "Rooms by genre")];
+                const SCENES: [(&str, &str); 6] = [("gallery", "Classic"), ("daylight", "Daylight"), ("night", "Evening"), ("neon", "Neon night"), ("spotlit", "Spotlit gallery"), ("lightsout", "Lights out")];
+                const WALLS: [(&str, &str); 7] = [("plaster", "Dark plaster"), ("wood", "Wood panels"), ("brick", "Brick"), ("wallpaper", "Wallpaper"), ("green", "Green"), ("burgundy", "Burgundy"), ("navy", "Navy")];
+                const FLOORS: [(&str, &str); 4] = [("stone", "Stone"), ("wood", "Wood boards"), ("carpet", "Carpet"), ("checker", "Checkerboard")];
+                const SHELVES: [(&str, &str); 4] = [("walnut", "Walnut"), ("oak", "Oak"), ("black", "Black"), ("white", "White")];
+                let style = |k: &str| at(&self.cfg, &["ui", "museumStyle", k]).cloned();
+                let choice = |label: &str, key: &'static str, list: &'static [(&'static str, &'static str)], hint: &str| -> Row {
+                    let now = style(key).and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+                    let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
+                    let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "museumStyle", key], json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
+                    Row { label: label.into(), value: list[at].1.into(), hint: hint.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) }
+                };
+                let flag = |label: &str, key: &'static str, default: bool, hint: &str| -> Row {
+                    let on = style(key).and_then(|v| v.as_bool()).unwrap_or(default);
+                    let flip = move |s: &mut Settings| s.set(&["ui", "museumStyle", key], json!(!on));
+                    Row { label: label.into(), value: on_off(on), hint: hint.into(), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) }
+                };
+                let range = |label: &str, key: &'static str, (min, max, step, default): (f64, f64, f64, f64), shown: fn(f64) -> String| -> Row {
+                    let now = style(key).and_then(|v| v.as_f64()).unwrap_or(default);
+                    let turn = move |s: &mut Settings, d: i32| {
+                        let v = ((now + step * f64::from(d)).clamp(min, max) * 100.0).round() / 100.0;
+                        s.set(&["ui", "museumStyle", key], json!(v));
+                    };
+                    Row { label: label.into(), value: shown(now), hint: String::new(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) }
+                };
+                let scene = self.text(&["ui", "museumLight"]);
+                let at = SCENES.iter().position(|x| x.0 == scene).unwrap_or(0);
+                let turn = move |s: &mut Settings, d: i32| {
+                    s.set(&["ui", "museumLight"], json!(SCENES[(at as i32 + d).rem_euclid(SCENES.len() as i32) as usize].0));
+                    s.set(&["ui", "museumStyle", "timeOfDay"], json!(false));
+                };
+                let rows = vec![
+                    choice("Organization", "grouping", &GROUPINGS, "Themed rooms by maker or genre, with an arcade, computers and a reading room; Classic is the single wall"),
+                    Row { label: "Scene".into(), value: SCENES[at].1.into(), hint: "Classic is the original look. Lights out leaves only the TV and the shelves' own glow.".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) },
+                    flag("Follow the time of day", "timeOfDay", false, "Daylight in the morning, Classic in the afternoon, Evening at night"),
+                    flag("Lights come on as you walk in", "walkIn", true, "Off: the room opens with the lamps already on"),
+                    range("Brightness", "bright", (0.4, 1.6, 0.1, 1.0), |v| format!("{}%", (v * 100.0).round())),
+                    range("Warmth", "warmth", (-1.0, 1.0, 0.1, 0.0), |v| if v > 0.05 { format!("Warm {}%", (v * 100.0).round()) } else if v < -0.05 { format!("Cool {}%", (-v * 100.0).round()) } else { "Neutral".into() }),
+                    choice("Walls", "wall", &WALLS, ""),
+                    choice("Floor", "floor", &FLOORS, ""),
+                    choice("Shelves", "shelf", &SHELVES, ""),
+                ];
+                Page { title: "Museum".into(), lead: "Hold View on the shelf, or press M, to walk in.".into(), rows }
             }
             Screen::Reading => {
                 let lib = self.text(&["ui", "readingLibrary"]);

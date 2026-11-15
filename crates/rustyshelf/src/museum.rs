@@ -72,8 +72,100 @@ pub struct RowLight(usize);
 
 type Cam<'w, 's> = Query<'w, 's, (&'static mut Camera, &'static mut Transform, &'static Projection), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>;
 
-/// The full brightness of a row's picture light.
-const LAMP: f32 = 260_000.0;
+/// A picture light's strength for each unit of a scene's lamp, and the ambient light's for each of its.
+const LAMP_UNIT: f32 = 16_250.0;
+const AMB_UNIT: f32 = 1_180.0;
+
+/// A lighting scene: the picture lamps' colour and strength, the room's ambient colour and strength, the dark beyond
+/// the room, and whether each row is lit in its console's own colour.
+#[derive(Clone, Copy)]
+struct Scene {
+    lamp: u32,
+    lamp_i: f32,
+    amb: f32,
+    amb_c: u32,
+    bg: u32,
+    hue: bool,
+}
+
+// keep in sync with settings.rs's Museum page and renderer/museum.js LIGHTS
+const SCENES: [(&str, Scene); 6] = [
+    ("gallery", Scene { lamp: 0xffe0b0, lamp_i: 16.0, amb: 0.22, amb_c: 0xaab0c8, bg: 0x05060a, hue: false }),
+    ("daylight", Scene { lamp: 0xf4f7ff, lamp_i: 13.0, amb: 0.58, amb_c: 0xe4ecff, bg: 0x2a3140, hue: false }),
+    ("night", Scene { lamp: 0xffa860, lamp_i: 11.0, amb: 0.12, amb_c: 0x6a5a8a, bg: 0x0b0612, hue: false }),
+    ("neon", Scene { lamp: 0xffffff, lamp_i: 10.0, amb: 0.1, amb_c: 0x7a50ff, bg: 0x0a0320, hue: true }),
+    ("spotlit", Scene { lamp: 0xfff0d6, lamp_i: 26.0, amb: 0.09, amb_c: 0xaab0c8, bg: 0x020203, hue: false }),
+    ("lightsout", Scene { lamp: 0xffd0a0, lamp_i: 0.0, amb: 0.03, amb_c: 0x6070a0, bg: 0x010102, hue: false }),
+];
+
+fn hex(h: u32) -> Color {
+    Color::srgb_u8((h >> 16) as u8, (h >> 8) as u8, h as u8)
+}
+
+/// The room as the Museum settings have it: the scene, brightness and warmth, and the walls', floor's and shelves'
+/// finishes.
+#[derive(Clone)]
+struct Style {
+    scene: Scene,
+    bright: f32,
+    warmth: f32,
+    wall: String,
+    floor: String,
+    shelf: String,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into() }
+    }
+}
+
+impl Style {
+    fn read(ui: Option<&serde_json::Value>) -> Style {
+        let st = |k: &str| ui.and_then(|u| u.get("museumStyle")).and_then(|x| x.get(k));
+        let text = |k: &str, d: &str| st(k).and_then(|v| v.as_str()).unwrap_or(d).to_string();
+        let chosen = ui.and_then(|u| u.get("museumLight")).and_then(|v| v.as_str()).unwrap_or("gallery").to_string();
+        // following the time of day: Daylight in the morning, Classic in the afternoon, Evening at night
+        let scene = if st("timeOfDay").and_then(|v| v.as_bool()).unwrap_or(false) {
+            use chrono::Timelike;
+            match chrono::Local::now().hour() {
+                6..=10 => "daylight",
+                11..=18 => "gallery",
+                _ => "night",
+            }
+            .to_string()
+        } else {
+            chosen
+        };
+        Style {
+            scene: SCENES.iter().find(|s| s.0 == scene).map_or(SCENES[0].1, |s| s.1),
+            bright: st("bright").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+            warmth: st("warmth").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            wall: text("wall", "plaster"),
+            floor: text("floor", "stone"),
+            shelf: text("shelf", "walnut"),
+        }
+    }
+
+    /// A picture lamp's full strength.
+    fn lamp(&self) -> f32 {
+        self.scene.lamp_i * LAMP_UNIT * self.bright
+    }
+
+    /// A row's lamp colour: the scene's (in Neon night the console's own), warmed or cooled.
+    fn lamp_color(&self, glow: Color) -> Color {
+        let mut c = hex(self.scene.lamp).to_srgba();
+        if self.scene.hue {
+            c = glow.to_srgba().mix(&Srgba::WHITE, 0.06);
+        }
+        if self.warmth > 0.0 {
+            c = c.mix(&hex(0xffa45c).to_srgba(), self.warmth * 0.45);
+        } else if self.warmth < 0.0 {
+            c = c.mix(&hex(0xc8dcff).to_srgba(), -self.warmth * 0.55);
+        }
+        c.into()
+    }
+}
 
 /// A case on the wall: its row, its place there, and where it stands.
 #[derive(Component)]
@@ -170,6 +262,9 @@ pub struct Museum {
     /// the reader is drawn over the museum while it's open; and was open last frame (its closing key isn't the museum's)
     reader_here: bool,
     reading_was: bool,
+    style: Style,
+    /// the surfaces drawn so far, by their finish
+    surfaces: std::collections::HashMap<String, Handle<Image>>,
 }
 
 /// Where to come back to after a game played from the museum: where you stood in the arcade, if you were walking;
@@ -311,9 +406,47 @@ fn build(
     // a shelf split over several rows in a room has its console and plaque at the end of its last one
     let parts = |si: usize| groups.iter().filter(|g| g.1 == si).count();
     let last_of = |k: usize| !groups[k + 1..].iter().any(|g| g.1 == groups[k].1);
-    let wood = materials.add(StandardMaterial { base_color: Color::srgb(0.23, 0.15, 0.1), perceptual_roughness: 0.55, ..default() });
-    let wall = materials.add(StandardMaterial { base_color: Color::srgb(0.09, 0.1, 0.14), perceptual_roughness: 0.95, ..default() });
-    let floor = materials.add(StandardMaterial { base_color: Color::srgb(0.12, 0.11, 0.1), perceptual_roughness: 0.32, metallic: 0.25, ..default() });
+    let room = m.style.clone();
+    let style = &room;
+    let mut surface = |what: &str, kind: &str| -> Option<Handle<Image>> {
+        let key = format!("{what}:{kind}");
+        if let Some(h) = m.surfaces.get(&key) {
+            return Some(h.clone());
+        }
+        let pic = rustyshelf_core::drawn::museum_surface(what, kind)?;
+        let mut img = crate::loading::to_image(pic.width, pic.height, pic.rgba);
+        img.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor { address_mode_u: bevy::image::ImageAddressMode::Repeat, address_mode_v: bevy::image::ImageAddressMode::Repeat, ..bevy::image::ImageSamplerDescriptor::linear() });
+        let h = images.add(img);
+        m.surfaces.insert(key, h.clone());
+        Some(h)
+    };
+    let wood = materials.add(StandardMaterial { base_color_texture: surface("shelf", &style.shelf), uv_transform: bevy::math::Affine2::from_scale(Vec2::new(2.0, 1.0)), perceptual_roughness: 0.55, ..default() });
+    let wall_tex = surface("wall", &style.wall);
+    let wall_color = match style.wall.as_str() {
+        _ if wall_tex.is_some() => Color::WHITE,
+        "green" => hex(0x14241b),
+        "burgundy" => hex(0x2a1219),
+        "navy" => hex(0x101a2e),
+        _ => hex(0x171a24),
+    };
+    // a wall's pattern keeps its size however big the wall: a tile is this many metres
+    let wall_tile = match style.wall.as_str() {
+        "wallpaper" => 0.75,
+        _ => 2.0,
+    };
+    let (floor_rough, floor_metal) = match style.floor.as_str() {
+        "wood" => (0.45, 0.05),
+        "carpet" => (0.95, 0.0),
+        "checker" => (0.28, 0.1),
+        _ => (0.32, 0.25),
+    };
+    let floor_tile = match style.floor.as_str() {
+        "wood" => 3.0,
+        "carpet" => 1.0,
+        "checker" => 2.0,
+        _ => 4.0,
+    };
+    let floor_tex = surface("floor", &style.floor);
     let brass = materials.add(StandardMaterial { base_color: Color::srgb_u8(0xc9, 0xa8, 0x6a), metallic: 0.8, perceptual_roughness: 0.3, emissive: LinearRgba::rgb(0.045, 0.024, 0.005), ..default() });
     // the console, the plaque beside it and the room around them, after a row's cases
     let tail = |w: f32| 0.3 + (w * 1.7).max(1.3) + 0.12 + 1.5 + 0.3;
@@ -406,7 +539,7 @@ fn build(
             ChildOf(parent),
             RowLight(ri),
             layer(),
-            SpotLight { color: Color::srgb(1.0, 0.88, 0.69), intensity: 0.0, range: 7.5, outer_angle: 0.95, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
+            SpotLight { color: room.lamp_color(color(style_glow(&s.id))), intensity: 0.0, range: 7.5, outer_angle: 0.95, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
             Transform::from_xyz(x / 2.0, y + ROW - 0.62, 0.9).looking_at(Vec3::new(x / 2.0, y - 0.5, 0.0), Vec3::Y),
         ));
         m.rows.push(Row { wall, shelf: si, name, games, sheets, xs, y, end, console: (x + 0.3 + console_w / 2.0, console_w), w: sw, painted: false, lamp_on: lit, plaque });
@@ -427,7 +560,8 @@ fn build(
         let ledges: Vec<(usize, f32)> = m.rows.iter().enumerate().filter(|(_, r)| r.wall == 0).map(|(i, r)| (i, r.y)).collect();
         let x0 = if media.is_some() { 0.5 } else { m.rows.iter().filter(|r| r.wall == 0).map(|r| r.end).fold(0.0, f32::max) + 0.89 };
         let items = m.reading.iter().take(rustyshelf_core::museum_plan::MEDIA_CAP).cloned().collect();
-        m.rack = crate::rack::build(commands, parents[0], &ledges, x0, items, rustyshelf_core::reading::cache_dir(&lib.app_root), &m.lang, layer(), meshes, materials, covers, loader);
+        let lamp = (style.lamp() * 180.0 / 260.0, style.lamp_color(Color::WHITE));
+        m.rack = crate::rack::build(commands, parents[0], &ledges, x0, lamp, wood.clone(), items, rustyshelf_core::reading::cache_dir(&lib.app_root), &m.lang, layer(), meshes, materials, covers, loader);
         if let Some(u) = m.rack.units.last() {
             widest = widest.max(u.x1 + 0.8);
             wall_w[0] = wall_w[0].max(u.x1 + 0.8);
@@ -444,13 +578,17 @@ fn build(
         }
         let n = n.max(1) as f32;
         let w = if side { wall_w[k] + 2.0 } else { widest + 60.0 };
-        commands.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w, n * ROW + 8.0))), MeshMaterial3d(wall.clone()), Transform::from_xyz(wall_w[k] / 2.0, -(n - 1.0) * ROW / 2.0, -DEPTH / 2.0 - 0.01), ChildOf(parents[k])));
+        let h = n * ROW + 8.0;
+        let wall = materials.add(StandardMaterial { base_color: wall_color, base_color_texture: wall_tex.clone(), uv_transform: bevy::math::Affine2::from_scale(Vec2::new(w / wall_tile, h / wall_tile)), perceptual_roughness: if style.wall == "wallpaper" { 0.7 } else { 0.95 }, ..default() });
+        commands.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w, h))), MeshMaterial3d(wall), Transform::from_xyz(wall_w[k] / 2.0, -(n - 1.0) * ROW / 2.0, -DEPTH / 2.0 - 0.01), ChildOf(parents[k])));
     }
     // the dark all round the room: the shelf's own backdrop is drawn by a camera before this one, and must never show
-    let dark = materials.add(StandardMaterial { base_color: Color::srgb(0.02, 0.02, 0.03), unlit: true, cull_mode: None, ..default() });
+    let dark = materials.add(StandardMaterial { base_color: hex(style.scene.bg), unlit: true, cull_mode: None, ..default() });
     commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Sphere::new(400.0))), MeshMaterial3d(dark), Transform::from_xyz(widest / 2.0, 0.0, 0.0)));
     let bottom = -(tallest - 1.0) * ROW - 0.5 - PLANK - 0.4;
-    commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Plane3d::default().mesh().size(widest + 60.0, 40.0 + wall_w[1].max(wall_w[2])))), MeshMaterial3d(floor), Transform::from_xyz(widest / 2.0, bottom, 10.0)));
+    let (fw, fd) = (widest + 60.0, 40.0 + wall_w[1].max(wall_w[2]));
+    let floor = materials.add(StandardMaterial { base_color: if floor_tex.is_some() { Color::WHITE } else { Color::srgb(0.12, 0.11, 0.1) }, base_color_texture: floor_tex, uv_transform: bevy::math::Affine2::from_scale(Vec2::new(fw / floor_tile, fd / floor_tile)), perceptual_roughness: floor_rough, metallic: floor_metal, ..default() });
+    commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Plane3d::default().mesh().size(fw, fd))), MeshMaterial3d(floor), Transform::from_xyz(widest / 2.0, bottom, 10.0)));
     let image = images.add(crate::loading::to_image(1, 1, vec![255; 4]));
     let face = materials.add(StandardMaterial { base_color: Color::srgba(1.0, 1.0, 1.0, 0.0), base_color_texture: Some(image.clone()), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
     let board = materials.add(StandardMaterial { base_color: Color::srgba_u8(0x8a, 0x6a, 0x34, 0), metallic: 0.7, perceptual_roughness: 0.35, alpha_mode: AlphaMode::Blend, ..default() });
@@ -751,9 +889,15 @@ pub fn run(
             let walk_in = ui.and_then(|u| u.get("museumStyle")).and_then(|x| x.get("walkIn")) != Some(&serde_json::Value::Bool(false));
             m.intro = walk_in.then_some(0.0);
             m.wide = !walk_in;
+            m.style = Style::read(ui);
             build(&mut commands, m, l, &cursor, meshes, materials, covers, loader, images);
             if let Ok((mut cam, _, _)) = camera.single_mut() {
                 cam.is_active = true;
+                cam.clear_color = ClearColorConfig::Custom(hex(m.style.scene.bg));
+            }
+            if let Some(cam) = m.camera {
+                let sc = m.style.scene;
+                commands.entity(cam).insert(AmbientLight { color: hex(sc.amb_c), brightness: sc.amb * AMB_UNIT * m.style.bright, ..default() });
             }
             if let Ok(mut shelf) = others.shelf_camera.single_mut() {
                 shelf.is_active = false;
@@ -836,7 +980,7 @@ pub fn run(
             let e = k.min(1.0);
             let strike = if e < 0.18 { e / 0.18 * 0.55 } else if e < 0.3 { 0.55 - (e - 0.18) / 0.12 * 0.35 } else { 0.2 + (1.0 - (1.0 - (e - 0.3) / 0.7).powi(3)) * 0.8 };
             let over = if e > 0.6 && e < 1.0 { 1.0 + 0.12 * ((e - 0.6) / 0.4 * std::f32::consts::PI).sin() } else { 1.0 };
-            lamps.push(LAMP * strike.max(0.0) * over);
+            lamps.push(m.style.lamp() * strike.max(0.0) * over);
         }
         for (row, mut s) in &mut wall.lights {
             s.intensity = lamps.get(row.0).copied().unwrap_or(0.0);
@@ -1088,7 +1232,7 @@ pub fn run(
         *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
     }
     for (_, mut s) in &mut wall.lights {
-        s.intensity += (LAMP - s.intensity) * f;
+        s.intensity += (m.style.lamp() - s.intensity) * f;
     }
     show_frame(m, now, dt, materials, &mut wall.frame);
     if let Ok(mut text) = text.single_mut() {
@@ -1308,6 +1452,11 @@ fn civil(ms: u64) -> (i64, u32, u32) {
     let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
     let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
     (yoe + era * 400 + i64::from(m <= 2), m, d)
+}
+
+/// A shelf's own glow colour, which its row's lamp takes in Neon night.
+fn style_glow(shelf: &str) -> rustyshelf_core::looks::Rgba {
+    looks::look(shelf).glow
 }
 
 /// A plaque as bright as its row's light has come on.

@@ -71,13 +71,16 @@ impl Rack {
 }
 
 /// Builds the racks on the wall `parent` from `x0` on, a ledge level with each of `rows` (their heights, top down;
-/// their places in the museum's rows), from the reading folder's items.
+/// their places in the museum's rows), from the reading folder's items; `lamp` is its picture lamp's strength and colour,
+/// `wood` the bookcase's.
 #[allow(clippy::too_many_arguments)]
 pub fn build(
     commands: &mut Commands,
     parent: Entity,
     rows: &[(usize, f32)],
     x0: f32,
+    (lamp, lamp_color): (f32, Color),
+    wood: Handle<StandardMaterial>,
     items: Vec<Item>,
     cache: PathBuf,
     lang: &str,
@@ -95,7 +98,6 @@ pub fn build(
     let (mut mags, mut guides): (Vec<Item>, Vec<Item>) = items.into_iter().partition(|i| i.kind != "guide");
     reading::rack_order(&mut mags);
     reading::rack_order(&mut guides);
-    let wood = materials.add(StandardMaterial { base_color: Color::srgb(0.23, 0.15, 0.1), perceptual_roughness: 0.55, ..default() });
     let lip = materials.add(StandardMaterial { base_color: Color::srgb_u8(0xc9, 0xa8, 0x6a), metallic: 0.75, perceptual_roughness: 0.32, ..default() });
     let back = materials.add(StandardMaterial { base_color: Color::srgb_u8(0x4a, 0x36, 0x26), perceptual_roughness: 0.8, ..default() });
     let edge = materials.add(StandardMaterial { base_color: Color::srgb_u8(0xec, 0xe6, 0xd8), perceptual_roughness: 0.9, ..default() });
@@ -133,7 +135,7 @@ pub fn build(
         // its picture lamp
         commands.spawn((
             layer.clone(),
-            SpotLight { color: Color::srgb(1.0, 0.88, 0.69), intensity: 180_000.0, range: up_h + 3.0, outer_angle: 0.9, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
+            SpotLight { color: lamp_color, intensity: lamp, range: up_h + 3.0, outer_angle: 0.9, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
             Transform::from_xyz(cx, crown_y + 0.4, 1.4).looking_at(Vec3::new(cx, mid_y, 0.0), Vec3::Y),
             ChildOf(parent),
         ));

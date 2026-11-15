@@ -963,6 +963,163 @@ pub fn rack_note(heading: [&str; 2], lines: &[String]) -> Picture {
     picture(c)
 }
 
+/// One of the museum's surfaces, drawn with a fixed run of chances so it's the same every visit: `what` is "shelf",
+/// "floor" or "wall", `kind` its finish. None for a wall that's a plain colour.
+pub fn museum_surface(what: &str, kind: &str) -> Option<Picture> {
+    let mut r = Chance::new(hash(&format!("{what}:{kind}")));
+    let rgb = |s: &str| -> (u8, u8, u8) {
+        let v: Vec<u8> = s.split(',').filter_map(|p| p.trim().parse().ok()).collect();
+        (v.first().copied().unwrap_or(0), v.get(1).copied().unwrap_or(0), v.get(2).copied().unwrap_or(0))
+    };
+    let hex = |h: u32| rgba((h >> 16) as u8, (h >> 8) as u8, h as u8, 1.0);
+    let new = |w: u32, h: u32| Canvas { pix: Pixmap::new(w, h).expect("a surface's size"), clip: None, t: Transform::identity() };
+    match (what, kind) {
+        ("shelf", fin) => {
+            // keep in sync with renderer/museum.js SHELF
+            let (base, dark, light) = match fin {
+                "oak" => (0x86603c, "70,45,20", "200,160,110"),
+                "black" => (0x141417, "0,0,0", "80,80,90"),
+                "white" => (0xd6d0c4, "150,140,125", "255,252,246"),
+                _ => (0x3b2719, "20,10,5", "110,75,45"),
+            };
+            let (w, h) = (1024.0, 256.0);
+            let mut c = new(1024, 256);
+            c.rect(0.0, 0.0, w, h, &solid(hex(base)));
+            for i in 0..260 {
+                let (y, a) = (r.roll() * h, 0.05 + r.roll() * 0.12);
+                let (cr, cg, cb) = rgb(if r.roll() < 0.5 { dark } else { light });
+                let wide = 0.6 + r.roll() * 2.2;
+                let mut pb = PathBuilder::new();
+                pb.move_to(0.0, y);
+                let mut px = 0.0;
+                while px <= w {
+                    pb.line_to(px, y + (px / 90.0 + i as f32).sin() * 2.5);
+                    px += 64.0;
+                }
+                c.stroke(pb.finish(), &solid(rgba(cr, cg, cb, a)), &width(wide));
+            }
+            let (dr, dg, db) = rgb(dark);
+            for _ in 0..5 {
+                let (cx, cy) = (r.roll() * w, r.roll() * h);
+                let stops = vec![GradientStop::new(0.0, rgba(dr, dg, db, 0.35)), GradientStop::new(1.0, rgba(dr, dg, db, 0.0))];
+                if let Some(shader) = tiny_skia::RadialGradient::new(Point::from_xy(cx, cy), Point::from_xy(cx, cy), 26.0, stops, SpreadMode::Pad, Transform::identity()) {
+                    c.rect(cx - 30.0, cy - 30.0, 60.0, 60.0, &Paint { shader, anti_alias: true, ..Paint::default() });
+                }
+            }
+            Some(picture(c))
+        }
+        ("floor", "wood") => {
+            let mut c = new(512, 512);
+            for row in 0..8 {
+                let (y, off) = (row as f32 * 64.0, (row % 2) as f32 * 180.0);
+                c.rect(0.0, y, 512.0, 64.0, &solid(hex([0x3a2616, 0x33210f, 0x402a18][row % 3])));
+                for _ in 0..40 {
+                    let (cr, cg, cb) = if r.roll() < 0.5 { (15, 8, 3) } else { (120, 85, 50) };
+                    let (a, wide, yy) = (0.05 + r.roll() * 0.09, 0.5 + r.roll() * 1.1, y + 4.0 + r.roll() * 56.0);
+                    c.stroke(line((0.0, yy), (512.0, yy + r.roll() * 4.0 - 2.0)), &solid(rgba(cr, cg, cb, a)), &width(wide));
+                }
+                c.rect(0.0, y, 512.0, 2.0, &solid(rgba(0, 0, 0, 0.55)));
+                let mut x = off;
+                while x < 512.0 + 200.0 {
+                    c.rect(x % 512.0, y, 2.0, 64.0, &solid(rgba(0, 0, 0, 0.55)));
+                    x += 360.0;
+                }
+            }
+            Some(picture(c))
+        }
+        ("floor", "carpet") => {
+            let mut c = new(256, 256);
+            c.rect(0.0, 0.0, 256.0, 256.0, &solid(hex(0x2a1416)));
+            for _ in 0..9000 {
+                let (cr, cg, cb) = if r.roll() < 0.5 { (80, 30, 34) } else { (10, 4, 6) };
+                let a = 0.15 + r.roll() * 0.3;
+                c.rect(r.roll() * 256.0, r.roll() * 256.0, 1.4, 1.4, &solid(rgba(cr, cg, cb, a)));
+            }
+            Some(picture(c))
+        }
+        ("floor", "checker") => {
+            let mut c = new(256, 256);
+            for i in 0..4 {
+                for j in 0..4 {
+                    c.rect(i as f32 * 64.0, j as f32 * 64.0, 64.0, 64.0, &solid(hex(if (i + j) % 2 == 1 { 0xd8d4cc } else { 0x16171b })));
+                }
+            }
+            for i in 0..=4 {
+                c.rect(i as f32 * 64.0 - 1.0, 0.0, 2.0, 256.0, &solid(rgba(0, 0, 0, 0.35)));
+                c.rect(0.0, i as f32 * 64.0 - 1.0, 256.0, 2.0, &solid(rgba(0, 0, 0, 0.35)));
+            }
+            Some(picture(c))
+        }
+        ("floor", _) => {
+            let mut c = new(512, 512);
+            c.rect(0.0, 0.0, 512.0, 512.0, &solid(hex(0x121419)));
+            for i in 0..2 {
+                for j in 0..2 {
+                    let (x, y) = (i as f32 * 256.0, j as f32 * 256.0);
+                    let stops = vec![GradientStop::new(0.0, hex(0x171a21)), GradientStop::new(1.0, hex(0x101217))];
+                    let shader = LinearGradient::new(Point::from_xy(x, y), Point::from_xy(x + 256.0, y + 256.0), stops, SpreadMode::Pad, Transform::identity()).unwrap_or(Shader::SolidColor(hex(0x141419)));
+                    c.rect(x + 3.0, y + 3.0, 250.0, 250.0, &Paint { shader, anti_alias: true, ..Paint::default() });
+                }
+            }
+            for _ in 0..1800 {
+                let a = r.roll() * 0.035;
+                c.rect(r.roll() * 512.0, r.roll() * 512.0, 1.5, 1.5, &solid(rgba(255, 255, 255, a)));
+            }
+            Some(picture(c))
+        }
+        ("wall", "wood") => {
+            let mut c = new(512, 512);
+            for col in 0..8 {
+                let x0 = col as f32 * 64.0;
+                c.rect(x0, 0.0, 64.0, 512.0, &solid(hex([0x2b1c12, 0x251810, 0x2f1f14][col % 3])));
+                for _ in 0..30 {
+                    let (cr, cg, cb) = if r.roll() < 0.5 { (10, 5, 2) } else { (90, 62, 38) };
+                    let (a, wide, xx) = (0.05 + r.roll() * 0.07, 0.5 + r.roll(), x0 + 3.0 + r.roll() * 58.0);
+                    c.stroke(line((xx, 0.0), (xx + r.roll() * 4.0 - 2.0, 512.0)), &solid(rgba(cr, cg, cb, a)), &width(wide));
+                }
+                c.rect(x0, 0.0, 2.0, 512.0, &solid(rgba(0, 0, 0, 0.6)));
+            }
+            Some(picture(c))
+        }
+        ("wall", "brick") => {
+            let mut c = new(512, 512);
+            c.rect(0.0, 0.0, 512.0, 512.0, &solid(hex(0x1a1210)));
+            for row in 0..16 {
+                for col in -1..5 {
+                    let (bx, by) = (col as f32 * 128.0 + (row % 2) as f32 * 64.0 + 3.0, row as f32 * 32.0 + 3.0);
+                    let v = 0.75 + r.roll() * 0.3;
+                    c.rect(bx, by, 122.0, 26.0, &solid(rgba((92.0 * v).round() as u8, (40.0 * v).round() as u8, (32.0 * v).round() as u8, 1.0)));
+                    for _ in 0..30 {
+                        let a = 0.05 + r.roll() * 0.15;
+                        c.rect(bx + r.roll() * 120.0, by + r.roll() * 24.0, 2.0, 2.0, &solid(rgba(0, 0, 0, a)));
+                    }
+                }
+            }
+            Some(picture(c))
+        }
+        ("wall", "wallpaper") => {
+            let mut c = new(256, 256);
+            c.rect(0.0, 0.0, 256.0, 256.0, &solid(hex(0x0f1c1d)));
+            let gold = solid(rgba(200, 170, 100, 0.22));
+            for (cx, cy) in [(64.0, 64.0), (192.0, 192.0), (192.0, 64.0), (64.0, 192.0)] {
+                let mut pb = PathBuilder::new();
+                pb.move_to(cx, cy - 40.0);
+                pb.quad_to(cx + 34.0, cy, cx, cy + 40.0);
+                pb.quad_to(cx - 34.0, cy, cx, cy - 40.0);
+                c.stroke(pb.finish(), &gold, &width(2.0));
+                c.stroke(circle(cx, cy, 6.0), &gold, &width(2.0));
+            }
+            let mut x = 0.0;
+            while x < 256.0 {
+                c.rect(x, 0.0, 1.0, 256.0, &solid(rgba(200, 170, 100, 0.08)));
+                x += 32.0;
+            }
+            Some(picture(c))
+        }
+        _ => None,
+    }
+}
+
 /// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).
 fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
     let r = (((12.0 * sigma * sigma / 3.0 + 1.0).sqrt() - 1.0) / 2.0).round().max(1.0) as usize;
