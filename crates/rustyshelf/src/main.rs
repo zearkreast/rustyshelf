@@ -49,6 +49,8 @@ fn window_mode() -> WindowMode {
 
 fn main() {
     paths::quiet_drive_errors();
+    // before anything reads the settings: a waiting change put in, a new version's safety copy
+    rustyshelf_core::keepsetup::at_start(&paths::app_root(), env!("CARGO_PKG_VERSION"), &paths::env_var);
     std::thread::spawn(|| rustyshelf_core::emucfg::init(&paths::env_var));
     App::new()
         .add_plugins(

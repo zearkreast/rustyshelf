@@ -135,6 +135,26 @@ struct Chosen {
 
 type Press = Box<dyn Fn(&mut Settings) + Send + Sync>;
 
+/// Another RustyShelf's finished setup: the one that ran last (installs.json), else one in a folder near this one,
+/// in Downloads, on the Desktop or in Documents.
+fn other_setup(app_root: &Path) -> Option<rustyshelf_core::keepsetup::Install> {
+    use rustyshelf_core::keepsetup;
+    let data = paths::data_dir(app_root);
+    keepsetup::registry_file(&paths::env_var).and_then(|f| keepsetup::find_other(&f, &data)).or_else(|| {
+        let home = PathBuf::from(paths::env_var(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap_or_default());
+        let roots: Vec<PathBuf> = app_root.parent().map(Path::to_path_buf).into_iter().chain(["Downloads", "Desktop", "Documents"].map(|d| home.join(d))).collect();
+        keepsetup::find_nearby(&data, &roots)
+    })
+}
+
+/// Starts RustyShelf again (a change waiting in data\.pending goes in as it starts).
+fn restart() {
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = std::process::Command::new(exe).args(std::env::args_os().skip(1)).spawn();
+    }
+    std::process::exit(0);
+}
+
 /// Settings' tabs, by what you came to do.
 const TABS: [&str; 8] = ["Library", "Look", "Sound", "Box art & media", "Controls", "Shelf & museum", "Accounts", "System"];
 
@@ -283,6 +303,10 @@ pub struct Settings {
     go_to: Option<(String, String)>,
     /// something to say on the shelf once Settings has closed
     toast: Option<String>,
+    /// another RustyShelf's finished setup this new one could start from (the first run only)
+    other_setup: Option<rustyshelf_core::keepsetup::Install>,
+    /// a setup being brought over: how far it is, and how it ends
+    bringing: Option<(std::sync::Arc<Mutex<String>>, Mutex<Receiver<Result<(), String>>>)>,
     /// the Discord switch or id changed since they were last handed over
     pub discord_changed: bool,
     /// the same for the sound settings
@@ -317,6 +341,7 @@ impl Default for Settings {
         let app_root = paths::app_root();
         let cfg = Config::load(&paths::data_dir(&app_root)).unwrap_or_default();
         let wizard = !cfg.setup_done();
+        let other = if wizard { other_setup(&app_root) } else { None };
         Settings {
             open: wizard,
             just_closed: false,
@@ -374,7 +399,9 @@ impl Default for Settings {
             custom_themes: Vec::new(),
             reload_themes: false,
             go_to: None,
-            toast: None,
+            toast: rustyshelf_core::keepsetup::take_note(),
+            other_setup: other,
+            bringing: None,
             discord_changed: true,
             sound_changed: true,
             cues: Vec::new(),
@@ -1099,6 +1126,39 @@ impl Settings {
         rows
     }
 
+    /// Brings the other RustyShelf's setup over (with its downloads too, `extras`), then starts again to put it in.
+    fn bring_over(&mut self, extras: bool) {
+        let Some(from) = self.other_setup.clone().filter(|_| self.bringing.is_none()) else { return };
+        let to = rustyshelf_core::keepsetup::Install { data_dir: paths::data_dir(&self.app_root), app_root: self.app_root.clone(), version: env!("CARGO_PKG_VERSION").into(), last_run: 0.0 };
+        let (tx, rx) = channel();
+        let stage = std::sync::Arc::new(Mutex::new("Starting…".to_string()));
+        let at = stage.clone();
+        std::thread::spawn(move || {
+            let done = rustyshelf_core::keepsetup::bring_stage(&from, &to, extras, &|done, total| *at.lock().unwrap() = format!("{}%", done * 100 / total.max(1)));
+            let _ = tx.send(done.map(|_| ()));
+        });
+        self.bringing = Some((stage, Mutex::new(rx)));
+        self.redraw = true;
+    }
+
+    /// A setup being brought over, since the last frame.
+    fn poll_bringing(&mut self) {
+        let Some((stage, rx)) = &self.bringing else { return };
+        let said = format!("Bringing your setup over… {}", stage.lock().unwrap());
+        let ended = rx.lock().unwrap().try_recv().ok();
+        if self.note != said && ended.is_none() {
+            self.say(said);
+        }
+        match ended {
+            Some(Ok(())) => restart(),
+            Some(Err(why)) => {
+                self.bringing = None;
+                self.say(format!("Your setup couldn't be brought over: {why}"));
+            }
+            None => {}
+        }
+    }
+
     /// Settings' tabs, one step on (1) or back (-1).
     fn tab_step(&mut self, by: i32) {
         self.tab = (self.tab as i32 + by).rem_euclid(TABS.len() as i32) as usize;
@@ -1139,7 +1199,19 @@ impl Settings {
                     },
                     Row { label: "I'll pick them myself".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Consoles))), ..Row::default() },
                     self.language_row(),
-                ],
+                ]
+                .into_iter()
+                .chain(self.other_setup.iter().flat_map(|o| {
+                    let place = short(&o.app_root.to_string_lossy());
+                    [false, true].map(|extras| Row {
+                        label: if self.bringing.is_some() { "Bringing your setup over…".into() } else if extras { "…and its downloaded extras too".into() } else { "Bring my setup over".into() },
+                        value: if extras { String::new() } else { o.version.clone() },
+                        hint: if extras { "The same, with the box art, screenshots and other downloads it keeps, so nothing is downloaded again. It can take a while.".into() } else { format!("Your settings, history, shelves, sounds and themes from the RustyShelf in {place}. Its emulators and games stay where they are. RustyShelf starts again to put them in.") },
+                        press: Some(Box::new(move |s: &mut Settings| s.bring_over(extras))),
+                        step: None,
+                    })
+                }))
+                .collect(),
             },
             Screen::Drives => {
                 let mut rows: Vec<Row> = self
@@ -2008,6 +2080,24 @@ impl Settings {
                 ]
                 .into_iter()
                 .chain([open("Kid mode", on_off(self.kid_on()), "A PIN for Settings, and only the shelves you choose", Screen::Kid)])
+                .chain(rustyshelf_core::keepsetup::safety_list(&paths::data_dir(&self.app_root)).first().map(|(_, m)| {
+                    let from = m["version"].as_str().unwrap_or("").to_string();
+                    Row {
+                        label: "Undo the update's settings changes".into(),
+                        value: from.clone(),
+                        hint: "Puts back your settings, history and shelves as they were before this version first started (a copy is made each time a new version starts). RustyShelf starts again to do it.".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            if !s.twice("undo-update", &format!("Press again to go back to your settings from before {from}")) {
+                                return;
+                            }
+                            match rustyshelf_core::keepsetup::stage_undo(&paths::data_dir(&s.app_root)) {
+                                Ok(_) => restart(),
+                                Err(why) => s.say(why),
+                            }
+                        })),
+                        step: None,
+                    }
+                }))
                 .chain(self.moving_rows())
                 .chain([self.update_row()])
                 .collect(),
@@ -2494,6 +2584,7 @@ pub fn input(
     }
     s.poll_core();
     s.poll_ra();
+    s.poll_bringing();
     s.poll_igdb();
     s.poll_romm();
     s.poll_epic();
