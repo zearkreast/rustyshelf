@@ -38,6 +38,10 @@ pub struct MuseumCamera;
 #[derive(Component)]
 pub struct MuseumText;
 
+/// The text under the wall, kept when a room is rebuilt.
+#[derive(Component)]
+pub struct MuseumHud;
+
 #[derive(Component)]
 pub struct RowLight;
 
@@ -50,7 +54,9 @@ pub struct Case {
 }
 
 struct Row {
-    /// the shelf it shows, and its games' places on that shelf
+    /// the wall it's on (0 back, 1 left, 2 right) and its place on that wall, top down
+    wall: usize,
+    /// the shelf its games are from, and their places on that shelf
     shelf: usize,
     name: String,
     games: Vec<usize>,
@@ -79,15 +85,42 @@ pub struct Museum {
     /// when View / Minus went down on the shelf: a tap opens Details, a hold the museum
     select_since: Option<f32>,
     shown_front: Option<(usize, usize)>,
+    /// "classic" (one wall of every shelf), "manufacturer" or "genre" (rooms); the rooms, and the one in view
+    grouping: String,
+    plan: Option<rustyshelf_core::museum_plan::Plan>,
+    room: usize,
+    /// each wall's place and turn (the left and right walls face into the room)
+    walls: [(Vec3, f32); 3],
 }
 
 impl Museum {
-    /// Where the camera stands for the row and case in view.
+    /// Where the camera stands for the row and case in view, in the room.
     fn view(&self) -> (Vec3, Vec3) {
         let Some(r) = self.rows.get(self.row) else { return (Vec3::new(0.0, 0.0, 6.0), Vec3::ZERO) };
         let x = r.xs.get(self.col).copied().unwrap_or(0.0);
-        (Vec3::new(x, r.y + 0.1, 3.3), Vec3::new(x, r.y - 0.08, 0.0))
+        let (at, turn) = self.walls[r.wall];
+        let to_room = |p: Vec3| at + Quat::from_rotation_y(turn) * p;
+        (to_room(Vec3::new(x, r.y + 0.1, 3.3)), to_room(Vec3::new(x, r.y - 0.08, 0.0)))
     }
+
+    fn room_title(&self) -> Option<&str> {
+        self.plan.as_ref().and_then(|p| p.rooms.get(self.room)).map(|r| r.title.as_str())
+    }
+}
+
+/// The museum's games as the room plan takes them: each console's and the PC shelves' games, with their first genre.
+fn entries(lib: &rustyshelf_core::library::Library) -> Vec<rustyshelf_core::museum_plan::Entry> {
+    lib.shelves
+        .iter()
+        .filter(|s| matches!(s.kind, ShelfKind::Console { .. } | ShelfKind::Pc))
+        .flat_map(|s| {
+            s.games.iter().filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| rustyshelf_core::museum_plan::Entry {
+                id: g.id.clone(),
+                system: s.id.clone(),
+                genre: g.info.as_ref().and_then(|i| i.genres.as_deref()).and_then(|x| x.split(';').next()).unwrap_or("").to_string(),
+            })
+        })
+        .collect()
 }
 
 fn layer() -> RenderLayers {
@@ -107,18 +140,60 @@ fn build(
     loader: &ArtLoader,
 ) {
     m.rows.clear();
+    // what stands on the walls: (wall, the shelf, its games' places there)
+    let museum_shelves = |s: &rustyshelf_core::library::Shelf| matches!(s.kind, ShelfKind::Console { .. } | ShelfKind::Pc);
+    let groups: Vec<(usize, usize, Vec<usize>)> = match m.plan.as_ref().and_then(|p| p.rooms.get(m.room)) {
+        Some(room) => {
+            let mut at = std::collections::HashMap::new();
+            for (si, s) in lib.shelves.iter().enumerate().filter(|(_, s)| museum_shelves(s)) {
+                for (gi, g) in s.games.iter().enumerate() {
+                    at.entry(g.id.as_str()).or_insert((si, gi));
+                }
+            }
+            room.segments
+                .iter()
+                .filter_map(|seg| {
+                    let places: Vec<(usize, usize)> = seg.game_ids.iter().filter_map(|id| at.get(id.as_str()).copied()).collect();
+                    let si = places.first()?.0;
+                    Some((["back", "left", "right"].iter().position(|w| *w == seg.wall).unwrap_or(0), si, places.into_iter().map(|p| p.1).collect()))
+                })
+                .collect()
+        }
+        None => lib
+            .shelves
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| museum_shelves(s))
+            .map(|(si, s)| (0, si, s.games.iter().enumerate().filter(|(_, g)| !matches!(g.source, Source::Tile(_))).map(|(i, _)| i).collect::<Vec<_>>()))
+            .filter(|g| !g.2.is_empty())
+            .collect(),
+    };
     let wood = materials.add(StandardMaterial { base_color: Color::srgb(0.23, 0.15, 0.1), perceptual_roughness: 0.55, ..default() });
     let wall = materials.add(StandardMaterial { base_color: Color::srgb(0.09, 0.1, 0.14), perceptual_roughness: 0.95, ..default() });
     let floor = materials.add(StandardMaterial { base_color: Color::srgb(0.12, 0.11, 0.1), perceptual_roughness: 0.32, metallic: 0.25, ..default() });
+    // each wall's width: its longest row
+    let width_of = |si: usize, games: &[usize]| -> f32 {
+        let s = &lib.shelves[si];
+        games.iter().map(|&gi| { let look = looks::look_for(&s.id, &s.games[gi]); (look.h.unwrap_or(1.0) * look.ratio * look.depth).max(0.045) + GAP }).sum::<f32>() + 0.6
+    };
+    let mut wall_w = [4.0f32; 3];
+    for (wall, si, games) in &groups {
+        wall_w[*wall] = wall_w[*wall].max(width_of(*si, games));
+    }
+    let side = groups.iter().any(|g| g.0 != 0);
+    // the side walls flank the back wall and run toward the room's front: the left one turned to face +x starts at
+    // the front and runs back, the right one turned to face -x starts at the back
+    m.walls = [(Vec3::ZERO, 0.0), (Vec3::new(-1.7, 0.0, 0.3 + wall_w[1]), std::f32::consts::FRAC_PI_2), (Vec3::new(wall_w[0] + 1.7, 0.0, 0.3), -std::f32::consts::FRAC_PI_2)];
+    let parents: Vec<Entity> = m.walls.iter().map(|(at, turn)| commands.spawn((MuseumThing, Transform::from_translation(*at).with_rotation(Quat::from_rotation_y(*turn)), Visibility::Inherited)).id()).collect();
+    let mut on_wall = [0usize; 3];
     let mut widest: f32 = 4.0;
-    let shelves = lib.shelves.iter().enumerate().filter(|(_, s)| matches!(s.kind, ShelfKind::Console { .. } | ShelfKind::Pc));
-    for (si, s) in shelves {
-        let games: Vec<usize> = s.games.iter().enumerate().filter(|(_, g)| !matches!(g.source, Source::Tile(_))).map(|(i, _)| i).collect();
-        if games.is_empty() {
-            continue;
-        }
+    for (wall, si, games) in groups {
+        let s = &lib.shelves[si];
         let ri = m.rows.len();
-        let y = -(ri as f32) * ROW;
+        let li = on_wall[wall];
+        on_wall[wall] += 1;
+        let y = -(li as f32) * ROW;
+        let parent = parents[wall];
         let mut x = 0.0;
         let (mut sheets, mut xs) = (Vec::new(), Vec::new());
         for (col, &gi) in games.iter().enumerate() {
@@ -133,7 +208,7 @@ fn build(
             let spine = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.36, ..default() });
             let front = materials.add(StandardMaterial { base_color: color(look.case_color), perceptual_roughness: 0.42, ..default() });
             commands
-                .spawn((MuseumThing, Case { row: ri, col, home }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home)))
+                .spawn((Case { row: ri, col, home }, layer(), Mesh3d(meshes.add(Cuboid::new(d, ch, w))), MeshMaterial3d(case), Transform::from_translation(home), ChildOf(parent)))
                 .with_children(|c| {
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(d * 0.96, ch * 0.98))), MeshMaterial3d(spine.clone()), Transform::from_xyz(0.0, 0.0, w / 2.0 + 0.001)));
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.96, ch * 0.98))), MeshMaterial3d(front.clone()), Transform::from_xyz(d / 2.0 + 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))));
@@ -144,21 +219,31 @@ fn build(
         }
         widest = widest.max(x + 0.6);
         // the plank under the row, and the lamp over it
-        commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Cuboid::new(x + 0.66, PLANK, DEPTH + 0.1))), MeshMaterial3d(wood.clone()), Transform::from_xyz(x / 2.0, y - 0.5 - PLANK / 2.0, 0.0)));
+        commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(x + 0.66, PLANK, DEPTH + 0.1))), MeshMaterial3d(wood.clone()), Transform::from_xyz(x / 2.0, y - 0.5 - PLANK / 2.0, 0.0), ChildOf(parent)));
         commands.spawn((
-            MuseumThing,
+            ChildOf(parent),
             RowLight,
             layer(),
             SpotLight { color: Color::srgb(1.0, 0.88, 0.69), intensity: 0.0, range: 7.5, outer_angle: 0.95, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
             Transform::from_xyz(x / 2.0, y + ROW - 0.62, 0.9).looking_at(Vec3::new(x / 2.0, y - 0.5, 0.0), Vec3::Y),
         ));
-        m.rows.push(Row { shelf: si, name: s.name.clone(), games, sheets, xs, y, painted: false });
+        m.rows.push(Row { wall, shelf: si, name: s.name.clone(), games, sheets, xs, y, painted: false });
     }
-    let n = m.rows.len().max(1) as f32;
-    let mid = -(n - 1.0) * ROW / 2.0;
-    commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Rectangle::new(widest + 60.0, n * ROW + 8.0))), MeshMaterial3d(wall), Transform::from_xyz(widest / 2.0, mid, -DEPTH / 2.0 - 0.01)));
-    let bottom = -(n - 1.0) * ROW - 0.5 - PLANK - 0.4;
-    commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Plane3d::default().mesh().size(widest + 60.0, 40.0))), MeshMaterial3d(floor), Transform::from_xyz(widest / 2.0, bottom, 10.0)));
+    // each wall's panel behind its rows (a room's are its own width; the classic wall runs on); one floor for the room
+    let tallest = on_wall.iter().copied().max().unwrap_or(1).max(1) as f32;
+    for (k, &n) in on_wall.iter().enumerate() {
+        if n == 0 && k > 0 {
+            continue;
+        }
+        let n = n.max(1) as f32;
+        let w = if side { wall_w[k] + 2.0 } else { widest + 60.0 };
+        commands.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w, n * ROW + 8.0))), MeshMaterial3d(wall.clone()), Transform::from_xyz(wall_w[k] / 2.0, -(n - 1.0) * ROW / 2.0, -DEPTH / 2.0 - 0.01), ChildOf(parents[k])));
+    }
+    // the dark all round the room: the shelf's own backdrop is drawn by a camera before this one, and must never show
+    let dark = materials.add(StandardMaterial { base_color: Color::srgb(0.02, 0.02, 0.03), unlit: true, cull_mode: None, ..default() });
+    commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Sphere::new(400.0))), MeshMaterial3d(dark), Transform::from_xyz(widest / 2.0, 0.0, 0.0)));
+    let bottom = -(tallest - 1.0) * ROW - 0.5 - PLANK - 0.4;
+    commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Plane3d::default().mesh().size(widest + 60.0, 40.0 + wall_w[1].max(wall_w[2])))), MeshMaterial3d(floor), Transform::from_xyz(widest / 2.0, bottom, 10.0)));
     // begin at the shelf and game the cursor is on
     m.row = m.rows.iter().position(|r| r.shelf == cursor.shelf).unwrap_or(0);
     m.col = m.rows.get(m.row).and_then(|r| r.games.iter().position(|&g| g == cursor.game)).unwrap_or(0);
@@ -216,12 +301,14 @@ pub struct Making<'w> {
     lexend: Res<'w, crate::hud::Lexend>,
 }
 
-/// What has the keys instead: a game running, Inspect, the manual reader.
+/// What has the keys instead (a game running, Inspect, the manual reader), and the shelf's camera, which rests
+/// while the museum is drawn.
 #[derive(SystemParam)]
-pub struct Others<'w> {
+pub struct Others<'w, 's> {
     playing: Res<'w, crate::play::Playing>,
     inspect: Res<'w, crate::shelf::Inspect>,
     reader: Res<'w, crate::reader::Reader>,
+    shelf_camera: Query<'w, 's, &'static mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
 }
 
 /// Opens the museum (M on the shelf), takes the keys while it's open, and moves through it.
@@ -234,14 +321,14 @@ pub fn run(
     lib: Res<LibraryRes>,
     mut museum: ResMut<Museum>,
     mut settings: ResMut<crate::settings::Settings>,
-    others: Others,
+    mut others: Others,
     mut cursor: ResMut<Cursor>,
     mut sounds: ResMut<crate::sound::Sounds>,
     mut making: Making,
     mut camera: Query<(&mut Camera, &mut Transform), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>,
     mut cases: Query<(&Case, &mut Transform), (Without<MuseumCamera>, Without<RowLight>)>,
     mut lights: Query<(&mut SpotLight, &Transform), (With<RowLight>, Without<Case>, Without<MuseumCamera>)>,
-    things: Query<Entity, With<MuseumThing>>,
+    things: Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
     mut text: Query<&mut Text, With<MuseumText>>,
 ) {
     let LibraryState::Ready(l) = &lib.0 else { return };
@@ -266,9 +353,20 @@ pub fn run(
         if free && (keys.just_pressed(KeyCode::KeyM) || held) {
             m.select_since = None;
             m.open = true;
+            m.grouping = l.config.raw().get("ui").and_then(|u| u.get("museumStyle")).and_then(|x| x.get("grouping")).and_then(|g| g.as_str()).unwrap_or("classic").to_string();
+            m.plan = (m.grouping != "classic").then(|| rustyshelf_core::museum_plan::plan_museum(&entries(l), &m.grouping));
+            // the room the game under the cursor is in
+            let here = l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).map(|g| g.id.clone());
+            m.room = match (&m.plan, here) {
+                (Some(p), Some(id)) => p.by_game.get(&id).and_then(|at| p.rooms.iter().position(|r| r.id == at.room)).unwrap_or(0),
+                _ => 0,
+            };
             build(&mut commands, m, l, &cursor, meshes, materials, covers, loader);
             if let Ok((mut cam, _)) = camera.single_mut() {
                 cam.is_active = true;
+            }
+            if let Ok(mut shelf) = others.shelf_camera.single_mut() {
+                shelf.is_active = false;
             }
             spawn_text(&mut commands, m.camera, lexend);
             (m.pull, m.moved_at, m.shown_front) = (0.0, now, None);
@@ -278,8 +376,23 @@ pub fn run(
         return;
     }
     settings.keys_taken = true;
+    // another room: [ and ], or L1 and R1 (the media room has no shelves yet: it's passed by)
+    let to_room = (keys.just_pressed(KeyCode::BracketRight) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::BracketLeft) || pad(GamepadButton::LeftTrigger)) as i32;
+    if let Some(n) = m.plan.as_ref().map(|p| p.rooms.iter().filter(|r| !r.segments.is_empty()).count()).filter(|n| *n > 1 && to_room != 0) {
+        let rooms: Vec<usize> = m.plan.as_ref().map(|p| p.rooms.iter().enumerate().filter(|(_, r)| !r.segments.is_empty()).map(|(i, _)| i).collect()).unwrap_or_default();
+        let at = rooms.iter().position(|&i| i == m.room).unwrap_or(0) as i32;
+        m.room = rooms[(at + to_room).rem_euclid(n as i32) as usize];
+        for (e, _) in things.iter().filter(|(_, hud)| !hud) {
+            commands.entity(e).despawn();
+        }
+        let held_cursor = Cursor { shelf: usize::MAX, ..Cursor::default() };
+        build(&mut commands, m, l, &held_cursor, meshes, materials, covers, loader);
+        (m.pull, m.moved_at, m.shown_front) = (0.0, now, None);
+        sounds.play("shelf", to_room);
+        return;
+    }
     if m.rows.is_empty() || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || keys.just_pressed(KeyCode::KeyM) || pad(settings.confirm().1) {
-        return close(&mut commands, m, &things, &mut camera, &mut sounds);
+        return close(&mut commands, m, &things, &mut camera, &mut others.shelf_camera, &mut sounds);
     }
     // the arrows, the d-pad and the left stick; held, they repeat
     let stick = pads.iter().map(|p| p.left_stick() + p.dpad()).find(|v| v.length() > 0.5).unwrap_or(Vec2::ZERO);
@@ -321,7 +434,7 @@ pub fn run(
         let r = &m.rows[m.row];
         (cursor.shelf, cursor.game, cursor.land) = (r.shelf, r.games[m.col], false);
         settings.play = true;
-        return close(&mut commands, m, &things, &mut camera, &mut sounds);
+        return close(&mut commands, m, &things, &mut camera, &mut others.shelf_camera, &mut sounds);
     }
     // the chosen case's cover, once it has stood still a moment
     let chosen = (m.row, m.col);
@@ -362,7 +475,8 @@ pub fn run(
     if let Ok(mut text) = text.single_mut() {
         let r = &m.rows[m.row];
         let g = &l.shelves[r.shelf].games[r.games[m.col]];
-        text.0 = format!("{}  ·  {}\n{} of {}", g.title, r.name, m.col + 1, r.games.len());
+        let room = m.room_title().map(|t| format!("{t}  ·  ")).unwrap_or_default();
+        text.0 = format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, r.games.len());
     }
 }
 
@@ -374,7 +488,7 @@ fn ease(k: f32) -> f32 {
 fn spawn_text(commands: &mut Commands, camera: Option<Entity>, lexend: &crate::hud::Lexend) {
     let Some(camera) = camera else { return };
     commands.spawn((
-        MuseumThing,
+        MuseumHud,
         UiTargetCamera(camera),
         Node { position_type: PositionType::Absolute, bottom: px(28), width: percent(100), justify_content: JustifyContent::Center, ..default() },
         children![(MuseumText, Text::default(), lexend.font(500, 20.0), TextLayout::justify(Justify::Center), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)))],
@@ -384,11 +498,15 @@ fn spawn_text(commands: &mut Commands, camera: Option<Entity>, lexend: &crate::h
 fn close(
     commands: &mut Commands,
     m: &mut Museum,
-    things: &Query<Entity, With<MuseumThing>>,
+    things: &Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
     camera: &mut Query<(&mut Camera, &mut Transform), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>,
+    shelf_camera: &mut Query<&mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
     sounds: &mut crate::sound::Sounds,
 ) {
-    for e in things {
+    if let Ok(mut shelf) = shelf_camera.single_mut() {
+        shelf.is_active = true;
+    }
+    for (e, _) in things {
         commands.entity(e).despawn();
     }
     if let Ok((mut cam, _)) = camera.single_mut() {
