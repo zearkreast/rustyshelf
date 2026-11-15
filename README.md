@@ -631,6 +631,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   of the account, and whether each console's emulator is signed in): a game's progress beside its facts on the
   shelf, its achievements in Details, and what was unlocked when a game is come back from. The key is kept as
   the Electron app keeps it, encrypted for this Windows user, so both apps open each other's.
+- Shows a Steam game's achievements in Details, read from what Steam keeps on this PC (its `appcache\stats`
+  files, for the account last signed in), as the Electron app does: nothing is asked of Steam, and a game never
+  started on this PC has none.
+- Lists the room the PC games take (Settings → PC games and apps → Storage): the installed Steam, Epic, GOG,
+  HoYoPlay and PC games folder games by drive, the biggest first, with each drive's free space.
 - Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf
   are listed as you type, best first, by the Electron app's own rules (capitals, accents and punctuation don't
   matter); with nothing typed, the games played last. Enter takes the shelf to the one chosen.

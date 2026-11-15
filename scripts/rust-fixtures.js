@@ -1217,6 +1217,74 @@ async function companionFixtures() {
   await C.stop(); fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }
+// Steam's cached achievements (binary KeyValues files as Steam writes them) and the PC games' storage summary.
+function kv(o) { // an object as binary KeyValues: a string is a text, a whole number an int32, { $: [type, bytes] } anything else
+  const parts = [];
+  for (const [k, v] of Object.entries(o)) {
+    const key = Buffer.concat([Buffer.from(k), Buffer.from([0])]);
+    if (typeof v === 'string') parts.push(Buffer.from([1]), key, Buffer.from(v), Buffer.from([0]));
+    else if (typeof v === 'number') { const n = Buffer.alloc(4); n.writeInt32LE(v | 0); parts.push(Buffer.from([2]), key, n); }
+    else if (v && v.$) parts.push(Buffer.from([v.$[0]]), key, Buffer.from(v.$[1]));
+    else parts.push(Buffer.from([0]), key, kv(v), Buffer.from([8]));
+  }
+  return Buffer.concat(parts);
+}
+async function pcachFixtures() {
+  const pcach = require('../main/pcach'), storage = require('../main/storage');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-pcach-')), stats = path.join(tmp, 'appcache', 'stats'), out = {};
+  fs.mkdirSync(stats, { recursive: true }); fs.mkdirSync(path.join(tmp, 'config'));
+  const f32 = n => { const b = Buffer.alloc(4); b.writeFloatLE(n); return [...b]; }, u64 = n => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return [...b]; }, i64 = n => { const b = Buffer.alloc(8); b.writeBigInt64LE(BigInt(n)); return [...b]; };
+  const wide = t => [...Buffer.from(t, 'utf16le'), 0, 0];
+  const files = {};
+  const put = (name, buf) => { fs.writeFileSync(path.join(stats, name), buf); files[name] = b64(buf); };
+  const ach = (name, bit, display) => ({ name, ...(bit == null ? {} : { bit }), display });
+  // 4242: two stats, languages, hidden ones, grey icons, a bit named by its key, one past the 32 bits
+  put('UserGameStatsSchema_4242.bin', kv({ 4242: { GameName: 'Tau Racers', Version: '3', Stats: {
+    10: { type: '4', bits: { 1: ach('ACH_SECOND', 1, { name: { german: 'Zweite', english: 'Second Lap' }, desc: { english: 'Finish a second lap' }, hidden: '0', icon: 'second.jpg', icon_gray: 'second_gray.jpg' }),
+      0: ach('ACH_FIRST', 0, { Name: 'First Lap', desc: 'Finish a lap', icon: 'first.jpg', icon_gray: 'first_gray.jpg' }),
+      31: ach('ACH_LAST', 31, { name: { french: 'Dernier' }, desc: { french: 'Le dernier' }, hidden: 1, icon: 'last.jpg' }),
+      7: ach('ACH_SECRET', 7, { name: { english: 'Secret Road' }, desc: { english: 'Find the hidden road' }, hidden: '1', icon_gray: 'secret_gray.jpg', icon: 'secret.jpg' }) } },
+    2: { type: 'INT', default: '0' },
+    3: { Type: '4', Bits: { 5: { name: 'ACH_KEYED', display: { name: {}, desc: {} } }, 40: ach('ACH_FAR', 40, { name: { english: 'Far Out' }, desc: '' }), 2: ach('', 2, { desc: { english: 'No name at all' } }) } } } } }));
+  put('UserGameStats_1234_4242.bin', kv({ cache: { crc: 99, PendingChanges: 0, 10: { data: (1 << 0) | (1 << 7) | (1 << 31), AchievementTimes: { 0: 943171200, 7: 0, 31: 1700000000 } }, 3: { data: 1 << 5, achievementtimes: { 5: 1262304000 } } } }));
+  // 500: everything earned, the root not under its app id; 600: nobody's progress; 700: one other account's; 800: two others'
+  put('UserGameStatsSchema_500.bin', kv({ other: { gamename: { english: 'Phi' }, stats: { 1: { bits: { 0: ach('A', 0, { name: 'Alpha', desc: 'One', icon: 'a.jpg' }), 1: ach('B', 1, { name: 'Beta', desc: 'Two', icon: 'b.jpg', hidden: '1' }) } } } } }));
+  put('UserGameStats_1234_500.bin', kv({ cache: { 1: { data: 3, AchievementTimes: { 0: 1, 1: 86399 } } } }));
+  const one = kv({ 0: { stats: { 1: { bits: { 0: ach('A', 0, { name: 'Alpha', desc: 'One', icon: 'a.jpg', icon_gray: 'a_gray.jpg' }) } } } } });
+  for (const id of [600, 700, 800]) put(`UserGameStatsSchema_${id}.bin`, one);
+  put('UserGameStats_77_700.bin', kv({ cache: { 1: { data: 1, AchievementTimes: { 0: 1500000000 } } } }));
+  put('UserGameStats_77_800.bin', kv({ cache: { 1: { data: 1 } } })); put('UserGameStats_78_800.bin', kv({ cache: { 1: { data: 1 } } }));
+  put('UserGameStatsSchema_900.bin', kv({ 900: { gamename: 'Rho', stats: { 1: { type: 'INT' } } } }));
+  put('UserGameStatsSchema_901.bin', Buffer.concat([kv({ 901: { stats: {} } }), Buffer.from([9]), Buffer.from('odd\0')]));
+  out.files = files;
+  out.blobs = [kv({ a: 'text', b: -5, c: { $: [3, f32(1.5)] }, d: { $: [7, u64('18446744073709551615')] }, e: { $: [10, i64(-9)] }, f: { $: [5, wide('wide é')] }, g: { h: { i: 'deep' }, 2: 'two', 1: 'one' }, a2: { $: [4, [1, 0, 0, 0]] }, a3: { $: [6, [2, 0, 0, 0]] } }),
+    Buffer.concat([kv({ a: 'kept' }), Buffer.from([11]), kv({ b: 'after the end' })]), Buffer.from([1, 97, 0, 98]), Buffer.from([2, 97, 0, 1, 2]), Buffer.from([12, 97, 0]), Buffer.alloc(0), kv({ a: 'one', A: 'two', a: 'three' })]
+    .map(b => { let parsed = null, error = null; try { parsed = pcach.parseBin(b); } catch (e) { error = e instanceof RangeError ? 'range' : e.message; } return { bytes: b64(b), parsed, error }; });
+  const users = [
+    '"users"\n{\n\t"76561197960266962"\n\t{\n\t\t"AccountName"\t"one"\n\t\t"MostRecent"\t"0"\n\t\t"Timestamp"\t"1700000000"\n\t}\n\t"76561197960267000"\n\t{\n\t\t"mostrecent"\t"1"\n\t\t"Timestamp"\t"5"\n\t}\n}\n',
+    '"users"\n{\n\t"76561197960266962"\n\t{\n\t\t"Timestamp"\t"1700000000"\n\t}\n\t"76561197960267000"\n\t{\n\t\t"Timestamp"\t"1800000000"\n\t}\n\t"76561197960267001"\n\t{\n\t\t"Timestamp"\t"soon"\n\t}\n}\n',
+    '"users"\n{\n\t"123"\n\t{\n\t\t"MostRecent"\t"1"\n\t}\n}\n', '"users"\n{\n}\n', 'nothing here', null];
+  out.accounts = users.map(text => { const f = path.join(tmp, 'config', 'loginusers.vdf'); if (text == null) fs.rmSync(f, { force: true }); else fs.writeFileSync(f, text); return { text, id: pcach.accountId(tmp) }; });
+  out.users = users[0]; fs.writeFileSync(path.join(tmp, 'config', 'loginusers.vdf'), users[0]);
+  out.progress = ['4242', '500', '600', '700', '800', '900', '901', '1000', '', '42x', ' 4242'].map(id => [id, pcach.steamProgress(tmp, id)]);
+  out.noSteam = pcach.steamProgress('', '4242');
+
+  const root = path.join(tmp, 'games'), rel = t => t.split(tmp).join('<dir>');
+  for (const d of ['a/Zeta Run', 'a/Omega Quest', 'a/deep/Sigma', 'b/Tau Racers', 'c d/Phi', 'elsewhere/Rho']) fs.mkdirSync(path.join(root, d), { recursive: true });
+  fs.writeFileSync(path.join(root, 'a', 'file.txt'), 'x');
+  const mounts = ['proc /proc proc rw 0 0', `dev ${root}/a ext4 rw 0 0`, `dev ${root}/a/deep ext4 rw 0 0`, `dev ${root}/b ext4 rw 0 0`, `dev ${root}/c\\040d ext4 rw 0 0`, 'short', `dev ${root}/a/de ext4 rw 0 0`].join('\n');
+  const games = [{ id: 'g1', title: 'Zeta Run', source: 'steam', dir: path.join(root, 'a', 'Zeta Run'), bytes: 3000 }, { id: 'g2', title: 'Omega Quest', source: 'epic', dir: path.join(root, 'a', 'Omega Quest') + '/', bytes: 3000 },
+    { id: 'g3', title: '', source: 'folder', dir: path.join(root, 'a', 'x', '..', 'deep', 'Sigma'), bytes: 9000 }, { id: 'g4', title: 'Tau Racers', dir: path.join(root, 'b', 'Tau Racers'), bytes: 500 },
+    { id: 'g5', title: 'Phi ' + 'x'.repeat(130), source: 'gog', dir: path.join(root, 'c d', 'Phi'), bytes: 0 }, { id: 'g6', title: 'Rho', source: 'hoyoplay', dir: path.join(root, 'elsewhere', 'Rho'), bytes: 7000 },
+    { id: 'g7', title: 'Again', source: 'steam', dir: path.join(root, 'a', 'ZETA RUN'), bytes: 1 }, { id: 'g8', title: 'A file', source: 'steam', dir: path.join(root, 'a', 'file.txt'), bytes: 1 },
+    { id: 'g9', title: 'Gone', source: 'steam', dir: path.join(root, 'gone'), bytes: 1 }, { id: 'g10', title: 'No folder', source: 'steam', dir: '', bytes: 1 }, { id: 'g11', title: 'omega quest', source: 'epic', dir: path.join(root, 'a'), bytes: 3000 }];
+  const room = { [root + '/a']: { free: 1e9, total: 5e9 }, [root + '/b']: { free: 0, total: 1e6 }, '/': { free: 123456789, total: 987654321 } };
+  out.storage = { mounts: rel(mounts), games: JSON.parse(rel(JSON.stringify(games))), room: JSON.parse(rel(JSON.stringify(room))),
+    summary: JSON.parse(rel(JSON.stringify(await storage.summary(games, { mountsText: mounts, statfs: async r => room[r] || { free: null, total: null } })))) };
+  out.mountOf = [['C:\\Games\\Zeta Run', null], ['d:/games/x', null], ['C:\\', null], ['/x/y', 'a /x/y b\nc /x d\ne /x/yz f'], ['/x/yz/q', 'a /x/y b\nc /x d\ne /x/yz/ f'], ['/other', 'a /x b'], ['/x', 'a /x b']].map(([p, m]) => [p, m, storage.mountOf(p, m == null ? '' : m)]);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1228,6 +1296,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'addgames.json'), JSON.stringify(await addgamesFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'manuals.json'), JSON.stringify(await manualsFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'companion.json'), JSON.stringify(await companionFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'pcach.json'), JSON.stringify(await pcachFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');

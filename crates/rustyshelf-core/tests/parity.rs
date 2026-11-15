@@ -1796,3 +1796,75 @@ fn phone_companion_serves_the_home_network() {
     phone.stop();
     assert!(!phone.state().on && phone.state().pin.is_empty());
 }
+
+#[test]
+fn steam_achievements_and_storage_match_the_js() {
+    use rustyshelf_core::{pcach, storage};
+    let f = fixture("pcach.json");
+    let decode = |v: &Value| base64::engine::general_purpose::STANDARD.decode(v.as_str().unwrap()).unwrap();
+    // a number can be past what JSON keeps whole
+    fn alike(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Number(x), Value::Number(y)) => x.as_f64() == y.as_f64(),
+            (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| alike(p, q)),
+            (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().zip(y).all(|((k, p), (l, q))| k == l && alike(p, q)),
+            _ => a == b,
+        }
+    }
+    for (i, blob) in f["blobs"].as_array().unwrap().iter().enumerate() {
+        match pcach::parse_bin(&decode(&blob["bytes"])) {
+            Ok(kv) => assert!(alike(&kv.to_json(), &blob["parsed"]), "blob {i}: {}, the JS read {}", kv.to_json(), blob["parsed"]),
+            Err(e) => assert!(blob["parsed"].is_null() && (blob["error"] == "range" || blob["error"] == e.as_str()), "blob {i}: {e}"),
+        }
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let stats = tmp.path().join("appcache/stats");
+    fs::create_dir_all(&stats).unwrap();
+    fs::create_dir_all(tmp.path().join("config")).unwrap();
+    for (name, bytes) in f["files"].as_object().unwrap() {
+        fs::write(stats.join(name), decode(bytes)).unwrap();
+    }
+    let users = tmp.path().join("config/loginusers.vdf");
+    for a in f["accounts"].as_array().unwrap() {
+        match a["text"].as_str() {
+            Some(text) => fs::write(&users, text).unwrap(),
+            None => fs::remove_file(&users).unwrap(),
+        }
+        assert_eq!(pcach::account_id(tmp.path()), a["id"].as_str().unwrap(), "{}", a["text"]);
+    }
+    fs::write(&users, f["users"].as_str().unwrap()).unwrap();
+    for p in f["progress"].as_array().unwrap() {
+        let got = pcach::steam_progress(tmp.path(), p[0].as_str().unwrap()).unwrap_or(Value::Null);
+        assert_eq!(got, p[1], "the achievements of app {}", p[0]);
+    }
+    assert!(pcach::steam_progress(Path::new(""), "4242").is_none() && f["noSteam"].is_null());
+
+    let s = &f["storage"];
+    let dir = tmp.path().to_string_lossy().into_owned();
+    let here = |v: &Value| v.as_str().unwrap().replace("<dir>", &dir);
+    for d in ["a/Zeta Run", "a/Omega Quest", "a/deep/Sigma", "b/Tau Racers", "c d/Phi", "elsewhere/Rho"] {
+        fs::create_dir_all(tmp.path().join("games").join(d)).unwrap();
+    }
+    fs::write(tmp.path().join("games/a/file.txt"), "x").unwrap();
+    let games: Vec<storage::Entry> = s["games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| storage::Entry { id: here(&g["id"]), title: here(&g["title"]), source: g["source"].as_str().unwrap_or("").into(), dir: here(&g["dir"]), bytes: g["bytes"].as_u64().unwrap() })
+        .collect();
+    let room = |root: &str| {
+        let r = s["room"].as_object().unwrap().iter().find(|(k, _)| k.replace("<dir>", &dir) == root).map(|(_, v)| v);
+        (r.and_then(|r| r["free"].as_f64()).map(|n| n as u64), r.and_then(|r| r["total"].as_f64()).map(|n| n as u64))
+    };
+    let drives: Vec<Value> = storage::summary(&games, Some(&here(&s["mounts"])), &room)
+        .iter()
+        .map(|d| {
+            let games: Vec<Value> = d.games.iter().map(|g| serde_json::json!({ "id": g.id, "title": g.title, "source": g.source, "dir": g.dir.replace(&dir, "<dir>"), "bytes": g.bytes })).collect();
+            serde_json::json!({ "root": d.root.replace(&dir, "<dir>"), "games": games, "gamesBytes": d.games_bytes, "free": d.free, "total": d.total })
+        })
+        .collect();
+    assert!(alike(&Value::Array(drives.clone()), &s["summary"]["drives"]), "{}\nthe JS gave {}", Value::Array(drives), s["summary"]["drives"]);
+    for m in f["mountOf"].as_array().unwrap() {
+        assert_eq!(storage::mount_of(m[0].as_str().unwrap(), Some(m[1].as_str().unwrap_or(""))), m[2].as_str().unwrap(), "{}", m[0]);
+    }
+}

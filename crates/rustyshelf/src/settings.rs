@@ -32,6 +32,7 @@ mod manuals;
 mod moving;
 mod phone;
 pub mod setup;
+mod storage;
 mod text;
 mod update;
 
@@ -87,6 +88,8 @@ enum Screen {
     Accounts,
     Achievements,
     Phone,
+    /// the room the PC games take, by drive
+    Storage,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -183,6 +186,7 @@ pub struct Settings {
     update: update::Update,
     adding: addgames::Adding,
     manual_search: manuals::ManualSearch,
+    storage: storage::Storage,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -260,6 +264,7 @@ impl Default for Settings {
             update: Default::default(),
             adding: Default::default(),
             manual_search: Default::default(),
+            storage: Default::default(),
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -490,6 +495,12 @@ impl Settings {
     fn go(&mut self, screen: Screen) {
         if let Screen::EmuSetup(id) = &screen {
             self.load_setup(id);
+        }
+        if screen == Screen::Storage {
+            self.load_storage(false);
+        }
+        if screen == Screen::Details {
+            self.load_achievements(false);
         }
         self.stack.push((screen, 0));
         self.cues.push(("open", 1));
@@ -1009,6 +1020,7 @@ impl Settings {
                         })),
                     },
                     toggle("Console box art", &["pc", "consoleBox"], false, "A PC game in the box of its console release, where there is one"),
+                    open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
                 ];
                 for a in &systems().apps {
                     let (id, id2) = (a.id.clone(), a.id.clone());
@@ -1340,7 +1352,8 @@ impl Settings {
                     open("Collections", String::new(), "This game on shelves of your own", Screen::GameCollections),
                 ];
                 if let Some(line) = self.achievements_line() {
-                    rows.push(open("Achievements", line, "Your RetroAchievements for this game", Screen::Achievements));
+                    let whose = if matches!(g.source, Source::Steam { .. }) { "Your Steam achievements for this game, read from Steam's own files on this PC" } else { "Your RetroAchievements for this game" };
+                    rows.push(open("Achievements", line, whose, Screen::Achievements));
                 }
                 if !g.art.manual.is_empty() {
                     let pages = g.art.manual.clone();
@@ -1409,6 +1422,7 @@ impl Settings {
             Screen::Find => self.find_page(),
             Screen::Accounts => self.accounts_page(),
             Screen::Phone => self.phone_page(),
+            Screen::Storage => self.storage_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
@@ -1654,6 +1668,7 @@ pub fn input(
             let all: Vec<&Game> = b.shelves.iter().flat_map(|sh| sh.games.iter()).collect();
             s.filters = shelfview::filters(&all, &s.text(&["ui", "filter"]));
             s.titles = all.iter().map(|g| (g.id.clone(), g.title.clone())).collect();
+            s.note_folders(&all);
         }
         if first == Screen::Details && s.chosen.is_none() {
             return;
@@ -1710,6 +1725,7 @@ pub fn input(
     s.poll_update();
     s.poll_adding();
     s.poll_manuals();
+    s.poll_storage();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;

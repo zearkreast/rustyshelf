@@ -217,6 +217,19 @@ impl Settings {
         let Some(c) = &self.chosen else { return };
         let (shelf, title, id) = (c.console.clone(), c.game.title.clone(), c.game.id.clone());
         self.achievements = None;
+        if let Some(appid) = self.steam_app().map(String::from) {
+            let given = self.text(&["steam", "path"]);
+            let (tx, rx) = std::sync::mpsc::channel();
+            self.ra_answer = Some(Mutex::new(rx));
+            std::thread::spawn(move || {
+                use rustyshelf_core::steam;
+                // Steam's own folder keeps them, whichever library the game is in
+                let given = steam::steam_root(&given);
+                let root = given.clone().filter(|r| steam::is_main_steam(r)).or_else(steam::find_steam).or(given);
+                let _ = tx.send(RaAnswer::Progress(id, Ok(root.and_then(|r| rustyshelf_core::pcach::steam_progress(&r, &appid)))));
+            });
+            return;
+        }
         self.ask_ra(move |ra| RaAnswer::Progress(id, ra.progress(&shelf, &title, force)));
     }
 
@@ -224,6 +237,11 @@ impl Settings {
     /// or without an account.
     pub(super) fn achievements_line(&self) -> Option<String> {
         let c = self.chosen.as_ref()?;
+        if self.steam_app().is_some() {
+            // (a Steam game with none kept here has no row at all)
+            let p = self.achievements.as_ref().filter(|a| a.0 == c.game.id)?.1.as_ref().ok()?.as_ref()?;
+            return Some(format!("{} of {}{}", p["earned"], p["total"], if p["mastered"] == "completed" { " · Completed" } else { "" }));
+        }
         rustyshelf_core::ra::console_id(&c.console)?;
         if self.ra_account().1.is_empty() {
             return None;
@@ -236,19 +254,31 @@ impl Settings {
         })
     }
 
+    /// The chosen game's Steam app, when Steam starts it.
+    fn steam_app(&self) -> Option<&str> {
+        match &self.chosen.as_ref()?.game.source {
+            Source::Steam { appid, .. } => Some(appid),
+            _ => None,
+        }
+    }
+
     pub(super) fn achievements_page(&self) -> Page {
         let title = self.chosen.as_ref().map_or(String::new(), |c| c.game.title.clone());
-        let mut rows = vec![Row { label: "Ask again".into(), hint: "Reads your progress from RetroAchievements now.".into(), press: Some(Box::new(|s: &mut Settings| s.load_achievements(true))), ..Row::default() }];
+        let steam = self.steam_app().is_some();
+        let again = if steam { "Reads your progress again from what Steam keeps on this PC." } else { "Reads your progress from RetroAchievements now." };
+        let mut rows = vec![Row { label: "Ask again".into(), hint: again.into(), press: Some(Box::new(|s: &mut Settings| s.load_achievements(true))), ..Row::default() }];
         let lead = match self.achievements.as_ref().map(|a| &a.1) {
+            None if steam => "Reading Steam's files…".into(),
             None => "Asking RetroAchievements…".into(),
             Some(Err(why)) => why.clone(),
+            Some(Ok(None)) if steam => "Steam keeps no achievements for this game on this PC yet.".into(),
             Some(Ok(None)) => "RetroAchievements has no set for this game.".into(),
             Some(Ok(Some(p))) => {
                 for a in p["achievements"].as_array().map(Vec::as_slice).unwrap_or_default() {
                     let earned = a["earned"] == true;
                     rows.push(Row {
                         label: format!("{} {}", if earned { "★" } else { "☆" }, a["title"].as_str().unwrap_or("")),
-                        value: format!("{}{}", a["points"], if a["hardcore"] == true { " · hardcore" } else { "" }),
+                        value: if steam { if earned { "Earned" } else { "" }.into() } else { format!("{}{}", a["points"], if a["hardcore"] == true { " · hardcore" } else { "" }) },
                         hint: [a["desc"].as_str().unwrap_or("").to_string(), a["date"].as_str().map_or(String::new(), |d| format!("Earned {d}")), a["rarity"].as_u64().map_or(String::new(), |r| format!("{r}% of players have it"))]
                             .into_iter()
                             .filter(|t| !t.is_empty())
@@ -257,7 +287,11 @@ impl Settings {
                         ..Row::default()
                     });
                 }
-                format!("{} of {} earned · {} of {} points", p["earned"], p["total"], p["pointsEarned"], p["points"])
+                if steam {
+                    format!("{} of {} earned, as Steam keeps them on this PC", p["earned"], p["total"])
+                } else {
+                    format!("{} of {} earned · {} of {} points", p["earned"], p["total"], p["pointsEarned"], p["points"])
+                }
             }
         };
         Page { title: format!("Achievements · {title}"), lead, rows }
