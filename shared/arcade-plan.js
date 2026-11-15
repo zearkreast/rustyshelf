@@ -40,7 +40,7 @@
     list.forEach(e => {
       const gk = genreKeyOf(e.primaryGenre);
       let g = byGenre.get(gk);
-      if (!g) { g = { gk, games: [] }; byGenre.set(gk, g); order.push(g); }
+      if (!g) { g = { gk, label: genreLabel(gk, e.primaryGenre), games: [] }; byGenre.set(gk, g); order.push(g); } // (the room's name: the genre as its first game spells it)
       g.games.push(e);
     });
     // canonical order: by game id (a rescan or a shuffled source must not move a game between rooms or slots);
@@ -54,8 +54,8 @@
         const slice = g.games.slice(k * cap, (k + 1) * cap);
         rooms.push({
           id: `arcade:${g.gk}:${k}`, groupKey: 'arcade', genreKey: g.gk,
-          title: (n > 1 ? `${genreLabel(g.gk)} · ${k + 1} of ${n}` : genreLabel(g.gk)),
-          plain: genreLabel(g.gk), gameIds: slice.map(e => String(e.id)), cap
+          title: (n > 1 ? `${g.label} · ${k + 1} of ${n}` : g.label),
+          plain: g.label, gameIds: slice.map(e => String(e.id)), cap
         });
       }
     });

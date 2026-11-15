@@ -761,6 +761,26 @@ function i18nFixtures(lang) {
   const texts = [...keys.filter((_, i) => i % 7 === 0), ...made, '  Add games  ', 'Add\n  games', '12:30', '', 'Not a known text at all', keys[3].toUpperCase()];
   return { lang, cases: texts.map(t => [t, win.BS_tr(t)]) };
 }
+// ---- the museum's rooms and the arcade wing (shared/museum-layout.js, shared/arcade-plan.js): made-up libraries
+// big enough to split rooms, segments and walls ----
+function museumPlanFixtures() {
+  const ML = require('../shared/museum-layout.js'), AP = require('../shared/arcade-plan.js');
+  const genres = ['Racing', 'Fighting', 'Puzzle', 'Shooter', 'Platform', '', 'Beat \'em Up', 'Sports', 'racing ', 'Role-Playing'];
+  const lib = [];
+  const add = (sys, n, g) => { for (let i = 0; i < n; i++) lib.push({ id: `${sys}:${String(i).padStart(4, '0')}`, systemId: sys, primaryGenre: g ? g(i) : genres[i % genres.length], sourceOrder: lib.length }); };
+  add('x360', 1250); add('gc', 90); add('nes', 45); add('psx', 30); add('megadrive', 12); add('xone', 3); add('pcengine', 5); add('mystery', 2);
+  add('arcade', 340, i => genres[i % 7]); add('pc', 20); add('dos', 7); add('custom', 3);
+  for (const s of ['sw', 'snes', 'n64', 'gb', 'gbc', 'gba', 'nds', 'n3ds', 'wii', 'wiiu', 'sw2', 'ps2', 'ps3']) add(s, 75);
+  lib.push({ ...lib[3] }); lib.push({ id: 'none:1', systemId: null, primaryGenre: 'Puzzle' });
+  const plain = p => ({ rooms: p.rooms.map(r => ({ id: r.id, bucket: r.bucketKey || '', group: r.groupKey, kind: r.kind, title: r.title, part: r.part, parts: r.parts, gameIds: r.gameIds, theme: r.themeKey,
+    segments: r.segments.map(s => ({ id: s.id, system: s.systemId, gameIds: s.gameIds, wall: s.wallId, row: s.row, kind: s.kind })) })), byGame: Object.fromEntries(p.byGame) });
+  const arcadeLib = lib.filter(e => e.systemId === 'arcade').concat([{ id: 'arcade:extra', systemId: 'arcade', primaryGenre: 'Driving' }]);
+  const arcade = cap => { const a = AP.planArcade(arcadeLib, cap == null ? undefined : { cap }); return { cap: a.cap, corridorEnd: a.corridorEnd, walls: a.walls,
+    rooms: a.rooms.map(r => ({ id: r.id, genre: r.genreKey, title: r.title, plain: r.plain, gameIds: r.gameIds, x: r.x, z: r.z, door: r.door, cabinet: r.cabinetKind, slots: r.slots })) }; };
+  return { lib, manufacturer: plain(ML.planMuseum(lib, { grouping: 'manufacturer' })), genre: plain(ML.planMuseum(lib, { grouping: 'genre' })),
+    systemRooms: ['x360', 'xsx', 'gc', 'mystery', 'nothing'].map(s => [s, ML.roomsForSystem(ML.planMuseum(lib, { grouping: 'manufacturer' }), s)]),
+    arcade: [null, 20, 30, 5, 99, 26.6].map(c => [c, arcade(c)]) };
+}
 // ---- Brazilian Portuguese (renderer/i18n.js and i18n-pt-data.js, Thanks2111's): its own matching, templates with
 // plurals, capitals and fragments of longer texts ----
 function i18nPtFixtures() {
@@ -1744,6 +1764,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'museumplan.json'), JSON.stringify(museumPlanFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'i18n.json'), JSON.stringify([...['fr', 'tr'].map(i18nFixtures), i18nPtFixtures()], null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamach.json'), JSON.stringify(await steamachFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');

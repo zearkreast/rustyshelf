@@ -2605,3 +2605,62 @@ fn translations_match_electron() {
         }
     }
 }
+
+#[test]
+fn museum_plans_match_electron() {
+    use rustyshelf_core::museum_plan::{plan_arcade, plan_museum, rooms_for_system, Entry, Plan};
+    use serde_json::json;
+    let f = fixture("museumplan.json");
+    let lib: Vec<Entry> = f["lib"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| Entry { id: e["id"].as_str().unwrap().into(), system: e["systemId"].as_str().unwrap_or("").into(), genre: e["primaryGenre"].as_str().unwrap_or("").into() })
+        .collect();
+    let plain = |p: &Plan| {
+        json!({
+            "rooms": p.rooms.iter().map(|r| json!({ "id": r.id, "bucket": r.bucket, "group": r.group, "kind": r.kind, "title": r.title, "part": r.part, "parts": r.parts, "gameIds": r.game_ids, "theme": r.theme,
+                "segments": r.segments.iter().map(|s| json!({ "id": s.id, "system": s.system, "gameIds": s.game_ids, "wall": s.wall, "row": s.row, "kind": s.kind })).collect::<Vec<_>>() })).collect::<Vec<_>>(),
+            "byGame": p.by_game.iter().map(|(k, v)| (k.clone(), json!({ "roomId": v.room, "seg": v.seg, "i": v.i }))).collect::<serde_json::Map<String, Value>>(),
+        })
+    };
+    for grouping in ["manufacturer", "genre"] {
+        let got = plain(&plan_museum(&lib, grouping));
+        assert_eq!(got["rooms"], f[grouping]["rooms"], "{grouping} rooms");
+        assert_eq!(got["byGame"], f[grouping]["byGame"], "{grouping} byGame");
+    }
+    let m = plan_museum(&lib, "manufacturer");
+    for c in f["systemRooms"].as_array().unwrap() {
+        assert_eq!(json!(rooms_for_system(&m, c[0].as_str().unwrap())), c[1], "{}", c[0]);
+    }
+    let arcade_lib: Vec<Entry> = lib.iter().filter(|e| e.system == "arcade").cloned().chain([Entry { id: "arcade:extra".into(), system: "arcade".into(), genre: "Driving".into() }]).collect();
+    for c in f["arcade"].as_array().unwrap() {
+        let a = plan_arcade(&arcade_lib, c[0].as_f64());
+        let want = &c[1];
+        assert_eq!(a.cap as u64, want["cap"].as_u64().unwrap());
+        assert!((a.corridor_end - want["corridorEnd"].as_f64().unwrap()).abs() < 1e-9);
+        // (numbers as floats on both sides, to 9 decimals: JSON writes 231.0 as 231, and serde_json may read the last
+        // digit of a long float one bit off)
+        fn floats(v: &Value) -> Value {
+            match v {
+                Value::Number(n) => Value::from((n.as_f64().unwrap() * 1e9).round() / 1e9),
+                Value::Array(a) => Value::Array(a.iter().map(floats).collect()),
+                Value::Object(o) => Value::Object(o.iter().map(|(k, v)| (k.clone(), floats(v))).collect()),
+                v => v.clone(),
+            }
+        }
+        assert_eq!(floats(&json!(a.walls)), floats(&want["walls"]), "walls, cap {}", c[0]);
+        let rooms: Vec<Value> = a
+            .rooms
+            .iter()
+            .map(|r| json!({ "id": r.id, "genre": r.genre, "title": r.title, "plain": r.plain, "gameIds": r.game_ids, "x": r.x, "z": r.z, "door": { "x": r.door.x, "z": r.door.z, "ry": r.door.ry }, "cabinet": r.cabinet,
+                "slots": r.slots.iter().map(|s| json!({ "x": s.x, "z": s.z, "ry": s.ry, "kind": s.kind })).collect::<Vec<_>>() }))
+            .collect();
+        assert_eq!(rooms.len(), want["rooms"].as_array().unwrap().len(), "arcade rooms, cap {}", c[0]);
+        for (i, r) in rooms.iter().enumerate() {
+            for (k, v) in r.as_object().unwrap() {
+                assert_eq!(floats(v), floats(&want["rooms"][i][k]), "arcade room {i} {k}, cap {}", c[0]);
+            }
+        }
+    }
+}
