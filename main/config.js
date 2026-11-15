@@ -63,7 +63,7 @@ function defaults() {
     // Art Studio: styles = per console shelf style (a console without one follows defaultArtStyle(ui), i.e. the old Box art
     // region / Prefer HD settings, so nothing changes until a style is chosen); locks = per game parts auto-fetch never touches
     art: { styles: {}, locks: {} },
-    ui: { sound: true, startFullscreen: true, buttons: 'auto', performance: 'auto', quitCombo: true, quitComboKeys: 'l3+r3', soundTheme: 'aero', volume: .7, language: 'en', discordPresence: false, discordAppId: '', ambient: false, ambientLevel: .02, music: 'off', musicLevel: .4, rumble: true, soundRev: 4, autoCovers: false, autoManuals: false, artLibrary: '', attract: true, attractMinutes: 3, shuffleAll: true, favorites: [], collections: [], background: 'blur', theme: 'spectrum', sort: 'az', filter: 'all', museumLight: 'gallery', homeMenu: true, homeLayout: 'side', showSize: true, hideTaskbar: true, uiScale: 1, previews: 'off', previewSound: false, previewYoutube: true, previewClips: true, previewDirs: [], previewDelay: 1.5, previewHint: false, clipHint: false, deckHint: false, lastSeenVersion: '', autoHideHints: false, allShelf: false, customSort: {}, boxScale: 1, shelfScale: {}, gameScale: {}, // (beta.7) video previews; lastSeenVersion: the version whose What's new was shown: off / details / shelf (Details and behind the shelf); the first run asks
+    ui: { sound: true, startFullscreen: true, buttons: 'auto', performance: 'auto', quitCombo: true, quitComboKeys: 'l3+r3', soundTheme: 'aero', volume: .7, language: 'en', discordPresence: false, discordAppId: '', ambient: false, ambientLevel: .02, music: 'off', musicLevel: .4, rumble: true, soundRev: 4, autoCovers: false, autoManuals: false, artLibrary: '', attract: true, attractMinutes: 3, attractPace: 'normal', attractWander: true, shuffleAll: true, favorites: [], collections: [], background: 'blur', theme: 'spectrum', sort: 'az', filter: 'all', museumLight: 'gallery', homeMenu: true, homeLayout: 'side', showSize: true, hideTaskbar: true, uiScale: 1, previews: 'off', previewSound: false, previewYoutube: true, previewClips: true, previewDirs: [], previewDelay: 1.5, previewHint: false, clipHint: false, deckHint: false, lastSeenVersion: '', autoHideHints: false, allShelf: false, customSort: {}, boxScale: 1, shelfScale: {}, gameScale: {}, // (beta.7) video previews; lastSeenVersion: the version whose What's new was shown: off / details / shelf (Details and behind the shelf); the first run asks
       // 1.55 Settings
       updateCheck: true, // (1.82) Settings → System → Check for new betas
       autoUpdate: false, // Optional auto update on startup
@@ -266,6 +266,8 @@ function sanitize(cfg) {
   ui.audioOut = typeof ui.audioOut === 'string' ? ui.audioOut.slice(0, 512) : '';
   { const n = +ui.safeArea; ui.safeArea = Number.isFinite(n) && ui.safeArea !== null && ui.safeArea !== '' ? Math.min(100, Math.max(90, Math.round(n))) : 100; }
   { const n = +ui.attractMinutes; ui.attractMinutes = Number.isFinite(n) && n >= 1 && n <= 60 ? n : d.attractMinutes; }
+  if (!['slow', 'normal', 'fast'].includes(ui.attractPace)) ui.attractPace = 'normal';
+  if (typeof ui.attractWander !== 'boolean') ui.attractWander = true;
   { const n = +ui.dimMinutes; ui.dimMinutes = [0, 10, 20, 30].includes(n) && ui.dimMinutes !== null && ui.dimMinutes !== '' ? n : 0; }
   // numbers the sliders and the zoom use directly (a string or null here showed NaN% and played at the wrong level)
   { const n = +ui.uiScale; ui.uiScale = [1, 1.15, 1.3].includes(n) ? n : 1; }

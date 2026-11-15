@@ -3684,16 +3684,21 @@ function attractCheck(){
   const mins=(cfgInfo&&+cfgInfo.config.ui.attractMinutes)||3;
   if(performance.now()-lastInputAt>mins*60000){attract=true;app.classList.add("attract");attractT=setTimeout(attractStep,2200)}
 }
+// Settings → Shelf: how long each box stays (ui.attractPace) and whether it wanders to other shelves (ui.attractWander).
+// Keep in sync with crates/rustyshelf/src/settings.rs idle()
+const ATTRACT_MS={slow:7000,normal:4200,fast:2500};
+function attractPace(){const p=cfgInfo&&cfgInfo.config.ui.attractPace;return ATTRACT_MS[p]?p:"normal"}
+function attractWander(){return !(cfgInfo&&cfgInfo.config.ui.attractWander===false)}
 function attractStep(){
   if(!attract||dimOn)return; // the screen dimmer has taken over: rest (waking ends attract mode too)
-  if(mode!=="browse"||document.hidden||!document.hasFocus()){attractT=setTimeout(attractStep,4000);return} // nobody can see it: don't spend a frame
-  const n=slots.length;
+  // an unfocused window still counts as seen: after a game Windows often doesn't hand focus back
+  if(mode!=="browse"||document.hidden){attractT=setTimeout(attractStep,4000);return}
+  const n=slots.length,ms=ATTRACT_MS[attractPace()];
   if(sel+attractDir>=n||sel+attractDir<0){
     attractDir=-attractDir;
-    // at the end of a shelf, sometimes wander to the next shelf
-    if(shelves.length>1&&Math.random()<.6){attractDir=1;sysStep(1); /* the new shelf starts at its first game: walk forwards, not back into the Shuffle / emulator tiles */attractT=setTimeout(attractStep,5200);return}
+    if(attractWander()&&shelves.length>1&&Math.random()<.6){attractDir=1;sysStep(1); /* the new shelf starts at its first game: walk forwards, not back into the Shuffle / emulator tiles */attractT=setTimeout(attractStep,ms+1000);return}
   }
-  go(sel+attractDir);attractT=setTimeout(attractStep,4200);
+  go(sel+attractDir);attractT=setTimeout(attractStep,ms);
 }
 function wake(){lastInputAt=performance.now();hintsWake();if(!attract)return;attract=false;clearTimeout(attractT);app.classList.remove("attract")}
 setInterval(attractCheck,5000);

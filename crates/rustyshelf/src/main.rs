@@ -8,6 +8,7 @@ mod boot;
 mod cheevos;
 mod home;
 mod hud;
+mod idle;
 mod loading;
 mod music;
 mod osk;
@@ -77,8 +78,9 @@ fn main() {
         .init_resource::<settings::Settings>()
         .init_resource::<home::Home>()
         .init_resource::<reader::Reader>()
+        .init_resource::<idle::Idle>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup).chain())
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
             Update,
@@ -87,6 +89,7 @@ fn main() {
                 loading::recheck_folders,
                 play::watch_game,
                 phone::run,
+                idle::run,
                 home::run,
                 reader::run,
                 shelf::inspect,

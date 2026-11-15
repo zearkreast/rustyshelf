@@ -96,7 +96,7 @@ const DEFAULTS: &str = r#"{
   "art": { "styles": {}, "locks": {} },
   "ui": { "sound": true, "startFullscreen": true, "buttons": "auto", "performance": "auto", "quitCombo": true, "quitComboKeys": "l3+r3", "soundTheme": "aero", "volume": 0.7,
     "language": "en", "discordPresence": false, "discordAppId": "", "ambient": false, "ambientLevel": 0.02, "music": "off", "musicLevel": 0.4, "rumble": true, "soundRev": 4,
-    "autoCovers": false, "autoManuals": false, "artLibrary": "", "attract": true, "attractMinutes": 3, "shuffleAll": true, "favorites": [], "collections": [],
+    "autoCovers": false, "autoManuals": false, "artLibrary": "", "attract": true, "attractMinutes": 3, "attractPace": "normal", "attractWander": true, "shuffleAll": true, "favorites": [], "collections": [],
     "background": "blur", "theme": "spectrum", "sort": "az", "filter": "all", "museumLight": "gallery", "homeMenu": true, "homeLayout": "side", "showSize": true,
     "hideTaskbar": true, "uiScale": 1, "previews": "off", "previewSound": false, "previewYoutube": true, "previewClips": true, "previewDirs": [], "previewDelay": 1.5,
     "previewHint": false, "clipHint": false, "deckHint": false, "lastSeenVersion": "", "autoHideHints": false, "allShelf": false, "customSort": {}, "boxScale": 1,
@@ -535,6 +535,12 @@ pub fn sanitize(cfg: &mut Value) {
     ui.insert("safeArea".into(), js::num(safe));
     let attract = Some(js::number(ui.get("attractMinutes"))).filter(|n| (1.0..=60.0).contains(n)).map_or(d["attractMinutes"].clone(), js::num);
     ui.insert("attractMinutes".into(), attract);
+    if !matches!(ui.get("attractPace").and_then(Value::as_str), Some("slow" | "normal" | "fast")) {
+        ui.insert("attractPace".into(), json!("normal"));
+    }
+    if !ui.get("attractWander").is_some_and(Value::is_boolean) {
+        ui.insert("attractWander".into(), json!(true));
+    }
     let dim = written(ui.get("dimMinutes")).filter(|n| [0.0, 10.0, 20.0, 30.0].contains(n)).unwrap_or(0.0);
     ui.insert("dimMinutes".into(), js::num(dim));
     let scale = Some(js::number(ui.get("uiScale"))).filter(|n| [1.0, 1.15, 1.3].contains(n)).unwrap_or(1.0);

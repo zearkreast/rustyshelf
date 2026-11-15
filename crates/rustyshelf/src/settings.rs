@@ -434,6 +434,20 @@ impl Settings {
 
     /// The Home menu: whether it's on, whether it's the centred card, whether the right face button confirms,
     /// and whose letters the buttons carry.
+    /// Attract mode: whether it's on, the idle minutes before it starts, each box's stay in seconds, and whether it
+    /// wanders to other shelves; then the idle minutes before the screen dims (0: never).
+    pub fn idle(&self) -> (bool, f64, f32, bool, f64) {
+        let mins = at(&self.cfg, &["ui", "attractMinutes"]).and_then(Value::as_f64).filter(|m| *m >= 1.0).unwrap_or(3.0);
+        // keep in sync with renderer/app.js ATTRACT_MS
+        let stay = match self.text(&["ui", "attractPace"]).as_str() {
+            "slow" => 7.0,
+            "fast" => 2.5,
+            _ => 4.2,
+        };
+        let dim = at(&self.cfg, &["ui", "dimMinutes"]).and_then(Value::as_f64).unwrap_or(0.0);
+        (self.flag(&["ui", "attract"], true), mins, stay, self.flag(&["ui", "attractWander"], true), dim)
+    }
+
     pub fn home_menu(&self) -> (bool, bool, bool, Glyphs) {
         (self.flag(&["ui", "homeMenu"], true), self.text(&["ui", "homeLayout"]) == "center", self.swap(), self.glyphs())
     }
@@ -1268,7 +1282,31 @@ impl Settings {
                     toggle("24-hour clock", &["ui", "clock24"], false, "Shows 18:30 instead of 6:30 PM."),
                     toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
                     toggle("All games shelf", &["ui", "allShelf"], false, "A shelf with your complete collection in alphabetical order."),
+                    toggle("Attract mode", &["ui", "attract"], true, "After a few idle minutes the shelf drifts through your boxes on its own, with the HUD faded, like a store display."),
                 ];
+                // one of a list of numbers: Enter and right go on to the next, left back
+                let minutes = |label: &str, path: &'static [&'static str], list: &'static [(f64, &str)], unset: f64, hint: &str| -> Row {
+                    let now = at(&self.cfg, path).and_then(Value::as_f64).unwrap_or(unset);
+                    let i = list.iter().position(|x| x.0 == now).or_else(|| list.iter().position(|x| x.0 == unset)).unwrap_or(0);
+                    let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(i as i32 + d).rem_euclid(list.len() as i32) as usize].0));
+                    let again = turn;
+                    Row { label: label.to_string(), value: list[i].1.to_string(), hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+                };
+                if self.flag(&["ui", "attract"], true) {
+                    let pace = self.text(&["ui", "attractPace"]);
+                    rows.extend([
+                        minutes("Attract mode starts after", &["ui", "attractMinutes"], &[(2.0, "2 min"), (3.0, "3 min"), (5.0, "5 min"), (10.0, "10 min"), (20.0, "20 min")], 3.0, "How long without input before the tour begins."),
+                        choice(
+                            "Attract mode pace",
+                            &["ui", "attractPace"],
+                            named(&[("slow", "Slow"), ("normal", "Normal"), ("fast", "Fast")]),
+                            if pace == "slow" || pace == "fast" { &pace } else { "normal" },
+                            "How long each box stays before the shelf moves on: about 7 seconds, 4 seconds or 2½ seconds.",
+                        ),
+                        toggle("Attract mode visits other consoles", &["ui", "attractWander"], true, "At the end of a shelf it wanders on to the next console. Off: it stays on the shelf it started on."),
+                    ]);
+                }
+                rows.push(minutes("Dim the screen after", &["ui", "dimMinutes"], &[(0.0, "Never"), (10.0, "10 min"), (20.0, "20 min"), (30.0, "30 min")], 0.0, "Fades the screen to black after a long idle spell, to protect OLED TVs. Any button wakes it."));
                 if cfg!(windows) {
                     rows.push(toggle(
                         "Seamless play",

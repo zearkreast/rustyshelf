@@ -50,6 +50,10 @@ pub enum Line {
     Notice,
 }
 
+/// The HUD's whole tree (attract mode hides it).
+#[derive(Component)]
+pub struct HudRoot;
+
 /// The console's name, lettered; the consoles' tabs; one tab; the keys' bar; what hides while Settings is open.
 #[derive(Component)]
 pub struct Word;
@@ -113,6 +117,8 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
     commands.spawn((
         Node { position_type: PositionType::Absolute, width: percent(100), height: percent(100), ..default() },
         Pickable::IGNORE,
+        HudRoot,
+        Visibility::Inherited,
         children![
             // the top bar: the console, the tabs, the clock
             (
