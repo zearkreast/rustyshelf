@@ -69,6 +69,8 @@ pub struct Playing {
     closing: Option<f32>,
     /// a streaming app: it's given less time to close
     app: bool,
+    /// started through RocketLauncher: closed through its emulator, and its log read when it ends
+    rocket: Option<std::time::SystemTime>,
     /// a console game as Discord is told of it: its title from its file, its console's name
     shown: Option<(String, String)>,
     /// a game Steam or a store started, watched until it ends
@@ -471,7 +473,9 @@ pub fn navigate(
                 let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| {
                     let exe = p.exe.to_string_lossy().into_owned();
                     let still = waiting.and_then(|w| w.run(&p.exe));
-                    emucfg::before_launch(&console.id, &exe, cfg.quit_combo().as_deref(), &paths::env_var);
+                    if !launch::is_rocket(&exe) {
+                        emucfg::before_launch(&console.id, &exe, cfg.quit_combo().as_deref(), &paths::env_var);
+                    }
                     Ok((launch::start(&p)?, exe, still))
                 });
                 let _ = tx.send(started);
@@ -596,7 +600,8 @@ pub fn watch_game(
             }
             playing.starting = None;
             playing.running(child);
-            playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now, alone: false });
+            playing.rocket = launch::is_rocket(&exe).then(std::time::SystemTime::now);
+            playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now, alone: playing.rocket.is_some() });
         }
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");
@@ -613,7 +618,11 @@ pub fn watch_game(
         match playing.closing {
             None if held => {
                 info!("Closing {title}");
-                launch::close_program(pid, false);
+                if playing.rocket.is_some() {
+                    launch::close_children(pid);
+                } else {
+                    launch::close_program(pid, false);
+                }
                 playing.closing = Some(now + if playing.app { APP_CLOSE_WAIT } else { CLOSE_WAIT });
                 toast.text = format!("Closing {title}…");
                 toast.until = now + 4.0;
@@ -638,7 +647,13 @@ pub fn watch_game(
     let Some(code) = exited else { return };
     discord.0.clear();
     let emulator = playing.emulator.take();
-    if let Some(e) = &emulator {
+    // RocketLauncher always exits "normally": its log says whether the game failed
+    let rocket_said = playing.rocket.zip(emulator.as_ref()).map(|(at, e)| rustyshelf_core::rocket::last_error(std::path::Path::new(&e.exe), at)).filter(|e| !e.is_empty());
+    if let Some(err) = rocket_said {
+        warn!("RocketLauncher said: {err}");
+        toast.text = format!("RocketLauncher: {err}");
+        toast.until = now + 10.0;
+    } else if let Some(e) = emulator.as_ref().filter(|_| playing.rocket.is_none()) {
         let (console, exe) = (e.console.clone(), e.exe.clone());
         std::thread::spawn(move || emucfg::after_exit(&console, &exe, &paths::env_var));
     }

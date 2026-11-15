@@ -18,10 +18,14 @@ use crate::{kyty, nx2};
 
 static ARG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#""([^"]*)"|(\S+)"#).unwrap());
 
-/// Splits launch options like `-b -e "{rom}"` into arguments, `{rom}` filled in.
+/// Splits launch options like `-b -e "{rom}"` into arguments, `{rom}` filled in; `{romname}` is the game's file name
+/// without its extension, `{romdir}` its folder.
 pub fn build_args(template: &str, rom: &str) -> Vec<String> {
+    let p = Path::new(rom);
+    let name = if rom.is_empty() { String::new() } else { p.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() };
+    let dir = if rom.is_empty() { String::new() } else { p.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default() };
     ARG.captures_iter(template)
-        .map(|c| c.get(1).or(c.get(2)).map_or("", |m| m.as_str()).replace("{rom}", rom))
+        .map(|c| c.get(1).or(c.get(2)).map_or("", |m| m.as_str()).replace("{romname}", &name).replace("{romdir}", &dir).replace("{rom}", rom))
         .filter(|a| !a.is_empty())
         .collect()
 }
@@ -300,8 +304,37 @@ fn clean_env_of(vars: Vec<(String, String)>, extra: Option<Vec<(String, String)>
 
 /// Everything the Electron app decides before it starts a game: the emulator, its options, the file it's handed.
 // TODO: still Electron-only: the Switch 2 build picker
+/// (Windows) The game through RocketLauncher, which picks and starts the emulator itself. None when RocketLauncher has
+/// no system for this console and it's on for every console without this one chosen: the console keeps its emulator.
+fn rocket_plan(console: &Console, file: &Path, cfg: &Config) -> Result<Option<Plan>, LaunchError> {
+    let (exe, mode, frontend) = crate::rocket::settings(cfg);
+    let exe = PathBuf::from(exe);
+    if !is_file(&exe) {
+        return refuse("RocketLauncher isn't where Settings → Consoles says. Find it again there, or start this console with its emulator.");
+    }
+    let list = crate::rocket::systems(&exe, false);
+    let own = cfg.raw().get("systems").and_then(|s| s.get(&console.id)).and_then(|s| s.get("rocketSystem")).and_then(serde_json::Value::as_str).unwrap_or("").trim().to_string();
+    let system = if own.is_empty() { crate::rocket::name_for(&console.id, &list) } else { own };
+    let a = crate::rocket::args_for(&system, file, &list, &frontend);
+    match a.ready {
+        None if mode == "all" && crate::rocket::console_choice(cfg, &console.id) != Some(true) => Ok(None),
+        Some(false) => refuse(format!("RocketLauncher has no emulator set for {system} yet. Set one in RocketLauncherUI, or start this console with its emulator (Settings → Consoles).")),
+        _ => Ok(Some(Plan { exe, args: a.args, env: None })),
+    }
+}
+
+/// Is this program RocketLauncher? (its game is closed through the emulator it started)
+pub fn is_rocket(exe: &str) -> bool {
+    Path::new(exe).file_name().is_some_and(|n| n.eq_ignore_ascii_case("RocketLauncher.exe"))
+}
+
 pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Plan, LaunchError> {
     let id = console.id.as_str();
+    if crate::rocket::use_for(id, cfg) {
+        if let Some(p) = rocket_plan(console, file, cfg)? {
+            return Ok(p);
+        }
+    }
     let mut exe = choose_emulator(console, sc, game_id, cfg, app_root)?;
     if id == "ps4" && file.extension().is_some_and(|e| e.eq_ignore_ascii_case("pkg")) {
         return refuse(PS4_PKG);
@@ -462,6 +495,22 @@ pub fn emulator_plan(console_id: &str, emulator: &str, emulator_args: &str, app_
     Ok(Plan { exe, args: build_args(emulator_args, ""), env })
 }
 
+/// Asks the programs `pid` started to close, not `pid` itself: RocketLauncher, asked directly, could end before its own
+/// exit (fade out, taskbar and mouse back) and leave them hidden; once its emulator closes it ends by itself.
+pub fn close_children(pid: u32) {
+    if !cfg!(windows) {
+        return close_program(pid, false);
+    }
+    let mut cmd = Command::new("powershell.exe");
+    cmd.args(["-NoProfile", "-NonInteractive", "-Command", &format!("Get-CimInstance Win32_Process -Filter 'ParentProcessId={pid}' | ForEach-Object {{ taskkill /PID $_.ProcessId | Out-Null }}")]);
+    cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut cmd, 0x0800_0000); // CREATE_NO_WINDOW
+    if let Ok(mut c) = cmd.spawn() {
+        std::thread::spawn(move || c.wait());
+    }
+}
+
 /// Asks a running program to close, as a click on its X does (its saves and settings are written); `force` ends it
 /// and everything it started, for one that didn't close when asked.
 pub fn close_program(pid: u32, force: bool) {
@@ -615,6 +664,12 @@ pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_options_take_the_games_name_and_folder() {
+        assert_eq!(build_args(r#"-r "{romname}" -d "{romdir}" "{rom}""#, "/g/Beta Kart (Europe).iso"), ["-r", "Beta Kart (Europe)", "-d", "/g", "/g/Beta Kart (Europe).iso"]);
+        assert_eq!(build_args("{romname} {romdir}", ""), Vec::<String>::new());
+    }
 
     #[cfg(unix)]
     #[test]

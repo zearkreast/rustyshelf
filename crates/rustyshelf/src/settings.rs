@@ -156,6 +156,8 @@ enum Pick {
     OwnArt(bool),
     /// a PDF of the player's own as the chosen game's manual
     OwnManual,
+    /// RocketLauncher.exe, when it wasn't found
+    Rocket,
 }
 
 #[derive(Resource)]
@@ -606,6 +608,98 @@ impl Settings {
     }
 
     /// A row whose text is typed.
+    /// RocketLauncher is found and on for every console or the chosen ones.
+    fn rocket_on(&self) -> bool {
+        cfg!(windows) && !self.text(&["rocket", "exe"]).is_empty() && !matches!(self.text(&["rocket", "mode"]).as_str(), "" | "off")
+    }
+
+    /// Settings → Consoles: RocketLauncher, HyperSpin's launcher: found (or chosen), then on for every console or the
+    /// consoles chosen on their own pages, and the front end it's told.
+    fn rocket_rows(&self) -> Vec<Row> {
+        let exe = self.text(&["rocket", "exe"]);
+        let mut rows = vec![Row {
+            label: "RocketLauncher".into(),
+            value: if exe.is_empty() { "Find".into() } else { format!("Found  ·  {}", short(Path::new(&exe).parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default().as_str())) },
+            hint: "Starts your games through RocketLauncher, the launcher HyperSpin uses: its fade screens, bezels, pause menu and the emulator you picked in RocketLauncherUI. RustyShelf waits while you play, counts the time and comes back when RocketLauncher closes. Off unless you turn it on below; your emulators stay set up.".into(),
+            press: Some(Box::new(|s: &mut Settings| match rustyshelf_core::rocket::find() {
+                Some(f) => {
+                    let f = f.to_string_lossy().into_owned();
+                    s.set(&["rocket", "exe"], json!(f));
+                    s.say(format!("RocketLauncher found in {}", short(&f)));
+                }
+                None => s.pick(Pick::Rocket, "Choose RocketLauncher.exe", false),
+            })),
+            step: None,
+        }];
+        if exe.is_empty() {
+            return rows;
+        }
+        let pick = |label: &str, path: &'static [&'static str], list: &'static [(&'static str, &'static str)], hint: &str| -> Row {
+            let now = self.text(path);
+            let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
+            let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
+            let again = turn;
+            Row { label: label.into(), value: list[at].1.into(), hint: hint.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+        };
+        rows.push(pick(
+            "Start games through RocketLauncher",
+            &["rocket", "mode"],
+            &[("off", "Off"), ("all", "Every console"), ("some", "Only the consoles I choose")],
+            "Every console: each console RocketLauncher has a system for starts through it, the rest keep their emulator. Only the consoles I choose: pick on each console's page. Off: RustyShelf starts your emulators itself.",
+        ));
+        if self.rocket_on() {
+            rows.push(pick(
+                "Front end RocketLauncher is told",
+                &["rocket", "frontend"],
+                &[("", "Its default"), ("HyperSpin", "HyperSpin"), ("LaunchBox", "LaunchBox"), ("Playnite", "Playnite"), ("RocketLauncherUI", "RocketLauncherUI")],
+                "Whose settings and media RocketLauncher uses for its fade and pause screens. Its default: the front end set in RocketLauncherUI.",
+            ));
+        }
+        rows
+    }
+
+    /// A console's page with RocketLauncher on: whether it starts through it, the name RocketLauncher knows it by, and
+    /// whether its games folder is one RocketLauncher uses (else it's sent the game's full path).
+    fn rocket_console_rows(&self, id: &str, emulator: &str) -> Vec<Row> {
+        let all = self.text(&["rocket", "mode"]) == "all";
+        let via = at(&self.cfg, &["systems", id, "viaRocket"]).and_then(Value::as_bool).unwrap_or(all);
+        let (a, b) = (id.to_string(), id.to_string());
+        let mut rows = vec![Row {
+            label: "Start games with".into(),
+            value: if via { "RocketLauncher".into() } else { "Emulator".into() },
+            hint: format!("RocketLauncher: Play hands the game to RocketLauncher, which brings its fade screen, bezel and pause menu and starts the emulator set up for this system in RocketLauncherUI. Emulator: RustyShelf starts {emulator} itself, as before."),
+            press: Some(Box::new(move |s: &mut Settings| s.set(&["systems", &a, "viaRocket"], json!(!via)))),
+            step: Some(Box::new(move |s: &mut Settings, _| s.set(&["systems", &b, "viaRocket"], json!(!via)))),
+        }];
+        if !via {
+            return rows;
+        }
+        let exe = PathBuf::from(self.text(&["rocket", "exe"]));
+        let list = rustyshelf_core::rocket::systems(&exe, false);
+        let mut name_row = self.typed("RocketLauncher system name", &["systems", id, "rocketSystem"], "The system's name in RocketLauncher, read from its own settings. Change it if yours is named differently.");
+        let own = self.text(&["systems", id, "rocketSystem"]);
+        let name = if own.trim().is_empty() { rustyshelf_core::rocket::name_for(id, &list) } else { own.trim().to_string() };
+        if own.trim().is_empty() {
+            name_row.value = name.clone();
+        }
+        rows.push(name_row);
+        let sys = list.iter().find(|s| s.name.eq_ignore_ascii_case(&name));
+        let dirs = self.list(&["systems", id, "romDirs"]);
+        let matches = sys.is_some_and(|s| dirs.iter().any(|d| s.rom_paths.iter().any(|p| p.to_string_lossy().trim_end_matches(['\\', '/']).eq_ignore_ascii_case(d.trim_end_matches(['\\', '/'])))));
+        rows.push(Row {
+            label: "Games folder for RocketLauncher".into(),
+            value: match sys {
+                None => "RocketLauncher has no system by this name".into(),
+                Some(s) if !s.ready => "No emulator set for it in RocketLauncherUI".into(),
+                Some(_) if matches => "Matches".into(),
+                Some(_) => "Not one RocketLauncher uses · it's sent the full path".into(),
+            },
+            hint: "RocketLauncher finds a game in its own ROM folders for this system. When this console's games folder is one of them, the game goes by its name (its 7z and multi-disc handling work); otherwise it's sent the game's full path.".into(),
+            ..Row::default()
+        });
+        rows
+    }
+
     fn typed(&self, label: &'static str, path: &[&str], hint: &'static str) -> Row {
         let now = self.text(path);
         let owned: Vec<String> = path.iter().map(|p| p.to_string()).collect();
@@ -752,6 +846,11 @@ impl Settings {
                 }
                 self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", if set == 1 { "" } else { "s" }) });
             }
+            Pick::Rocket if path.file_name().is_some_and(|n| n.eq_ignore_ascii_case("RocketLauncher.exe")) => {
+                self.set(&["rocket", "exe"], json!(p));
+                self.say(format!("RocketLauncher found in {}", short(&p)));
+            }
+            Pick::Rocket => self.say("That isn't RocketLauncher.exe (not RocketLauncherUI.exe)".into()),
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
@@ -881,6 +980,9 @@ impl Settings {
                     press: Some(Box::new(|s: &mut Settings| s.pick(Pick::EmulatorsIn, "Choose the folder your emulators are in", true))),
                     ..Row::default()
                 });
+                if cfg!(windows) && !self.wizard {
+                    rows.extend(self.rocket_rows());
+                }
                 if hidden > 0 {
                     rows.push(Row {
                         label: format!("More consoles ({hidden})"),
@@ -926,6 +1028,9 @@ impl Settings {
                     open("Emulator", if emu.is_empty() { "Not set".into() } else { emuname::label(&emu) }, &short(&emu), Screen::Emulator(e)),
                     open("Games folders", format!("{n} folder{}", if n == 1 { "" } else { "s" }), "", Screen::Folders(f)),
                 ];
+                if self.rocket_on() {
+                    rows.splice(1..1, self.rocket_console_rows(id, &c.emulator_name));
+                }
                 let runs = self.emulator_of(id);
                 if c.retro && c.ra_cores.len() > 1 && is_retroarch(&runs) {
                     let usual = c.ra_core.clone().unwrap_or_default();

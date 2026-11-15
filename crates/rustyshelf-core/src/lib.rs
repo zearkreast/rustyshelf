@@ -58,6 +58,7 @@ pub mod presence;
 pub mod provenance;
 pub mod ra;
 pub mod racores;
+pub mod rocket;
 pub mod raemu;
 pub mod scanner;
 pub mod screenscraper;
