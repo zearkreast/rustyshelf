@@ -58,6 +58,15 @@ impl Default for Reader {
 }
 
 impl Reader {
+    pub fn is_open(&self) -> bool {
+        self.open
+    }
+
+    /// Puts the manual away, as backing out of it does.
+    pub fn close(&mut self) {
+        (self.open, self.fresh) = (false, true);
+    }
+
     /// The page on the left and the one on the right, as the booklet lies open.
     fn spread(&self) -> (Option<&PathBuf>, Option<&PathBuf>) {
         if self.at == 0 { (None, self.pages.first()) } else { (self.pages.get(self.at), self.pages.get(self.at + 1)) }

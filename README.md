@@ -665,12 +665,18 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   held. On the shelf, Home or P (or Guide) opens it with the Home shelf, Settings and Power. Unlike the Electron
   app's, it's drawn in RustyShelf's own window in front of the paused game, not over the game's picture, so a
   saved state is confirmed by the emulator's own message.
+- Has the phone companion (Settings → Phone companion): the same page on the phone, served by the same rules as
+  the Electron app's server (home-network addresses only, PIN pairing with its lockouts, tokens kept as hashes,
+  pictures under random ids) and with the same `data\companion.json`, so a phone paired with one app stays paired
+  with the other. The phone's remote is one more controller on every screen, its keyboard types into Find a game
+  and Settings' text boxes, and Play starts the game as pressing A on its case would, closing what's open first.
+  The PC's address is the adapter its traffic leaves by, or one on a 192.168 network when that's a VPN; the
+  Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (making a custom theme from a picture, Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
 full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), the manual collections and the Manual Studio, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
-doesn't show as XInput, the phone
-companion. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
+doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 

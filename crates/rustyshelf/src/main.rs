@@ -10,6 +10,7 @@ mod loading;
 mod music;
 mod osk;
 mod padwatch;
+mod phone;
 mod play;
 mod reader;
 mod settings;
@@ -74,12 +75,14 @@ fn main() {
         .init_resource::<home::Home>()
         .init_resource::<reader::Reader>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup).chain())
+        .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
             Update,
             (
                 loading::poll_library,
                 play::watch_game,
+                phone::run,
                 home::run,
                 reader::run,
                 settings::input,

@@ -30,6 +30,7 @@ mod custom;
 mod find;
 mod manuals;
 mod moving;
+mod phone;
 pub mod setup;
 mod text;
 mod update;
@@ -85,6 +86,7 @@ enum Screen {
     Find,
     Accounts,
     Achievements,
+    Phone,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -174,6 +176,9 @@ pub struct Settings {
     pub keys_taken: bool,
     /// a manual to be opened in the reader: its pages
     pub manual: Option<Vec<PathBuf>>,
+    /// the phone companion, and its pairing code as it was last drawn: what it says, and its picture
+    pub phone: Option<std::sync::Arc<rustyshelf_core::companion::Companion>>,
+    qr: Option<(String, Handle<Image>)>,
     moves: moving::Moves,
     update: update::Update,
     adding: addgames::Adding,
@@ -249,6 +254,8 @@ impl Default for Settings {
             wanted: None,
             keys_taken: false,
             manual: None,
+            phone: None,
+            qr: None,
             moves: Default::default(),
             update: Default::default(),
             adding: Default::default(),
@@ -367,6 +374,27 @@ impl Settings {
         };
         let confirm = self.text(&["ui", "confirmButton"]);
         (self.flag(&["ui", "homeMenu"], true), self.text(&["ui", "homeLayout"]) == "center", confirm == "b" || (confirm != "a" && glyphs == Glyphs::Nintendo), glyphs)
+    }
+
+    /// The games taken off their shelves, by id.
+    pub fn hidden(&self) -> Vec<String> {
+        self.list(&["ui", "hidden"])
+    }
+
+    /// Whether what's typed now goes into a text: one being typed, or Find a game's title.
+    pub fn takes_text(&self) -> bool {
+        self.open && (self.editing.is_some() || self.stack.last().is_some_and(|p| p.0 == Screen::Find))
+    }
+
+    /// Closes Settings from outside, as backing out of every page would; false when it can't be left now (the
+    /// first run's pages, a file dialog that's up).
+    pub fn shut(&mut self) -> bool {
+        if self.wizard || self.picking.is_some() {
+            return false;
+        }
+        (self.editing, self.open, self.just_closed, self.redraw) = (None, false, true, true);
+        self.stack.truncate(1);
+        true
     }
 
     /// Asks for Settings' first page, from the Home menu.
@@ -683,6 +711,7 @@ impl Settings {
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
                     open("Accounts", String::new(), "RetroAchievements, SteamGridDB, ScreenScraper", Screen::Accounts),
+                    open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                     open("System", String::new(), "Search again, emulator setup, export and import everything", Screen::System),
@@ -1379,6 +1408,7 @@ impl Settings {
             }
             Screen::Find => self.find_page(),
             Screen::Accounts => self.accounts_page(),
+            Screen::Phone => self.phone_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
@@ -1576,6 +1606,12 @@ pub fn input(
         }
         if s.just_closed {
             s.just_closed = false;
+        }
+        // shut from outside with something saved: the shelves are read again
+        if s.changed {
+            (s.changed, s.rearranged) = (false, false);
+            *lib = loading::start_library();
+            *cursor = Cursor::default();
         }
         // a favourite made on the shelf
         if s.rearranged {
@@ -1791,7 +1827,7 @@ fn start_emulator(s: &mut Settings, playing: &mut crate::play::Playing, now: f32
 }
 
 /// Draws the page again when it changed.
-pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Face>>, old: Query<Entity, With<SettingsUi>>) {
+pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Face>>, old: Query<Entity, With<SettingsUi>>, mut images: ResMut<Assets<Image>>) {
     if !s.redraw {
         return;
     }
@@ -1808,6 +1844,14 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         return;
     }
     let page = s.page();
+    let link = s.pairing_link();
+    if s.qr.as_ref().map(|q| &q.0) != link.as_ref() {
+        if let Some((_, old)) = s.qr.take() {
+            images.remove(&old);
+        }
+        s.qr = link.and_then(|l| Some((l.clone(), images.add(phone::qr_image(&l)?))));
+    }
+    let code = s.qr.as_ref().map(|q| q.1.clone());
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
     let first = if n <= WINDOW { 0 } else { at.saturating_sub(WINDOW / 2).min(n - WINDOW) };
@@ -1840,6 +1884,12 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
             }
             if first + WINDOW < n {
                 p.spawn((Text::new("▼"), font(1.6), TextColor(DIM)));
+            }
+            if let Some(code) = code {
+                p.spawn((
+                    Node { position_type: PositionType::Absolute, right: vmin(8.0), bottom: vmin(16.0), width: vmin(30.0), height: vmin(30.0), ..default() },
+                    ImageNode { image: code, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..default() },
+                ));
             }
             p.spawn(Node { flex_grow: 1.0, ..default() });
             p.spawn((Text::new(hint), font(2.0), TextColor(STEEL)));

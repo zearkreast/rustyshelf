@@ -32,7 +32,7 @@ fn now_ms() -> u64 {
 }
 
 /// The day (UTC) of a time in ms since 1970, as "November 21, 1999".
-fn day(ms: u64) -> String {
+pub(super) fn day(ms: u64) -> String {
     let z = (ms / 86_400_000) as i64 + 719_468;
     let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
     let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;

@@ -148,6 +148,11 @@ impl Playing {
         self.child = Some(Mutex::new(child));
     }
 
+    /// The running game's id, where it has one of the shelf's.
+    pub fn game_id(&self) -> &str {
+        &self.id
+    }
+
     /// The console the running game is on and its emulator's program, when it's a console's game; and whether
     /// it's a streaming app.
     pub fn running_in(&self) -> (Option<(&str, &str)>, bool) {
@@ -282,11 +287,15 @@ pub fn navigate(
         repeat.next = now + REPEAT;
         step = held_x;
     }
+    // a game asked for is the one under the cursor now: nothing moves it first
+    if asked {
+        step = 0;
+    }
 
     let n_shelves = l.shelves.len();
     let shelf_step = (keys.just_pressed(KeyCode::ArrowDown) || keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::PageDown) || pad(GamepadButton::RightTrigger2)) as i32
         - (keys.just_pressed(KeyCode::ArrowUp) || keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::PageUp) || pad(GamepadButton::LeftTrigger2)) as i32;
-    if shelf_step != 0 {
+    if shelf_step != 0 && !asked {
         cursor.shelf = (cursor.shelf as i32 + shelf_step).rem_euclid(n_shelves as i32) as usize;
         cursor.land = true;
         sounds.play("shelf", shelf_step);
@@ -301,7 +310,7 @@ pub fn navigate(
     }
     // to the next letter's first game, or back to this letter's first and then the one before's (app.js letter())
     let letter_step = (keys.just_pressed(KeyCode::KeyC) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::KeyZ) || pad(GamepadButton::LeftTrigger)) as i32;
-    if letter_step != 0 && n > 0 {
+    if letter_step != 0 && n > 0 && !asked {
         let letter = |g: &rustyshelf_core::scanner::Game| g.title.chars().next().filter(char::is_ascii_alphabetic).map_or('#', |c| c.to_ascii_uppercase());
         let starts: Vec<usize> = (0..n).filter(|&i| i == 0 || letter(&shelf.games[i]) != letter(&shelf.games[i - 1])).collect();
         if starts.len() > 1 {

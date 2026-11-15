@@ -1526,3 +1526,273 @@ fn manuals_are_matched_found_and_downloaded_as_the_js_does() {
     assert!(!stores.due(&games[1].key(), now + 29.0 * 86_400_000.0) && stores.due(&games[1].key(), now + 31.0 * 86_400_000.0));
     assert!(!stores.due(&games[2].key(), now + 3_600_000.0) && stores.due(&games[2].key(), now + 25.0 * 3_600_000.0));
 }
+
+/// The ids, tokens and PINs of a run are random: the fixture names them `<id3>`, `<token0>`, and each is bound
+/// here to this run's own where it first appears.
+#[derive(Default)]
+struct Bound(std::collections::HashMap<String, String>);
+
+impl Bound {
+    fn fill(&self, s: &str) -> String {
+        self.0.iter().fold(s.to_string(), |s, (name, value)| s.replace(name, value))
+    }
+
+    fn same(&mut self, want: &str, got: &str) -> bool {
+        let names = regex::Regex::new("<(id|token)[0-9]+>").unwrap();
+        let (mut pattern, mut at, mut fresh) = (String::from("^"), 0, Vec::new());
+        for m in names.find_iter(want) {
+            pattern.push_str(&regex::escape(&want[at..m.start()]));
+            match self.0.get(m.as_str()) {
+                Some(value) => pattern.push_str(&regex::escape(value)),
+                None => {
+                    pattern.push_str("([A-Za-z0-9_-]+)");
+                    fresh.push(m.as_str().to_string());
+                }
+            }
+            at = m.end();
+        }
+        pattern.push_str(&regex::escape(&want[at..]));
+        pattern.push('$');
+        let Some(found) = regex::Regex::new(&pattern).unwrap().captures(got) else { return false };
+        for (i, name) in fresh.into_iter().enumerate() {
+            self.0.entry(name).or_insert_with(|| found[i + 1].to_string());
+        }
+        true
+    }
+
+    fn alike(&mut self, want: &Value, got: &Value) -> bool {
+        match (want, got) {
+            (Value::String(a), Value::String(b)) => self.same(a, b),
+            (Value::Array(a), Value::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(x, y)| self.alike(x, y)),
+            (Value::Object(a), Value::Object(b)) => a.len() == b.len() && a.iter().all(|(k, x)| b.get(k).is_some_and(|y| self.alike(x, y))),
+            (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
+            _ => want == got,
+        }
+    }
+}
+
+struct PhoneWorld {
+    library: std::sync::Arc<Value>,
+    achievements: Value,
+    hidden: Vec<String>,
+    glyphs: (String, bool),
+    home_menu: bool,
+    play_ok: bool,
+    running: Option<rustyshelf_core::companion::Running>,
+    calls: Vec<Value>,
+}
+
+struct PhoneHost(std::sync::Mutex<PhoneWorld>);
+
+impl rustyshelf_core::companion::Host for PhoneHost {
+    fn library(&self) -> std::sync::Arc<Value> {
+        self.0.lock().unwrap().library.clone()
+    }
+    fn hidden(&self) -> Vec<String> {
+        self.0.lock().unwrap().hidden.clone()
+    }
+    fn glyphs(&self) -> (String, bool) {
+        self.0.lock().unwrap().glyphs.clone()
+    }
+    fn home_menu(&self) -> bool {
+        self.0.lock().unwrap().home_menu
+    }
+    fn running(&self) -> Option<rustyshelf_core::companion::Running> {
+        self.0.lock().unwrap().running.clone()
+    }
+    fn play(&self, shelf: &str, id: &str, title: &str) -> bool {
+        let mut w = self.0.lock().unwrap();
+        w.calls.push(serde_json::json!(["play", shelf, id, title]));
+        w.play_ok
+    }
+    fn quit(&self) {
+        let mut w = self.0.lock().unwrap();
+        w.calls.push(serde_json::json!(["quit"]));
+        w.running = None;
+    }
+    fn input(&self, input: rustyshelf_core::companion::Input) {
+        use rustyshelf_core::companion::Input;
+        let told = match input {
+            Input::Button(b, d) => serde_json::json!({ "b": b, "d": d }),
+            Input::Key(key) => serde_json::json!({ "key": key }),
+            Input::Text(text) => serde_json::json!({ "text": text }),
+        };
+        self.0.lock().unwrap().calls.push(serde_json::json!(["input", told]));
+    }
+    fn achievements(&self, _shelf: &str, title: &str) -> Option<Value> {
+        self.0.lock().unwrap().achievements.get(title).cloned()
+    }
+    fn has_achievements(&self, shelf: &str) -> bool {
+        shelf == "snes"
+    }
+    fn version(&self) -> String {
+        "9.9.9".into()
+    }
+}
+
+#[test]
+fn phone_companion_answers_as_the_js_does() {
+    use rustyshelf_core::companion::{self, Companion, Request, Running};
+    use rustyshelf_core::js;
+    use sha2::Digest;
+    use std::sync::{Arc, Mutex};
+    let f = fixture("companion.json");
+    for q in f["qr"].as_array().unwrap() {
+        let text = q["text"].as_str().unwrap();
+        match (companion::qr_matrix(text), q.get("rows")) {
+            (Ok(m), Some(rows)) => {
+                let got: Vec<Value> = m.iter().map(|r| Value::String(r.iter().map(|d| if *d { '1' } else { '0' }).collect())).collect();
+                assert_eq!(&Value::Array(got), rows, "the QR code of {text:?}");
+            }
+            (Err(e), None) => assert_eq!(e, q["error"].as_str().unwrap()),
+            (got, _) => panic!("the QR code of {text:?}: {:?}", got.map(|m| m.len())),
+        }
+    }
+    for a in f["private"].as_array().unwrap() {
+        assert_eq!(companion::is_private(a[0].as_str().unwrap()), a[1].as_bool().unwrap(), "{}", a[0]);
+    }
+    for n in f["names"].as_array().unwrap() {
+        assert_eq!(companion::phone_name(n[0].as_str().unwrap(), n[1].as_str().unwrap()), n[2].as_str().unwrap(), "{n}");
+    }
+    for u in f["files"].as_array().unwrap() {
+        assert_eq!(companion::file_of(u[0].as_str().unwrap()).as_deref(), u[1].as_str(), "{}", u[0]);
+    }
+
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().to_string_lossy().into_owned();
+    fs::write(tmp.path().join("zeta front.png"), base64::engine::general_purpose::STANDARD.decode(f["png"].as_str().unwrap()).unwrap()).unwrap();
+    let library: Value = serde_json::from_str(&f["library"].to_string().replace("<encdir>", &js::encode_uri_component(&dir)).replace("<dir>", &dir)).unwrap();
+    let host = Arc::new(PhoneHost(Mutex::new(PhoneWorld { library: Arc::new(library), achievements: f["achievements"].clone(), hidden: Vec::new(), glyphs: ("xbox".into(), false), home_menu: true, play_ok: true, running: None, calls: Vec::new() })));
+    let phone = Companion::new(tmp.path(), host.clone());
+    phone.start_on(Some("127.0.0.1".into()));
+    assert!(phone.state().on, "{}", phone.state().error);
+
+    let mut bound = Bound::default();
+    for (i, step) in f["steps"].as_array().unwrap().iter().enumerate() {
+        host.0.lock().unwrap().calls.clear();
+        if let Some(set) = step.get("set") {
+            let mut w = host.0.lock().unwrap();
+            if let Some(ok) = set.get("playOk") {
+                w.play_ok = ok.as_bool().unwrap();
+            }
+            if let Some(r) = set.get("running") {
+                let part = |k: &str| r[k].as_str().unwrap_or("").to_string();
+                w.running = Some(Running { id: part("id"), title: part("title"), kind: part("kind") });
+            }
+            if let Some(h) = set.get("hidden") {
+                w.hidden = h.as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
+            }
+            if let Some(g) = set.get("glyphs") {
+                w.glyphs = (g["style"].as_str().unwrap().to_string(), js::truthy(g.get("swap")));
+            }
+            if let Some(m) = set.get("homeMenu") {
+                w.home_menu = m.as_bool().unwrap();
+            }
+            continue;
+        }
+        if step.get("renew").is_some() {
+            phone.renew_pin();
+            continue;
+        }
+        if let Some(who) = step.get("forget") {
+            phone.forget(who.as_str().unwrap());
+            continue;
+        }
+        let pin = phone.state().pin;
+        let fill = |s: &str| bound.fill(s).replace("<pin>", &pin).replace("<notpin>", &format!("{:06}", (pin.parse::<u32>().unwrap() + 1) % 1_000_000));
+        let body = step.get("body").and_then(Value::as_str);
+        let mut headers: std::collections::HashMap<String, String> = [("host".to_string(), "127.0.0.1:18730".to_string())].into();
+        if body.is_some() {
+            headers.insert("content-type".into(), "application/json".into());
+        }
+        for (name, value) in step.get("headers").and_then(Value::as_object).into_iter().flatten() {
+            match value.as_str() {
+                Some(v) => headers.insert(name.clone(), fill(v)),
+                None => headers.remove(name),
+            };
+        }
+        let req = Request { ip: step["ip"].as_str().unwrap_or("192.168.1.50").into(), method: step["method"].as_str().unwrap_or("GET").into(), url: fill(step["url"].as_str().unwrap()), headers, body: body.map_or(Vec::new(), |b| fill(b).into_bytes()) };
+        let (got, want) = (phone.handle(&req), &step["answer"]);
+        let what = format!("step {i}: {} {}", req.method, req.url);
+        let Some(got) = got else {
+            assert!(want.is_null(), "{what}: no answer, the JS gave {want}");
+            continue;
+        };
+        assert_eq!(got.status, want["status"].as_u64().unwrap() as u16, "{what}: {}", String::from_utf8_lossy(&got.body));
+        let want_head = want["headers"].as_array().unwrap();
+        assert_eq!(got.headers.len(), want_head.len(), "{what}: {:?}", got.headers);
+        for ((name, value), w) in got.headers.iter().zip(want_head) {
+            assert!(name == w[0].as_str().unwrap() && bound.same(w[1].as_str().unwrap(), value), "{what}: {name}: {value}, the JS gave {w}");
+        }
+        match want.get("json") {
+            Some(json) => {
+                let said: Value = serde_json::from_slice(&got.body).unwrap();
+                assert!(bound.alike(json, &said), "{what}: {said}\nthe JS gave {json}");
+            }
+            None => assert_eq!(sha2::Sha256::digest(&got.body).iter().map(|b| format!("{b:02x}")).collect::<String>(), want["sha"].as_str().unwrap(), "{what}"),
+        }
+        let calls = Value::Array(host.0.lock().unwrap().calls.clone());
+        assert_eq!(&calls, step.get("calls").unwrap_or(&serde_json::json!([])), "{what}");
+    }
+    let state = phone.state();
+    assert_eq!((state.phones.len() as u64, state.pin.len() as u64), (f["state"]["phones"].as_u64().unwrap(), f["state"]["pin"].as_u64().unwrap()));
+    let stored: Value = serde_json::from_slice(&fs::read(tmp.path().join("companion.json")).unwrap()).unwrap();
+    let mut keys: Vec<&String> = stored.as_object().unwrap().keys().collect();
+    keys.sort();
+    assert_eq!(serde_json::json!(keys), f["stored"]);
+    phone.stop();
+}
+
+#[test]
+fn phone_companion_serves_the_home_network() {
+    use rustyshelf_core::companion::{Companion, Request};
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let tmp = tempfile::tempdir().unwrap();
+    let big = tmp.path().join("tall.png");
+    image::RgbImage::from_pixel(300, 400, image::Rgb([200, 40, 40])).save(&big).unwrap();
+    let library = serde_json::json!([{ "id": "snes", "name": "Super Shelf", "kind": "console", "games": [{ "id": "snes:Zeta Run.sfc", "title": "Zeta Run", "kind": "rom", "art": { "front": big.to_string_lossy() } }] }]);
+    let host = Arc::new(PhoneHost(Mutex::new(PhoneWorld { library: Arc::new(library), achievements: Value::Null, hidden: Vec::new(), glyphs: ("xbox".into(), false), home_menu: true, play_ok: true, running: None, calls: Vec::new() })));
+    let phone = Companion::new(tmp.path(), host);
+    phone.start_on(Some("127.0.0.1".into()));
+    let state = phone.state();
+    assert!(state.on && state.pin.len() == 6 && phone.pairing_link().unwrap() == format!("{}/#pin={}", state.url, state.pin), "{state:?}");
+
+    let over_the_wire = |request: String| {
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", state.port)).unwrap();
+        stream.write_all(request.as_bytes()).unwrap();
+        let mut answer = Vec::new();
+        stream.read_to_end(&mut answer).unwrap();
+        answer
+    };
+    let host_line = format!("Host: 127.0.0.1:{}", state.port);
+    let page = String::from_utf8_lossy(&over_the_wire(format!("GET / HTTP/1.1\r\n{host_line}\r\n\r\n"))).into_owned();
+    assert!(page.starts_with("HTTP/1.1 200 OK\r\n") && page.contains("Content-Security-Policy: default-src 'self'") && page.contains("<html"), "{}", &page[..page.len().min(400)]);
+    let body = format!("{{\"pin\":\"{}\",\"name\":\"Hall\"}}", state.pin);
+    let paired = String::from_utf8_lossy(&over_the_wire(format!("POST /api/pair HTTP/1.1\r\n{host_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()))).into_owned();
+    assert!(paired.starts_with("HTTP/1.1 200 OK\r\n") && paired.contains("\"name\":\"Hall\""), "{paired}");
+    let cookie = paired.lines().find_map(|l| l.strip_prefix("Set-Cookie: ")).unwrap().split(';').next().unwrap().to_string();
+    assert_ne!(phone.state().pin, state.pin, "a PIN pairs one phone");
+    let huge = format!("POST /api/input HTTP/1.1\r\n{host_line}\r\nCookie: {cookie}\r\nContent-Type: application/json\r\nContent-Length: 20000\r\n\r\n{}", "x".repeat(20000));
+    assert!(String::from_utf8_lossy(&over_the_wire(huge)).starts_with("HTTP/1.1 413 "));
+
+    // a picture taller than asked for goes out smaller, as a JPEG
+    let ask = |url: &str| phone.handle(&Request { ip: "192.168.1.50".into(), method: "GET".into(), url: url.into(), headers: [("host".to_string(), "192.168.1.2:8730".to_string()), ("cookie".to_string(), cookie.clone())].into(), body: Vec::new() }).unwrap();
+    let all: Value = serde_json::from_slice(&ask("/api/library").body).unwrap();
+    let cover = all["shelves"][0]["games"][0]["c"].as_str().unwrap().to_string();
+    let small = ask(&format!("/img/{cover}?h=100"));
+    assert!(small.headers.iter().any(|h| h.0 == "Content-Type" && h.1 == "image/jpeg"));
+    let made = image::load_from_memory(&small.body).unwrap();
+    assert_eq!((made.width(), made.height()), (135, 180));
+    assert_eq!(ask(&format!("/img/{cover}")).body, fs::read(&big).unwrap());
+
+    // more than a remote needs at once is turned away
+    let mut refused = false;
+    for _ in 0..2000 {
+        refused |= ask("/api/me").status == 429;
+    }
+    assert!(refused);
+    assert!(phone.handle(&Request { ip: "8.8.8.8".into(), method: "GET".into(), url: "/".into(), ..Default::default() }).is_none());
+    phone.stop();
+    assert!(!phone.state().on && phone.state().pin.is_empty());
+}

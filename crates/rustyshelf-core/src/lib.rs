@@ -6,6 +6,7 @@ pub mod arcade;
 pub mod art;
 pub mod boxart;
 pub mod collate;
+pub mod companion;
 pub mod config;
 pub mod covers;
 pub mod cssbg;

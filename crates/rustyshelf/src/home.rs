@@ -79,6 +79,12 @@ pub struct Home {
     minute: u32,
 }
 
+impl Home {
+    pub fn is_open(&self) -> bool {
+        self.menu.is_some()
+    }
+}
+
 #[derive(Component)]
 pub struct Whole;
 #[derive(Component)]

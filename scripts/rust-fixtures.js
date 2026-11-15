@@ -1095,6 +1095,128 @@ async function manualsFixtures() {
     return out;
   } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// The phone companion: QR codes, addresses, names, and a run of requests through the Electron app's own handler.
+// Ids, tokens and PINs are random: the Rust test maps the ones written here to its own as they first appear.
+async function companionFixtures() {
+  const C = require('../main/companion'), { Readable, Writable } = require('stream'), url = require('url');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-phone-'));
+  const out = {};
+  const long = n => Array.from({ length: n }, (_, i) => 'http://192.168.1.20:8730/#pin=0123456789'[i % 40]).join('');
+  out.qr = ['HELLO', 'http://192.168.1.20:8730/#pin=123456', 'Zeta Run é ✓', ...[20, 50, 70, 100, 115, 150, 180, 213, 214].map(long)].map(text => { try { return { text, rows: C.qrMatrix(text).map(r => r.map(x => (x ? '1' : '0')).join('')) }; } catch (e) { return { text, error: e.message }; } });
+  out.private = ['10.0.0.1', '172.16.5.4', '172.32.0.1', '172.15.0.1', '192.168.1.50', '192.169.1.1', '127.0.0.1', '8.8.8.8', '::1', '::ffff:192.168.1.9', '::ffff:8.8.8.8', '::ffff:1234.1.1.1', 'fe80::1%eth0', 'FE9A::2', 'fec0::1', '2001:db8::1', '300.1.1.1', '10.0.0.256', '', '10.0.0', 'localhost', '169.254.1.1'].map(a => [a, C.isPrivate(a)]);
+  out.names = [['Kitchen <b>phone</b>!', ''], ['  ', 'Mozilla/5.0 (iPhone; CPU iPhone OS like Mac OS X)'], ['', 'Mozilla/5.0 (iPad; CPU OS like Mac OS X)'], ['', 'Mozilla/5.0 (Linux; Android 14; Tablet Q Build/AB1.2) Mobile'], ['', 'Mozilla/5.0 (Linux; Android 14) Mobile'], ['', 'Mozilla/5.0 (X11; Linux x86_64)'], ['x'.repeat(60), ''], ["Ümit’s (old) phone_2.0-b", ''], ['📱', 'Android; ; A very long made-up model name that goes on and on Build/1']].map(([g, ua]) => [g, ua, C._test.phoneName(g, ua)]);
+  out.files = ['bsfile://local/' + encodeURIComponent('/x/Zeta Run.png') + '?v=3', 'bsfile://local/%E0%A4%A', 'file:///x/a%20b.png?x=1', 'https://example.invalid/a.png', ''].map(u => [u, C._test.fileOf(u)]);
+
+  const U = f => url.pathToFileURL(path.join(tmp, f)).href;
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  fs.writeFileSync(path.join(tmp, 'zeta front.png'), PNG);
+  const lib = [
+    { id: 'home', name: 'Home', kind: 'home', games: [{ id: 'h1', title: 'Rho', kind: 'rom' }] },
+    { id: 'snes', name: 'Super Shelf', kind: 'console', games: [
+      { id: 'snes:Zeta Run.sfc', title: 'Zeta Run', kind: 'rom', file: 'Zeta Run.sfc', region: 'USA', sizeBytes: 524288, art: { front: U('zeta front.png'), back: U('zeta-back.jpg'), manual: [U('m1.png'), U('m2.png'), U('notes.svg')], manualPdf: U('zeta.pdf') }, info: { overview: 'A made-up game.', year: 1993, dev: 'Nobody', genres: ['Platform'], players: '', coop: null, extra: 'left out' } },
+      { id: 'snes:Omega Quest.sfc', title: 'Omega Quest', kind: 'rom', file: 'Omega Quest.sfc', art: { icon: 'bsfile://local/' + encodeURIComponent(path.join(tmp, 'omega.webp')) + '?v=2', manualPdf: U('omega.pdf') } },
+      { id: 'snes:Sigma.sfc', title: 'Sigma', kind: 'rom', file: 'Sigma.sfc' },
+      { id: 'tile', title: 'Surprise me', kind: 'tile' }, null] },
+    { id: 'steam', name: '', kind: 'pc', games: [{ id: 'steam-4242', title: 'Tau Racers', kind: 'steam', appid: 4242, art: { front: U('tau.svg'), icon: U('tau.gif'), hero: U('tau-hero.jpg') } }, { id: 'app-phi', title: 'Phi', kind: 'app' }] },
+    { id: 'empty', name: 'Empty', kind: 'console', games: [] }, { nothing: true }, null];
+  out.library = JSON.parse(JSON.stringify(lib).split(encodeURIComponent(tmp)).join('<encdir>').split(tmp).join('<dir>'));
+  out.achievements = { 'Zeta Run': { earned: '3', total: 10.4, points: 55, pointsEarned: -2, mastered: 0 }, 'Omega Quest': { total: 0 } };
+
+  const world = { running: null, hidden: [], glyphs: { style: 'xbox', swap: false }, homeMenu: true, playOk: true };
+  let calls = [];
+  C.init({ dataDir: tmp, webDir: path.join(ROOT, 'renderer', 'companion'), fontDir: path.join(ROOT, 'renderer', 'fonts'), version: '9.9.9', lanAddress: () => '127.0.0.1',
+    library: () => lib, hidden: () => world.hidden, glyphs: () => world.glyphs, homeMenu: () => world.homeMenu, running: () => world.running, raFor: s => s === 'snes',
+    play: async g => { calls.push(['play', g.shelf, g.id, g.title]); return world.playOk; }, quit: async () => { calls.push(['quit']); world.running = null; },
+    input: i => calls.push(['input', i]), achievements: async (s, t) => out.achievements[t] || null });
+  await C.set({ enabled: true, port: 18730 });
+  if (!C._test.pinNow()) throw new Error('the companion did not start: ' + C.state().error);
+  const sha = b => require('crypto').createHash('sha256').update(b).digest('hex');
+  const fill = t => { const pin = C._test.pinNow(); return String(t).split('<pin>').join(pin).split('<notpin>').join(String((+pin + 1) % 1e6).padStart(6, '0')); };
+  const ask = step => new Promise(done => {
+    const req = Readable.from(step.body != null ? [Buffer.from(fill(step.body))] : []); req.method = step.method || 'GET'; req.url = step.url;
+    req.headers = { host: '127.0.0.1:18730', ...(step.body != null && !(step.headers && 'content-type' in step.headers) ? { 'content-type': 'application/json' } : {}), ...(step.headers || {}) };
+    for (const k of Object.keys(req.headers)) if (req.headers[k] == null) delete req.headers[k];
+    req.socket = { remoteAddress: step.ip || '192.168.1.50', destroy() { done(null); } };
+    const parts = [], res = new Writable({ write(c, e, cb) { parts.push(c); cb(); } }); res.headersSent = false;
+    res.writeHead = (code, h) => { res.headersSent = true; res.code = code; res.head = h; };
+    res.on('finish', () => { const b = Buffer.concat(parts), isJson = /json/.test(res.head['Content-Type']) && !/manifest/.test(res.head['Content-Type']);
+      done({ status: res.code, headers: Object.entries(res.head).map(([k, v]) => [k, String(v)]), ...(isJson ? { json: JSON.parse(b.toString()) } : { sha: sha(b) }) }); });
+    C._test.handle(req, res).catch(e => done({ error: String(e) }));
+  });
+  const tokens = [], ids = {};
+  const cookie = n => ({ cookie: 'bs_phone=' + tokens[n] });
+  const steps = [];
+  const run = async step => { calls = []; const answer = step.set || step.renew || step.forget ? undefined : await ask(step);
+    if (step.set) Object.assign(world, step.set); if (step.renew) C.renewPin(); if (step.forget) C.forget(step.forget);
+    const c = answer && answer.headers.find(h => h[0] === 'Set-Cookie'), t = c && /^bs_phone=([\w-]{20,})/.exec(c[1]); if (t) tokens.push(t[1]);
+    steps.push({ ...step, ...(answer !== undefined ? { answer } : {}), ...(calls.length ? { calls } : {}) }); return answer && answer.json; };
+  const post = (u, body, headers) => ({ method: 'POST', url: u, body: typeof body === 'string' ? body : JSON.stringify(body), ...(headers ? { headers } : {}) });
+
+  await run({ url: '/', ip: '8.8.8.8' });
+  await run({ url: '/', headers: { host: 'rustyshelf.local:18730' } });
+  await run({ url: '/', headers: { host: null } });
+  for (const u of ['/', '/app.js', '/app.css', '/icon.svg', '/manifest.json', '/font/lexend-600.woff2', '/nothing', '/font/nope.woff2', '/api/library', '/img/x', '']) await run({ url: u });
+  await run({ url: '/?x=1', ip: '::ffff:10.0.0.7', headers: { host: '[fe80::1%eth0]:18730' } });
+  await run(post('/', {}));
+  await run(post('/api/pair', { pin: '<pin>' }, { origin: 'http://evil.example' }));
+  await run(post('/api/pair', { pin: '<pin>' }, { 'content-type': 'text/plain' }));
+  await run(post('/api/pair', { pin: '<pin>', name: 'x'.repeat(1100) }));
+  await run(post('/api/pair', '{"pin":'));
+  await run(post('/api/pair', '[1]'));
+  await run(post('/api/pair', { pin: '<notpin>' }));
+  await run(post('/api/pair', { pin: ' <pin> ', name: 'Kitchen <b>phone</b>!' }, { origin: 'http://127.0.0.1:18730', 'content-type': 'Application/JSON; charset=utf-8', 'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS like Mac OS X)' }));
+  await run(post('/api/pair', { pin: '<pin>' }, { 'user-agent': 'Mozilla/5.0 (Linux; Android 14; Tablet Q Build/AB1.2) Mobile' }));
+  await run({ url: '/api/me', headers: { cookie: 'bs_phone=' + 'A'.repeat(43) } });
+  await run({ url: '/api/me', headers: { cookie: 'bs_phone=short' } });
+  await run({ url: '/api/me', headers: { cookie: 'theme=dark; bs_phone=' + tokens[0] + '; x=y' } });
+  await run({ url: '/api/me', headers: cookie(1) });
+  await run({ url: '/api/status', headers: cookie(0) });
+  const all = await run({ url: '/api/library', headers: cookie(0) });
+  for (const s of all.shelves) for (const g of s.games) ids[g.t] = g.id;
+  for (const t of ['Zeta Run', 'Omega Quest', 'Sigma', 'Tau Racers', 'Phi']) { await run({ url: '/api/game?id=' + ids[t], headers: cookie(0) }); await run({ url: '/api/ach?id=' + ids[t], headers: cookie(0) }); }
+  const zeta = await run({ url: '/api/game?id=' + ids['Zeta Run'] + '&x=1', headers: cookie(0) });
+  for (const u of ['/api/game', '/api/game?id=gNope', '/api/ach?id=gNope', '/img/' + zeta.cover, '/img/' + zeta.cover + '?h=200', '/img/' + zeta.cover + '?h=12', '/img/' + zeta.cover + '?h=many', '/img/' + zeta.back, '/img/' + zeta.manual[0] + '?h=1080', '/img/iNope', '/api/nothing']) await run({ url: u, headers: cookie(0) });
+  await run({ method: 'PUT', url: '/api/me', headers: cookie(0) });
+  await run({ method: 'DELETE', url: '/', headers: cookie(0) });
+  for (const [u, b] of [['/api/input', { b: 'a', d: true }], ['/api/input', { b: 'home' }], ['/api/input', { b: 'select', d: 1 }], ['/api/input', {}], ['/api/input', { b: 'lb', d: 'yes' }],
+    ['/api/text', { key: 'Enter' }], ['/api/text', { key: 'Tab' }], ['/api/text', { key: 'Escape', text: 'no' }], ['/api/text', { text: 'Zeta\u0007 Run\n' }], ['/api/text', { text: '' }], ['/api/text', {}],
+    ['/api/text', { text: 'é✓'.repeat(150) }], ['/api/text', { text: 12 }], ['/api/text', { key: 5, text: 'five' }], ['/api/nothing', {}], ['/api/play', { id: 'gNope' }], ['/api/play', {}], ['/api/play', { id: ids['Zeta Run'] }], ['/api/quit', {}]]) await run(post(u, b, cookie(0)));
+  await run(post('/api/input', { b: 'a' }, { ...cookie(0), 'content-type': 'text/plain' }));
+  await run(post('/api/input', { b: 'a', pad: 'x'.repeat(5000) }, cookie(0)));
+  await run(post('/api/input', { b: 'a' }));
+  await run({ set: { playOk: false } });
+  await run(post('/api/play', { id: ids['Phi'] }, cookie(1)));
+  await run({ set: { playOk: true, running: { id: 'snes:Zeta Run.sfc', title: 'not this', kind: '' } } });
+  await run({ url: '/api/status', headers: cookie(0) });
+  await run(post('/api/play', { id: ids['Tau Racers'] }, cookie(0)));
+  await run(post('/api/play', { id: ids['Tau Racers'], quit: true }, cookie(0)));
+  for (const running of [{ id: 'steam-4242', kind: 'steam' }, { id: 'snes:Omega Quest.sfc', title: '', kind: 'rom' }, { id: 'elsewhere', title: 'Rho', kind: 'app' }, { id: '', title: 'Sigma' }]) { await run({ set: { running } }); await run({ url: '/api/status', headers: cookie(1) }); }
+  await run(post('/api/quit', {}, cookie(1)));
+  await run({ set: { hidden: ['snes:Sigma.sfc', 'app-phi'], glyphs: { style: 'ps', swap: true }, homeMenu: false } });
+  await run({ url: '/api/library', headers: cookie(0) });
+  await run({ url: '/api/game?id=' + ids['Sigma'], headers: cookie(0) });
+  await run({ url: '/api/status', headers: cookie(0) });
+  await run({ set: { hidden: [], glyphs: { style: 'weird', swap: 0 } } });
+  await run({ url: '/api/library', headers: cookie(1) });
+  await run(post('/api/unpair', {}, cookie(1)));
+  await run({ url: '/api/me', headers: cookie(1) });
+  for (let i = 0; i < 5; i++) await run(post('/api/pair', { pin: '<notpin>' }));
+  await run(post('/api/pair', { pin: '<pin>' }));
+  await run({ renew: true });
+  for (let i = 0; i < 4; i++) await run(post('/api/pair', { pin: i % 2 ? '' : '12ab' }));
+  await run(post('/api/pair', { pin: '<pin>', name: 'Third' }));
+  await run({ url: '/api/me', headers: cookie(2) });
+  await run({ forget: 'all' });
+  await run({ url: '/api/me', headers: cookie(0) });
+  const seen = [], walk = v => { if (typeof v === 'string') { if (/^[gi][\w-]{22}$/.test(v) && !seen.includes(v)) seen.push(v); } else if (v && typeof v === 'object') Object.values(v).forEach(walk); };
+  for (const s of steps) if (s.answer && s.answer.json) walk(s.answer.json);
+  let told = JSON.stringify(steps); tokens.forEach((t, i) => { told = told.split(t).join(`<token${i}>`); }); seen.forEach((d, i) => { told = told.split(d).join(`<id${i}>`); });
+  out.steps = JSON.parse(told); out.png = b64(PNG);
+  const st = C.state(); out.state = { on: st.on, url: st.url, port: st.port, wantPort: st.wantPort, phones: st.phones.length, pin: st.pin.length };
+  out.stored = Object.keys(JSON.parse(fs.readFileSync(path.join(tmp, 'companion.json'), 'utf8'))).sort();
+  await C.stop(); fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1105,6 +1227,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'dataexport.json'), JSON.stringify(await dataexportFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'addgames.json'), JSON.stringify(await addgamesFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'manuals.json'), JSON.stringify(await manualsFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'companion.json'), JSON.stringify(await companionFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');
