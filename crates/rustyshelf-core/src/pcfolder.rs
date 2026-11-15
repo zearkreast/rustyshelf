@@ -192,9 +192,95 @@ pub fn scan(games_dir: &str, own_dir: &str, programs: Option<&Value>, skip: &[St
     out
 }
 
+/// The ports and recompilations folder (Settings → PC games): every folder in it is a game for the Ports & Recomps
+/// shelf. A folder named after a console (its id, name or games folder's name: "sw", "Switch", "Nintendo 64") holds
+/// that console's ports, which sit in that console's case. Their ids start "port-".
+pub fn scan_ports(ports_dir: &str) -> Vec<PcGame> {
+    if ports_dir.is_empty() {
+        return Vec::new();
+    }
+    let console_of = |name: &str| {
+        let n = name.to_lowercase();
+        crate::systems::systems().consoles.iter().find(|c| c.id.to_lowercase() == n || c.name.to_lowercase() == n || c.rom_folder_names.iter().any(|f| f.to_lowercase() == n)).map(|c| c.id.clone())
+    };
+    let (mut out, mut used) = (Vec::new(), HashSet::new());
+    for mut g in scan(ports_dir, "", None, &[]) {
+        match console_of(&g.title) {
+            // a console's folder: its own folders are the games
+            Some(console) => {
+                for mut inner in scan(&g.dir, "", None, &[]) {
+                    inner.id = format!("port-{}", id_of(&format!("{console} {}", inner.title), &mut used).trim_start_matches("pc-"));
+                    (inner.port, inner.port_of) = (true, console.clone());
+                    out.push(inner);
+                }
+                // (a console's folder that is itself a game, its program right in it, is one too)
+                if !g.exe.is_empty() && Path::new(&g.exe).parent() == Some(Path::new(&g.dir)) && !read_dir_sorted(Path::new(&g.dir)).iter().any(is_dir_entry) {
+                    g.id = format!("port-{}", id_of(&g.title, &mut used).trim_start_matches("pc-"));
+                    g.port = true;
+                    out.push(g);
+                }
+            }
+            None => {
+                g.id = format!("port-{}", id_of(&g.title, &mut used).trim_start_matches("pc-"));
+                g.port = true;
+                out.push(g);
+            }
+        }
+    }
+    out.sort_by(|a, b| crate::collate::compare_plain(&a.title, &b.title));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_ports_folder_and_its_consoles_folders() {
+        let t = tempfile::tempdir().unwrap();
+        let make = |rel: &str| {
+            let p = t.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, b"MZ").unwrap();
+        };
+        make("Unleashed Recomp/game.exe");
+        make("N64/Some Recomp/game.exe");
+        let games = scan_ports(&t.path().to_string_lossy());
+        let got: Vec<(&str, &str, bool, &str)> = games.iter().map(|g| (g.title.as_str(), g.port_of.as_str(), g.port, g.id.as_str())).collect();
+        assert_eq!(got, [("Some Recomp", "n64", true, "port-n64-some-recomp"), ("Unleashed Recomp", "", true, "port-unleashed-recomp")]);
+    }
+
+    /// Recompilations as they come: the game's program among helpers, tools and folders of patches.
+    #[test]
+    fn a_recomps_own_program_is_the_one_started() {
+        let t = tempfile::tempdir().unwrap();
+        let make = |rel: &str, size: usize| {
+            let p = t.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, vec![0u8; size]).unwrap();
+        };
+        make("Hookshot/hookshot.exe", 192);
+        make("Hookshot/HookshotBuilder.exe", 192);
+        make("Hookshot/bin/x.bin", 1);
+        make("Wind Waker HD/Wind Waker HD.exe", 4314);
+        make("Wind Waker HD/tools/helper.exe", 9000);
+        make("Wii U/Wind Waker HD/Wind Waker HD.exe", 4314);
+        make("Switch/TotK Recomp/totk.exe", 2670);
+        make("Switch/TotK Recomp/totk_xlate.exe", 10);
+        make("Switch/TotK Recomp/Setup-Recomp/setup-recomp.exe", 50);
+        make("Switch/TotK Recomp/romfs-patches-pc/a.bin", 1);
+        let games = scan_ports(&t.path().to_string_lossy());
+        let got: Vec<(&str, &str, String)> = games.iter().map(|g| (g.title.as_str(), g.port_of.as_str(), Path::new(&g.exe).strip_prefix(&g.dir).unwrap().to_string_lossy().replace('\\', "/"))).collect();
+        assert_eq!(
+            got,
+            [
+                ("Hookshot", "", "hookshot.exe".to_string()),
+                ("TotK Recomp", "sw", "totk.exe".to_string()),
+                ("Wind Waker HD", "wiiu", "Wind Waker HD.exe".to_string()),
+                ("Wind Waker HD", "", "Wind Waker HD.exe".to_string()),
+            ]
+        );
+    }
 
     #[test]
     fn ids() {

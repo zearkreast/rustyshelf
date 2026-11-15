@@ -206,6 +206,7 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
         mine.extend(pcgames::quiver_games(js::str_of(get("quiverPath")).unwrap_or("")));
     }
     mine.extend(pcgames::custom_games(get("custom")));
+    mine.extend(pcfolder::scan_ports(js::str_of(get("portsDir")).unwrap_or("")));
     for g in stores.iter_mut().chain(mine.iter_mut()) {
         if let Some(t) = cfg.game_title(&g.id) {
             g.title = t.to_string();

@@ -517,13 +517,13 @@ pub fn navigate(
             }
             Ok((None, _)) if l.config.seamless() => {
                 let spec = Spec { kind: pc.source.to_string(), appid: String::new(), dir: pc.dir.clone(), exe: pc.exe.clone(), title: g.title.clone() };
-                playing.watching(&g.title, &g.id, combo, spec, crate::hud::store_name(pc.source));
-                playing.shown = Some((g.title.clone(), crate::hud::store_name(pc.source).into(), image_of(g)));
+                playing.watching(&g.title, &g.id, combo, spec, crate::hud::source_name(pc));
+                playing.shown = Some((g.title.clone(), crate::hud::source_name(pc).into(), image_of(g)));
             }
             // its store starts it and looks after it
             Ok((None, _)) => {
                 plays.0.touch(&g.id);
-                toast.text = format!("{} is starting in {}.", g.title, crate::hud::store_name(pc.source));
+                toast.text = format!("{} is starting in {}.", g.title, crate::hud::source_name(pc));
                 toast.until = now + 5.0;
             }
             Err(e) => {

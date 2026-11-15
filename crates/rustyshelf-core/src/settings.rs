@@ -337,6 +337,15 @@ fn sanitize_pc(pc: &mut Map<String, Value>) {
         let v = s(pc.get(k), 1024);
         pc.insert(k.into(), json!(v));
     }
+    // the native app's own: the ports and recompilations folder (kept only when it's set)
+    match s(pc.get("portsDir"), 1024) {
+        v if v.is_empty() => {
+            pc.remove("portsDir");
+        }
+        v => {
+            pc.insert("portsDir".into(), json!(v));
+        }
+    }
     let mut run = Map::new();
     if let Some(Value::Object(o)) = pc.get("run") {
         for (id, v) in js::entries(o).into_iter().filter(|(_, v)| v.is_object()).take(2000) {

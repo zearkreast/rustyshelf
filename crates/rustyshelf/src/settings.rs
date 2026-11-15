@@ -188,6 +188,7 @@ enum Pick {
     Folder(String),
     Steam,
     GamesDir,
+    PortsDir,
     ArtLibrary,
     ArtDir(String),
     CustomGame,
@@ -992,6 +993,7 @@ impl Settings {
             Pick::Rocket => self.say("That isn't RocketLauncher.exe (not RocketLauncherUI.exe)".into()),
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
+            Pick::PortsDir => self.set(&["pc", "portsDir"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
             Pick::ArtDir(id) => self.set(&["systems", &id, "artDir"], json!(p)),
             Pick::CustomGame => self.add_custom(&p),
@@ -1561,6 +1563,7 @@ impl Settings {
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
                 let games = self.text(&["pc", "gamesDir"]);
+                let ports = self.text(&["pc", "portsDir"]);
                 let mut rows = vec![
                     toggle("Steam", &["steam", "enabled"], true, "Your installed Steam games on the PC shelf"),
                     Row {
@@ -1577,7 +1580,7 @@ impl Settings {
                     toggle("EA app", &["pc", "ea"], true, ""),
                     toggle("Xbox / Game Pass", &["pc", "xbox"], true, ""),
                     toggle("HoYoPlay", &["pc", "hoyoplay"], true, ""),
-                    toggle("Quiver Launcher", &["pc", "quiver"], true, "Its apps go on the Custom shelf"),
+                    toggle("Quiver Launcher", &["pc", "quiver"], true, "Its apps go on the Custom shelf, its ports and recompilations on Ports & Recomps"),
                     Row {
                         label: "PC games folder".into(),
                         value: if games.is_empty() { "None".into() } else { short(&games) },
@@ -1586,6 +1589,17 @@ impl Settings {
                         step: Some(Box::new(|s: &mut Settings, d| {
                             if d < 0 {
                                 s.set(&["pc", "gamesDir"], json!(""));
+                            }
+                        })),
+                    },
+                    Row {
+                        label: "Ports & recomps folder".into(),
+                        value: if ports.is_empty() { "None".into() } else { short(&ports) },
+                        hint: "Every folder in it is a PC port or recompilation, on the Ports & Recomps shelf; a folder named after a console (N64, GameCube…) holds that console's, in its case  ·  Enter chooses it, ◀ forgets it".into(),
+                        press: Some(Box::new(|s: &mut Settings| s.pick(Pick::PortsDir, "Choose your ports and recompilations folder", true))),
+                        step: Some(Box::new(|s: &mut Settings, d| {
+                            if d < 0 {
+                                s.set(&["pc", "portsDir"], json!(""));
                             }
                         })),
                     },
@@ -2356,7 +2370,7 @@ pub fn facts_of(g: &Game, emulator: &str, plays: Option<Played>) -> Vec<(String,
             rows.push(("Steam ID", appid.clone()));
         }
         Source::Pc(pc) => {
-            rows.insert(0, ("Source", crate::hud::store_name(pc.source).to_string()));
+            rows.insert(0, ("Source", crate::hud::source_name(pc).to_string()));
             if !pc.exe.is_empty() && !known {
                 rows.push(("Program", short(&pc.exe)));
                 if !pc.args.is_empty() {

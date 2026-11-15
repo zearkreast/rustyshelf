@@ -225,6 +225,15 @@ fn played(minutes: u64) -> String {
     format!("{h} h played")
 }
 
+/// Where a PC game comes from: its store, or the folder it was found in.
+pub fn source_name(pc: &rustyshelf_core::pcgames::PcGame) -> &'static str {
+    if pc.port && pc.source == "folder" {
+        "Ports & recomps folder"
+    } else {
+        store_name(pc.source)
+    }
+}
+
 /// Where a PC game comes from, as the Electron app names it (renderer/app.js PC_SRC, keep in sync).
 pub fn store_name(source: &str) -> &'static str {
     match source {
@@ -251,7 +260,7 @@ fn meta(g: &Game, shelf: &str, ok: &str) -> Vec<String> {
         Source::Tile(Tile::Surprise) => vec!["Shuffle".to_string(), "Lands on a random game".into()],
         Source::Steam { minutes, .. } => vec!["Steam".to_string(), played(*minutes), size(g.size_bytes)],
         // TODO: the playtime RustyShelf keeps for the games it starts itself (the Electron app's history)
-        Source::Pc(pc) => vec![store_name(pc.source).to_string(), if g.not_installed { "Not installed".into() } else { played(0) }, size(g.size_bytes)],
+        Source::Pc(pc) => vec![source_name(pc).to_string(), if g.not_installed { "Not installed".into() } else { played(0) }, size(g.size_bytes)],
         Source::App { .. } => vec!["Streaming app".to_string()],
         Source::Rom => vec![
             g.region.clone(),

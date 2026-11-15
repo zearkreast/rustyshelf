@@ -1271,6 +1271,10 @@
     "Statut : En cours"
    ],
    [
+    "Every folder in it is a PC port or recompilation, on the Ports & Recomps shelf; a folder named after a console (N64, GameCube…) holds that console's, in its case  ·  Enter chooses it, ◀ forgets it",
+    "Chaque dossier qu'il contient est un portage ou une recompilation PC, sur l'étagère Ports & Recomps ; un dossier au nom d'une console (N64, GameCube…) contient les siens, dans sa boîte · Entrée le choisit, ◀ l'oublie"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Pas comme avant cette version : Zeta Run. Réglages → Système peut remettre la copie"
    ],
@@ -3946,6 +3950,10 @@
    [
     "Status: Finished",
     "Durum: Bitirdim"
+   ],
+   [
+    "Every folder in it is a PC port or recompilation, on the Ports & Recomps shelf; a folder named after a console (N64, GameCube…) holds that console's, in its case · Enter chooses it, ◀ forgets it",
+    "İçindeki her klasör bir PC portu ya da recomp'tur ve Ports & Recomps rafına konur; bir konsolun adını taşıyan klasör (N64, GameCube…) o konsolunkileri tutar, onun kutusunda · Enter seçer, ◀ unutur"
    ],
    [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
