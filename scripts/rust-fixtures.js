@@ -1492,6 +1492,47 @@ async function artstudioFixtures() {
     ['gc', { title: 'Nothing At All', file: '/roms/n.iso' }, null, 'auto'], ['wii', { title: 'Zeta Run', file: '/roms/z.wbfs' }, 'RZRK01', 'auto'], ['wiiu', { title: 'Zeta Run', file: '/roms/z.wua' }, 'AZRD01', 'eur'], ['snes', { title: 'Zeta Run', file: '/roms/z.sfc' }, null, 'auto'], ['gc', { title: 'Zeta Run: The Long Way', file: '/roms/Zeta Run: The Long Way (USA).iso' }, null, 'auto']];
   out.candidates = [];
   for (const [sys, game, discId, region] of asks) out.candidates.push({ sys, game, discId, region, parts: Object.fromEntries(await Promise.all(A.PARTS.map(async p => [p, await covers.candidates(sys, game, p, { discId, region, wiki: false })]))) });
+  // ---- a game's list with what's on this computer, and a picture put in use (the Electron app's own cands, use, undo)
+  const { CONSOLES } = require('../main/systems'), scanner = require('../main/scanner'), paths = require('../main/paths');
+  const data = path.join(tmp, 'data'), roms = path.join(tmp, 'roms'), art = path.join(roms, 'covers'), cand = path.join(data, 'art-cand');
+  for (const d of [data, path.join(art, 'replaced'), cand]) fs.mkdirSync(d, { recursive: true });
+  const file = path.join(roms, 'Zeta Run (USA).iso'); fs.writeFileSync(file, 'rom');
+  const pic = (w, h, n) => Buffer.concat([pngHead(w, h), Buffer.alloc(2000 + n, n)]);
+  const sha1 = t => require('crypto').createHash('sha1').update(t).digest('hex');
+  const LB = 'https://images.launchbox-app.com/';
+  const pictures = { 'covers/Zeta Run (USA).png': pic(600, 840, 1), 'covers/replaced/Zeta Run (USA) (2026-01-05-10-11-12-123).png': pic(500, 700, 2), 'covers/replaced/Zeta Run (USA) (2025-09-30-01-02-03-004).jpg': pic(1000, 1400, 3),
+    'covers/replaced/Zeta Run (USA)-spine (2026-02-01-00-00-00-000).jpg': pic(60, 840, 4), 'covers/replaced/Other Game (2026-01-05-10-11-12-123).png': pic(1, 1, 5) };
+  const cached = { [LB + 'Nintendo%20GameCube/Box%20-%20Front/Zeta%20Run-01.jpg|']: ['.jpg', pic(1000, 1400, 3)], [LB + 'Nintendo%20GameCube/Box%20-%20Front/Zeta%20Run-02.png|']: ['.png', pic(600, 840, 1)], [LB + 'a/full.png|spine']: ['.jpg', pic(70, 900, 6)],
+    'https://thumbnails.libretro.com/Nintendo%20-%20GameCube/Named_Boxarts/Zeta%20Run%20(USA).png|': ['.png', Buffer.from('not a picture at all, but kept all the same'.repeat(60))] };
+  for (const [f, b] of Object.entries(pictures)) fs.writeFileSync(path.join(roms, f), b);
+  for (const [k, [ext, b]] of Object.entries(cached)) fs.writeFileSync(path.join(cand, sha1(k).slice(0, 24) + ext), b);
+  const day = 864e5, missing = { [LB + 'a/Zeta%20Run-fan.jpg']: Date.now() - day, [LB + 'a/poster.jpg']: Date.now() - 8 * day };
+  fs.writeFileSync(path.join(data, 'art-missing.json'), JSON.stringify(missing));
+  out.local = { pictures: Object.fromEntries(Object.entries(pictures).map(([f, b]) => [f, b64(b)])), cached: Object.fromEntries(Object.entries(cached).map(([k, [ext, b]]) => [k, [ext, b64(b)]])), missing: Object.fromEntries(Object.entries(missing).map(([u, t]) => [u, Math.round((Date.now() - t) / day)])) };
+  covers.init(data); fs.writeFileSync(path.join(data, 'boxart-cache', 'libretro-gc.json'), JSON.stringify({ at: Date.now(), names: lr }));
+  const cfg = { ui: {}, art: { styles: {}, locks: {} }, systems: {} }, def = CONSOLES.find(c => c.id === 'gc'), sc = { romDirs: [roms], enabled: true };
+  A.init({ dataDir: data, log() {}, getCfg: () => cfg, setArt: a => { cfg.art = a; }, consoles: () => [{ def, sc }], gameFile: (id, f) => ({ file: f }), scan: async (d, c) => scanner.scanSystem(d, c), placed() {}, changed() {}, send() {}, fileUrl: f => f, pruneDelay: 1e9, migrateDelay: 1e9 });
+  const rel = v => JSON.parse(JSON.stringify(v === undefined ? null : v).split(JSON.stringify(tmp).slice(1, -1)).join('<tmp>').split(JSON.stringify(tmp.toLowerCase()).slice(1, -1)).join('<tmp>'));
+  const stampless = f => f.replace(/\((?!20(?:25|26)-0)\d{4}(?:-\d+){6}(-\d+)?\)/g, '(STAMP$1)');
+  const holds = () => { const o = {}; const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else { const b = fs.readFileSync(f); o[stampless(path.relative(roms, f))] = b.length + ':' + b[b.length - 1]; } } }; walk(art); return Object.fromEntries(Object.entries(o).sort()); };
+  const game = () => scanner.scanSystem(def, sc).find(g => g.file === file);
+  // (a picture on this computer is keyed by where it is: named here by its file instead)
+  const name = (c, list) => { const of = k => { const x = list.find(y => y.key === k); return x && x.file ? 'local:' + stampless(path.relative(roms, x.file)) : k; }; return [of(c.key), c.dup ? of(c.dup) : null]; };
+  const view = (c, i, list) => rel({ key: name(c, list)[0], source: c.source, label: c.label || '', w: c.w || null, h: c.h || null, bytes: c.bytes || 0, cached: !!c.cached, inUse: !!c.inUse, dup: name(c, list)[1], guess: !!c.guess, file: c.file || null, shown: !c.dup && !(c.guess && !c.cached && !c.inUse) });
+  const raw = async part => { const g = { sysId: 'gc', def, sc, game: game(), dir: paths.artDirFor(sc, file), base: paths.artBase(file), key: A.lockKey('gc', file) }; return (await A._t.listFor(g, part, { fresh: true, lrWait: 200 })).list; };
+  const listed = async part => (await raw(part)).map(view);
+  out.lists = {}; for (const p of A.PARTS) out.lists[p] = await listed(p);
+  out.lockKey = rel(A.lockKey('gc', file));
+  const steps = [['use', 'front', 'launchbox', 'Box scan · USA'], ['use', 'front', 'earlier', 'Earlier · 5 Jan 2026'], ['undo', 'front'], ['use', 'front', 'nothing', ''], ['use', 'spine', 'launchbox', 'Cut from full box · USA'], ['undo', 'spine'], ['undo', 'back'], ['undo', 'spine'], ['undo', 'spine']];
+  out.steps = [];
+  for (const [what, part, source, label] of steps) { let error = null, key = null;
+    if (what === 'use') { const list = await raw(part), c = list.find(x => x.source === source && x.label === label); key = c ? name(c, list)[0] : 'zzzz';
+      try { await A.use({ systemId: 'gc', file, part, key: c ? c.key : 'zzzz' }); } catch (e) { error = e.message; } }
+    else { try { await A.undo({ systemId: 'gc', file, part }); } catch (e) { error = e.message; } }
+    const locks = JSON.parse(JSON.stringify(cfg.art.locks || {})); for (const e of Object.values(locks)) for (const l of Object.values(e)) { delete l.at; if (/^[ce]/.test(l.key || '')) l.key = 'local'; }
+    // (a picture replaced during this run carries today's date)
+    const day = l => (/^Earlier · /.test(l) && !['5 Jan 2026', '30 Sept 2025', '1 Feb 2026'].includes(l.slice(10)) ? 'Earlier · TODAY' : l);
+    out.steps.push({ what, part, key, error, holds: holds(), locks: rel(locks), front: (await listed('front')).filter(c => c.shown).map(c => [c.source, day(c.label), c.inUse]) }); }
   covers._setIndex(undefined); fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }

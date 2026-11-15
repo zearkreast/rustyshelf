@@ -484,3 +484,288 @@ pub fn rank_list<'a>(list: &'a [Cand], look: &str, ctx: &Ctx) -> Vec<&'a Cand> {
 pub fn remote_key(url: &str, cut: Option<&str>) -> String {
     format!("r{}", &sha(&format!("{url}|{}", cut.unwrap_or("")))[..15])
 }
+
+// ---------- a game's list, and putting a picture in use ----------
+
+/// A game as the Art Studio works on it.
+#[derive(Debug, Clone, Default)]
+pub struct GameArt {
+    pub sys: String,
+    pub title: String,
+    pub file: PathBuf,
+    /// its file name's region tags
+    pub region: String,
+    /// where its art goes, and the name its art has
+    pub dir: PathBuf,
+    pub base: String,
+    /// the picture in use for each of `PARTS`
+    pub current: [Option<PathBuf>; 4],
+}
+
+fn part_index(part: &str) -> usize {
+    PARTS.iter().position(|p| *p == part).unwrap_or(0)
+}
+
+/// The name a game's locks are kept under in the settings (`art.locks`).
+pub fn lock_key(sys: &str, file: &Path) -> String {
+    format!("{sys}|{}", crate::art::resolve(file).to_string_lossy().to_lowercase())
+}
+
+/// A picture file's size on disk and in pixels.
+fn file_info(f: &Path) -> Option<(u64, Option<u32>, Option<u32>)> {
+    let meta = std::fs::metadata(f).ok().filter(|m| m.is_file())?;
+    let size = crate::boxart::size_of(f);
+    Some((meta.len(), size.map(|z| z.0), size.map(|z| z.1)))
+}
+
+/// "5 Nov 2026" for a stamp that starts with its day ("2026-11-05-…").
+fn date_word(stamp: &str) -> Option<String> {
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+    let mut parts = stamp.splitn(4, '-');
+    let (y, m, d) = (parts.next()?, parts.next()?, parts.next()?);
+    if y.len() != 4 || m.len() != 2 || d.len() != 2 || ![y, m, d].iter().all(|x| x.bytes().all(|c| c.is_ascii_digit())) {
+        return None;
+    }
+    Some(format!("{} {} {y}", d.parse::<u32>().ok()?, MONTHS.get(m.parse::<usize>().ok()?.checked_sub(1)?)?))
+}
+
+fn local_cand(file: &Path, source: &str, label: String) -> Cand {
+    let info = file_info(file);
+    Cand {
+        key: format!("{}{}", if source == "current" { "c" } else { "e" }, &sha(&crate::art::resolve(file).to_string_lossy().to_lowercase())[..15]),
+        source: source.into(),
+        file: Some(file.to_path_buf()),
+        ext: js::extname(&file.to_string_lossy()).to_lowercase(),
+        edition: "original".into(),
+        kind: "scan".into(),
+        w: info.and_then(|i| i.1),
+        h: info.and_then(|i| i.2),
+        bytes: info.map_or(0, |i| i.0),
+        in_use: source == "current",
+        label,
+        ..Cand::default()
+    }
+}
+
+fn same_image(a: (u64, Option<u32>, Option<u32>), b: (u64, Option<u32>, Option<u32>)) -> bool {
+    a == b
+}
+
+/// Marks the pictures that are the same as an earlier one of the list (by size on disk and in pixels): the one in
+/// use hands its place to its twin, any other twin is the copy.
+pub fn dedupe(list: &mut [Cand]) {
+    let cur = list.iter().position(|c| c.source == "current");
+    for i in 0..list.len() {
+        if list[i].dup.is_some() || list[i].bytes == 0 {
+            continue;
+        }
+        for j in i + 1..list.len() {
+            let (c, d) = (&list[i], &list[j]);
+            if d.dup.is_some() || d.bytes == 0 || !same_image((c.bytes, c.w, c.h), (d.bytes, d.w, d.h)) {
+                continue;
+            }
+            if Some(i) == cur {
+                list[j].in_use = true;
+                list[i].dup = Some(list[j].key.clone());
+                break;
+            }
+            list[j].dup = Some(list[i].key.clone());
+        }
+    }
+}
+
+/// addresses that answered "not there" aren't offered again for this long (ms)
+const MISS_MS: f64 = 7.0 * 86_400_000.0;
+
+/// The Art Studio's own files in the data folder: the candidates downloaded (`art-cand`, where the picker's
+/// previews come from) and the addresses that weren't there (`art-missing.json`).
+pub struct Studio {
+    data_dir: PathBuf,
+    cand_dir: PathBuf,
+}
+
+impl Studio {
+    pub fn new(data_dir: &Path) -> Studio {
+        Studio { data_dir: data_dir.to_path_buf(), cand_dir: data_dir.join("art-cand") }
+    }
+
+    /// Where a candidate is kept once it's downloaded.
+    pub fn cache_path(&self, c: &Cand) -> PathBuf {
+        self.cand_dir.join(format!("{}{}", &sha(&format!("{}|{}", c.url, c.cut.as_deref().unwrap_or("")))[..24], c.ext))
+    }
+
+    fn missing(&self) -> serde_json::Map<String, Value> {
+        match std::fs::read(self.data_dir.join("art-missing.json")).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
+            Some(Value::Object(m)) => m,
+            _ => serde_json::Map::new(),
+        }
+    }
+
+    fn mark_missing(&self, url: &str, now: f64) {
+        let mut m = self.missing();
+        m.retain(|_, at| js::number(Some(at)) > now - MISS_MS);
+        m.insert(url.to_string(), js::num(now));
+        let (file, tmp) = (self.data_dir.join("art-missing.json"), self.data_dir.join("art-missing.json.tmp"));
+        if std::fs::write(&tmp, Value::Object(m).to_string()).is_ok() {
+            let _ = std::fs::rename(&tmp, &file);
+        }
+    }
+
+    /// The list for one part of a game: the picture in use, the sources' (`remote`, with what's known of the ones
+    /// downloaded before), and the ones replaced earlier. An address that wasn't there this week is left out.
+    pub fn list_for(&self, g: &GameArt, part: &str, remote: Vec<Cand>, now: f64) -> Vec<Cand> {
+        let missing = self.missing();
+        let mut list = Vec::new();
+        let cur = g.current[part_index(part)].as_ref().filter(|f| f.is_file());
+        if let Some(cur) = cur {
+            list.push(local_cand(cur, "current", "Current".into()));
+        }
+        for mut c in remote {
+            if missing.get(&c.url).is_some_and(|at| js::truthy(Some(at)) && now - js::number(Some(at)) < MISS_MS) {
+                continue;
+            }
+            c.key = remote_key(&c.url, c.cut.as_deref());
+            let info = file_info(&self.cache_path(&c));
+            if let Some((bytes, w, h)) = info {
+                (c.bytes, c.w, c.h) = (bytes, w, h);
+            }
+            (c.cached, c.in_use) = (info.is_some(), false);
+            list.push(c);
+        }
+        let mut dirs = vec![g.dir.clone()];
+        dirs.extend(cur.and_then(|c| c.parent()).map(Path::to_path_buf).filter(|d| *d != g.dir));
+        for d in dirs {
+            let old = d.join("replaced");
+            let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+            for (name, stamp) in covers::replaced_for(&names, &g.base, suffix(part)).into_iter().take(12) {
+                let when = date_word(&stamp).map_or(String::new(), |w| format!(" · {w}"));
+                let mut c = local_cand(&old.join(name), "earlier", format!("Earlier{when}"));
+                c.in_use = false;
+                list.push(c);
+            }
+        }
+        dedupe(&mut list);
+        list
+    }
+
+    /// A candidate as a file on this computer: itself, its downloaded copy, or downloaded now (a spine or a back
+    /// cut from its wrap). None when it isn't there; an error when the web can't be reached.
+    pub fn fetch_cand(&self, c: &Cand, sys: &str, now: f64) -> Result<Option<PathBuf>, String> {
+        if let Some(file) = &c.file {
+            return Ok(Some(file.clone()).filter(|f| f.is_file()));
+        }
+        let dest = self.cache_path(c);
+        if dest.is_file() {
+            // (its date says when it was last used, for the cache's clean-up)
+            if let Ok(f) = std::fs::File::options().write(true).open(&dest) {
+                let _ = f.set_modified(std::time::SystemTime::now());
+            }
+            return Ok(Some(dest));
+        }
+        std::fs::create_dir_all(&self.cand_dir).map_err(|e| e.to_string())?;
+        let get = |to: &Path| -> Result<bool, String> {
+            let got = crate::boxart::download_ex(&c.url, to, false)?;
+            if got == crate::boxart::Outcome::Missing {
+                self.mark_missing(&c.url, now);
+            }
+            Ok(got == crate::boxart::Outcome::Ok)
+        };
+        match &c.cut {
+            None => {
+                if !get(&dest)? {
+                    return Ok(None);
+                }
+            }
+            Some(cut) => {
+                let raw = self.cand_dir.join(format!(".raw-{}-{:x}{}", std::process::id(), now as u64, c.src.as_deref().unwrap_or(".jpg")));
+                let piece = get(&raw).map(|ok| if ok { crate::boxart::cut_wrap(&raw, sys, cut) } else { None });
+                let _ = std::fs::remove_file(&raw);
+                let Some(bytes) = piece? else { return Ok(None) };
+                let part = PathBuf::from(format!("{}.part", dest.display()));
+                if std::fs::write(&part, bytes).and_then(|()| std::fs::rename(&part, &dest)).is_err() {
+                    let _ = std::fs::remove_file(&part);
+                    return Ok(None);
+                }
+            }
+        }
+        // an error page, not a picture
+        if !file_info(&dest).is_some_and(|i| i.1.is_some_and(|w| w > 0) || c.ext == ".webp") {
+            let _ = std::fs::remove_file(&dest);
+            return Ok(None);
+        }
+        Ok(Some(dest))
+    }
+
+    fn incoming(g: &GameArt, part: &str, ext: &str, now: f64) -> PathBuf {
+        g.dir.join(format!("{}{}.incoming-{:08x}{ext}", g.base, suffix(part), (now as u64 ^ u64::from(std::process::id()) << 20) & 0xffff_ffff))
+    }
+
+    /// A picture from `replaced\` back in use (the one in use goes to `replaced\` in its turn).
+    fn restore(&self, g: &mut GameArt, part: &str, file: &Path, now: f64) -> Result<bool, String> {
+        let ext = js::extname(&file.to_string_lossy()).to_lowercase();
+        std::fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
+        // out of replaced\ first: it mustn't be taken for an old one there
+        let inc = Self::incoming(g, part, &ext, now);
+        std::fs::rename(file, &inc).map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { "That earlier picture is no longer there.".to_string() } else { e.to_string() })?;
+        match crate::boxart::place_art(&g.dir, &g.base, suffix(part), &inc, &ext) {
+            Ok((dest, _)) => {
+                g.current[part_index(part)] = Some(dest);
+                Ok(true)
+            }
+            Err(e) => {
+                let _ = std::fs::rename(&inc, file);
+                Err(e.to_string())
+            }
+        }
+    }
+
+    /// Puts a candidate in use for a part; false when it's what's there already. The picture it replaces goes to
+    /// `replaced\`.
+    pub fn apply(&self, g: &mut GameArt, part: &str, c: &Cand, now: f64) -> Result<bool, String> {
+        match (c.source.as_str(), &c.file) {
+            ("current", _) => return Ok(false),
+            ("earlier", Some(file)) => return self.restore(g, part, &file.clone(), now),
+            _ => {}
+        }
+        let src = self.fetch_cand(c, &g.sys, now)?.ok_or("That picture couldn't be downloaded.")?;
+        let cur = g.current[part_index(part)].clone().filter(|f| f.is_file());
+        // the same picture: nothing moves
+        if cur.as_ref().and_then(|cur| file_info(cur)).zip(file_info(&src)).is_some_and(|(a, b)| same_image(a, b)) {
+            return Ok(false);
+        }
+        std::fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
+        let inc = Self::incoming(g, part, &c.ext, now);
+        std::fs::copy(&src, &inc).map_err(|e| e.to_string())?;
+        match crate::boxart::place_art(&g.dir, &g.base, suffix(part), &inc, &c.ext) {
+            Ok((dest, _)) => {
+                g.current[part_index(part)] = Some(dest);
+                Ok(true)
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&inc);
+                Err(e.to_string())
+            }
+        }
+    }
+
+    /// Puts back the picture a part had before the one in use.
+    pub fn undo(&self, g: &mut GameArt, part: &str, now: f64) -> Result<(), String> {
+        let mut dirs = vec![g.dir.clone()];
+        dirs.extend(g.current[part_index(part)].as_ref().and_then(|c| c.parent()).map(Path::to_path_buf).filter(|d| *d != g.dir));
+        let mut earlier: Vec<(String, PathBuf)> = Vec::new();
+        for d in dirs {
+            let old = d.join("replaced");
+            let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+            earlier.extend(covers::replaced_for(&names, &g.base, suffix(part)).into_iter().map(|(name, stamp)| (stamp, old.join(name))));
+        }
+        // (the newest stamp first; of two the same, the first found)
+        let last = earlier.iter().fold(None::<&(String, PathBuf)>, |best, e| if best.is_none_or(|b| e.0 > b.0) { Some(e) } else { best }).ok_or("Nothing to undo")?.1.clone();
+        self.restore(g, part, &last, now).map(|_| ())
+    }
+}
+
+/// The candidates of a list the picker shows: not a copy of another, and a guessed address only once it has
+/// really downloaded.
+pub fn shown(list: &[Cand]) -> impl Iterator<Item = &Cand> {
+    list.iter().filter(|c| c.dup.is_none() && !(c.guess && !c.cached && !c.in_use))
+}

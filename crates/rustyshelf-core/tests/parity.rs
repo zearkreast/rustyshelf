@@ -2242,3 +2242,101 @@ fn art_studio_ranks_and_lists_as_the_js_does() {
         }
     }
 }
+
+#[test]
+fn art_studio_lists_and_places_pictures_as_the_js_does() {
+    use rustyshelf_core::artstudio::{self as studio, Cand, GameArt, Sources, Studio};
+    use rustyshelf_core::covers::LibretroNames;
+    use rustyshelf_core::lbindex::ShardFile;
+    use serde_json::json;
+    let f = fixture("artstudio.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let (data, roms) = (tmp.path().join("data"), tmp.path().join("roms"));
+    let dir = tmp.path().to_string_lossy().into_owned();
+    let decode = |v: &Value| base64::engine::general_purpose::STANDARD.decode(v.as_str().unwrap()).unwrap();
+    let place = |file: &Path, bytes: Vec<u8>| {
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, bytes).unwrap();
+    };
+    fs::create_dir_all(&data).unwrap();
+    place(&roms.join("Zeta Run (USA).iso"), b"rom".to_vec());
+    for (name, bytes) in f["local"]["pictures"].as_object().unwrap() {
+        place(&roms.join(name), decode(bytes));
+    }
+    let st = Studio::new(&data);
+    for (key, kept) in f["local"]["cached"].as_object().unwrap() {
+        let (url, cut) = key.rsplit_once('|').unwrap();
+        let c = Cand { url: url.into(), cut: Some(cut.to_string()).filter(|c| !c.is_empty()), ext: kept[0].as_str().unwrap().into(), ..Cand::default() };
+        place(&st.cache_path(&c), decode(&kept[1]));
+    }
+    let now = 2e12;
+    let missing: serde_json::Map<String, Value> = f["local"]["missing"].as_object().unwrap().iter().map(|(url, days)| (url.clone(), json!(now - days.as_f64().unwrap() * 86_400_000.0))).collect();
+    fs::write(data.join("art-missing.json"), Value::Object(missing).to_string()).unwrap();
+
+    let shard: ShardFile = serde_json::from_value(json!({ "v": 1, "plat": "Nintendo GameCube", "games": f["index"]["games"]["Nintendo GameCube"], "images": f["index"]["images"] })).unwrap();
+    let libretro = LibretroNames::new(f["libretro"].as_array().unwrap().iter().map(|n| n.as_str().unwrap().to_string()).collect());
+    let file = roms.join("Zeta Run (USA).iso");
+    let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: file.clone(), region: "USA".into(), dir: roms.join("covers"), base: "Zeta Run (USA)".into(), current: [Some(roms.join("covers/Zeta Run (USA).png")), None, None, None] };
+    let rel = |p: &Path| p.to_string_lossy().replace(&dir, "<tmp>");
+    let list = |g: &GameArt, part: &str| {
+        let from = Sources { launchbox: Some(&shard), libretro: Some(&libretro), gametdb: None, disc_id: rustyshelf_core::covers::disc_id(&g.file), region: "usa" };
+        st.list_for(g, part, studio::candidates(&g.sys, &g.title, &g.file, part, &from), now)
+    };
+    // (a picture on this computer is keyed by where it is: named here by its file instead)
+    let stampless = |name: &str| -> String {
+        let stamp = regex::Regex::new(r"\(([0-9]{4}(?:-[0-9]+){6})(-[0-9]+)?\)").unwrap();
+        stamp.replace_all(name, |m: &regex::Captures| if m[1].starts_with("2025-0") || m[1].starts_with("2026-0") { m[0].to_string() } else { format!("(STAMP{})", m.get(2).map_or("", |x| x.as_str())) }).into_owned()
+    };
+    let name = |key: &str, list: &[Cand]| match list.iter().find(|c| c.key == key).and_then(|c| c.file.as_ref()) {
+        Some(file) => format!("local:{}", stampless(&file.strip_prefix(&roms).unwrap().to_string_lossy())),
+        None => key.to_string(),
+    };
+    for part in studio::PARTS {
+        let got = list(&g, part);
+        let shown: Vec<&str> = studio::shown(&got).map(|c| c.key.as_str()).collect();
+        let view: Vec<Value> = got
+            .iter()
+            .map(|c| json!({ "key": name(&c.key, &got), "source": c.source, "label": c.label, "w": c.w, "h": c.h, "bytes": c.bytes, "cached": c.cached, "inUse": c.in_use, "dup": c.dup.as_ref().map(|d| name(d, &got)), "guess": c.guess, "file": c.file.as_deref().map(rel), "shown": shown.contains(&c.key.as_str()) }))
+            .collect();
+        let want = f["lists"][part].as_array().unwrap();
+        assert_eq!(view.len(), want.len(), "{part}: {view:?}");
+        for (v, w) in view.iter().zip(want) {
+            assert_eq!(v, w, "{part}");
+        }
+    }
+    assert_eq!(studio::lock_key("gc", &file).replace(&dir.to_lowercase(), "<tmp>"), f["lockKey"].as_str().unwrap());
+
+    // (a picture replaced during this run carries its own stamp, and today's date)
+    let holds = |roms: &Path| -> Value {
+        fn walk(d: &Path, out: &mut Vec<std::path::PathBuf>) {
+            for e in fs::read_dir(d).into_iter().flatten().flatten() {
+                if e.path().is_dir() { walk(&e.path(), out) } else { out.push(e.path()) }
+            }
+        }
+        let mut files = Vec::new();
+        walk(&roms.join("covers"), &mut files);
+        let mut map: Vec<(String, String)> = files.iter().map(|p| { let b = fs::read(p).unwrap(); (stampless(&p.strip_prefix(roms).unwrap().to_string_lossy()), format!("{}:{}", b.len(), b[b.len() - 1])) }).collect();
+        map.sort();
+        Value::Object(map.into_iter().map(|(k, v)| (k, json!(v))).collect())
+    };
+    let day = |label: &str| match label.strip_prefix("Earlier · ") {
+        Some(when) if !["5 Jan 2026", "30 Sept 2025", "1 Feb 2026"].contains(&when) => "Earlier · TODAY".to_string(),
+        _ => label.to_string(),
+    };
+    for (i, s) in f["steps"].as_array().unwrap().iter().enumerate() {
+        let part = s["part"].as_str().unwrap();
+        let offered = list(&g, part);
+        let chosen = offered.iter().find(|c| Some(name(&c.key, &offered).as_str()) == s["key"].as_str()).cloned();
+        let error = match s["what"].as_str().unwrap() {
+            "use" => match chosen {
+                Some(c) => st.apply(&mut g, part, &c, now + i as f64).err(),
+                None => Some("That picture is no longer offered. Open the list again.".to_string()),
+            },
+            _ => st.undo(&mut g, part, now + i as f64).err(),
+        };
+        assert_eq!(json!(error), s["error"], "step {i}: {} {part}", s["what"]);
+        assert_eq!(holds(&roms), s["holds"], "step {i}: {} {part}", s["what"]);
+        let front: Vec<Value> = studio::shown(&list(&g, "front")).map(|c| json!([c.source, day(&c.label), c.in_use])).collect();
+        assert_eq!(Value::Array(front), s["front"], "step {i}: {} {part}", s["what"]);
+    }
+}
