@@ -29,10 +29,13 @@ impl Settings {
         let mut found = Finding::default();
         let mut seen = std::collections::HashSet::new();
         let kid = super::kid_hidden(self.cfg.get("ui"));
+        let hidden: std::collections::HashSet<String> = self.hidden().into_iter().collect();
         for shelf in library.shelves.iter().filter(|s| !kid.contains(&s.id)) {
             for g in shelf.games.iter().filter(|g| seen.insert(g.id.clone())) {
                 let last = shelfview::played(g, plays).filter(|p| p.count > 0).map_or(0, |p| p.last);
-                found.games.push(Entry::new(&g.id, &g.title, &shelf.name, last));
+                let mut e = Entry::new(&g.id, &g.title, &shelf.name, last);
+                e.hidden = hidden.contains(&g.id);
+                found.games.push(e);
                 found.shelves.push(shelf.id.clone());
             }
         }
@@ -53,9 +56,27 @@ impl Settings {
             step: None,
         }];
         for i in found.iter().copied() {
-            let (shelf, id) = (f.shelves[i].clone(), f.games[i].id.clone());
+            let (shelf, id, title) = (f.shelves[i].clone(), f.games[i].id.clone(), f.games[i].title.clone());
+            // (beta.14) a hidden game: choosing it brings it back to its shelf
+            if f.games[i].hidden {
+                rows.push(Row {
+                    label: format!("{title}  ·  Hidden"),
+                    value: f.games[i].shelf.clone(),
+                    hint: "Hidden: choose to unhide".into(),
+                    press: Some(Box::new(move |s: &mut Settings| {
+                        s.flip("hidden", &id);
+                        if let Some(g) = s.finding.games.iter_mut().find(|g| g.id == id) {
+                            g.hidden = false;
+                        }
+                        s.say(format!("{title} is back on the shelf"));
+                        s.redraw = true;
+                    })),
+                    step: None,
+                });
+                continue;
+            }
             rows.push(Row {
-                label: f.games[i].title.clone(),
+                label: title,
                 value: f.games[i].shelf.clone(),
                 hint: String::new(),
                 press: Some(Box::new(move |s: &mut Settings| {
@@ -66,10 +87,12 @@ impl Settings {
                 step: None,
             });
         }
-        let all = f.games.len();
+        let hid = f.games.iter().filter(|g| g.hidden).count();
+        let all = f.games.len() - hid;
+        let on = format!("{all} game{} on your shelves{}", if all == 1 { "" } else { "s" }, if hid > 0 { format!(" · {hid} hidden") } else { String::new() });
         let lead = match (f.typed.trim().is_empty(), total) {
-            (true, 0) => format!("{all} game{} on your shelves.", if all == 1 { "" } else { "s" }),
-            (true, _) => format!("{all} game{} on your shelves. Played last:", if all == 1 { "" } else { "s" }),
+            (true, 0) => format!("{on}."),
+            (true, _) => format!("{on}. Played last:"),
             (false, 0) => "No game with that in its title.".into(),
             (false, n) if n > found.len() => format!("The first {} of {n} games found.", found.len()),
             (false, n) => format!("{n} game{} found.", if n == 1 { "" } else { "s" }),

@@ -1,4 +1,4 @@
-// From sassiestrhihno's 1.82.0-beta.12 source (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported
+// From sassiestrhihno's 1.82.0-beta.12 and beta.14 sources (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported
 // from the matching in renderer/find.js, as RustyShelf has it.
 //! Find a game: every shelf searched by title. The best matches first: a title that starts with what was typed,
 //! then a word of it that does, then anywhere in it; capitals, accents and punctuation don't matter. With nothing
@@ -19,6 +19,8 @@ pub struct Entry {
     pub shelf: String,
     /// when it was last played (milliseconds since 1970), 0 for never
     pub last: u64,
+    /// taken off its shelf: listed after the games on one
+    pub hidden: bool,
     folded: String,
     joined: String,
 }
@@ -26,7 +28,7 @@ pub struct Entry {
 impl Entry {
     pub fn new(id: &str, title: &str, shelf: &str, last: u64) -> Entry {
         let folded = fold(title);
-        Entry { id: id.to_string(), title: title.to_string(), shelf: shelf.to_string(), last, joined: folded.replace(' ', ""), folded }
+        Entry { id: id.to_string(), title: title.to_string(), shelf: shelf.to_string(), last, hidden: false, joined: folded.replace(' ', ""), folded }
     }
 }
 
@@ -78,7 +80,19 @@ pub fn search(games: &[Entry], typed: &str) -> (Vec<usize>, usize) {
     }
     // (as JavaScript compares strings: by their UTF-16 units)
     let units = |s: &str| s.encode_utf16().collect::<Vec<u16>>();
-    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| units(&games[a.1].folded).cmp(&units(&games[b.1].folded))).then_with(|| units(&games[a.1].shelf).cmp(&units(&games[b.1].shelf))));
+    found.sort_by(|a, b| a.0.cmp(&b.0).then(games[a.1].hidden.cmp(&games[b.1].hidden)).then_with(|| units(&games[a.1].folded).cmp(&units(&games[b.1].folded))).then_with(|| units(&games[a.1].shelf).cmp(&units(&games[b.1].shelf))));
     let total = found.len();
     (found.into_iter().take(MOST).map(|f| f.1).collect(), total)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_hidden_game_comes_after_the_ones_on_a_shelf() {
+        let mut games = vec![Entry::new("a", "Zeta Run", "SNES", 0), Entry::new("b", "Zeta Run", "Genesis", 0)];
+        games[0].hidden = true;
+        assert_eq!(search(&games, "zeta").0, [1, 0]);
+    }
 }
