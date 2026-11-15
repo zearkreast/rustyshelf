@@ -38,8 +38,15 @@ function start(exe, args, onExit, env, cwd, logFile, elevate) { // elevate: a PC
   // logFile: the program's output goes there (Linux PC games), else nowhere
   let fd = null; if (logFile) { try { fd = require('fs').openSync(logFile, 'w'); } catch { fd = null; } }
   const childEnv = process.platform === 'linux' && cleanEnv ? cleanEnv(env || {}) : env;
-  let child; try { child = spawn(exe, args, Object.assign({ cwd: cwd || path.dirname(exe), windowsHide: false, stdio: fd != null ? ['ignore', fd, fd] : 'ignore', detached: true }, childEnv ? { env: childEnv } : {})); }
-  finally { if (fd != null) { try { require('fs').closeSync(fd); } catch {} } }
+  const opts = Object.assign({ cwd: cwd || path.dirname(exe), windowsHide: false, stdio: fd != null ? ['ignore', fd, fd] : 'ignore', detached: true }, childEnv ? { env: childEnv } : {});
+  let child; try {
+    // (beta.12) a .bat / .cmd can't be spawned directly (Node refuses them with EINVAL since its 2024 security fix): run it
+    // through cmd.exe with every argument quoted, so a ROM name with & or spaces stays one argument
+    if (process.platform === 'win32' && /\.(bat|cmd)$/i.test(exe)) {
+      const q = s => '"' + String(s).replace(/"/g, '') + '"';
+      child = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', '"' + [exe, ...args].map(q).join(' ') + '"'], Object.assign(opts, { windowsVerbatimArguments: true }));
+    } else child = spawn(exe, args, opts);
+  } finally { if (fd != null) { try { require('fs').closeSync(fd); } catch {} } }
   running = child; child.bsName = path.basename(exe, path.extname(exe)); // (beta.10) its program name, never the path: the "already running" message names it
   const started = Date.now(); let done = false, spawned = false;
   const finish = info => { if (done) return; done = true; running = null; onExit({ ...info, ms: Date.now() - started }); };
@@ -55,7 +62,9 @@ function start(exe, args, onExit, env, cwd, logFile, elevate) { // elevate: a PC
         return;
       } catch { /* PowerShell itself couldn't start: the refusal below */ }
     }
-    finish({ code: -1, error: err.message, failedToStart: !spawned });
+    // (beta.12) only an error before the program ran ends it: a later one (a kill() that failed) doesn't mean the game
+    // stopped, and ending it would bring the shelf back over a running game; its real 'exit' still comes
+    if (!spawned) finish({ code: -1, error: err.message, failedToStart: true });
   });
   child.on('exit', code => finish({ code }));
   return { pid: child.pid, args };
