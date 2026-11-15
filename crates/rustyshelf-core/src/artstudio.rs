@@ -522,6 +522,14 @@ pub fn lock_key(sys: &str, file: &Path) -> String {
     format!("{sys}|{}", crate::art::resolve(file).to_string_lossy().to_lowercase())
 }
 
+/// The parts automatic work must leave alone: a locked game's every part (missing ones too), else the parts locked one
+/// by one.
+pub fn locked_parts(cfg: &Value, sys: &str, file: &Path) -> Vec<&'static str> {
+    let e = &cfg["art"]["locks"][lock_key(sys, file).as_str()];
+    let all = js::truthy(e.get("all"));
+    PARTS.iter().copied().filter(|p| all || js::truthy(e.get(*p))).collect()
+}
+
 /// A picture file's size on disk and in pixels.
 fn file_info(f: &Path) -> Option<(u64, Option<u32>, Option<u32>)> {
     let meta = std::fs::metadata(f).ok().filter(|m| m.is_file())?;

@@ -448,6 +448,8 @@ pub struct Run<'a> {
     /// started by the user (who's told it replaces low-res art): pictures from before the first look may be
     /// replaced too
     pub explicit: bool,
+    /// the settings (`config.json`): the consoles' Art Studio styles and the parts locked by hand
+    pub cfg: &'a Value,
 }
 
 /// A console and the games of it to look at.
@@ -495,6 +497,15 @@ fn fallback(kind: &str) -> &'static [&'static str] {
     }
 }
 
+// (main/covers.js LB_FALLBACK: keep in sync)
+fn styled_fallback(kind: &str) -> &'static [&'static str] {
+    match kind {
+        "Box - Front" => &["Box - Front - Reconstructed", "Fanart - Box - Front", "Steam Poster"],
+        "Box - Back" => &["Box - Back - Reconstructed", "Fanart - Box - Back"],
+        _ => fallback(kind),
+    }
+}
+
 fn ext_of(file: &str) -> String {
     let e = js::extname(file).to_lowercase();
     if matches!(e.as_str(), ".png" | ".jpg" | ".jpeg" | ".webp") {
@@ -504,21 +515,26 @@ fn ext_of(file: &str) -> String {
     }
 }
 
-/// A game's pictures of one LaunchBox type and its fallbacks, the best first: at most six addresses with the type of
-/// file each is.
-fn launchbox_candidates(shard: &ShardFile, title: &str, kind: &str, region: &str) -> Vec<(String, String)> {
+/// A game's pictures of one LaunchBox type and its fallbacks, the best first, at most six. `styled`: for a console with an
+/// Art Studio style, whose fallbacks take the clean rebuilds too.
+fn launchbox_images(shard: &ShardFile, title: &str, kind: &str, region: &str, styled: bool) -> Vec<GameImage> {
     static BUNDLE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\s(?:\+|&|and)\s").unwrap());
+    let types: Vec<&str> = std::iter::once(kind).chain(if styled { styled_fallback(kind) } else { fallback(kind) }.iter().copied()).collect();
     let of = |title: &str| -> Vec<&GameImage> {
         let Some(g) = covers::launchbox_match(&shard.games, &shard.images, title) else { return Vec::new() };
         let imgs = shard.images.get(&g.id).map_or(&[][..], Vec::as_slice);
-        std::iter::once(kind).chain(fallback(kind).iter().copied()).flat_map(|t| covers::pick_images(imgs, t, region)).collect()
+        types.iter().flat_map(|t| covers::pick_images(imgs, t, region)).collect()
     };
     let mut c = of(title);
     // compilations ("A + B"): borrow from the first game in the bundle
     if c.is_empty() && BUNDLE.is_match(title) {
         c = of(BUNDLE.split(title).next().unwrap_or(""));
     }
-    c.into_iter().take(6).map(|im| (format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file)), ext_of(&im.file))).collect()
+    c.into_iter().take(6).cloned().collect()
+}
+
+fn lb_url(im: &GameImage) -> (String, String) {
+    (format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file)), ext_of(&im.file))
 }
 
 /// A case's front and its spine, each for its height, by console: what a full cover scan is cut by (the Electron
@@ -643,7 +659,7 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 /// games finish; setting `cancel` stops after the games in flight.
 // TODO: still Electron-only: the Art Studio's styles, SteamGridDB posters and drawn cartridges
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
-    let Run { art, app_root, cache_dir, kinds, region, hd, explicit } = *run;
+    let Run { art, app_root, cache_dir, kinds, region, hd, explicit, cfg } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
     let want = |k: &str| kinds.contains(&k) || kinds.contains(&format!("redo-{k}").as_str());
     let redo = |k: &str| kinds.contains(&format!("redo-{k}").as_str());
@@ -655,6 +671,8 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
             break;
         }
         let id = sys.console.id.as_str();
+        // a console with an Art Studio style: each part follows the style's look
+        let style = cfg["art"]["styles"].get(id).filter(|s| js::truthy(Some(s))).map(|_| crate::artstudio::style_for(cfg, id));
         progress(&sys.console.name, 0, sys.games.len());
         let names = if want("front") { libretro_names(cache_dir, id) } else { None };
         if index.is_none() && report.launchbox_error.is_none() {
@@ -673,12 +691,19 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
             let (mut touched, mut missing) = (false, false);
             // (downloaded once for both the back and the spine, deleted after)
             let mut wrap: Option<Option<PathBuf>> = None;
+            // parts chosen or kept by hand in the Art Studio are left alone
+            let locks = crate::artstudio::locked_parts(cfg, id, &game.file);
             for (key, suffix) in KINDS {
-                if !want(key) || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir) {
+                if !want(key) || locks.contains(&key) || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir) {
                     continue;
                 }
+                let look = style.as_ref().map(|s| crate::artstudio::look_for(s, key));
+                // "sharper" (kept inside the default style) and the HD look both mean: sharpest first, low-res replaced
+                let sharp = hd || look.as_deref() == Some("hd") || style.as_ref().zip(look.as_deref()).is_some_and(|(s, l)| s["sharper"] == true && l != "special" && !l.starts_with("region:"));
+                let reg = style.as_ref().zip(look.as_deref()).map_or(region.to_string(), |(s, l)| crate::artstudio::region_for_look(s, l, &game.region));
+                let reg = reg.as_str();
                 let old = art_file(&dir, &base, suffix);
-                let upgrade = hd && !redo(key) && old.as_deref().is_some_and(|f| is_low(f, key) && crate::provenance::may_replace(f, explicit));
+                let upgrade = sharp && !redo(key) && old.as_deref().is_some_and(|f| is_low(f, key) && crate::provenance::may_replace(f, explicit));
                 if old.is_some() && !redo(key) && !upgrade {
                     continue;
                 }
@@ -690,24 +715,35 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 };
                 // libretro first for a front (its names match file names best), or last for HD: LaunchBox's scans are
                 // usually 1000–2500 px, libretro's thumbnails smaller
-                let lr: Vec<(String, String)> = if key == "front" {
-                    let hit = names.as_ref().and_then(|n| n.find(&game.file, &game.title, &game.region, region));
-                    hit.and_then(|h| covers::libretro_url(id, &h)).map(|u| (u, ".png".to_string())).into_iter().collect()
-                } else {
-                    Vec::new()
-                };
-                let lb: Vec<(String, String)> = match (&index, platform) {
-                    (Some(index), Some(plat)) => index.lock().unwrap().platform(plat).map(|shard| launchbox_candidates(shard, &game.title, kind, region)).unwrap_or_default(),
+                let lb: Vec<GameImage> = match (&index, platform) {
+                    (Some(index), Some(plat)) => index.lock().unwrap().platform(plat).map(|shard| launchbox_images(shard, &game.title, kind, reg, style.is_some())).unwrap_or_default(),
                     _ => Vec::new(),
                 };
-                let cands: Vec<(String, String)> = if hd { [lb, lr].concat() } else { [lr, lb].concat() };
+                let cands: Vec<(String, String)> = match (&style, &look) {
+                    // every version the sources have, in the order the look ranks them (as the Art Studio's picker)
+                    (Some(style), Some(look)) => {
+                        let lr = if key == "front" { names.as_ref().map(|n| n.all(&game.file, &game.title)).unwrap_or_default() } else { Vec::new() };
+                        let mut all: Vec<crate::artstudio::Cand> = lb.iter().map(crate::artstudio::lb_cand).collect();
+                        all.extend(lr.iter().map(|n| crate::artstudio::lr_cand(id, n, &base)));
+                        let ctx = crate::artstudio::Ctx { style, game_region: &game.region, sharp: Some(sharp) };
+                        crate::artstudio::rank_list(&all, look, &ctx).into_iter().filter(|c| c.cut.is_none()).map(|c| (c.url.clone(), c.ext.clone())).collect()
+                    }
+                    // libretro first for a front (its names match file names best), or last for HD: LaunchBox's
+                    // scans are usually 1000–2500 px, libretro's thumbnails smaller
+                    _ => {
+                        let hit = if key == "front" { names.as_ref().and_then(|n| n.find(&game.file, &game.title, &game.region, region)) } else { None };
+                        let lr = hit.and_then(|h| covers::libretro_url(id, &h)).map(|u| (u, ".png".to_string()));
+                        let lb = lb.iter().map(lb_url);
+                        if hd { lb.chain(lr).collect() } else { lr.into_iter().chain(lb).collect() }
+                    }
+                };
                 let wraps = || match (&index, platform) {
-                    (Some(index), Some(plat)) => index.lock().unwrap().platform(plat).map(|shard| launchbox_wraps(shard, &game.title, region)).unwrap_or_default(),
+                    (Some(index), Some(plat)) => index.lock().unwrap().platform(plat).map(|shard| launchbox_wraps(shard, &game.title, reg)).unwrap_or_default(),
                     _ => Vec::new(),
                 };
                 // a full box wrap gives a far sharper spine than most spine scans: tried first for HD, after them
                 // otherwise (never both: a wrap turned down here would only be downloaded and turned down again)
-                let wrap_first = key == "spine" && hd;
+                let wrap_first = key == "spine" && sharp;
                 let mut ok = wrap_first && !cancel.load(Ordering::Relaxed) && wrap_spine(&wraps(), id, &dir, &base, old.as_deref(), cache_dir, cancel);
                 for (url, ext) in cands.iter().filter(|_| !ok) {
                     if cancel.load(Ordering::Relaxed) {
@@ -728,7 +764,7 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 let stopped = || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir);
                 // nothing from the databases: the Super Mario Wiki's official box scans (Switch 2)
                 if !ok && old.is_none() && matches!(key, "front" | "back") && crate::wikiart::has(id) && !stopped() {
-                    let lower = region.to_lowercase();
+                    let lower = reg.to_lowercase();
                     let wiki_region = if lower.contains("eur") { "eur" } else if lower.contains("jpn") || lower.contains("japan") { "jpn" } else { "usa" };
                     if let Some(w) = crate::wikiart::find(cache_dir, id, &covers::lookup_names(&game.title), key, wiki_region, now() as f64, &crate::wikiart::ask) {
                         ok = matches!(fetch_into(&w.url, &dir, &base, suffix, &format!(".{}", w.ext), None, false), Fetched::Placed);
@@ -740,11 +776,11 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 let against = old.as_deref().filter(|_| upgrade);
                 // GameCube / Wii spines: GameTDB has a full cover scan for nearly every disc, by its game id
                 if !ok && (old.is_none() || upgrade) && key == "spine" && matches!(id, "gc" | "wii") && !stopped() {
-                    ok = gametdb_spine(id, &game.file, &dir, &base, against, cache_dir, region);
+                    ok = gametdb_spine(id, &game.file, &dir, &base, against, cache_dir, reg);
                 }
                 // Switch / 3DS: the spine and the back cut from GameTDB's full cover, found by the game's title
                 if let (false, true, "spine" | "back", Some(map), false) = (ok, old.is_none() || upgrade, key, &tdb, stopped()) {
-                    let full_cover = wrap.get_or_insert_with(|| gametdb_wrap(map, id, &game.title, cache_dir, region, cancel));
+                    let full_cover = wrap.get_or_insert_with(|| gametdb_wrap(map, id, &game.title, cache_dir, reg, cancel));
                     ok = full_cover.as_ref().and_then(|f| cut_wrap(f, id, key)).is_some_and(|cut| place_cut(&cut, &dir, &base, suffix, against));
                 }
                 let mut rep = rep.lock().unwrap();

@@ -405,7 +405,6 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
     };
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
     // a made back or spine still wants a real scan
-    let locks = lib.config.raw().get("art").and_then(|a| a.get("locks"));
     let incomplete = |g: &Game| g.art.front.is_none() || g.art.back.is_none() || g.art.made_back || g.art.spine.is_none() || g.art.made_spine;
     let mut wanted = Vec::new();
     for shelf in &lib.shelves {
@@ -415,10 +414,6 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
         }
         let mut games = Vec::new();
         for g in shelf.games.iter().filter(|g| g.source == Source::Rom && incomplete(g)) {
-            // a game with a part chosen by hand in the Art Studio is the player's to look after
-            if locks.and_then(|l| l.get(crate::artstudio::lock_key(&shelf.id, &g.file))).and_then(Value::as_object).is_some_and(|parts| !parts.is_empty()) {
-                continue;
-            }
             if memo.get(&g.id).is_some_and(|at| js::truthy(Some(at)) && (now as f64 - js::number(Some(at))) < WEEK) {
                 continue;
             }
@@ -435,7 +430,8 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
     let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
     let cancel = std::sync::atomic::AtomicBool::new(false);
     let cache = data_dir.join("boxart-cache");
-    let run = crate::boxart::Run { art: &art, app_root: &lib.app_root, cache_dir: &cache, kinds: &["front", "back", "spine", "disc"], region: lib.config.art_region(), hd: lib.config.art_hd(), explicit: false };
+    let raw = Value::Object(lib.config.raw().clone());
+    let run = crate::boxart::Run { art: &art, app_root: &lib.app_root, cache_dir: &cache, kinds: &["front", "back", "spine", "disc"], region: lib.config.art_region(), hd: lib.config.art_hd(), explicit: false, cfg: &raw };
     let report = crate::boxart::download(&run, &wanted, &|_, _, _| {}, &cancel);
     // saved once the run has finished: a run cut short mustn't skip these games for a week
     let tmp = data_dir.join("cover-checks.json.tmp");
