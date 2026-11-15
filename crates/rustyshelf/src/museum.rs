@@ -46,6 +46,10 @@ pub struct MuseumHud;
 #[derive(Component)]
 pub struct MuseumCard;
 
+/// The narrow beam that follows the chosen case.
+#[derive(Component)]
+pub struct CaseSpot;
+
 /// One side of the wide view's frame: top, bottom, left, right.
 #[derive(Component)]
 pub struct FrameSide(u8);
@@ -82,6 +86,9 @@ const AMB_UNIT: f32 = 1_180.0;
 struct Scene {
     lamp: u32,
     lamp_i: f32,
+    /// the narrow beam on the chosen case
+    spot: u32,
+    spot_i: f32,
     amb: f32,
     amb_c: u32,
     bg: u32,
@@ -90,12 +97,12 @@ struct Scene {
 
 // keep in sync with settings.rs's Museum page and renderer/museum.js LIGHTS
 const SCENES: [(&str, Scene); 6] = [
-    ("gallery", Scene { lamp: 0xffe0b0, lamp_i: 16.0, amb: 0.22, amb_c: 0xaab0c8, bg: 0x05060a, hue: false }),
-    ("daylight", Scene { lamp: 0xf4f7ff, lamp_i: 13.0, amb: 0.58, amb_c: 0xe4ecff, bg: 0x2a3140, hue: false }),
-    ("night", Scene { lamp: 0xffa860, lamp_i: 11.0, amb: 0.12, amb_c: 0x6a5a8a, bg: 0x0b0612, hue: false }),
-    ("neon", Scene { lamp: 0xffffff, lamp_i: 10.0, amb: 0.1, amb_c: 0x7a50ff, bg: 0x0a0320, hue: true }),
-    ("spotlit", Scene { lamp: 0xfff0d6, lamp_i: 26.0, amb: 0.09, amb_c: 0xaab0c8, bg: 0x020203, hue: false }),
-    ("lightsout", Scene { lamp: 0xffd0a0, lamp_i: 0.0, amb: 0.03, amb_c: 0x6070a0, bg: 0x010102, hue: false }),
+    ("gallery", Scene { lamp: 0xffe0b0, lamp_i: 16.0, spot: 0xfff1dc, spot_i: 5.0, amb: 0.22, amb_c: 0xaab0c8, bg: 0x05060a, hue: false }),
+    ("daylight", Scene { lamp: 0xf4f7ff, lamp_i: 13.0, spot: 0xffffff, spot_i: 3.0, amb: 0.58, amb_c: 0xe4ecff, bg: 0x2a3140, hue: false }),
+    ("night", Scene { lamp: 0xffa860, lamp_i: 11.0, spot: 0xffd6a0, spot_i: 7.0, amb: 0.12, amb_c: 0x6a5a8a, bg: 0x0b0612, hue: false }),
+    ("neon", Scene { lamp: 0xffffff, lamp_i: 10.0, spot: 0xffffff, spot_i: 4.0, amb: 0.1, amb_c: 0x7a50ff, bg: 0x0a0320, hue: true }),
+    ("spotlit", Scene { lamp: 0xfff0d6, lamp_i: 26.0, spot: 0xffffff, spot_i: 10.0, amb: 0.09, amb_c: 0xaab0c8, bg: 0x020203, hue: false }),
+    ("lightsout", Scene { lamp: 0xffd0a0, lamp_i: 0.0, spot: 0xffe8cc, spot_i: 1.4, amb: 0.03, amb_c: 0x6070a0, bg: 0x010102, hue: false }),
 ];
 
 fn hex(h: u32) -> Color {
@@ -112,6 +119,8 @@ struct Style {
     wall: String,
     floor: String,
     shelf: String,
+    /// how strong the beam on the chosen case is, 0 to 2
+    spot: f32,
     /// the gallery pieces: display plinths, velvet ropes, a bench, posters of your favourites
     plinths: bool,
     ropes: bool,
@@ -121,7 +130,7 @@ struct Style {
 
 impl Default for Style {
     fn default() -> Self {
-        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), plinths: false, ropes: false, bench: false, posters: false }
+        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), spot: 1.0, plinths: false, ropes: false, bench: false, posters: false }
     }
 }
 
@@ -150,6 +159,7 @@ impl Style {
             wall: text("wall", "plaster"),
             floor: text("floor", "stone"),
             shelf: text("shelf", "walnut"),
+            spot: st("spot").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
             plinths: on("plinths"),
             ropes: on("ropes"),
             bench: on("bench"),
@@ -631,6 +641,7 @@ fn build(
         commands.spawn((MuseumThing, FrameSide(side), layer(), Mesh3d(piece.clone()), MeshMaterial3d(m.frame_mat.clone()), Transform::default(), Visibility::Hidden));
     }
     m.frame_k = 0.0;
+    commands.spawn((MuseumThing, CaseSpot, layer(), SpotLight { color: room.lamp_color(hex(room.scene.spot)), intensity: 0.0, range: 5.0, outer_angle: 17f32.to_radians(), inner_angle: 17f32.to_radians() * 0.55, shadow_maps_enabled: false, ..default() }, Transform::default()));
     // begin at the shelf and game the cursor is on
     m.row = m.rows.iter().position(|r| r.shelf == cursor.shelf).unwrap_or(0);
     m.col = m.rows.get(m.row).and_then(|r| r.games.iter().position(|&g| g == cursor.game)).unwrap_or(0);
@@ -808,6 +819,7 @@ pub struct Wall<'w, 's> {
     card: Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
     frame: Query<'w, 's, (&'static FrameSide, &'static mut Transform, &'static mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
     pieces: Query<'w, 's, (&'static crate::rack::RackPiece, &'static mut Transform), (Without<FrameSide>, Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
+    spot: Query<'w, 's, (&'static mut SpotLight, &'static mut Transform), (With<CaseSpot>, Without<crate::rack::RackPiece>, Without<FrameSide>, Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
 }
 
 /// What has the keys instead (a game running, Inspect, the manual reader), and the shelf's camera, which rests
@@ -1241,6 +1253,14 @@ pub fn run(
         }
     }
     show_card(m, l, chosen_at, dt, materials, images, &mut wall.card);
+    // the beam: from above and in front of the pulled case, brightening as it comes out
+    if let (Some(r), Ok((mut beam, mut t))) = (m.rows.get(m.row), wall.spot.single_mut()) {
+        let (at, turn) = m.walls[r.wall];
+        let world = |v: Vec3| at + Quat::from_rotation_y(turn) * v;
+        let k = if m.rack_sel.is_none() && !m.wide && !r.games.is_empty() { ease(m.pull) } else { 0.0 };
+        beam.intensity = m.style.scene.spot_i * LAMP_UNIT * 1.6 * m.style.spot * k;
+        *t = Transform::from_translation(world(chosen_at + Vec3::new(0.3, 1.6, 1.4))).looking_at(world(chosen_at), Vec3::Y);
+    }
     let lean = 1.0 - (-dt * 8.0).exp();
     for (piece, mut t) in &mut wall.pieces {
         let Some(p) = m.rack.pieces.get(piece.0) else { continue };
