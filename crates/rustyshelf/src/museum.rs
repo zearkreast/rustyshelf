@@ -46,6 +46,10 @@ pub struct MuseumHud;
 #[derive(Component)]
 pub struct MuseumCard;
 
+/// One side of the wide view's frame: top, bottom, left, right.
+#[derive(Component)]
+pub struct FrameSide(u8);
+
 /// The card's scale on the shelf.
 const CARD_S: f32 = 1.16;
 
@@ -145,6 +149,13 @@ pub struct Museum {
     intro: Option<f32>,
     lang: String,
     card: Option<CardParts>,
+    /// stepped back to see the whole wall, a soft gold frame on the shelf in view: the frame's box on its wall (left,
+    /// right, bottom, top), its wall, how far it has faded in, and its colour
+    wide: bool,
+    frame: [f32; 4],
+    frame_wall: usize,
+    frame_k: f32,
+    frame_mat: Handle<StandardMaterial>,
 }
 
 impl Museum {
@@ -157,23 +168,30 @@ impl Museum {
         (to_room(Vec3::new(x - 0.2, r.y + 0.02, 3.7)), to_room(Vec3::new(x - 0.2, r.y - 0.03, 0.0)))
     }
 
-    /// The whole wall the row in view is on, as far as it fits: the walk-in's view.
+    /// The whole wall the row in view is on, at most 26 wide (else centred on the case in view): the wide view.
     fn overview(&self, aspect: f32) -> (Vec3, Vec3) {
         let Some(r) = self.rows.get(self.row) else { return self.view() };
         let on: Vec<&Row> = self.rows.iter().filter(|o| o.wall == r.wall).collect();
-        let wide = on.iter().map(|o| o.end).fold(0.0, f32::max);
-        let top = on.iter().map(|o| o.y).fold(f32::MIN, f32::max) + 0.8;
-        let bottom = on.iter().map(|o| o.y).fold(f32::MAX, f32::min) - 0.7;
-        let (w, h) = (wide + 1.1, top - bottom);
+        let (l, rt) = (-0.55, on.iter().map(|o| o.end).fold(0.0, f32::max) + 0.55);
+        let h = on.len() as f32 * ROW + 1.1;
+        let w = rt - l + 0.6;
+        let cap = (26.0f32).max(h * aspect);
+        let focus = r.xs.get(self.col).copied().unwrap_or(0.0);
+        let x = if w > cap { focus.clamp(l - 0.3 + cap / 2.0, rt + 0.3 - cap / 2.0) } else { (l + rt) / 2.0 };
+        let top = on.iter().map(|o| o.y).fold(f32::MIN, f32::max);
+        let y = top - (on.len() as f32 - 1.0) * ROW / 2.0 + 0.15;
         let half = 18f32.to_radians().tan();
-        let z = ((h / 2.0) / half).max((w / 2.0) / half / aspect.max(0.1)).min(14.0) + DEPTH / 2.0;
-        let seen = z * half * aspect;
-        let cur = r.xs.get(self.col).copied().unwrap_or(0.0);
-        let x = if seen * 2.0 >= w { wide / 2.0 } else { cur.clamp(seen - 0.55, wide + 0.55 - seen) };
-        let y = (top + bottom) / 2.0;
+        let z = ((h / 2.0) / half).max((w.min(cap) / 2.0) / half / aspect.max(0.1)) + 0.25;
         let (at, turn) = self.walls[r.wall];
         let to_room = |p: Vec3| at + Quat::from_rotation_y(turn) * p;
         (to_room(Vec3::new(x, y, z)), to_room(Vec3::new(x, y, 0.0)))
+    }
+
+    /// The wide view's frame round a row, on its wall: left, right, bottom, top.
+    fn frame_of(&self, i: usize) -> [f32; 4] {
+        let Some(r) = self.rows.get(i) else { return [0.0; 4] };
+        let wide = self.rows.iter().filter(|o| o.wall == r.wall).map(|o| o.end).fold(0.0, f32::max);
+        [-0.47, wide + 0.47, r.y - 0.5 - PLANK - 0.03, r.y + ROW - 0.5 - PLANK + 0.02]
     }
 
     fn room_title(&self) -> Option<&str> {
@@ -387,6 +405,12 @@ fn build(
         })
         .id();
     m.card = Some(CardParts { entity, face, board, image, asked: None, shows: None, drawing: None, fade: 0.0 });
+    m.frame_mat = materials.add(StandardMaterial { base_color: Color::srgba_u8(0xff, 0xd9, 0x8a, 0), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
+    let piece = meshes.add(Cuboid::new(1.0, 1.0, 0.01));
+    for side in 0..4 {
+        commands.spawn((MuseumThing, FrameSide(side), layer(), Mesh3d(piece.clone()), MeshMaterial3d(m.frame_mat.clone()), Transform::default(), Visibility::Hidden));
+    }
+    m.frame_k = 0.0;
     // begin at the shelf and game the cursor is on
     m.row = m.rows.iter().position(|r| r.shelf == cursor.shelf).unwrap_or(0);
     m.col = m.rows.get(m.row).and_then(|r| r.games.iter().position(|&g| g == cursor.game)).unwrap_or(0);
@@ -562,6 +586,7 @@ pub struct Wall<'w, 's> {
     cases: Query<'w, 's, (&'static Case, &'static mut Transform), (Without<MuseumCamera>, Without<RowLight>, Without<MuseumCard>)>,
     lights: Query<'w, 's, (&'static RowLight, &'static mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
     card: Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
+    frame: Query<'w, 's, (&'static FrameSide, &'static mut Transform, &'static mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
 }
 
 /// What has the keys instead (a game running, Inspect, the manual reader), and the shelf's camera, which rests
@@ -643,6 +668,7 @@ pub fn run(
             // Room → "Lights come on as you walk in" off: straight to the wall with every lamp lit
             let walk_in = ui.and_then(|u| u.get("museumStyle")).and_then(|x| x.get("walkIn")) != Some(&serde_json::Value::Bool(false));
             m.intro = walk_in.then_some(0.0);
+            m.wide = !walk_in;
             build(&mut commands, m, l, &cursor, meshes, materials, covers, loader, images);
             if let Ok((mut cam, _, _)) = camera.single_mut() {
                 cam.is_active = true;
@@ -672,6 +698,7 @@ pub fn run(
         let skip = keys.get_just_pressed().next().is_some() || pads.iter().any(|p| p.get_just_pressed().next().is_some());
         if skip || t > 0.9 + m.rows.len() as f32 * 0.36 + 0.8 {
             m.intro = None;
+            m.wide = true;
             m.rows.iter_mut().for_each(|r| r.lamp_on = 1.0);
             m.moved_at = now;
             for r in &m.rows {
@@ -745,8 +772,14 @@ pub fn run(
         sounds.play("shelf", to_room);
         return;
     }
-    if m.rows.is_empty() || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || keys.just_pressed(KeyCode::KeyM) || pad(settings.confirm().1) {
+    let back = keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1);
+    if m.rows.is_empty() || keys.just_pressed(KeyCode::KeyM) || (back && m.wide) {
         return close(&mut commands, m, &things, &mut camera, &mut others.shelf_camera, &mut sounds);
+    }
+    if back {
+        m.wide = true;
+        sounds.play("slideBack", 1);
+        return;
     }
     // the arrows, the d-pad and the left stick; held, they repeat
     let stick = pads.iter().map(|p| p.left_stick() + p.dpad()).find(|v| v.length() > 0.5).unwrap_or(Vec2::ZERO);
@@ -765,7 +798,31 @@ pub fn run(
         m.repeat_at = 0.0;
     } else if fresh || m.repeat_at == 0.0 || now >= m.repeat_at {
         m.repeat_at = now + if fresh || m.repeat_at == 0.0 { 0.38 } else { 0.09 };
-        if held.y != 0.0 {
+        if m.wide {
+            // up and down the shelves on this wall; left and right to the room's other walls
+            let wall = m.rows[m.row].wall;
+            let to = if held.y != 0.0 {
+                let on: Vec<usize> = (0..m.rows.len()).filter(|&i| m.rows[i].wall == wall).collect();
+                let at = on.iter().position(|&i| i == m.row).unwrap_or(0) as i32;
+                on.get((at + held.y.signum() as i32).clamp(0, on.len() as i32 - 1) as usize).copied()
+            } else {
+                let mut w = wall as i32 + held.x.signum() as i32;
+                let mut found = None;
+                while (0..3).contains(&w) && found.is_none() {
+                    found = m.rows.iter().position(|r| r.wall == w as usize);
+                    w += held.x.signum() as i32;
+                }
+                found
+            };
+            if let Some(to) = to.filter(|&t| t != m.row) {
+                let x = m.rows[m.row].xs.get(m.col).copied().unwrap_or(0.0);
+                let wall_changed = m.rows[to].wall != wall;
+                m.row = to;
+                m.col = m.rows[to].xs.iter().enumerate().min_by(|a, b| (a.1 - x).abs().total_cmp(&(b.1 - x).abs())).map_or(0, |(i, _)| i);
+                sounds.play(if wall_changed { "slide" } else { "tick" }, if held.y != 0.0 { held.y as i32 } else { held.x as i32 });
+                paint(m, l, covers, loader, materials);
+            }
+        } else if held.y != 0.0 {
             let to = (m.row as i32 + held.y.signum() as i32).clamp(0, m.rows.len() as i32 - 1) as usize;
             if to != m.row {
                 let x = m.rows[m.row].xs.get(m.col).copied().unwrap_or(0.0);
@@ -784,7 +841,11 @@ pub fn run(
         }
         m.moved_at = now;
     }
-    if keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0) {
+    if m.wide && (keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0)) {
+        m.wide = false;
+        m.moved_at = now;
+        sounds.play("slide", 1);
+    } else if keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0) {
         let r = &m.rows[m.row];
         (cursor.shelf, cursor.game, cursor.land) = (r.shelf, r.games[m.col], false);
         settings.play = true;
@@ -805,7 +866,7 @@ pub fn run(
     }
     // the chosen case slides out and turns its cover to you; the camera follows
     let dt = time.delta_secs();
-    let settle = now - m.moved_at > 0.15;
+    let settle = now - m.moved_at > 0.15 && !m.wide;
     m.pull = if settle { (m.pull + dt * 3.0).min(1.0) } else { (m.pull - dt * 6.0).max(0.0) };
     let mut chosen_at = Vec3::ZERO;
     for (c, mut t) in &mut wall.cases {
@@ -818,23 +879,60 @@ pub fn run(
         }
     }
     show_card(m, l, chosen_at, dt, materials, images, &mut wall.card);
-    let (eye, look) = m.view();
+    let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
+    let (eye, look) = if m.wide { m.overview(aspect) } else { m.view() };
     let f = 1.0 - (-dt * 5.0).exp();
     m.eye = m.eye.lerp(eye, f);
     m.look = m.look.lerp(look, f);
     if let Ok((_, mut t, _)) = camera.single_mut() {
         *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
     }
-    // the lamp over the row in view is on, the others dim
-    for (row, mut s) in &mut wall.lights {
-        let want = if row.0 == m.row { LAMP } else { LAMP * 0.25 };
-        s.intensity += (want - s.intensity) * f;
+    for (_, mut s) in &mut wall.lights {
+        s.intensity += (LAMP - s.intensity) * f;
     }
+    show_frame(m, now, dt, materials, &mut wall.frame);
     if let Ok(mut text) = text.single_mut() {
         let r = &m.rows[m.row];
         let g = &l.shelves[r.shelf].games[r.games[m.col]];
         let room = m.room_title().map(|t| format!("{t}  ·  ")).unwrap_or_default();
-        text.0 = format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, r.games.len());
+        let tr = |t: &str| rustyshelf_core::i18n::tr(&m.lang, t);
+        let n = r.games.len();
+        text.0 = if m.wide {
+            format!("{room}{}  ·  {}\n{}", r.name, tr(&if n == 1 { "1 game".to_string() } else { format!("{n} games") }), tr("Enter  Zoom in  ·  Esc  Leave"))
+        } else {
+            format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, n)
+        };
+    }
+}
+
+/// The wide view's frame: it eases to the shelf in view and breathes softly; gone when you zoom in.
+fn show_frame(m: &mut Museum, now: f32, dt: f32, materials: &mut Assets<StandardMaterial>, sides: &mut Query<(&FrameSide, &mut Transform, &mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>) {
+    let want = m.frame_of(m.row);
+    let wall = m.rows.get(m.row).map_or(0, |r| r.wall);
+    let snap = m.frame_k < 0.05 || wall != m.frame_wall;
+    let k = if snap { 1.0 } else { 1.0 - (-dt * 14.0).exp() };
+    for (a, b) in m.frame.iter_mut().zip(want) {
+        *a += (b - *a) * k;
+    }
+    m.frame_wall = wall;
+    m.frame_k += ((m.wide as u8 as f32) - m.frame_k) * (1.0 - (-dt * 8.0).exp());
+    if let Some(mut mat) = materials.get_mut(&m.frame_mat) {
+        mat.base_color = Color::srgba_u8(0xff, 0xd9, 0x8a, 0).with_alpha(m.frame_k * (0.55 + 0.2 * (now * 1000.0 / 420.0).sin()));
+    }
+    let [x0, x1, y0, y1] = m.frame;
+    let (w, h, th, z) = (x1 - x0, y1 - y0, 0.035, DEPTH / 2.0 + 0.12);
+    let (cx, cy) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
+    let (at, turn) = m.walls[wall];
+    let turn = Quat::from_rotation_y(turn);
+    for (side, mut t, mut vis) in sides {
+        let (p, size) = match side.0 {
+            0 => (Vec3::new(cx, y1, z), Vec3::new(w + th, th, 1.0)),
+            1 => (Vec3::new(cx, y0, z), Vec3::new(w + th, th, 1.0)),
+            2 => (Vec3::new(x0, cy, z), Vec3::new(th, h, 1.0)),
+            _ => (Vec3::new(x1, cy, z), Vec3::new(th, h, 1.0)),
+        };
+        *t = Transform::from_translation(at + turn * p).with_rotation(turn).with_scale(size);
+        *vis = if m.frame_k > 0.01 { Visibility::Inherited } else { Visibility::Hidden };
     }
 }
 
