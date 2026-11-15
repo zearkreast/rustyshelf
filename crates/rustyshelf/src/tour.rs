@@ -38,7 +38,7 @@ const STEPS: [Step; 9] = [
     Step { k: "Inspect", t: "Hold the case", p: "Turn it round and look at it close up.", keys: &[("R3 · V", "Inspect")], rom_only: true },
     Step { k: "Shelf menu", t: "The shelf menu", p: "The order of every shelf, which games it shows, and the chosen game.", keys: &[("Start · G", "Shelf menu")], rom_only: false },
     Step { k: "Adding games", t: "Add more games", p: "Consoles: point RustyShelf at a games folder. PC games and Custom games: add anything else, one at a time or a whole folder.", keys: &[("S", "Settings")], rom_only: false },
-    Step { k: "Done", t: "That’s the basics", p: "Watch this one again from Settings → System → Show the tour.", keys: &[("Hold View · M", "Museum")], rom_only: false },
+    Step { k: "Done", t: "That’s the basics", p: "Watch this one again from Settings → System → Show the tour.", keys: &[], rom_only: false },
 ];
 
 #[derive(Resource, Default)]
