@@ -4,6 +4,7 @@
 // (a release build on Windows opens no console window beside the app)
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod appicon;
 mod arcade;
 mod boot;
 mod cheevos;
@@ -87,6 +88,7 @@ fn main() {
         .init_resource::<romm::Sync>()
         .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, museum::setup).chain())
+        .add_systems(Update, appicon::set)
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
             Update,
