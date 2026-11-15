@@ -2168,3 +2168,77 @@ fn manual_collections_and_spreads_match_the_js() {
     let _ = fs::remove_file(data.join("manual-collections.json"));
     assert!(coll::run(&site, &data, &games, &Stores::load(&data), &now, &|sys| sys == "gc", &|| false).is_empty() && asked() == before);
 }
+
+#[test]
+fn art_studio_ranks_and_lists_as_the_js_does() {
+    use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, Sources};
+    use rustyshelf_core::covers::LibretroNames;
+    use rustyshelf_core::lbindex::ShardFile;
+    use serde_json::json;
+    let f = fixture("artstudio.json");
+    for s in f["styles"].as_array().unwrap() {
+        let style = studio::style_for(&s["cfg"], "gc");
+        assert_eq!(style, s["style"], "{}", s["cfg"]);
+        assert_eq!(studio::style_for(&s["cfg"], "wii"), s["other"], "{}", s["cfg"]);
+        let looks: Vec<String> = studio::PARTS.iter().map(|p| studio::look_for(&style, p)).collect();
+        assert_eq!(json!(looks), s["looks"], "{}", s["style"]);
+        let regions: Vec<Vec<String>> = ["authentic", "hd", "region:jpn", "region:xx", "special"].iter().map(|l| ["USA", "Japan", "Europe, Australia", ""].iter().map(|r| studio::region_for_look(&style, l, r)).collect()).collect();
+        assert_eq!(json!(regions), s["regions"], "{}", s["style"]);
+    }
+    for r in f["gameRegions"].as_array().unwrap() {
+        assert_eq!(studio::game_region(r[0].as_str().unwrap()), r[1].as_str().unwrap(), "{}", r[0]);
+    }
+    let text = |v: &Value| v.as_str().unwrap_or("").to_string();
+    let cands: Vec<Cand> = f["cands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| Cand {
+            source: text(&c["source"]),
+            region: text(&c["region"]),
+            edition: text(&c["edition"]),
+            kind: text(&c["kind"]),
+            fan: c["fan"] == true,
+            cut: c["cut"].as_str().map(String::from),
+            exact: c["exact"] == true,
+            rank: c["rank"].as_f64().unwrap_or(0.0),
+            w: c["w"].as_u64().map(|w| w as u32),
+            h: c["h"].as_u64().map(|h| h as u32),
+            in_use: c["inUse"] == true,
+            ..Cand::default()
+        })
+        .collect();
+    for r in f["ranks"].as_array().unwrap() {
+        let ctx = Ctx { style: &r["ctx"]["style"], game_region: r["ctx"]["game"]["region"].as_str().unwrap_or(""), sharp: r["ctx"]["sharp"].as_bool() };
+        for (c, want) in cands.iter().zip(r["scores"].as_array().unwrap()) {
+            let got = studio::scores(c, &ctx);
+            for look in ["authentic", "hd", "region", "special"] {
+                assert_eq!(got[look].as_f64(), want[look].as_f64(), "{look} of {c:?} under {}", r["ctx"]);
+            }
+        }
+        for by in r["by"].as_array().unwrap() {
+            let look = by[0].as_str().unwrap();
+            for (c, want) in cands.iter().zip(by[1].as_array().unwrap()) {
+                assert!((studio::rank_score(c, look, &ctx) - want.as_f64().unwrap()).abs() < 1e-9, "{look} of {c:?} under {}: {} for {want}", r["ctx"], studio::rank_score(c, look, &ctx));
+            }
+            let order: Vec<usize> = studio::rank_list(&cands, look, &ctx).iter().map(|c| cands.iter().position(|x| std::ptr::eq(x, *c)).unwrap()).collect();
+            assert_eq!(json!(order), by[2], "{look} under {}", r["ctx"]);
+        }
+    }
+
+    let shard = |plat: &str| -> Option<ShardFile> { serde_json::from_value(json!({ "v": 1, "plat": plat, "games": f["index"]["games"].get(plat)?, "images": f["index"]["images"] })).ok() };
+    let libretro = LibretroNames::new(f["libretro"].as_array().unwrap().iter().map(text).collect());
+    for a in f["candidates"].as_array().unwrap() {
+        let sys = a["sys"].as_str().unwrap();
+        let shard = rustyshelf_core::covers::launchbox_platform(sys).and_then(shard);
+        let from = Sources { launchbox: shard.as_ref(), libretro: (sys == "gc").then_some(&libretro), gametdb: None, disc_id: a["discId"].as_str().map(String::from), region: a["region"].as_str().unwrap() };
+        for part in studio::PARTS {
+            let got: Vec<Value> = studio::candidates(sys, a["game"]["title"].as_str().unwrap(), Path::new(a["game"]["file"].as_str().unwrap()), part, &from).iter().map(Cand::to_json).collect();
+            let want = a["parts"][part].as_array().unwrap();
+            assert_eq!(got.len(), want.len(), "{sys} {} {part}: {got:?}", a["game"]["title"]);
+            for (g, w) in got.iter().zip(want) {
+                assert_eq!(g, w, "{sys} {} {part}", a["game"]["title"]);
+            }
+        }
+    }
+}

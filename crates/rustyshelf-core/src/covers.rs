@@ -243,7 +243,7 @@ pub fn pick_images<'a>(imgs: &'a [GameImage], kind: &str, region: &str) -> Vec<&
     c
 }
 
-fn libretro_safe(s: &str) -> String {
+pub fn libretro_safe(s: &str) -> String {
     s.chars().map(|c| if "&*/:`<>?\\|\"".contains(c) { '_' } else { c }).collect()
 }
 
@@ -374,7 +374,20 @@ pub fn disc_id(file: &Path) -> Option<String> {
 /// GameTDB's language folders to try for a disc, by the region letter of its id: a region chosen in Settings goes
 /// first only where the disc was sold there too.
 pub fn tdb_regions(id: &str, region: &str) -> Vec<&'static str> {
-    let own: &[&str] = match id.as_bytes().get(3) {
+    let own = tdb_own(id);
+    let wanted = art_region(region).map_or(&[][..], |p| p.tdb);
+    let mut out: Vec<&'static str> = Vec::new();
+    for r in wanted.iter().filter(|r| own.contains(r)).chain(own).chain(&["US", "EN"]) {
+        if !out.contains(r) {
+            out.push(r);
+        }
+    }
+    out
+}
+
+/// The language folders GameTDB keeps a disc's own scans in, by the region letter of its id.
+pub fn tdb_own(id: &str) -> &'static [&'static str] {
+    match id.as_bytes().get(3) {
         Some(b'E' | b'N') => &["US"],
         Some(b'J') => &["JA"],
         Some(b'K') => &["KO"],
@@ -387,15 +400,7 @@ pub fn tdb_regions(id: &str, region: &str) -> Vec<&'static str> {
         Some(b'U') => &["EN", "AU"],
         Some(b'X' | b'Y' | b'Z') => &["EN", "US"],
         _ => &["US", "EN"],
-    };
-    let wanted = art_region(region).map_or(&[][..], |p| p.tdb);
-    let mut out: Vec<&'static str> = Vec::new();
-    for r in wanted.iter().filter(|r| own.contains(r)).chain(own).chain(&["US", "EN"]) {
-        if !out.contains(r) {
-            out.push(r);
-        }
     }
-    out
 }
 
 /// The pictures `replaced\` holds for one kind of one game, newest first: (file name, its stamp). Older pictures

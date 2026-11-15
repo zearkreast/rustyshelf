@@ -1452,6 +1452,49 @@ async function manualcollFixtures() {
     return out;
   } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// The Art Studio's looks and ranking, and the candidates the sources give for a game's part (a made-up LaunchBox index,
+// libretro list and disc id; nothing is asked of the web).
+async function artstudioFixtures() {
+  const covers = require('../main/covers'), A = require('../main/artstudio'), out = {};
+  const styles = [{}, { preset: 'hd' }, { preset: 'region', region: 'eur' }, { preset: 'region', region: 'xx' }, { preset: 'special', sharper: false }, { preset: 'sets', region: 'jpn' }, { preset: 'sets', setsHd: true },
+    { preset: 'mix', region: 'eur', parts: { front: 'hd', back: 'region', spine: 'region:jpn', disc: 'nothing' } }, { preset: 'authentic', region: 'jpn', regionFirst: true }, { preset: 'weird' }];
+  const cfgs = [{ ui: {} }, { ui: { artRegion: 'eur', artHD: false } }];
+  out.styles = [];
+  for (const cfg of cfgs) for (const st of styles) { const c = { ...cfg, art: { styles: { gc: st } } }, style = A.styleFor(c, 'gc');
+    out.styles.push({ cfg: c, style, other: A.styleFor(c, 'wii'), looks: A.PARTS.map(p => A.lookFor(style, p)), regions: ['authentic', 'hd', 'region:jpn', 'region:xx', 'special'].map(l => ['USA', 'Japan', 'Europe, Australia', ''].map(r => A.regionForLook(style, l, { region: r }))) }); }
+  out.gameRegions = ['USA', 'Europe', 'Japan', 'USA, Europe', 'Canada', 'World', 'Germany', 'Australia', 'Korea', '', 'UK', 'Latin America', 'japan, usa'].map(r => [r, A.gameRegion({ region: r })]);
+  // candidates as the sources' lists would give them, and a few as the picker has them once downloaded
+  const C = (source, more = {}) => ({ source, region: '', edition: 'original', kind: 'scan', ...more });
+  const cands = [C('launchbox', { region: 'usa' }), C('launchbox', { region: 'eur', kind: 'clean' }), C('launchbox', { region: 'jpn', fan: true, kind: 'clean' }), C('launchbox', { region: 'world', cut: 'spine' }), C('launchbox', { edition: 'special', region: 'usa' }),
+    C('launchbox', { edition: 'reprint', region: 'usa' }), C('launchbox', { edition: 'odd' }), C('libretro', { kind: 'clean', region: 'usa', exact: true }), C('libretro', { kind: 'clean', region: 'eur' }), C('gametdb', { kind: 'hd', region: 'usa' }),
+    C('gametdb', { region: 'jpn', cut: 'back' }), C('gametdb', { region: 'eur' }), C('steamgriddb', { rank: 0, w: 600, h: 900 }), C('steamgriddb', { rank: 7, w: 2000, h: 3000 }), C('steamgriddb', { rank: 60 }), C('current', { inUse: true, w: 800, h: 1100 }),
+    C('earlier', { w: 3000, h: 2000 }), C('made', { kind: 'clean' }), C('mariowiki'), C('launchbox', { region: 'usa', w: 1500, h: 2100 }), C('launchbox', { region: 'usa', w: 0, h: 500 })];
+  out.cands = cands;
+  const ctxs = [{ style: A.styleFor({ ui: {} }, 'gc'), game: { region: 'USA' } }, { style: A.styleFor({ ui: {} }, 'gc'), game: { region: 'Japan' } }, { style: A.styleFor({ ui: { artRegion: 'eur', artHD: false } }, 'gc'), game: { region: 'USA' } },
+    { style: A.styleFor({ ui: {}, art: { styles: { gc: { preset: 'hd', region: 'jpn', sharper: false } } } }, 'gc'), game: {} }, { style: A.styleFor({ ui: {} }, 'gc'), game: { region: 'Europe' }, sharp: false }, { style: A.styleFor({ ui: { artHD: false } }, 'gc'), game: {}, sharp: true }];
+  const LOOKS = ['authentic', 'hd', 'region:usa', 'region:eur', 'region:jpn', 'special', 'region:xx', ''];
+  out.ranks = ctxs.map(ctx => ({ ctx, scores: cands.map(c => A.scores(c, ctx)), by: LOOKS.map(l => [l, cands.map(c => A.rankScore(c, l, ctx)), A.rankList(cands, l, ctx).map(c => cands.indexOf(c))]) }));
+
+  const im = (type, region, file) => ({ type, region, file });
+  const games = [{ id: '1', name: 'Zeta Run' }, { id: '2', name: 'Omega Quest' }, { id: '3', name: 'Tau Racers' }].map(g => ({ ...g, n: covers.norm(g.name) }));
+  const index = { games: { 'Nintendo GameCube': games, 'Nintendo Wii': [games[0]] }, images: {
+    1: [im('Box - Front', 'North America', 'Nintendo GameCube/Box - Front/Zeta Run-01.jpg'), im('Box - Front', 'Europe', 'Nintendo GameCube/Box - Front/Zeta Run-02.png'), im('Box - Front', 'Japan', 'Nintendo GameCube/Box - Front/Zeta Run (Japan) é.jpg'),
+      im('Box - Front - Reconstructed', 'World', 'a/Zeta Run-r.webp'), im('Fanart - Box - Front', '', 'a/Zeta Run-fan.jpg'), im('Steam Poster', '', 'a/poster.jpg'), im('Box - Front', 'Brazil', 'a/odd.gif'), im('Box - Front', 'North America', ''),
+      im('Box - Back', 'United Kingdom', 'a/back-uk.jpg'), im('Box - Back - Reconstructed', '', 'a/back-r.jpg'), im('Fanart - Box - Back', 'Oceania', 'a/back-f.jpg'), im('Box - Spine', 'North America', 'a/spine.jpg'), im('Box - Full', 'North America', 'a/full.png'), im('Box - Full', 'Europe', 'a/full-eu.jpg'),
+      im('Disc', 'North America', 'a/disc.png'), im('Cart - Front', 'World', 'a/cart.png'), im('Fanart - Cart - Front', '', 'a/cart-f.png'), im('Fanart - Disc', 'Japan', 'a/disc-f.png'), im('Clear Logo', '', 'a/logo.png'), im('Box - 3D', '', 'a/3d.png')],
+    2: [im('Box - Front', 'North America', 'b/omega.jpg'), im('Box - Front', 'North America', 'b/omega.jpg')], 3: [] } };
+  covers._setIndex(index); covers.setSpineCutter(async () => null);
+  const lr = ['Zeta Run (USA)', 'Zeta Run (Europe) (En,Fr,De)', "Zeta Run (USA) (Player's Choice)", 'Zeta Run (Japan) (Limited Edition)', 'Zeta Run 2 (USA)', 'Omega Quest (USA)', 'Tau Racers Deluxe (World)', 'Zeta Run_ The Long Way (USA)'];
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-studio-')); covers.init(tmp); fs.writeFileSync(path.join(tmp, 'boxart-cache', 'libretro-gc.json'), JSON.stringify({ at: Date.now(), names: lr }));
+  out.index = index; out.libretro = lr;
+  const asks = [['gc', { title: 'Zeta Run', file: '/roms/Zeta Run (USA).iso' }, 'GZRE01', 'auto'], ['gc', { title: 'Zeta Run', file: '/roms/zeta.iso' }, 'GZRP01', 'eur'], ['gc', { title: 'Zeta Run', file: '/roms/Zeta Run (Japan) (Limited Edition).iso' }, 'GZRJ01', 'jpn'],
+    ['gc', { title: 'Omega Quest', file: '/roms/Omega Quest (USA).iso' }, null, 'usa'], ['gc', { title: 'Omega Quest & Zeta Run', file: '/roms/both.iso' }, null, 'auto'], ['gc', { title: 'Zeta Run + Nothing', file: '/roms/x.iso' }, null, 'auto'], ['gc', { title: 'Tau Racers', file: '/roms/Tau Racers Deluxe (World).iso' }, 'GTRX01', 'auto'],
+    ['gc', { title: 'Nothing At All', file: '/roms/n.iso' }, null, 'auto'], ['wii', { title: 'Zeta Run', file: '/roms/z.wbfs' }, 'RZRK01', 'auto'], ['wiiu', { title: 'Zeta Run', file: '/roms/z.wua' }, 'AZRD01', 'eur'], ['snes', { title: 'Zeta Run', file: '/roms/z.sfc' }, null, 'auto'], ['gc', { title: 'Zeta Run: The Long Way', file: '/roms/Zeta Run: The Long Way (USA).iso' }, null, 'auto']];
+  out.candidates = [];
+  for (const [sys, game, discId, region] of asks) out.candidates.push({ sys, game, discId, region, parts: Object.fromEntries(await Promise.all(A.PARTS.map(async p => [p, await covers.candidates(sys, game, p, { discId, region, wiki: false })]))) });
+  covers._setIndex(undefined); fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1466,6 +1509,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'pcach.json'), JSON.stringify(await pcachFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'pads.json'), JSON.stringify(padsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'manualcoll.json'), JSON.stringify(await manualcollFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'artstudio.json'), JSON.stringify(await artstudioFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');
