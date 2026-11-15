@@ -65,6 +65,7 @@ jobs:
     needs: check
     if: needs.check.outputs.kind == 'build'
     uses: ./.github/workflows/build.yml
+    secrets: inherit # (RustyShelf issue 26: the ScreenScraper developer login)
     with:
       version: ${{ needs.check.outputs.version }}
       semver: ${{ needs.check.outputs.semver }}

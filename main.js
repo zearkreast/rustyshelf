@@ -50,6 +50,7 @@ const manualcoll = require('./main/manualcoll');
 const manualstudio = require('./main/manualstudio'); // Manual Studio: every manual for a game side by side, per-game locks, per-console language / region
 const launcher = require('./main/launcher');
 const gamewatch = require('./main/gamewatch'); // (beta.12) Seamless play: Steam and store games watched
+const romm = require('./main/romm'); // (upstream beta.12) RomM, a self-hosted game library
 const seamless = require('./main/seamless'); // (beta.12) Seamless play: screen mode, Go to desktop, the launch timeline
 const themes = require('./main/themes');
 const customThemes = require('./main/customthemes'); // (1.76) picture themes the user makes: Custom themes\<name>\
@@ -249,6 +250,9 @@ function computeRoots() {
   if (!library._cacheSet) { library.setCacheRoot(path.join(app.getPath('userData'), 'library')); library._cacheSet = true; }
   const roots = [path.join(paths.appRoot(), 'themes'), path.join(paths.appRoot(), 'Custom themes'), path.join(app.getPath('userData'), 'custom-theme-cache'), icons.folder(), ...library.roots()].filter(Boolean); // (custom themes: their pictures, and the scaled copies of big ones)
   for (const s of Object.values(cfg.systems)) { roots.push(...(s.romDirs || [])); if (s.artDir) roots.push(paths.expand(s.artDir)); }
+  // (RustyShelf, sassiestrhihno/boxshelf-beta issue 41) RomM's covers and the folder its games go to when their console
+  // has no games folder: refused here, the shelf drew made-up boxes for every RomM game
+  roots.push(path.join(app.getPath('userData'), 'romm-covers'), path.join(app.getPath('userData'), 'RomM games'));
   roots.push(...require('./main/music').folders()); // (your own menu music: the page plays these files straight from disk)
   roots.push(path.join(app.getPath('userData'), 'stremio-art'), path.join(app.getPath('userData'), 'commercials')); // the movie shelves' posters and art; the retro TV's ads
   if (paths.artLibrary()) roots.push(paths.artLibrary());
@@ -337,7 +341,7 @@ function fileUrl(p) { if (!p) return null; const v = artVer.get(path.resolve(p).
 function gameFile(systemId, file) {
   const sc = cfg.systems[systemId]; if (!sc) throw new Error('Unknown system.');
   const f = path.resolve(String(file || '')).toLowerCase();
-  if (!(sc.romDirs || []).some(d => paths.inDir(f, d))) throw new Error('That game is not in a games folder.');
+  if (!(sc.romDirs || []).some(d => paths.inDir(f, d)) && !paths.inDir(f, rommDir(systemId))) throw new Error('That game is not in a games folder.'); // (upstream beta.12: or RomM's download folder for a console with none)
   return { sc, file: String(file) };
 }
 
@@ -666,7 +670,27 @@ function iconQuick(exe) {
 // the PC games whose own folder is the game (its size is the folder's): not a program added by hand, which may sit in a shared folder
 const SIZED_SRC = new Set(['folder', 'epic', 'hoyoplay']);
 const STORE_SRC = new Set(['epic', 'gog', 'ubisoft', 'ea', 'xbox', 'folder']); // (folder: a game in the PC games folder, named by its folder)
+// (RustyShelf, its discussion 31) games folders that don't answer within 5 s (or aren't there): their games come from
+// the last library, and a minute later they're tried again; back, the scan's kept list is dropped and the shelf rebuilt
+async function unreachable(dirs) {
+  const one = d => { let t; return Promise.race([fs.promises.readdir(emuPath(d) || d).then(() => true, () => false), new Promise(r => { t = setTimeout(() => r(false), 5000); })]).finally(() => clearTimeout(t)); };
+  const L = (dirs || []).filter(Boolean); const ok = await Promise.all(L.map(one)); return L.filter((d, i) => !ok[i]);
+}
+function keptFrom(sysId, gone, have) {
+  const lib = shelfGames(), shelves = Array.isArray(lib) ? lib : lib && Array.isArray(lib.shelves) ? lib.shelves : [];
+  const sh = shelves.find(x => x && x.id === sysId && Array.isArray(x.games)); if (!sh) return [];
+  const got = new Set(have.map(g => String(g.file || '').toLowerCase()));
+  return sh.games.filter(g => g && g.file && !got.has(String(g.file).toLowerCase()) && gone.some(d => paths.inDir(g.file, emuPath(d) || d)));
+}
+let lookT = null; const lookDirs = new Set();
+function lookAgain(gone) { gone.forEach(d => lookDirs.add(d)); if (lookT) return;
+  lookT = setTimeout(async () => { lookT = null; const dirs = [...lookDirs]; lookDirs.clear(); const still = await unreachable(dirs);
+    if (still.length < dirs.length) { log('library: a games folder is back, reading it again'); scanForget(); if (alive()) win.webContents.send('library:changed', { back: 1 }); }
+    if (still.length) lookAgain(still); }, 60000); }
 async function buildLibrary() {
+  // (upstream beta.12) RomM: the saved copy of its library for this build, and one background sync a little after the first
+  if (rommOn() && !rommLib) await rommLoad();
+  if (rommOn() && !rommSyncedOnce) { rommSyncedOnce = true; rommSync(20000); }
   const shelves = [];
   for (const def of CONSOLES) {
     const sc = cfg.systems[def.id];
@@ -681,6 +705,11 @@ async function buildLibrary() {
     const games = []; let t0 = Date.now();
     for (const g of await scanSystemAsync(def, sc)) { if (Date.now() - t0 > 25) { await new Promise(r => setImmediate(r)); t0 = Date.now(); }
       games.push({ ...g, ...(artNameOf(g.id) ? { artName: artNameOf(g.id) } : {}), info: covers.gameInfo(def.id, artNameOf(g.id) || g.title), manualMiss: manualMiss(def.id, g), art: { front: fileUrl(g.art.front), hero: fileUrl(g.art.hero), back: fileUrl(g.art.back), madeBack: g.art.madeBack || undefined, spine: fileUrl(g.art.spine), madeSpine: g.art.madeSpine || undefined, disc: fileUrl(g.art.disc), manual: def.id === 'wiiu' ? await withCoverAsync(def.id, g, (g.art.manual || []).map(fileUrl)) /* (beta.10: async) */ : (g.art.manual || []).map(fileUrl), manualPdf: fileUrl(g.art.manualPdf) } }); }
+    // (RustyShelf, its discussion 31) a games folder that can't be reached (a network drive gone for a moment) gives no
+    // games, and the shelf came out empty until the next scan: its games from the last library stay instead, and the
+    // folders are looked at again a minute later
+    { const gone = await unreachable(sc.romDirs); if (gone.length) { const kept = keptFrom(def.id, gone, games); games.push(...kept); log(`library: ${def.name}: ${gone.length} games folder${gone.length === 1 ? '' : 's'} not reachable, ${kept.length} game${kept.length === 1 ? '' : 's'} kept from the last scan`); lookAgain(gone); } }
+    for (const g of rommGames(def.id, games)) games.push(g); // (upstream beta.12) this console's RomM games not on this PC yet
     // (beta.7) arcade zips are named from FinalBurn Neo's list: fetched once in the background, then the shelf refreshes
     if (games.length && arcadenames.SYSTEMS.has(def.id) && !arcadenames.ready()) arcadenames.fetchNames().then(ok => { if (ok && alive()) win.webContents.send('library:changed', { arcade: 1 }); });
     shelves.push({ id: def.id, kind: 'console', name: def.name, emulatorName: emuShown(def, emu), hasEmulator: !!emu && paths.isFile(emuPath(emu)) /* (1.82) an uninstalled one gets no Open tile */, emulator: emu, emulatorIcon: fileUrl(await iconQuick(emu)), gameArgs: sc.gameArgs, bootOnLaunch: sc.bootOnLaunch !== false, useIpl: def.id === 'gc' && !!sc.useIpl, insertAnim: sc.insertAnim !== false, games });
@@ -972,7 +1001,7 @@ handle('config:get', () => ({ config: cfg, consoles: CONSOLES, apps: APPS, appRo
 // (upstream beta.12) the screen mode and the window's place are main's own (F11, Settings → Screen mode): a screen's older copy saved later doesn't undo them
 handle('app:updateCheck', ({ force } = {}) => updates.check(appVersion(), !!force).then(r => ({ ...r, links: updates.LINKS })));
 handle('app:relaunch', () => updates.relaunchApp());
-handle('config:save', next => { if (!next || typeof next !== 'object' || !next.systems || !next.ui) throw new Error('Bad settings.'); scanForget(); return applyCfg({ ...next, art: cfg.art, games: cfg.games, emuSetup: { ...(next.emuSetup || {}), pending: (cfg.emuSetup || {}).pending || [] }, ui: { ...next.ui, sw2Last: cfg.ui.sw2Last, screenMode: cfg.ui.screenMode, windowBounds: cfg.ui.windowBounds } }); }); // Art Studio styles and locks change through art:* only: a Settings save with its older copy mustn't undo them. (beta.8) The same for what main itself keeps: each game's own name and emulator (Details → Rename / Emulator), Set up for me's waiting list and Switch 2's last build: a screen's older copy saved later used to undo a rename, or bring back a setup that was already done
+handle('config:save', next => { if (!next || typeof next !== 'object' || !next.systems || !next.ui) throw new Error('Bad settings.'); scanForget(); return applyCfg({ ...next, art: cfg.art, games: cfg.games, emuSetup: { ...(next.emuSetup || {}), pending: (cfg.emuSetup || {}).pending || [] }, ui: { ...next.ui, sw2Last: cfg.ui.sw2Last, screenMode: cfg.ui.screenMode, windowBounds: cfg.ui.windowBounds }, keys: { ...(next.keys || {}), ...rommKeysFor(next) } }); /* (upstream beta.12: RomM's sign-in is main's: set by pairing, cleared by Sign out, or by the server address changing) */ }); // Art Studio styles and locks change through art:* only: a Settings save with its older copy mustn't undo them. (beta.8) The same for what main itself keeps: each game's own name and emulator (Details → Rename / Emulator), Set up for me's waiting list and Switch 2's last build: a screen's older copy saved later used to undo a rename, or bring back a setup that was already done
 // settings saved (or restored from a backup): store them and put every change into effect now
 function applyCfg(next) { const prev = cfg, hadMenu = cfg.ui.homeMenu !== false; next = rememberEmus(prev, next); const x = o => o && o.systems && o.systems.x360 && o.systems.x360.emulator; if (x(next) !== x(prev)) next = fixXenia(next); /* (the folder walk only when that path changed) */ cfg = persistCfg(config.normalize(next)); i18nMain.setActive(cfg.ui.language === 'pt'); presence.configure({ enabled: cfg.ui.discordPresence, appId: cfg.ui.discordAppId, logger: log }); applyArtLibrary(); applyScale(); setTimeout(watchRoms, 0); if (cfg.ui.wiimote === false) wiimote.stop(); else if (wmReady) wmStart(); /* (Settings → Controller → Wii remote, at once) */
   // Home menu switched on/off: start or stop the shelf's Guide watcher now (not after the next game)
@@ -981,6 +1010,8 @@ function applyCfg(next) { const prev = cfg, hadMenu = cfg.ui.homeMenu !== false;
   try { cfgChanged(prev, cfg); } catch (e) { log('settings change', e.message); }
   if ((prev.ui.keepAwake !== false) !== (cfg.ui.keepAwake !== false) && awakeJobs.size) awakeApply(); // (switched while a job runs)
   try { seamless.applied(prev.ui, cfg.ui, alive() && !launcher.isRunning() ? win : null); } catch {} // (upstream beta.12: Seamless play turned off: the screen as before)
+  // (upstream beta.12) RomM's address or its settings changed: used from now on, its library read again on the next build
+  if (JSON.stringify(prev.romm || {}) !== JSON.stringify(cfg.romm || {})) { rommApply(); rommLib = null; rommSyncedOnce = false; }
   return cfg; }
 handle('detect', () => detectAll());
 // (RustyShelf) Settings → Consoles → Find emulators in a folder: the emulator programs in a folder the player picked
@@ -1658,7 +1689,12 @@ handle('launch:game', async ({ systemId, file, emulator }) => {
   if (systemId === 'sw2' && !paths.isFile(sc.emulator)) { const b = (await nx2.builds(sw2Roots())).filter(x => !/\.nup$/i.test(file) || x.nup).sort((a, c) => c.date - a.date)[0]; if (b) sc = { ...sc, emulator: b.exe }; }
   }
   if (launching || launcher.isRunning()) throw new Error(launcher.busyMessage()); // (beta.10: names what's running)
-  launching = true; try { return await launchGameNow(systemId, file, sc); } finally { launching = false; }
+  launching = true;
+  try {
+    // (upstream beta.12) a RomM game not on this PC yet: downloaded first (its progress on the boot slide), then started like any game
+    if (!paths.isFile(file) && !paths.isDir(file) && rommOn()) { const got = await rommFetch(systemId, file); if (got) { file = got; if (alive()) win.webContents.send('library:changed', { romm: 1 }); } }
+    return await launchGameNow(systemId, file, sc);
+  } finally { launching = false; }
 });
 // (beta.6) RetroArch's cores: <its folder>\cores\<core>_libretro.dll, or the folder its own settings name
 // (retroarch.cfg's libretro_directory; ":" there means RetroArch's own folder)
@@ -1782,6 +1818,85 @@ handle('launch:app', async ({ appId, link }) => {
   const cover = coverWhileStarting(a.fullscreen === false ? 4 : (+a.coverSeconds || 15));
   return { ...r, cover };
 });
+// ---------- (upstream beta.12) RomM, a self-hosted game library (main/romm.js) ----------
+// Its games join their console's shelf at the place they'll have once downloaded (<the console's first games folder>\
+// <RomM's file name>, so favourites and playtime carry over), with a cloud badge until then. Play downloads one first,
+// its progress on the boot slide, B cancels (the part kept for a resume). The library is the saved copy at once and a
+// background sync once the shelf is up; covers are RomM's until RustyShelf's own art arrives.
+let rommLib = null, rommSyncing = null, rommDl = null, rommLocal = null, rommSyncedOnce = false;
+// (beta.12) RomM's sign-in token belongs to the server it was paired with (keys.rommTokenServer, its origin): it's never
+// sent anywhere else. A token saved before this (no origin with it) is taken as the saved server's, once.
+function rommApply() { const r = cfg.romm || {}, k = cfg.keys || {}; try { romm.setServer(r.server || '', { skipTlsVerify: !!r.skipTls }); const o = romm.originOf(r.server); let t = k.rommToken || '';
+  if (t && !k.rommTokenServer && o) cfg.keys = { ...k, rommTokenServer: o }; else if (t && k.rommTokenServer !== o) t = '';
+  romm.setToken(t); } catch (e) { log('RomM', e.message); } }
+// a Settings save: the token stays only while the server address still leads to the one it was paired with
+function rommKeysFor(next) { const k = cfg.keys || {}, o = romm.originOf(next && next.romm && next.romm.server), bound = k.rommTokenServer || romm.originOf(cfg.romm && cfg.romm.server);
+  const keep = !!k.rommToken && !!o && o === bound; if (k.rommToken && !keep) log('RomM: the server address changed, so the old sign-in was dropped (it belongs to the other server)');
+  return { rommToken: keep ? k.rommToken : '', rommTokenServer: keep ? bound : '' }; }
+const rommOn = () => !!(cfg.romm && cfg.romm.server && (cfg.keys || {}).rommToken);
+const rommDir = sysId => { const d = ((cfg.systems[sysId] || {}).romDirs || [])[0]; return d ? (emuPath(d) || d) : path.join(app.getPath('userData'), 'RomM games', sysId); };
+const rommSafe = n => String(n || 'game').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/, '').slice(0, 180) || 'game';
+// where each downloaded RomM game ended up (a multi-file game's launch file is inside its own folder)
+const rommLocalFile = () => path.join(app.getPath('userData'), 'romm-local.json');
+function rommLocalGet() { if (!rommLocal) { try { rommLocal = JSON.parse(fs.readFileSync(rommLocalFile(), 'utf8')) || {}; } catch { rommLocal = {}; } } return rommLocal; }
+function rommLocalSet(id, file) { const m = rommLocalGet(); m[id] = file; try { fs.writeFileSync(rommLocalFile(), JSON.stringify(m)); } catch {} }
+async function rommLoad() { if (!rommOn()) { rommLib = null; return null; } try { rommLib = await romm.cached(); } catch { rommLib = null; } return rommLib; }
+// this console's RomM games not already on the shelf (by place, by where a download went, or by title)
+function rommGames(sysId, local) {
+  const L = (rommOn() && cfg.romm.cloud !== false && rommLib && rommLib.consoles && rommLib.consoles[sysId]) || []; if (!L.length) return [];
+  const dir = rommDir(sysId), have = new Set(local.map(g => String(g.file || '').toLowerCase())), titles = new Set(local.map(g => String(g.title || '').toLowerCase())), done = rommLocalGet(), out = [];
+  for (const r of L) {
+    const file = path.join(dir, rommSafe(r.file || r.title)), got = done[r.rommId];
+    if (have.has(file.toLowerCase()) || (got && have.has(String(got).toLowerCase())) || titles.has(String(r.title || '').toLowerCase())) continue;
+    // downloaded already, somewhere the scan doesn't look (a console with no games folder: RustyShelf's own RomM folder):
+    // shown as the game on this PC, not with the cloud
+    const here = got && paths.isFile(got) ? got : null, f = here || file;
+    out.push({ kind: 'rom', id: sysId + ':' + f, title: r.title, file: f, ext: path.extname(f).slice(1).toLowerCase(), sizeBytes: r.size || null, added: Date.parse(r.updatedAt || '') || 0,
+      info: covers.gameInfo(sysId, r.title) || { summary: r.summary || undefined, released: r.released || undefined, genres: r.genres || undefined },
+      art: { front: r.cover ? fileUrl(r.cover) : null }, romm: { id: r.rommId, size: r.size || null, multi: !!r.multi, cloud: !here } });
+  }
+  return out;
+}
+// a background sync (the saved copy shows meanwhile); a change refreshes the shelf. Never two at once
+function rommSync(delayMs = 0) {
+  if (rommSyncing || !rommOn()) return rommSyncing;
+  rommSyncing = new Promise(r => setTimeout(r, delayMs)).then(async () => {
+    const before = rommLib ? rommLib.count : -1, lib = await romm.library({}); if (!lib || !lib.consoles) return lib; rommLib = lib;
+    const cv = await romm.covers(Object.values(lib.consoles).flat(), { max: 500 }).catch(() => null); if (cv && cv.downloaded) rommLib = await romm.cached().catch(() => rommLib);
+    if (alive() && (lib.fetched || lib.removed || (cv && cv.downloaded) || before !== lib.count)) win.webContents.send('library:changed', { romm: 1 });
+    log('RomM sync:', lib.count, 'games', lib.offline ? '(offline: the saved copy)' : '', lib.skipped && lib.skipped.platforms ? `(${lib.skipped.platforms} platforms RustyShelf has no shelf for)` : ''); return lib;
+  }).catch(e => { log('RomM sync', e.message); return null; }).finally(() => { rommSyncing = null; });
+  return rommSyncing;
+}
+// Play on a RomM game not downloaded yet: downloaded into its console's folder first (→ the file to start)
+async function rommFetch(sysId, file) {
+  const lo = String(file).toLowerCase(), L = (rommLib && rommLib.consoles && rommLib.consoles[sysId]) || [], dir = rommDir(sysId);
+  const r = L.find(x => path.join(dir, rommSafe(x.file || x.title)).toLowerCase() === lo); if (!r) return null;
+  const got = rommLocalGet()[r.rommId]; if (got && paths.isFile(got)) return got;
+  const say = t => { if (alive()) win.webContents.send('launch:status', t); };
+  const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : Math.max(1, Math.round(n / 1e6)) + ' MB';
+  say('Getting it from RomM…'); const ctl = new AbortController(); rommDl = ctl;
+  try {
+    await fs.promises.mkdir(dir, { recursive: true });
+    const res = await romm.download(r, dir, { signal: ctl.signal, onProgress: p => { if (p && p.phase === 'download' && p.total) say(`Getting it from RomM… ${Math.floor(100 * p.received / p.total)}% of ${mb(p.total)}`); else if (p && p.phase === 'extract') say('Unpacking it…'); } });
+    const f = res && (res.file || res.zip); if (!f || !paths.isFile(f)) throw new Error("RomM's download didn't give a game file.");
+    if (res.zip && res.extracted === false) throw new Error(`${r.title} came as a zip RustyShelf couldn't unpack. It's in ${dir}.`);
+    rommLocalSet(r.rommId, f); log('RomM download:', r.title, res.resumed ? '(resumed)' : '', res.verified ? '(checked)' : ''); return f;
+  } catch (e) {
+    const why = { aborted: 'Download stopped. Press Play again to carry on from where it was.', 'hash-mismatch': "The download didn't match RomM's copy (checked and removed). Press Play to try again.", auth: 'RomM turned RustyShelf away: pair it again in Settings → Accounts & services → RomM.', 'not-found': "RomM doesn't have that game any more.", 'no-space': 'Not enough free space for it on this drive.', offline: "RomM can't be reached right now." }[e && e.code];
+    throw new Error(why || ('RomM: ' + (e && e.message || e)));
+  } finally { if (rommDl === ctl) rommDl = null; }
+}
+handle('romm:cancel', () => { if (rommDl) { rommDl.abort(); return true; } return false; });
+handle('romm:status', async () => ({ ...romm.status(), server: (cfg.romm || {}).server || '', paired: rommOn(), count: rommLib ? rommLib.count : null, at: rommLib ? rommLib.at : null, offline: !!(rommLib && rommLib.offline), skipped: rommLib ? rommLib.skipped : null }));
+const rommSaveToken = t => { cfg = persistCfg(config.normalize({ ...cfg, keys: { ...cfg.keys, rommToken: String(t || ''), rommTokenServer: t ? romm.originOf(cfg.romm && cfg.romm.server) : '' } })); rommApply(); };
+handle('romm:pairStart', async () => { rommApply(); const r = await romm.pairStart(); if (r && r.qrUrl) { try { r.qr = companion.qrSvg(r.qrUrl); } catch {} } return r; }); // (the QR drawn here, as the phone companion's)
+handle('romm:pairPoll', async () => { const r = await romm.pairPoll(); if (r && r.state === 'ok' && r.token) { rommSaveToken(r.token); rommLoad().then(() => rommSync(0)); delete r.token; } return r; });
+handle('romm:pairCancel', () => { romm.pairCancel(); return true; });
+handle('romm:pairCode', async ({ code } = {}) => { rommApply(); const r = await romm.pairWithCode(String(code || '').replace(/\D/g, '').slice(0, 12)); if (r && r.token) { rommSaveToken(r.token); rommLoad().then(() => rommSync(0)); return { ok: true }; } return { ok: false, error: (r && r.error) || 'not accepted' }; });
+handle('romm:test', async () => { rommApply(); return romm.test(); });
+handle('romm:sync', async () => { const r = await rommSync(0); return r ? { ok: !r.error, count: r.count, offline: !!r.offline, error: r.error || null } : { ok: false, error: rommOn() ? 'busy' : 'not paired' }; });
+handle('romm:forget', async () => { await romm.forget().catch(() => {}); rommLib = null; rommSaveToken(''); if (alive()) win.webContents.send('library:changed', { romm: 1 }); return true; });
 // (beta.12) Seamless play on: the Steam game is watched (main/seamless.js: the loading cover, Home menu, playtime and the
 // return to the shelf); off: handed to Steam as before
 handle('launch:steam', ({ appid }) => {
@@ -3064,6 +3179,7 @@ function startUp() {
   { const e = cfg.systems.sw2 && cfg.systems.sw2.emulator; if (e && !paths.isFile(emuPath(e))) nx2.builds(sw2Roots()).then(l => { const b = l.sort((a, c) => c.date - a.date)[0]; if (b && cfg.systems.sw2 && !paths.isFile(emuPath(cfg.systems.sw2.emulator))) { log('Switch 2: shelf build gone, now', b.label); applyCfg({ ...cfg, systems: { ...cfg.systems, sw2: { ...cfg.systems.sw2, emulator: b.exe } } }); } }).catch(() => {}); }
   if (cfg.ra && cfg.ra.key) { try { const raw = JSON.parse(fs.readFileSync(config.file(), 'utf8')); if (raw && raw.ra && raw.ra.key) persistCfg(cfg); } catch {} } // an older plain-text key: encrypt it now
   covers.init(app.getPath('userData'), log); covers.setArtName(g => artNameOf(g.id)); // (RustyShelf issue #2: Details → Art match)
+  romm.init({ dataDir: app.getPath('userData'), log: (...a) => log(...a) }); rommApply(); // (upstream beta.12) RomM: its saved library and covers live in the data folder (after the settings are read: it needs cfg)
   require('./main/steamgrid').init({ dataDir: app.getPath('userData'), log, key: () => (cfg && cfg.keys && cfg.keys.steamgriddb) || '' }); require('./main/screenscraper').init({ dataDir: app.getPath('userData'), log, creds: () => { const k = (cfg && cfg.keys) || {}; return { user: k.ssUser || '', pass: k.ssPass || '', devId: k.ssDevId || '', devPass: k.ssDevPass || '' }; } }); initArtStudio(); initManualStudio(); // (SteamGridDB: the Art Studio's optional poster source)
   commercials.init({ log, dir: path.join(app.getPath('userData'), 'commercials'), memoFile: path.join(app.getPath('userData'), 'commercials.json'), fetchBuf: async url => { const r = await net.fetch(url, { signal: AbortSignal.timeout(30000) }); /* (beta.10: a stalled answer gives up) */ if (r.status === 404) return null; if (!r.ok) throw new Error('archive.org answered ' + r.status); return Buffer.from(await r.arrayBuffer()); }, // (busy / down: a failure, so no game is noted as "no ad" for a month)
     // url → file, streamed; resolves to the bytes written (0: not found), rejects past max bytes
