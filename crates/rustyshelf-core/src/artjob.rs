@@ -177,6 +177,8 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
     let lib = ArtLibrary::from_config(&config, app_root);
     let games = if sc.rom_dirs.is_empty() { Vec::new() } else { scanner::scan(console, &sc, &lib.dirs_for(&sc, app_root), &ScanData::load(&data_dir)) };
     let mut locked = 0;
+    // Complete sets: every unlocked game gets its set (a locked one counts as skipped)
+    let sets_mode = after["preset"] == "sets";
     let mut work: Vec<(GameArt, Vec<&'static str>)> = Vec::new();
     for game in games.iter().filter(|g| g.source == crate::scanner::Source::Rom) {
         let key = studio::lock_key(sys, &game.file);
@@ -187,7 +189,7 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
         }
         let art = &game.art;
         let current = [art.front.clone(), art.back.clone().filter(|_| !art.made_back), art.spine.clone().filter(|_| !art.made_spine), art.disc.clone()];
-        let parts = parts_to_redo(bases, after, lock, current.clone().map(|c| c.is_some()), &game.region);
+        let parts = if sets_mode { PARTS.to_vec() } else { parts_to_redo(bases, after, lock, current.clone().map(|c| c.is_some()), &game.region) };
         if !parts.is_empty() {
             let g = GameArt { sys: sys.into(), title: game.title.clone(), file: game.file.clone(), region: game.region.clone(), dir: lib.dir_for(&sc, &game.file, app_root), base: art_base(&game.file), current };
             work.push((g, parts));
@@ -198,6 +200,7 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
     let st = Studio::new(&data_dir);
     let next = AtomicUsize::new(0);
     let (changed, not_found, failed, net_err, ok_net) = (AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0));
+    let (sets_full, sets_partial, sets_skipped) = (AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(locked));
     let offline = AtomicBool::new(false);
     let stop = || job.cancel.load(Ordering::Relaxed) || offline.load(Ordering::Relaxed);
     let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
@@ -216,6 +219,27 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
                 }
                 let (mut g, parts) = (work[i].0.clone(), &work[i].1);
                 let key = studio::lock_key(sys, &g.file);
+                if sets_mode {
+                    // a pick made while the job runs keeps the game as it is
+                    if PARTS.iter().any(|p| locked_now(&data_dir, &key, p, t0)) {
+                        sets_skipped.fetch_add(1, Ordering::Relaxed);
+                        job.done.fetch_add(1, Ordering::Relaxed);
+                        continue;
+                    }
+                    let region = after["region"].as_str().unwrap_or("usa");
+                    let lists = PARTS.map(|p| st.list_for(&g, p, remote.lock().unwrap().cands(&g, p, region, true, now()), now()));
+                    let want_hd = js::truthy(after.get("setsHd"));
+                    let set = build_sets(after, &g.region, &lists).into_iter().find(|x| if want_hd { x.hd } else { x.region == region && !x.hd });
+                    if let Some(Ok(done)) = set.map(|set| st.apply_set(&mut g, &set, now())) {
+                        changed.fetch_add(done.changed.len(), Ordering::Relaxed);
+                        ok_net.fetch_add(1, Ordering::Relaxed);
+                        sets_full.fetch_add(1, Ordering::Relaxed);
+                        job.done.fetch_add(1, Ordering::Relaxed);
+                        continue;
+                    }
+                    // no complete set: the style's look for each part, as a normal restyle
+                    sets_partial.fetch_add(1, Ordering::Relaxed);
+                }
                 for part in parts {
                     if stop() || locked_now(&data_dir, &key, part, t0) {
                         continue;
@@ -249,6 +273,11 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
     });
     if job.cancel.load(Ordering::Relaxed) && !offline.load(Ordering::Relaxed) {
         return format!("Stopped · {} picture{} changed", changed.load(Ordering::Relaxed), if changed.load(Ordering::Relaxed) == 1 { "" } else { "s" });
+    }
+    if sets_mode && !offline.load(Ordering::Relaxed) {
+        let s = |n: usize| if n == 1 { "" } else { "s" };
+        let full = sets_full.into_inner();
+        return format!("{full} full set{} · {} partly · {} skipped (locked)", s(full), sets_partial.into_inner(), sets_skipped.into_inner());
     }
     summary(changed.into_inner(), work.len(), not_found.into_inner(), failed.into_inner(), net_err.into_inner(), locked, offline.into_inner())
 }

@@ -710,7 +710,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   changed, was picked by hand (that pick gives way) or is missing gets the new look's best, a game locked as it is
   is left alone, and the old pictures go to `replaced`. Details → Box art → Complete sets offers a front, back, spine
   and disc that belong together (one region's LaunchBox, GameTDB or ScreenScraper scans, the best of each source for
-  a region, or the HD set; a back and spine cut from one scan first), puts all four in or none, and undoes it.
+  a region, or the HD set; a back and spine cut from one scan first), puts all four in or none, and undoes it. The
+  Complete sets style (a region's, or HD) gives every unlocked game its set, and a game with none its parts one by one.
 - Has the phone companion (Settings → Phone companion): the same page on the phone, served by the same rules as
   the Electron app's server (home-network addresses only, PIN pairing with its lockouts, tokens kept as hashes,
   pictures under random ids) and with the same `data\companion.json`, so a phone paired with one app stays paired
@@ -720,8 +721,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (the Complete sets shelf style,
-ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+rest of the Art Studio (ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.

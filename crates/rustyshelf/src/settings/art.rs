@@ -103,17 +103,34 @@ impl Settings {
 
     /// The row of a console's page that says which version of a box its games get.
     pub(super) fn art_style_row(&self, console: &str) -> Row {
-        // (a style's preset and, for a region's, the region)
-        const STYLES: [(&str, &str, &str); 6] = [("authentic", "", "Authentic: your copy's own box"), ("hd", "", "HD: the sharpest picture"), ("region", "usa", "USA boxes"), ("region", "eur", "European boxes"), ("region", "jpn", "Japanese boxes"), ("special", "", "Special editions")];
+        // (a style's preset, its region, and whether it's the HD sets)
+        const STYLES: [(&str, &str, bool, &str); 10] = [
+            ("authentic", "", false, "Authentic: your copy's own box"),
+            ("hd", "", false, "HD: the sharpest picture"),
+            ("region", "usa", false, "USA boxes"),
+            ("region", "eur", false, "European boxes"),
+            ("region", "jpn", false, "Japanese boxes"),
+            ("special", "", false, "Special editions"),
+            ("sets", "usa", false, "Complete sets · USA"),
+            ("sets", "eur", false, "Complete sets · Europe"),
+            ("sets", "jpn", false, "Complete sets · Japan"),
+            ("sets", "", true, "Complete sets · HD"),
+        ];
         let now = studio::style_for(&self.cfg, console);
-        let at = STYLES.iter().position(|s| now["preset"] == s.0 && (s.1.is_empty() || now["region"] == s.1));
+        let hd_sets = now["setsHd"] == true;
+        let at = STYLES.iter().position(|s| now["preset"] == s.0 && (s.1.is_empty() || now["region"] == s.1) && (s.0 != "sets" || hd_sets == s.2));
         let id = console.to_string();
         let turn = move |s: &mut Settings, d: i32| {
-            let (preset, region, _) = STYLES[(at.map_or(0, |a| a as i32 + d)).rem_euclid(STYLES.len() as i32) as usize];
+            let (preset, region, hd, _) = STYLES[(at.map_or(0, |a| a as i32 + d)).rem_euclid(STYLES.len() as i32) as usize];
             let mut style = studio::style_for(&s.cfg, &id);
             style["preset"] = json!(preset);
             if !region.is_empty() {
                 style["region"] = json!(region);
+            }
+            if preset == "sets" {
+                style["setsHd"] = json!(hd);
+            } else if let Some(o) = style.as_object_mut() {
+                o.remove("setsHd");
             }
             let base = rustyshelf_core::settings::default_art_style(s.cfg.get("ui"));
             let before = studio::style_for(&s.cfg, &id);
@@ -122,7 +139,7 @@ impl Settings {
         };
         let again = turn.clone();
         let running = self.art_pick.restyles.iter().find(|r| r.sys == console).map(|r| (r.job.done.load(Ordering::Relaxed), r.job.total.load(Ordering::Relaxed)));
-        let value = at.map_or("Set in the Electron app", |a| STYLES[a].2).to_string();
+        let value = at.map_or("Set in the Electron app", |a| STYLES[a].3).to_string();
         Row {
             label: "Box art style".into(),
             value: match running {
