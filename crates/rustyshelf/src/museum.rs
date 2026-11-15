@@ -158,6 +158,18 @@ pub struct Museum {
     frame_mat: Handle<StandardMaterial>,
     /// a game played from the museum, to come back to once it ends
     back_to: Option<BackTo>,
+    /// the reading corner: its racks, the issue chosen there instead of a case, the rack the wide view's frame is
+    /// on, the reading folder's items, and an issue's pages being made ready to read
+    rack: crate::rack::Rack,
+    rack_sel: Option<usize>,
+    wide_unit: Option<usize>,
+    reading: Vec<rustyshelf_core::reading::Item>,
+    opening: Option<std::sync::Mutex<std::sync::mpsc::Receiver<Result<Vec<std::path::PathBuf>, String>>>>,
+    /// a word under the wall for a moment (an issue that couldn't be opened), and until when
+    note: Option<(String, f32)>,
+    /// the reader is drawn over the museum while it's open; and was open last frame (its closing key isn't the museum's)
+    reader_here: bool,
+    reading_was: bool,
 }
 
 /// Where to come back to after a game played from the museum: where you stood in the arcade, if you were walking;
@@ -171,6 +183,12 @@ struct BackTo {
 impl Museum {
     /// Where the camera stands for the row and case in view, in the room.
     fn view(&self) -> (Vec3, Vec3) {
+        if let Some(p) = self.rack_sel.and_then(|i| self.rack.pieces.get(i)) {
+            let y = self.rows.get(p.row).map_or(0.0, |r| r.y);
+            let (at, turn) = self.walls[0];
+            let to_room = |v: Vec3| at + Quat::from_rotation_y(turn) * v;
+            return (to_room(Vec3::new(p.x, y - 0.03, 2.4)), to_room(Vec3::new(p.x, y - 0.06, 0.0)));
+        }
         let Some(r) = self.rows.get(self.row) else { return (Vec3::new(0.0, 0.0, 6.0), Vec3::ZERO) };
         let x = r.xs.get(self.col).copied().unwrap_or(0.0);
         let (at, turn) = self.walls[r.wall];
@@ -182,11 +200,15 @@ impl Museum {
     fn overview(&self, aspect: f32) -> (Vec3, Vec3) {
         let Some(r) = self.rows.get(self.row) else { return self.view() };
         let on: Vec<&Row> = self.rows.iter().filter(|o| o.wall == r.wall).collect();
-        let (l, rt) = (-0.55, on.iter().map(|o| o.end).fold(0.0, f32::max) + 0.55);
+        let rack_end = if r.wall == 0 { self.rack.units.last().map_or(0.0, |u| u.x1) } else { 0.0 };
+        let (l, rt) = (-0.55, on.iter().map(|o| o.end).fold(rack_end, f32::max) + 0.55);
         let h = on.len() as f32 * ROW + 1.1;
         let w = rt - l + 0.6;
         let cap = (26.0f32).max(h * aspect);
-        let focus = r.xs.get(self.col).copied().unwrap_or(0.0);
+        let focus = match self.wide_unit.and_then(|u| self.rack.units.get(u)) {
+            Some(u) => (u.x0 + u.x1) / 2.0,
+            None => r.xs.get(self.col).copied().unwrap_or(0.0),
+        };
         let x = if w > cap { focus.clamp(l - 0.3 + cap / 2.0, rt + 0.3 - cap / 2.0) } else { (l + rt) / 2.0 };
         let top = on.iter().map(|o| o.y).fold(f32::MIN, f32::max);
         let y = top - (on.len() as f32 - 1.0) * ROW / 2.0 + 0.15;
@@ -389,6 +411,31 @@ fn build(
         ));
         m.rows.push(Row { wall, shelf: si, name, games, sheets, xs, y, end, console: (x + 0.3 + console_w / 2.0, console_w), w: sw, painted: false, lamp_on: lit, plaque });
     }
+    // the Reading & media room has no game shelves: its rack's ledges are level with rows of their own
+    let media = m.plan.as_ref().and_then(|p| p.rooms.get(m.room)).filter(|r| r.kind == "media").map(|r| r.title.clone());
+    if let Some(title) = &media {
+        let most = m.reading.iter().filter(|i| i.kind == "guide").count().max(m.reading.iter().filter(|i| i.kind != "guide").count());
+        let lit = if m.intro.is_some() { 0.0 } else { 1.0 };
+        let n = most.div_ceil(3).clamp(4, 12);
+        for li in 0..n {
+            m.rows.push(Row { wall: 0, shelf: usize::MAX, name: title.clone(), games: Vec::new(), sheets: Vec::new(), xs: Vec::new(), y: -(li as f32) * ROW, end: 0.0, console: (0.0, 0.0), w: 1.0, painted: true, lamp_on: lit, plaque: Handle::default() });
+        }
+        on_wall[0] = n;
+    }
+    (m.rack, m.rack_sel, m.wide_unit) = (crate::rack::Rack::default(), None, None);
+    if m.plan.is_none() || media.is_some() {
+        let ledges: Vec<(usize, f32)> = m.rows.iter().enumerate().filter(|(_, r)| r.wall == 0).map(|(i, r)| (i, r.y)).collect();
+        let x0 = if media.is_some() { 0.5 } else { m.rows.iter().filter(|r| r.wall == 0).map(|r| r.end).fold(0.0, f32::max) + 0.89 };
+        let items = m.reading.iter().take(rustyshelf_core::museum_plan::MEDIA_CAP).cloned().collect();
+        m.rack = crate::rack::build(commands, parents[0], &ledges, x0, items, rustyshelf_core::reading::cache_dir(&lib.app_root), &m.lang, layer(), meshes, materials, covers, loader);
+        if let Some(u) = m.rack.units.last() {
+            widest = widest.max(u.x1 + 0.8);
+            wall_w[0] = wall_w[0].max(u.x1 + 0.8);
+        }
+        if media.is_some() {
+            m.wide_unit = Some(0);
+        }
+    }
     // each wall's panel behind its rows (a room's are its own width; the classic wall runs on); one floor for the room
     let tallest = on_wall.iter().copied().max().unwrap_or(1).max(1) as f32;
     for (k, &n) in on_wall.iter().enumerate() {
@@ -546,7 +593,7 @@ fn paint(m: &mut Museum, lib: &rustyshelf_core::library::Library, covers: &mut C
         if std::mem::replace(&mut r.painted, true) {
             continue;
         }
-        let s = &lib.shelves[r.shelf];
+        let Some(s) = lib.shelves.get(r.shelf) else { continue };
         for (k, &gi) in r.games.iter().enumerate() {
             let g = &s.games[gi];
             let look = looks::look_for(&s.id, g);
@@ -597,6 +644,7 @@ pub struct Wall<'w, 's> {
     lights: Query<'w, 's, (&'static RowLight, &'static mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
     card: Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
     frame: Query<'w, 's, (&'static FrameSide, &'static mut Transform, &'static mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
+    pieces: Query<'w, 's, (&'static crate::rack::RackPiece, &'static mut Transform), (Without<FrameSide>, Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
 }
 
 /// What has the keys instead (a game running, Inspect, the manual reader), and the shelf's camera, which rests
@@ -608,6 +656,7 @@ pub struct Others<'w, 's> {
     reader: Res<'w, crate::reader::Reader>,
     shelf_camera: Query<'w, 's, &'static mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
     plays: Res<'w, crate::play::Plays>,
+    reader_root: Query<'w, 's, (Entity, &'static crate::reader::Part)>,
 }
 
 /// Opens the museum (M on the shelf), takes the keys while it's open, and moves through it.
@@ -636,6 +685,17 @@ pub fn run(
     let now = time.elapsed_secs();
     let m = &mut *museum;
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
+    let reader_root = others.reader_root.iter().find(|(_, p)| matches!(p, crate::reader::Part::Whole)).map(|(e, _)| e);
+    if m.open != m.reader_here {
+        if let (Some(root), Some(cam)) = (reader_root, m.camera) {
+            if m.open {
+                commands.entity(root).insert(UiTargetCamera(cam));
+            } else {
+                commands.entity(root).remove::<UiTargetCamera>();
+            }
+            m.reader_here = m.open;
+        }
+    }
     if !m.open {
         let mut reopen = false;
         if let Some(b) = m.back_to.as_mut() {
@@ -664,6 +724,8 @@ pub fn run(
             m.grouping = l.config.raw().get("ui").and_then(|u| u.get("museumStyle")).and_then(|x| x.get("grouping")).and_then(|g| g.as_str()).unwrap_or("classic").to_string();
             m.kept = kept(l, &others.plays.0);
             let ui = l.config.raw().get("ui");
+            let reading_root = rustyshelf_core::reading::root(ui.and_then(|u| u.get("readingLibrary")).and_then(|v| v.as_str()), &l.app_root);
+            m.reading = rustyshelf_core::reading::scan(&reading_root);
             m.lang = ui.and_then(|u| u.get("language")).and_then(|v| v.as_str()).unwrap_or("en").to_string();
             let favs: std::collections::HashSet<&str> = ui.and_then(|u| u.get("favorites")).and_then(|f| f.as_array()).map(|f| f.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
             let sort = ui.and_then(|u| u.get("sort")).and_then(|v| v.as_str()).unwrap_or("az");
@@ -720,6 +782,23 @@ pub fn run(
         return;
     }
     settings.keys_taken = true;
+    m.rack.poll(covers, loader, materials);
+    let ready = m.opening.as_ref().and_then(|o| o.lock().ok()?.try_recv().ok());
+    if let Some(pages) = ready {
+        m.opening = None;
+        match pages {
+            Ok(files) if !files.is_empty() => settings.manual = Some(files),
+            Ok(_) => m.note = Some((rustyshelf_core::i18n::tr(&m.lang, "No pages in it"), now + 3.0)),
+            Err(e) => m.note = Some((format!("{}: {e}", rustyshelf_core::i18n::tr(&m.lang, "It couldn't be opened")), now + 4.0)),
+        }
+    }
+    if others.reader.is_open() || settings.manual.is_some() {
+        m.reading_was = true;
+        return;
+    }
+    if std::mem::take(&mut m.reading_was) {
+        return;
+    }
     if m.walk.is_some() {
         return walk_on(&mut commands, m, l, &time, &keys, &pads, &settings, &mut cursor, &mut sounds, (covers, loader, meshes, materials, images), &mut camera, &things, &mut text, &mut others.shelf_camera);
     }
@@ -788,10 +867,11 @@ pub fn run(
             return;
         }
     }
-    // another room: [ and ], or L1 and R1 (the media room has no shelves yet: it's passed by)
+    // another room: [ and ], or L1 and R1
     let to_room = (keys.just_pressed(KeyCode::BracketRight) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::BracketLeft) || pad(GamepadButton::LeftTrigger)) as i32;
-    if let Some(n) = m.plan.as_ref().map(|p| p.rooms.iter().filter(|r| !r.segments.is_empty()).count()).filter(|n| *n > 1 && to_room != 0) {
-        let rooms: Vec<usize> = m.plan.as_ref().map(|p| p.rooms.iter().enumerate().filter(|(_, r)| !r.segments.is_empty()).map(|(i, _)| i).collect()).unwrap_or_default();
+    let shown = |r: &&rustyshelf_core::museum_plan::Room| !r.segments.is_empty() || r.kind == "media";
+    if let Some(n) = m.plan.as_ref().map(|p| p.rooms.iter().filter(shown).count()).filter(|n| *n > 1 && to_room != 0) {
+        let rooms: Vec<usize> = m.plan.as_ref().map(|p| p.rooms.iter().enumerate().filter(|(_, r)| shown(r)).map(|(i, _)| i).collect()).unwrap_or_default();
         let at = rooms.iter().position(|&i| i == m.room).unwrap_or(0) as i32;
         m.room = rooms[(at + to_room).rem_euclid(n as i32) as usize];
         for (e, _) in things.iter().filter(|(_, hud)| !hud) {
@@ -809,6 +889,9 @@ pub fn run(
     }
     if back {
         m.wide = true;
+        if let Some(p) = m.rack_sel.take().and_then(|i| m.rack.pieces.get(i)) {
+            m.wide_unit = Some(p.unit);
+        }
         sounds.play("slideBack", 1);
         return;
     }
@@ -829,8 +912,18 @@ pub fn run(
         m.repeat_at = 0.0;
     } else if fresh || m.repeat_at == 0.0 || now >= m.repeat_at {
         m.repeat_at = now + if fresh || m.repeat_at == 0.0 { 0.38 } else { 0.09 };
-        if m.wide {
-            // up and down the shelves on this wall; left and right to the room's other walls
+        if let (true, Some(u)) = (m.wide, m.wide_unit) {
+            // the frame on a rack: left and right between the racks, back to the shelves past the first
+            let to = u as i32 + held.x.signum() as i32;
+            if held.x != 0.0 && to >= 0 && (to as usize) < m.rack.units.len() {
+                m.wide_unit = Some(to as usize);
+                sounds.play("tick", held.x as i32);
+            } else if to < 0 && m.rows.iter().any(|r| !r.games.is_empty() && r.wall == 0) {
+                m.wide_unit = None;
+                sounds.play("tick", -1);
+            }
+        } else if m.wide {
+            // up and down the shelves on this wall; left and right to the room's other walls, then the racks
             let wall = m.rows[m.row].wall;
             let to = if held.y != 0.0 {
                 let on: Vec<usize> = (0..m.rows.len()).filter(|&i| m.rows[i].wall == wall).collect();
@@ -843,6 +936,10 @@ pub fn run(
                     found = m.rows.iter().position(|r| r.wall == w as usize);
                     w += held.x.signum() as i32;
                 }
+                if found.is_none() && held.x > 0.0 && wall == 0 && !m.rack.units.is_empty() {
+                    m.wide_unit = Some(0);
+                    sounds.play("tick", 1);
+                }
                 found
             };
             if let Some(to) = to.filter(|&t| t != m.row) {
@@ -852,6 +949,35 @@ pub fn run(
                 m.col = m.rows[to].xs.iter().enumerate().min_by(|a, b| (a.1 - x).abs().total_cmp(&(b.1 - x).abs())).map_or(0, |(i, _)| i);
                 sounds.play(if wall_changed { "slide" } else { "tick" }, if held.y != 0.0 { held.y as i32 } else { held.x as i32 });
                 paint(m, l, covers, loader, materials);
+            }
+        } else if let Some(i) = m.rack_sel {
+            let p = &m.rack.pieces[i];
+            if held.y != 0.0 {
+                // the nearest issue on the next ledge up or down that has any
+                let (x, mut row) = (p.x, p.row as i32);
+                loop {
+                    row += held.y.signum() as i32;
+                    if row < 0 || row as usize >= m.rows.len() {
+                        break;
+                    }
+                    let on = m.rack.on_row(row as usize);
+                    if let Some(&to) = on.iter().min_by(|a, b| (m.rack.pieces[**a].x - x).abs().total_cmp(&(m.rack.pieces[**b].x - x).abs())) {
+                        (m.rack_sel, m.row) = (Some(to), row as usize);
+                        sounds.play("shelf", held.y as i32);
+                        break;
+                    }
+                }
+            } else {
+                let on = m.rack.on_row(p.row);
+                let at = on.iter().position(|&k| k == i).unwrap_or(0) as i32 + held.x.signum() as i32;
+                if at >= 0 && (at as usize) < on.len() {
+                    m.rack_sel = Some(on[at as usize]);
+                    sounds.play("tick", held.x as i32);
+                } else if at < 0 && !m.rows[p.row].games.is_empty() {
+                    // past the first issue: back to the shelf's cases
+                    (m.rack_sel, m.row, m.col) = (None, p.row, m.rows[p.row].games.len() - 1);
+                    sounds.play("tick", -1);
+                }
             }
         } else if held.y != 0.0 {
             let to = (m.row as i32 + held.y.signum() as i32).clamp(0, m.rows.len() as i32 - 1) as usize;
@@ -868,15 +994,50 @@ pub fn run(
             if to != m.col {
                 m.col = to;
                 sounds.play("tick", held.x as i32);
+            } else if held.x > 0.0 && m.rows[m.row].wall == 0 {
+                // past the last case: on to the reading corner's issues on this ledge
+                if let Some(&first) = m.rack.on_row(m.row).first() {
+                    m.rack_sel = Some(first);
+                    sounds.play("tick", 1);
+                }
             }
         }
         m.moved_at = now;
     }
-    if m.wide && (keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0)) {
-        m.wide = false;
+    let confirm = keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0);
+    if m.wide && confirm {
+        if let Some(u) = m.wide_unit {
+            // into a rack: its first issue, top left
+            let first = (0..m.rack.pieces.len()).filter(|&i| m.rack.pieces[i].unit == u).min_by(|a, b| {
+                let (pa, pb) = (&m.rack.pieces[*a], &m.rack.pieces[*b]);
+                pa.row.cmp(&pb.row).then(pa.x.total_cmp(&pb.x))
+            });
+            if let Some(i) = first {
+                (m.rack_sel, m.row, m.wide, m.wide_unit) = (Some(i), m.rack.pieces[i].row, false, None);
+                sounds.play("slide", 1);
+            }
+        } else if !m.rows[m.row].games.is_empty() {
+            m.wide = false;
+            sounds.play("slide", 1);
+        }
         m.moved_at = now;
-        sounds.play("slide", 1);
-    } else if keys.just_pressed(KeyCode::Enter) || pad(settings.confirm().0) {
+    } else if let (true, Some(i)) = (confirm, m.rack_sel) {
+        // an issue: its pages made ready off the frame (a PDF's drawn, an archive's taken out), then the reader
+        if m.opening.is_none() {
+            let item = m.rack.pieces[i].item.clone();
+            let cache = rustyshelf_core::reading::cache_dir(&l.app_root);
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let pages = rustyshelf_core::reading::pages(&item, &cache).and_then(|p| match p {
+                    rustyshelf_core::reading::Pages::Images(files) => Ok(files),
+                    rustyshelf_core::reading::Pages::Pdf(_) => rustyshelf_core::reading::pdf_images(&item, &cache),
+                });
+                let _ = tx.send(pages);
+            });
+            m.opening = Some(std::sync::Mutex::new(rx));
+            sounds.play("lift", 1);
+        }
+    } else if confirm {
         let r = &m.rows[m.row];
         (cursor.shelf, cursor.game, cursor.land) = (r.shelf, r.games[m.col], false);
         settings.play = true;
@@ -885,7 +1046,7 @@ pub fn run(
     }
     // the chosen case's cover, once it has stood still a moment
     let chosen = (m.row, m.col);
-    if m.shown_front != Some(chosen) && now - m.moved_at > 0.2 {
+    if m.shown_front != Some(chosen) && now - m.moved_at > 0.2 && m.rack_sel.is_none() && !m.rows[m.row].games.is_empty() {
         m.shown_front = Some(chosen);
         let r = &m.rows[m.row];
         let s = &l.shelves[r.shelf];
@@ -898,7 +1059,7 @@ pub fn run(
     }
     // the chosen case slides out and turns its cover to you; the camera follows
     let dt = time.delta_secs();
-    let settle = now - m.moved_at > 0.15 && !m.wide;
+    let settle = now - m.moved_at > 0.15 && !m.wide && m.rack_sel.is_none();
     m.pull = if settle { (m.pull + dt * 3.0).min(1.0) } else { (m.pull - dt * 6.0).max(0.0) };
     let mut chosen_at = Vec3::ZERO;
     for (c, mut t) in &mut wall.cases {
@@ -911,6 +1072,13 @@ pub fn run(
         }
     }
     show_card(m, l, chosen_at, dt, materials, images, &mut wall.card);
+    let lean = 1.0 - (-dt * 8.0).exp();
+    for (piece, mut t) in &mut wall.pieces {
+        let Some(p) = m.rack.pieces.get(piece.0) else { continue };
+        let want = crate::rack::home(p.x, m.rows.get(p.row).map_or(0.0, |r| r.y), m.rack_sel == Some(piece.0) && !m.wide);
+        t.translation = t.translation.lerp(want.translation, lean);
+        t.rotation = t.rotation.slerp(want.rotation, lean);
+    }
     let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
     let (eye, look) = if m.wide { m.overview(aspect) } else { m.view() };
     let f = 1.0 - (-dt * 5.0).exp();
@@ -925,13 +1093,28 @@ pub fn run(
     show_frame(m, now, dt, materials, &mut wall.frame);
     if let Ok(mut text) = text.single_mut() {
         let r = &m.rows[m.row];
-        let g = &l.shelves[r.shelf].games[r.games[m.col]];
         let room = m.room_title().map(|t| format!("{t}  ·  ")).unwrap_or_default();
         let tr = |t: &str| rustyshelf_core::i18n::tr(&m.lang, t);
         let n = r.games.len();
-        text.0 = if m.wide {
+        let unit = m.wide_unit.and_then(|u| m.rack.units.get(u).map(|x| (u, x)));
+        let piece = m.rack_sel.and_then(|i| m.rack.pieces.get(i));
+        let note = m.note.as_ref().filter(|(_, until)| now < *until).map(|(t, _)| t.clone());
+        text.0 = if let Some(note) = note {
+            note
+        } else if let (true, Some((u, x))) = (m.wide, unit) {
+            let k = m.rack.pieces.iter().filter(|p| p.unit == u).count();
+            format!("{room}{}  ·  {}\n{}", tr(x.label), tr(&if k == 1 { "1 issue".to_string() } else { format!("{k} issues") }), tr("Enter  Zoom in  ·  Esc  Leave"))
+        } else if let Some(p) = piece {
+            let it = &p.item;
+            let what = if m.opening.is_some() { tr("Opening…") } else { tr("Enter  Read") };
+            let series = if it.series.is_empty() { String::new() } else { format!("  ·  {}", it.series) };
+            format!("{}{series}\n{room}{what}", it.title)
+        } else if r.games.is_empty() {
+            r.name.clone()
+        } else if m.wide {
             format!("{room}{}  ·  {}\n{}", r.name, tr(&if n == 1 { "1 game".to_string() } else { format!("{n} games") }), tr("Enter  Zoom in  ·  Esc  Leave"))
         } else {
+            let g = &l.shelves[r.shelf].games[r.games[m.col]];
             format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, n)
         };
     }
@@ -939,8 +1122,16 @@ pub fn run(
 
 /// The wide view's frame: it eases to the shelf in view and breathes softly; gone when you zoom in.
 fn show_frame(m: &mut Museum, now: f32, dt: f32, materials: &mut Assets<StandardMaterial>, sides: &mut Query<(&FrameSide, &mut Transform, &mut Visibility), (Without<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>) {
-    let want = m.frame_of(m.row);
-    let wall = m.rows.get(m.row).map_or(0, |r| r.wall);
+    let unit = m.wide_unit.and_then(|u| m.rack.units.get(u));
+    let want = match unit {
+        Some(u) => {
+            let ys = m.rows.iter().filter(|r| r.wall == 0).map(|r| r.y);
+            let (top, bottom) = ys.fold((f32::MIN, f32::MAX), |(t, b), y| (t.max(y), b.min(y)));
+            [u.x0 - 0.16, u.x1 + 0.16, bottom - 0.5 - 0.1, top + ROW - 0.5 + 0.1]
+        }
+        None => m.frame_of(m.row),
+    };
+    let wall = if unit.is_some() { 0 } else { m.rows.get(m.row).map_or(0, |r| r.wall) };
     let snap = m.frame_k < 0.05 || wall != m.frame_wall;
     let k = if snap { 1.0 } else { 1.0 - (-dt * 14.0).exp() };
     for (a, b) in m.frame.iter_mut().zip(want) {
@@ -980,7 +1171,7 @@ fn show_card(
     card: &mut Query<(&mut Transform, &mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
 ) {
     let sel = (m.row, m.col);
-    let Some(r) = m.rows.get(m.row) else { return };
+    let Some(r) = m.rows.get(m.row).filter(|r| !r.games.is_empty()) else { return };
     let (wall_at, turn) = m.walls[r.wall];
     let Some(parts) = m.card.as_mut() else { return };
     if parts.asked != Some(sel) && m.pull > 0.5 {

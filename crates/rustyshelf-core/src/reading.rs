@@ -377,6 +377,78 @@ pub fn cover(it: &Item, cache: &Path, back: bool) -> Result<Option<PathBuf>, Str
     }
 }
 
+/// A PDF's pages as JPEGs for the reader, drawn once into `<cache>/<id>-<mtime>-pdf/`.
+pub fn pdf_images(it: &Item, cache: &Path) -> Result<Vec<PathBuf>, String> {
+    let out = cache.join(format!("{}-{}-pdf", it.id, it.mtime));
+    let list = |dir: &Path| images_under(dir);
+    if out.join(".done").exists() {
+        touch(&out);
+        return Ok(list(&out));
+    }
+    let pdf = fs::read(&it.path).map_err(|e| e.to_string())?;
+    let n = crate::pdfpages::count(&pdf).ok_or("not a PDF that can be read")?;
+    let _ = fs::remove_dir_all(&out);
+    fs::create_dir_all(&out).map_err(|e| e.to_string())?;
+    for (i, jpeg) in crate::pdfpages::pages(&pdf, 1400, n.min(1500), false)?.into_iter().enumerate() {
+        fs::write(out.join(format!("{:04}.jpg", i + 1)), jpeg).map_err(|e| e.to_string())?;
+    }
+    fs::write(out.join(".done"), "").map_err(|e| e.to_string())?;
+    Ok(list(&out))
+}
+
+// Which box a magazine or guide goes in: the magazine's brand (every Xbox magazine together, whatever the issue or
+// folder is called), a guide's publisher; anything not recognised falls back to its folder.
+const MAG_BRANDS: [(&str, &str); 14] = [
+    (r"(?i)nintendo power", "Nintendo Power"),
+    (r"(?i)game ?informer", "Game Informer"),
+    (r"(?i)electronic gaming monthly|\begm\b", "EGM"),
+    (r"(?i)\bgame ?pro\b", "GamePro"),
+    (r"(?i)\bgame ?fan\b", "GameFan"),
+    (r"(?i)pc gamer", "PC Gamer"),
+    (r"(?i)computer gaming world|\bcgw\b", "Computer Gaming World"),
+    (r"(?i)next generation", "Next Generation"),
+    (r"(?i)retro ?gamer", "Retro Gamer"),
+    (r"(?i)\bign\b", "IGN"),
+    (r"(?i)\bxbox\b", "Xbox"),
+    (r"(?i)playstation|\bps[1-5]\b|\bopm\b", "PlayStation"),
+    (r"(?i)\bnintendo\b|\bn64\b|gamecube|\bngc\b|\bwii\b|\bswitch\b", "Nintendo"),
+    (r"(?i)\bsega\b|dreamcast|\bsaturn\b|mega ?drive|genesis", "Sega"),
+];
+const GUIDE_BRANDS: [(&str, &str); 7] = [
+    (r"(?i)nintendo power", "Nintendo Power"),
+    (r"(?i)\bprima\b", "Prima"),
+    (r"(?i)\bbrady", "BradyGames"),
+    (r"(?i)piggyback", "Piggyback"),
+    (r"(?i)versus books", "Versus Books"),
+    (r"(?i)future ?press", "Future Press"),
+    (r"(?i)doublejump", "DoubleJump"),
+];
+
+/// The brand or publisher an item is grouped under in the reading corner, else its series.
+pub fn group_of(it: &Item) -> String {
+    static RES: std::sync::LazyLock<[Vec<(regex::Regex, &str)>; 2]> = std::sync::LazyLock::new(|| {
+        let make = |l: &[(&str, &'static str)]| l.iter().map(|(re, name)| (regex::Regex::new(re).expect("a brand's pattern"), *name)).collect();
+        [make(&MAG_BRANDS), make(&GUIDE_BRANDS)]
+    });
+    let t = format!("{} {}", it.series, it.title);
+    let list = &RES[usize::from(it.kind == "guide")];
+    list.iter().find(|(re, _)| re.is_match(&t)).map_or_else(|| it.series.clone(), |(_, name)| name.to_string())
+}
+
+/// The year in a title (1950 to 2049), or 0.
+pub fn year_of(title: &str) -> u32 {
+    static YEAR: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"\b(19[5-9]\d|20[0-4]\d)\b").expect("the year pattern"));
+    YEAR.captures(title).and_then(|c| c[1].parse().ok()).unwrap_or(0)
+}
+
+/// The order a rack shows its items in: by brand (none last), then year, then title.
+pub fn rack_order(items: &mut [Item]) {
+    items.sort_by(|a, b| {
+        let (ga, gb) = (group_of(a), group_of(b));
+        ga.is_empty().cmp(&gb.is_empty()).then_with(|| natural(&ga, &gb)).then(year_of(&a.title).cmp(&year_of(&b.title))).then_with(|| natural(&a.title, &b.title))
+    });
+}
+
 fn size_of(p: &Path) -> u64 {
     let Ok(meta) = fs::symlink_metadata(p) else { return 0 };
     if !meta.is_dir() {
@@ -472,6 +544,20 @@ mod tests {
         out.extend(at.to_le_bytes());
         out.extend([0, 0]);
         out
+    }
+
+    fn item(kind: &'static str, series: &str, title: &str) -> Item {
+        Item { id: String::new(), kind, kind_of: Type::Pdf, title: title.into(), series: series.into(), path: PathBuf::new(), mtime: 0, pages: None }
+    }
+
+    #[test]
+    fn issues_are_grouped_by_brand_then_year() {
+        assert_eq!(group_of(&item("magazine", "Scans", "Official Xbox Magazine 2004-05")), "Xbox");
+        assert_eq!(group_of(&item("magazine", "My folder", "Issue 3")), "My folder");
+        assert_eq!(group_of(&item("guide", "", "Zelda Prima Official Guide")), "Prima");
+        let mut l = vec![item("magazine", "", "Loose 1999"), item("magazine", "", "Nintendo Power 1995"), item("magazine", "", "Nintendo Power 1992")];
+        rack_order(&mut l);
+        assert_eq!(l.iter().map(|i| i.title.as_str()).collect::<Vec<_>>(), ["Nintendo Power 1992", "Nintendo Power 1995", "Loose 1999"]);
     }
 
     #[test]

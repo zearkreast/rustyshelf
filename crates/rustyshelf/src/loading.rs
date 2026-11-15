@@ -250,6 +250,10 @@ pub enum Art {
     Tabs { labels: Vec<(String, u32)>, tall: u32 },
     /// an arcade cabinet's marquee
     Marquee { title: String },
+    /// the reading corner's: a magazine's or guide's stand-in cover, a rack's name plate, an empty rack's note
+    RackCover { guide: bool, title: String, series: String },
+    NamePlate { label: String },
+    RackNote { heading: [String; 2], lines: Vec<String> },
 }
 
 impl Art {
@@ -268,6 +272,9 @@ impl Art {
             Art::Plaque { name, lines } => PathBuf::from(format!("drawn:plaque|{name}|{}", lines.join("|"))),
             Art::Tabs { labels, tall } => PathBuf::from(format!("drawn:tabs|{tall}|{}", labels.iter().map(|(l, w)| format!("{l}:{w}")).collect::<Vec<_>>().join("|"))),
             Art::Marquee { title } => PathBuf::from(format!("drawn:marquee|{title}")),
+            Art::RackCover { guide, title, series } => PathBuf::from(format!("drawn:rackcover|{guide}|{title}|{series}")),
+            Art::NamePlate { label } => PathBuf::from(format!("drawn:plate|{label}")),
+            Art::RackNote { heading, lines } => PathBuf::from(format!("drawn:racknote|{}|{}", heading.join("|"), lines.join("|"))),
         }
     }
 
@@ -292,6 +299,9 @@ impl Art {
             Art::Plaque { name, lines } => drawn(rustyshelf_core::drawn::plaque(name, lines)),
             Art::Tabs { labels, tall } => drawn(rustyshelf_core::drawn::tabs(labels, *tall)),
             Art::Marquee { title } => drawn(rustyshelf_core::drawn::marquee(title)),
+            Art::RackCover { guide, title, series } => drawn(rustyshelf_core::drawn::rack_cover(*guide, title, series)),
+            Art::NamePlate { label } => drawn(rustyshelf_core::drawn::name_plate(label)),
+            Art::RackNote { heading, lines } => drawn(rustyshelf_core::drawn::rack_note([&heading[0], &heading[1]], lines)),
         }
     }
 }

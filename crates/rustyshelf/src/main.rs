@@ -12,6 +12,7 @@ mod hud;
 mod idle;
 mod loading;
 mod museum;
+mod rack;
 mod music;
 mod osk;
 mod padwatch;

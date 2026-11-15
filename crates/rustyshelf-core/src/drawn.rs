@@ -917,6 +917,52 @@ pub fn marquee(title: &str) -> Picture {
     picture(c)
 }
 
+/// A magazine's or guide's cover until its own is ready, 384 × 512: its kind, its title and its series.
+pub fn rack_cover(guide: bool, title: &str, series: &str) -> Picture {
+    let (w, h) = (384.0, 512.0);
+    let mut c = Canvas { pix: Pixmap::new(384, 512).expect("a cover's size"), clip: None, t: Transform::identity() };
+    let (top, bottom) = if guide { (rgba(0x1d, 0x33, 0x54, 1.0), rgba(0x0c, 0x16, 0x26, 1.0)) } else { (rgba(0x5a, 0x16, 0x20, 1.0), rgba(0x22, 0x08, 0x0c, 1.0)) };
+    c.rect(0.0, 0.0, w, h, &fade(0.0, h, top, bottom));
+    c.rect(0.0, 0.0, w, 64.0, &solid(rgba(255, 255, 255, 0.12)));
+    let white = solid(rgba(255, 255, 255, 1.0));
+    c.text(Face::Lexend(2), if guide { "GUIDE" } else { "MAGAZINE" }, 26.0, 22.0, 33.0 + below_middle(Face::Lexend(2), 26.0), 0.0, &white);
+    for (i, line) in wrap(Face::Lexend(2), title, 34.0, w - 44.0).iter().take(7).enumerate() {
+        c.text(Face::Lexend(2), line, 34.0, 22.0, 130.0 + i as f32 * 46.0 + below_middle(Face::Lexend(2), 34.0), 0.0, &white);
+    }
+    if !series.is_empty() {
+        let short: String = series.chars().take(30).collect();
+        c.text(Face::Lexend(1), &short, 22.0, 22.0, h - 40.0 + below_middle(Face::Lexend(1), 22.0), 0.0, &solid(rgba(255, 255, 255, 0.7)));
+    }
+    picture(c)
+}
+
+/// The engraved brass plate on a rack's crown, 1040 × 160.
+pub fn name_plate(label: &str) -> Picture {
+    let (w, h) = (1040.0, 160.0);
+    let mut c = Canvas { pix: Pixmap::new(1040, 160).expect("a plate's size"), clip: None, t: Transform::identity() };
+    let stops = vec![GradientStop::new(0.0, rgba(0xe2, 0xc4, 0x86, 1.0)), GradientStop::new(0.5, rgba(0xb8, 0x92, 0x4f, 1.0)), GradientStop::new(1.0, rgba(0x8a, 0x6a, 0x34, 1.0))];
+    let shader = LinearGradient::new(Point::from_xy(0.0, 0.0), Point::from_xy(0.0, h), stops, SpreadMode::Pad, Transform::identity()).unwrap_or(Shader::SolidColor(rgba(0xb8, 0x92, 0x4f, 1.0)));
+    c.rect(0.0, 0.0, w, h, &Paint { shader, anti_alias: true, ..Paint::default() });
+    c.stroke(Rect::from_xywh(10.0, 10.0, w - 20.0, h - 20.0).map(PathBuilder::from_rect), &solid(rgba(60, 40, 10, 0.6)), &width(6.0));
+    c.text(Face::Lexend(2), label, 78.0, w / 2.0, h / 2.0 + 4.0 + below_middle(Face::Lexend(2), 78.0), 0.5, &solid(rgba(0x2a, 0x1c, 0x08, 1.0)));
+    picture(c)
+}
+
+/// The card on an empty rack, 640 × 820: its heading on two lines, then what to do, a line each.
+pub fn rack_note(heading: [&str; 2], lines: &[String]) -> Picture {
+    let (w, h) = (640.0, 820.0);
+    let mut c = Canvas { pix: Pixmap::new(640, 820).expect("a card's size"), clip: None, t: Transform::identity() };
+    c.rect(0.0, 0.0, w, h, &solid(rgba(0xef, 0xe6, 0xd2, 1.0)));
+    c.stroke(Rect::from_xywh(18.0, 18.0, w - 36.0, h - 36.0).map(PathBuilder::from_rect), &solid(rgba(0xb8, 0x92, 0x4f, 1.0)), &width(10.0));
+    let ink = solid(rgba(0x2a, 0x1c, 0x08, 1.0));
+    c.text(Face::Lexend(2), heading[0], 54.0, w / 2.0, 200.0, 0.5, &ink);
+    c.text(Face::Lexend(2), heading[1], 54.0, w / 2.0, 266.0, 0.5, &ink);
+    for (i, line) in lines.iter().enumerate() {
+        c.text(Face::Lexend(1), line, 38.0, w / 2.0, 420.0 + i as f32 * 58.0, 0.5, &solid(rgba(0x4a, 0x3a, 0x20, 1.0)));
+    }
+    picture(c)
+}
+
 /// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).
 fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
     let r = (((12.0 * sigma * sigma / 3.0 + 1.0).sqrt() - 1.0) / 2.0).round().max(1.0) as usize;
