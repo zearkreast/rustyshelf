@@ -2664,3 +2664,31 @@ fn museum_plans_match_electron() {
         }
     }
 }
+
+#[test]
+fn the_reading_corner_lists_as_the_js_does() {
+    use rustyshelf_core::reading::{id_of, scan, Type};
+    let fx = fixture("reading.json");
+    let root = tempfile::tempdir().unwrap();
+    for f in fx["files"].as_array().unwrap() {
+        let p = root.path().join(f.as_str().unwrap());
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, "x").unwrap();
+    }
+    let got: Vec<serde_json::Value> = scan(root.path())
+        .into_iter()
+        .map(|i| {
+            let rel = i.path.strip_prefix(root.path()).unwrap().to_string_lossy().replace('\\', "/");
+            let kind_of = match i.kind_of {
+                Type::Pdf => "pdf",
+                Type::Archive => "arch",
+                Type::Dir => "dir",
+            };
+            serde_json::json!({ "rel": rel, "kind": i.kind, "type": kind_of, "title": i.title, "series": i.series, "pages": i.pages })
+        })
+        .collect();
+    assert_eq!(got, fx["items"].as_array().unwrap().clone());
+    for pair in fx["ids"].as_array().unwrap() {
+        assert_eq!(id_of(std::path::Path::new(pair[0].as_str().unwrap())), pair[1].as_str().unwrap());
+    }
+}

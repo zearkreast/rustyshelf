@@ -1760,11 +1760,29 @@ function manualstudioFixtures() {
   out.ranks = ['best', 'region:eur', 'region:jpn', 'lang:fr', 'lang:de', '', 'weird'].map(pref => [pref, cands.map(c => [T.rank(c, pref, expect), T.completeness(c, expect)])]);
   return out;
 }
+// the reading corner's listing (main/library.js): each item's place under the reading folder, title, series and type,
+// and the ids of a few full paths
+function readingFixtures() {
+  const paths = require('../main/paths'), library = require('../main/library');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-read-'));
+  const files = ['Magazines/Nintendo_Power/Issue_002.pdf', 'Magazines/Nintendo_Power/Issue_010.cbz', 'Magazines/Nintendo_Power/Issue 10 scans/01.jpg', 'Magazines/Nintendo_Power/Issue 10 scans/02.jpg',
+    'Magazines/EGM/1993/EGM.v2.pdf', 'Magazines/one-image/cover.png', 'Magazines/notes.txt', 'Magazines/.hidden.pdf', 'Guides/Zelda Guide.cbr', 'Guides/a/b/c/d/Too deep.pdf', 'Guides/a/b/c/Deep enough.pdf'];
+  for (const f of files) { fs.mkdirSync(path.dirname(path.join(root, f)), { recursive: true }); fs.writeFileSync(path.join(root, f), 'x'); }
+  paths.setReadingLibrary(root);
+  const items = library.scan().map(i => ({ rel: path.relative(root, i.path).split(path.sep).join('/'), kind: i.kind, type: i.type, title: i.title, series: i.series, pages: i.pages || null }));
+  paths.setReadingLibrary('');
+  fs.rmSync(root, { recursive: true, force: true });
+  const ids = ['/home/x/RustyShelf/Magazines/Nintendo Power/Issue 001.pdf', '/Mixed/CASE/Guides/Zelda.CBZ'].map(p => {
+    let id = null; library.setCacheRoot(os.tmpdir()); try { const st = fs.statSync; fs.statSync = () => ({ mtimeMs: 0 }); id = path.basename(library.coverPath(p)).slice(0, 16); fs.statSync = st; } catch {} return [p, id];
+  });
+  return { files, items, ids };
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'museumplan.json'), JSON.stringify(museumPlanFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'reading.json'), JSON.stringify(readingFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'i18n.json'), JSON.stringify([...['fr', 'tr'].map(i18nFixtures), i18nPtFixtures()], null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamach.json'), JSON.stringify(await steamachFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');

@@ -101,6 +101,8 @@ enum Screen {
     Storage,
     /// which drives a search looks through as well as the usual places (Windows)
     Drives,
+    /// the museum's reading corner: where the magazines and guides are kept
+    Reading,
     /// the chosen game's box art, part by part; and one part's versions
     Art,
     ArtPart,
@@ -147,6 +149,7 @@ enum Pick {
     Steam,
     GamesDir,
     ArtLibrary,
+    ReadingLibrary,
     ArtDir(String),
     CustomGame,
     ExportTo,
@@ -906,6 +909,7 @@ impl Settings {
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
+            Pick::ReadingLibrary => self.set(&["ui", "readingLibrary"], json!(p)),
             Pick::ArtDir(id) => self.set(&["systems", &id, "artDir"], json!(p)),
             Pick::CustomGame => self.add_custom(&p),
             Pick::ExportTo => self.export_to(path),
@@ -1029,6 +1033,7 @@ impl Settings {
                     open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
                     open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
                     open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
+                    open("Magazines & guides", String::new(), "The museum's reading corner: where your magazines and strategy guides are kept", Screen::Reading),
                     open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
@@ -1408,6 +1413,27 @@ impl Settings {
                 }
                 let lead = if self.wizard { "Step 2 of 3 · The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." } else { "The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." };
                 Page { title: "PC games and apps".into(), lead: lead.into(), rows }
+            }
+            Screen::Reading => {
+                let lib = self.text(&["ui", "readingLibrary"]);
+                let root = rustyshelf_core::reading::root(Some(&lib), &self.app_root);
+                let shown = |k: &str| Row { label: k.into(), value: short(&root.join(k).to_string_lossy()), hint: "Each issue or guide is a PDF, a comic archive (.cbz, .cbr, .zip) or a folder of page images; a folder of them is a series".into(), ..Row::default() };
+                let rows = vec![
+                    Row {
+                        label: "Magazines & guides folder".into(),
+                        value: if lib.is_empty() { "Beside RustyShelf".into() } else { short(&lib) },
+                        hint: "Magazines and Guides are kept in this folder. Changing it doesn't move anything already there: copy the two folders across yourself  ·  Enter chooses it, ◀ goes back to beside RustyShelf".into(),
+                        press: Some(Box::new(|s: &mut Settings| s.pick(Pick::ReadingLibrary, "Choose a folder for your magazines and guides", true))),
+                        step: Some(Box::new(|s: &mut Settings, d| {
+                            if d < 0 {
+                                s.set(&["ui", "readingLibrary"], json!(""));
+                            }
+                        })),
+                    },
+                    shown("Magazines"),
+                    shown("Guides"),
+                ];
+                Page { title: "Magazines & guides".into(), lead: "The museum's reading corner: where your magazines and strategy guides live.".into(), rows }
             }
             Screen::BoxArt => {
                 let lib = self.text(&["ui", "artLibrary"]);

@@ -62,6 +62,7 @@ pub mod romm;
 pub mod racores;
 pub mod rocket;
 pub mod raemu;
+pub mod reading;
 pub mod scanner;
 pub mod screenscraper;
 pub mod seal;
