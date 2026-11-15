@@ -22,6 +22,7 @@ pub mod drawn;
 pub mod emucfg;
 pub mod emuname;
 pub mod emusetup;
+pub mod epicdl;
 pub mod gamekey;
 pub mod gamelist;
 pub mod find;
@@ -40,6 +41,7 @@ pub mod launch;
 #[allow(clippy::all, dead_code)]
 pub mod lbindex;
 pub mod library;
+pub mod linuxpc;
 pub mod looks;
 pub mod manualcoll;
 pub mod manuals;
