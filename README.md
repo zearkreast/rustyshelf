@@ -150,6 +150,7 @@ RustyShelf\
 | **3DS** (Azahar) | Point the 3DS page at `azahar.exe`. RustyShelf can install unencrypted `.cia` files into Azahar; encrypted ones must be decrypted first. |
 | **PS3** (RPCS3) | Launched with `--no-gui --fullscreen`. Install the firmware and your games inside RPCS3 first. |
 | **PS Vita** (Vita3K) | Games Vita3K has installed (its `ux0/app` folder, found automatically) are named from their `param.sfo` and started with `-F -r <title id>`. A `.vpk` in a `psvita` folder is handed to Vita3K to install and run. Windows and Linux. |
+| **Famicom Disk System** **[fork]** | `.fds` and `.qd` games in an `fds` or `Famicom Disk System` folder, played in RetroArch's NES cores; RetroArch wants `disksys.rom` in its BIOS folder. |
 | **Neo Geo Pocket / Color** **[fork]** | `.ngp` games in an `ngp` or `Neo Geo Pocket` folder, `.ngc` games in an `ngpc` or `Neo Geo Pocket Color` folder. Played in RetroArch's Beetle NeoPop core, each with its own box art, manuals and cases, on Android too. |
 | **Game.com** **[fork]** | Tiger's handheld: `.tgc` or `.bin` games in a `gamecom` or `Game.com` folder, played in MAME (`mame gamecom -cart1 <game>`). MAME first needs the system file `gamecom.zip` from a MAME BIOS set in its `roms` folder. Windows and Linux. |
 
@@ -840,6 +841,7 @@ Box art and manuals are © their publishers.
 
 Brought into RustyShelf from other people's forks (they are the authors or co-authors of these commits):
 
+- [Gilang](https://github.com/gilangbros-hub): the Famicom Disk System shelf ([original](https://github.com/gilangbros-hub/boxshelf-source/commit/3eb635ba13bbe00ee53d71db4ee76e0cb71dc6cd))
 - [Thanks2111](https://github.com/Thanks2111): Português (Brasil): the language is a choice now
 - [supalii](https://github.com/supalii): Custom games on any shelf, the Xbox One shelf, PC posters and hidden tiles (from supalii's fork)
 - [TrapEmAll](https://github.com/TrapEmAll): Retro TV guide: the progress line no longer stops the guide drawing; Retro TV: live progress for the commercial search and ad downloads; Credit TrapEmAll for the Museum's look-around; Museum: look left and right, and the side displays reachable from the wide view
