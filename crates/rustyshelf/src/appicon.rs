@@ -35,7 +35,7 @@ mod win {
         fn IsWindowVisible(window: *mut c_void) -> i32;
         fn LoadImageW(module: *mut c_void, name: *const u16, kind: u32, cx: i32, cy: i32, flags: u32) -> *mut c_void;
         fn GetSystemMetrics(index: i32) -> i32;
-        fn SendMessageW(window: *mut c_void, msg: u32, wparam: usize, lparam: isize) -> isize;
+        fn PostMessageW(window: *mut c_void, msg: u32, wparam: usize, lparam: isize) -> i32;
     }
 
     /// `true` once one of this process's visible windows has been given the icon.
@@ -75,9 +75,11 @@ mod win {
                 return true;
             }
             let small = if small.is_null() { big } else { small };
+            // posted, never sent: this system may run on a worker thread while the window's own (main) thread waits for
+            // the frame to finish, and SendMessage would wait on that thread for ever (the app hung at its white window)
             for window in found.windows {
-                SendMessageW(window, WM_SETICON, ICON_BIG, big as isize);
-                SendMessageW(window, WM_SETICON, ICON_SMALL, small as isize);
+                PostMessageW(window, WM_SETICON, ICON_BIG, big as isize);
+                PostMessageW(window, WM_SETICON, ICON_SMALL, small as isize);
             }
             true
         }
