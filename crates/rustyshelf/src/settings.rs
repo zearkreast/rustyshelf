@@ -210,6 +210,8 @@ pub struct Settings {
     pub pad_auto: Glyphs,
     /// a manual to be opened in the reader: its pages
     pub manual: Option<Vec<PathBuf>>,
+    /// `manual` is a game's screenshots (their addresses), shown one at a time
+    pub gallery: bool,
     /// the phone companion, and its pairing code as it was last drawn: what it says, and its picture
     pub phone: Option<std::sync::Arc<rustyshelf_core::companion::Companion>>,
     qr: Option<(String, Handle<Image>)>,
@@ -300,6 +302,7 @@ impl Default for Settings {
             keys_taken: false,
             pad_auto: Glyphs::Xbox,
             manual: None,
+            gallery: false,
             phone: None,
             qr: None,
             moves: Default::default(),
@@ -1799,6 +1802,18 @@ impl Settings {
                             if let Err(e) = rustyshelf_core::launch::open_folder(&pdf) {
                                 s.say(e.to_string());
                             }
+                        })),
+                        step: None,
+                    });
+                }
+                let shots: Vec<PathBuf> = g.info.as_ref().map(|i| i.shots.iter().map(PathBuf::from).collect()).unwrap_or_default();
+                if !shots.is_empty() {
+                    rows.push(Row {
+                        label: "Screenshots".into(),
+                        value: shots.len().to_string(),
+                        hint: "The game's screenshots, one at a time: ◀ ▶ to look through them, + − to zoom".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            (s.manual, s.gallery, s.open, s.redraw) = (Some(shots.clone()), true, false, true);
                         })),
                         step: None,
                     });

@@ -36,6 +36,8 @@ pub struct Reader {
     fresh: bool,
     /// one page at a time (a small screen, or P / X)
     one: bool,
+    /// a game's screenshots rather than a manual: always one at a time, no cover
+    gallery: bool,
     /// the zoom, 1 for the whole page, and how far the zoomed page is moved, in pixels
     z: f32,
     pan: Vec2,
@@ -55,8 +57,14 @@ impl Default for Reader {
         let (ask, wanted) = channel::<PathBuf>();
         let (done, read) = channel();
         std::thread::spawn(move || {
+            let data = rustyshelf_core::paths::data_dir(&rustyshelf_core::paths::app_root());
             while let Ok(file) = wanted.recv() {
-                let picture = image::ImageReader::open(&file).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.decode().ok()).map(|img| {
+                // a screenshot's address: fetched once, then read from the cache
+                let local = match file.to_str().filter(|f| f.starts_with("https://")) {
+                    Some(url) => rustyshelf_core::info::shot_file(&data, url).unwrap_or_default(),
+                    None => file.clone(),
+                };
+                let picture = image::ImageReader::open(&local).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.decode().ok()).map(|img| {
                     let img = if img.height() > TALLEST { img.resize(u32::MAX, TALLEST, image::imageops::FilterType::Triangle) } else { img };
                     let rgba = img.into_rgba8();
                     (rgba.width(), rgba.height(), rgba.into_raw())
@@ -66,7 +74,7 @@ impl Default for Reader {
                 }
             }
         });
-        Reader { pages: Vec::new(), at: 0, open: false, fresh: false, one: false, z: 1.0, pan: Vec2::ZERO, left_at: HashMap::new(), base: Vec2::ZERO, ready: HashMap::new(), asked: HashSet::new(), ask, read: Mutex::new(read) }
+        Reader { pages: Vec::new(), at: 0, open: false, fresh: false, one: false, gallery: false, z: 1.0, pan: Vec2::ZERO, left_at: HashMap::new(), base: Vec2::ZERO, ready: HashMap::new(), asked: HashSet::new(), ask, read: Mutex::new(read) }
     }
 }
 
@@ -100,6 +108,9 @@ impl Reader {
 
     fn count(&self) -> String {
         let n = self.pages.len();
+        if self.gallery {
+            return format!("Screenshot {} of {n}", self.at + 1);
+        }
         match self.at {
             0 => format!("Cover · {n} pages"),
             at if self.one => format!("Page {} of {n}", at + 1),
@@ -124,7 +135,7 @@ impl Reader {
 
     /// One page at a time or two; the page being read stays in view.
     fn pages_at_once(&mut self, one: bool) {
-        if one == self.one {
+        if one == self.one || self.gallery {
             return;
         }
         self.one = one;
@@ -235,7 +246,8 @@ pub fn run(
     let reader = &mut *reader;
     if let Some(pages) = settings.manual.take().filter(|p| !p.is_empty()) {
         let back_at = pages.first().and_then(|f| reader.left_at.get(f)).copied().filter(|&at| at < pages.len()).unwrap_or(0);
-        reader.one = stage.h <= 820.0 || stage.w < 1000.0;
+        reader.gallery = std::mem::take(&mut settings.gallery);
+        reader.one = reader.gallery || stage.h <= 820.0 || stage.w < 1000.0;
         let back_at = if reader.one || !back_at.is_multiple_of(2) || back_at == 0 { back_at } else { back_at - 1 };
         (reader.pages, reader.at, reader.open, reader.fresh, reader.z, reader.pan) = (pages, back_at, true, true, 1.0, Vec2::ZERO);
         reader.ready.clear();
@@ -343,8 +355,9 @@ pub fn run(
             Part::Keys => {
                 if let Some(mut text) = text {
                     let zoom = if reader.z > 1.0 { "+ −  Zoom · move with ▲ ▼" } else { "+ −  Zoom" };
-                    let pages = if reader.one { "P  Two pages" } else { "P  One page" };
-                    text.0 = format!("◀ ▶  Turn the page      {zoom}      {pages}      Home  Cover      Esc · {}  Back", settings.cap("o"));
+                    let pages = if reader.gallery { "" } else if reader.one { "      P  Two pages" } else { "      P  One page" };
+                    let (turn, first) = if reader.gallery { ("Next", "First") } else { ("Turn the page", "Cover") };
+                    text.0 = format!("◀ ▶  {turn}      {zoom}{pages}      Home  {first}      Esc · {}  Back", settings.cap("o"));
                 }
             }
             Part::Book => {
@@ -386,6 +399,16 @@ mod tests {
         assert!(!r.turn(1));
         assert!(r.turn(-1) && r.turn(-1) && r.turn(-1));
         assert_eq!(r.at, 0);
+    }
+
+    #[test]
+    fn screenshots_come_one_at_a_time() {
+        let mut r = Reader { pages: (1..=3).map(|n| PathBuf::from(format!("https://x/s{n}.jpg"))).collect(), gallery: true, one: true, ..Reader::default() };
+        assert_eq!(r.count(), "Screenshot 1 of 3");
+        assert!(r.turn(1) && r.turn(1) && !r.turn(1));
+        assert_eq!((r.count(), r.spread().1.map(|p| p.to_string_lossy().into_owned())), ("Screenshot 3 of 3".into(), Some("https://x/s3.jpg".into())));
+        r.pages_at_once(false);
+        assert!(r.one);
     }
 
     #[test]

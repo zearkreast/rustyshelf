@@ -214,3 +214,23 @@ pub fn steam_infos(data_dir: &Path) -> HashMap<String, Info> {
     let Some(Value::Object(all)) = std::fs::read(data_dir.join("steam-info.json")).ok().and_then(|b| serde_json::from_slice(&b).ok()) else { return HashMap::new() };
     all.into_iter().filter(|(_, d)| js::truthy(d.get("ok"))).filter_map(|(id, d)| Some((id, serde_json::from_value(d).ok()?))).collect()
 }
+
+/// A screenshot's address (LaunchBox's, Steam's) as a file on this PC: fetched once into `data/shot-cache` and read
+/// from there after. None when it can't be fetched or isn't a picture.
+pub fn shot_file(data_dir: &Path, url: &str) -> Option<std::path::PathBuf> {
+    use sha1::Digest;
+    if !url.starts_with("https://") {
+        return None;
+    }
+    let name: String = sha1::Sha1::digest(url.as_bytes()).iter().take(12).map(|b| format!("{b:02x}")).collect();
+    let dir = data_dir.join("shot-cache");
+    let file = dir.join(format!("{name}.img"));
+    if crate::paths::is_file(&file) {
+        return Some(file);
+    }
+    let bytes = crate::net::get_bytes(url, std::time::Duration::from_secs(20), 15_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b))?;
+    std::fs::create_dir_all(&dir).ok()?;
+    let part = dir.join(format!("{name}.part"));
+    std::fs::write(&part, &bytes).and_then(|()| std::fs::rename(&part, &file)).ok()?;
+    Some(file)
+}
