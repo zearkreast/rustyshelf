@@ -399,6 +399,8 @@ fn emulator_settings_change_as_in_the_js() {
         rel => format!("{home}/{rel}"),
     };
     let mut before = snapshot(tmp.path());
+    // a file's fingerprint covers the home folder's path, which differs from the fixture's
+    let sha = regex::Regex::new(r#"\\"[0-9a-f]{40}\\""#).unwrap();
     for (i, case) in fx["steps"].as_array().unwrap().iter().enumerate() {
         let step = &case["step"];
         let result = match step[0].as_str().unwrap() {
@@ -487,8 +489,6 @@ fn emulator_settings_change_as_in_the_js() {
         let want = serde_json::json!({ "result": case["result"], "changed": case["changed"].as_object().unwrap().iter().collect::<std::collections::BTreeMap<_, _>>() });
         // a key in emu-setup.json is the program in lower case
         let got = serde_json::to_string_pretty(&got).unwrap().replace(&home, "{home}").replace(&home.to_lowercase(), "{home}");
-        // a file's fingerprint covers the home folder's path, which differs from the fixture's
-        let sha = regex::Regex::new(r#"\\"[0-9a-f]{40}\\""#).unwrap();
         assert_eq!(sha.replace_all(&got, "SHA"), sha.replace_all(&serde_json::to_string_pretty(&want).unwrap(), "SHA"), "step {i}: {step}");
         before = now;
     }
