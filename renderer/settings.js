@@ -171,6 +171,12 @@ function build(){
     H("For every console"),
     F("RetroArch location","retroarch","file","Point to retroarch.exe to use it across all supported retro consoles. Each retro console without its own emulator will use this RetroArch automatically.",{want:"file",rescan:true,ph:"Point to retroarch.exe",filters:[{name:"RetroArch",extensions:["exe","*"]}],keys:"retroarch emulator retro core shared"}),
     A("Find emulators again",()=>detecting?"Searching…":"Search","Looks in the usual install places and your RustyShelf folder for emulators and games folders you haven't set up yet, and fills in any console that has nothing set.",runDetect,{keys:"detect scan auto find"}),
+    // (beta.12, Windows) RocketLauncher, HyperSpin's launcher: found, then on for every console or
+    // the consoles chosen on their own pages, and the front end it's told
+    A("RocketLauncher",()=>RL.busy?"…":cfg.rocket&&cfg.rocket.exe?"Found":"Find","Starts your games through RocketLauncher, the launcher HyperSpin uses: its fade screens, bezels, pause menu and the emulator you picked in RocketLauncherUI. RustyShelf waits while you play, counts the time and comes back when RocketLauncher closes. Off unless you turn it on below; your emulators stay set up.",rlFind,
+      {when:rlCan,ns:true,keys:"rocketlauncher rocket launcher hyperspin fade bezel pause",sub:rlSub}),
+    C("Start games through RocketLauncher","rocket.mode",[["off","Off"],["all","Every console"],["some","Only the consoles I choose"]],"off","Every console: each console RocketLauncher has a system for starts through it, the rest keep their emulator. Only the consoles I choose: pick on each console's page. Off: RustyShelf starts your emulators itself.",{when:()=>rlCan()&&rlHave(),keys:"rocketlauncher hyperspin start games"}),
+    C("Front end RocketLauncher is told","rocket.frontend",[["","Its default"],["HyperSpin","HyperSpin"],["LaunchBox","LaunchBox"],["Playnite","Playnite"],["RocketLauncherUI","RocketLauncherUI"]],"","Whose settings and media RocketLauncher uses for its fade and pause screens. Its default: the front end set in RocketLauncherUI.",{when:rlOn,keys:"rocketlauncher plugin frontend hyperspin launchbox"}),
     ...(api.emulatorsIn?[A("Find emulators in a folder",()=>detecting?"Searching…":"Choose","Portable emulators kept anywhere (another drive, a USB stick): choose the folder they're in and RustyShelf looks through it, four folders deep, for every emulator it knows. Each console with no emulator set gets the one found; the ones already set are left as they are.",runFolderDetect,{keys:"portable emulators folder find search usb drive"})]:[]),
     ...(api.romFoldersIn?[A("Find games folders in a folder",()=>detecting?"Searching…":"Choose","A folder with a folder of games for each console, named after it (like RetroBat's roms folder: gc, wii, ps2, psx…): each console's folder is added to its games folders.",runRomFolderScan,{keys:"roms games folders retrobat scan find"})]:[]),
   ]},
@@ -619,6 +625,27 @@ async function rommTestNow(){if(RM.busy)return;await save();RM.busy=true;bump();
   RM.test=r&&r.ok?{text:"Connected"+(r.version?" · RomM "+r.version:"")+(r.platforms!=null?` · ${r.platforms} platforms`:""),cls:"ok"}:{text:/auth|401|403/i.test(String(r&&r.error))?"Not paired, or the pairing was removed":"Not reachable: "+truncEnd(String((r&&r.error)||"no answer"),40),cls:"warn"};rommStatusLoad(true);bump()}
 async function rommSyncNow(){if(RM.syncing)return;RM.syncing=true;bump();let r=null;try{r=await api.rommSync()}catch(e){r={ok:false,error:errMsg(e)}}RM.syncing=false;
   toast(r&&r.ok?`RomM: ${r.count} game${r.count===1?"":"s"}`+(r.offline?" (the saved list: the server isn't reachable)":""):"RomM: "+((r&&r.error)||"no answer"));rommStatusLoad(true);needRescan=true;bump()}
+const addWin=()=>!window.bsPlatform||!bsPlatform.os||bsPlatform.os==="windows"||bsPlatform.os==="web";
+// (beta.12, Windows) RocketLauncher's state on the page: found (main/rocket.js find, once per visit), then its systems
+// (each console's name there, set up or not, folder matching); the path is saved like any setting
+const RL={looked:false,sys:null,busy:false};
+function rlCan(){return !!(api.rocketFind&&api.rocketSystems)&&addWin()&&!(window.bsPlatform&&bsPlatform.os==="web")}
+function rlHave(){return !!(cfg.rocket&&cfg.rocket.exe)}
+function rlOn(){return rlCan()&&rlHave()&&(cfg.rocket.mode||"off")!=="off"}
+function rlUse(id){const v=sysCfg(id).viaRocket;return rlOn()&&(v===true||(cfg.rocket.mode==="all"&&v!==false))}
+function rlName(id){const n=RL.sys&&RL.sys.names&&RL.sys.names[id];return n?n.name:""}
+function rlLoad(){if(!rlCan()||RL.busy||(RL.looked&&(RL.sys||!rlHave())))return;RL.busy=true;cfg.rocket=cfg.rocket||{exe:"",mode:"off",frontend:""};const r=cfg.rocket,my=openId;
+  Promise.resolve(r.exe||api.rocketFind()).then(async exe=>{if(!isOpen||openId!==my)return;RL.looked=true;if(exe&&exe!==r.exe){r.exe=exe;changed(null)}RL.sys=exe?await api.rocketSystems(exe):null})
+    .catch(()=>{RL.looked=true;RL.sys={list:[],names:{}}}).finally(()=>{RL.busy=false;if(isOpen)bump()})} /* (beta.12: a failed look still counts as looked, or it asked again on every render) */
+function rlSub(){rlLoad();const r=cfg.rocket||{};if(r.exe){const n=RL.sys?RL.sys.list.filter(s=>s.ready).length:null;return {text:folderName(String(r.exe).replace(/[\\/][^\\/]*$/,""))+(n!=null?` · ${n} system${n===1?"":"s"} set up there`:"")}}
+  return RL.looked?{text:"Not found · press to find it or choose it",cls:"warn"}:{text:"Looking…"}}
+function rlFolder(id){const n=RL.sys&&RL.sys.names&&RL.sys.names[id];if(!n)return {text:"Looking…"};if(!n.known)return {text:"RocketLauncher has no system by this name",cls:"warn"};
+  if(!n.ready)return {text:"No emulator set for it in RocketLauncherUI",cls:"warn"};return n.matches?{text:"Matches",cls:"ok"}:{text:"Not one RocketLauncher uses · it's sent the full path",cls:"warn"}}
+async function rlFind(){const my=openId;RL.busy=true;bump();let exe="";try{exe=await api.rocketFind()}catch{}RL.busy=false;if(!isOpen||openId!==my)return;
+  if(!exe){const p=await pick({kind:"file",title:"Choose RocketLauncher.exe",filters:[{name:"RocketLauncher",extensions:["exe"]}]}),f=typeof p==="string"?p:p&&p.path;if(!isOpen||openId!==my)return;if(f&&/rocketlauncher\.exe$/i.test(f))exe=f;else if(f){toast("That isn't RocketLauncher.exe (not RocketLauncherUI.exe)");return}}
+  if(!exe){toast("RocketLauncher wasn't found");bump();return}
+  cfg.rocket=cfg.rocket||{exe:"",mode:"off",frontend:""};cfg.rocket.exe=exe;RL.looked=true;RL.sys=null;changed(null);toast("RocketLauncher found in "+folderName(exe));
+  try{RL.sys=await api.rocketSystems(exe)}catch{}if(isOpen)bump()}
 // one console's page
 function conPages(id){
   const def=consoleList().find(c=>c.id===id)||{id,name:id,emulatorName:"Emulator",exeNames:["emulator.exe"]},c=sysCfg(id),p=`systems.${id}.`,emu=def.emulatorName||"Emulator",exe=(def.exeNames||["emulator.exe"])[0];
@@ -642,6 +669,12 @@ function conPages(id){
     "The same list Play shows. Ask each time shows it at Play; choose one to always start in it. A game's own choice (Details → Emulator) still comes first.",[{t:"dyn",fn:sw2BuildRows}],
     {keys:"build builds fork forks eglantine lichii orchid selevet version branch which emulator choose",btn:()=>{const b=sw2Fixed();return b?b.label||progName(b.exe):"Ask each time"},
      sub:()=>(sw2Want(),{text:sw2b==null?"Looking for emulators…":sw2b.length?`${sw2b.length} emulator${sw2b.length===1?"":"s"} · add or remove here`:"None yet · add one here",cls:sw2b&&!sw2b.length?"warn":""})}));
+  // (beta.12, Windows) RocketLauncher on: this console's choice above its emulator, the name RocketLauncher knows it by,
+  // and whether its games folder is one RocketLauncher uses (else it's sent the game's full path)
+  if(rlOn())rows.splice(1,0,
+    C("Start games with",p+"viaRocket",[[false,"Emulator"],[true,"RocketLauncher"]],gp("rocket.mode")==="all","RocketLauncher: Play hands the game to RocketLauncher, which brings its fade screen, bezel and pause menu and starts the emulator set up for this system in RocketLauncherUI. Emulator: RustyShelf starts "+emu+" itself, as before.",{keys:"rocketlauncher hyperspin launcher start with"}),
+    X("RocketLauncher system name",p+"rocketSystem","The system's name in RocketLauncher, read from its own settings. Change it if yours is named differently.",{ph:rlName(id)||"Looking…",when:()=>rlUse(id),keys:"rocketlauncher system name hyperspin"}),
+    infoRow("Games folder for RocketLauncher","",null,{sub:()=>rlFolder(id),when:()=>rlUse(id),info:"RocketLauncher finds a game in its own ROM folders for this system. When this console's games folder is one of them, the game goes by its name (its 7z and multi-disc handling work); otherwise it's sent the game's full path."}));
   const d=det&&det.systems&&det.systems[id];
   // (RustyShelf, its discussions #10) every emulator found for this console, each one press away (Flycast or RetroArch for the
   // Dreamcast, Gopher64, RMG or RetroArch for the N64); the one in use isn't listed

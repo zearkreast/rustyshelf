@@ -16,7 +16,9 @@ function buildArgs(template, rom) {
   const out = [];
   const re = /"([^"]*)"|(\S+)/g;
   let m;
-  while ((m = re.exec(template || ''))) out.push((m[1] !== undefined ? m[1] : m[2]).replace(/\{rom\}/g, () => rom || '')); // a function: a path like Ca$$h\game.iso must not be read as a replacement pattern
+  // (beta.12) {romname}: the game's file name without its extension; {romdir}: its folder (for launchers that want those)
+  const rn = rom ? path.basename(rom, path.extname(rom)) : '', rd = rom ? path.dirname(rom) : '';
+  while ((m = re.exec(template || ''))) out.push((m[1] !== undefined ? m[1] : m[2]).replace(/\{rom\}/g, () => rom || '').replace(/\{romname\}/g, () => rn).replace(/\{romdir\}/g, () => rd)); // a function: a path like Ca$$h\game.iso must not be read as a replacement pattern
   return out.filter(a => a !== '');
 }
 
@@ -79,6 +81,8 @@ function launchEmulator(sysCfg, onExit) {
 }
 
 function launchApp(exe, onExit, args) { return start(exe, Array.isArray(args) ? args : [], onExit, null, undefined, undefined, true); }
+// (beta.12) a game through RocketLauncher: started like an app, and closed through its emulator (closeRunning)
+function launchRocket(exe, args, onExit) { const r = start(exe, args, onExit); if (running) running.closeKids = true; return r; }
 // (Linux) a Windows game through Wine / Proton: the runner (umu-run, proton, wine) with the game's own folder and environment
 function launchCommand(cmd, args, onExit, { env, cwd, log } = {}) { return start(cmd, Array.isArray(args) ? args : [], onExit, env || null, cwd, log); }
 
@@ -105,7 +109,10 @@ function closeRunning(forceAfterMs = 8000, onForce) {
   // (beta.12, Seamless play) a watched game (adopt below): its watcher asks the game's own processes, never its launcher
   if (running.bsWatch) { try { Promise.resolve(running.bsWatch.close(forceAfterMs, onForce)).catch(() => {}); } catch {} return true; }
   const pid = running.pid, child = running;
-  if (process.platform === 'win32') quiet('taskkill', ['/PID', String(pid)]);
+  // (beta.12) RocketLauncher (closeKids): its emulator is asked to close, not RocketLauncher, which then runs its own exit
+  // (fade out, taskbar and mouse back) and ends by itself; asked directly, it could end before that and leave them hidden
+  if (process.platform === 'win32' && child.closeKids) quiet('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-CimInstance Win32_Process -Filter 'ParentProcessId=${Number(pid)}' | ForEach-Object { taskkill /PID $_.ProcessId | Out-Null }`]);
+  else if (process.platform === 'win32') quiet('taskkill', ['/PID', String(pid)]);
   // (Linux: the whole process group, which detached started: a Flatpak's launcher, an AppImage's runtime and the emulator
   // itself all get the request, not just the first process)
   else { try { process.kill(-pid, 'SIGTERM'); } catch { try { child.kill('SIGTERM'); } catch {} } }
@@ -144,4 +151,4 @@ function adopt(name, watcher, onExit) {
 let onEvent = () => {};
 function setEventHook(fn) { onEvent = typeof fn === 'function' ? fn : () => {}; }
 
-module.exports = { buildArgs, launchGame, launchEmulator, launchApp, launchCommand, launchSteam, needsAdmin, elevatedScript, isRunning, runningName, setRunningName, busyMessage, stopRunning, closeRunning, adopt, setEventHook };
+module.exports = { buildArgs, launchGame, launchEmulator, launchApp, launchRocket, launchCommand, launchSteam, needsAdmin, elevatedScript, isRunning, runningName, setRunningName, busyMessage, stopRunning, closeRunning, adopt, setEventHook };

@@ -49,6 +49,7 @@ const wiiumanual = require('./main/wiiumanual');
 const manualcoll = require('./main/manualcoll');
 const manualstudio = require('./main/manualstudio'); // Manual Studio: every manual for a game side by side, per-game locks, per-console language / region
 const launcher = require('./main/launcher');
+const rocket = require('./main/rocket'); // (beta.12) RocketLauncher, Windows
 const gamewatch = require('./main/gamewatch'); // (beta.12) Seamless play: Steam and store games watched
 const romm = require('./main/romm'); // (upstream beta.12) RomM, a self-hosted game library
 const seamless = require('./main/seamless'); // (beta.12) Seamless play: screen mode, Go to desktop, the launch timeline
@@ -1748,6 +1749,9 @@ function retroCore(exe, core) {
 }
 async function launchGameNow(systemId, file, sc) {
   if (systemId === 'ps4' && /\.pkg$/i.test(file)) throw new Error('This PS4 game is still a .pkg package, which shadPS4 can\'t run. Extract it to a folder first (current shadPS4 builds no longer install packages themselves) with a PKG extractor such as PKG Editor or the ShadPS4Plus pkg_extractor, into a folder inside your PS4 games folder. Once that folder has an eboot.bin in it, the game shows up here as installed.');
+  // (beta.12, Windows) a console started through RocketLauncher: RocketLauncher picks and starts the emulator itself, so
+  // none of the emulator preparation below applies
+  if (rocket.useFor(systemId, cfg)) { const via = await launchViaRocket(systemId, file, sc); if (via) return via; }
   if (systemId === 'x360') sc.emulator = emucfg.resolveExe('x360', sc.emulator).exe; // (sc is this launch's copy: the saved setting is fixed on load / save)
   // (1.82) no emulator, or one that's gone: say which console and emulator, before anything is prepared for it (Dolphin's
   // settings, a 3DS .cia installed into Azahar's folder)
@@ -1829,6 +1833,41 @@ const ALT_ARGS = [[/desmume/i, '"{rom}"'], [/visualboyadvance|vbam/i, '"{rom}"']
   if (!(cover > 0)) for (const ms of [2500, 4500]) setTimeout(() => { if (seq === noCoverSeq && qs === quitSeq && launcher.isRunning()) { padwatch.front(); homemenu.ready(); homemenu.raise(); } }, ms);
   return { ...r, cover };
 }
+// (beta.12, Windows) Play through RocketLauncher: it brings its fade, bezels and pause menu and starts the emulator set
+// up in RocketLauncherUI; the shelf waits on it like on any game (Home menu, playtime, the return). Its own cover lifts at
+// once (RocketLauncher's fade takes over) and it's never named as -f, so RocketLauncher leaves its window alone.
+// "Every console": a console RocketLauncher has no system for keeps its emulator (null back: the usual launch)
+async function launchViaRocket(systemId, file, sc) {
+  const exe = cfg.rocket && cfg.rocket.exe;
+  if (!exe || !paths.isFile(exe)) throw new Error("RocketLauncher isn't where Settings → Consoles says. Find it again there, or start this console with its emulator.");
+  const list = await rocket.systems(exe), system = String(sc.rocketSystem || '').trim() || rocket.nameFor(systemId, list);
+  const a = rocket.argsFor({ system, file, list, plugin: cfg.rocket.frontend || '' });
+  if (!a.known && cfg.rocket.mode === 'all' && sc.viaRocket !== true) return null;
+  if (a.known && a.ready === false) throw new Error(`RocketLauncher has no emulator set for ${system} yet. Set one in RocketLauncherUI, or start this console with its emulator (Settings → Consoles).`);
+  await taskbarHide();
+  const t0 = Date.now();
+  // RocketLauncher always exits "normally": its log says whether the game failed
+  const done = info => { rocket.lastError(exe, t0).then(err => { if (err && info && !info.error && info.code !== -1) log('RocketLauncher said:', err); onExit(err && info && !info.error ? { ...info, error: 'RocketLauncher: ' + err } : info); }, () => onExit(info)); };
+  let r; try { r = launcher.launchRocket(exe, a.args, done); } catch (e) { taskbarShow('the game did not start'); throw e; }
+  runKind = 'game'; pendingPower = null; launcher.setRunningName(gameTitleOf(systemId, file));
+  log('RocketLauncher launch:', systemId, '-s', system, a.inRoms ? '(by name)' : '(by path)');
+  lastLaunch = { systemId, at: Date.now(), exe }; historyStart(systemId + ':' + file);
+  const def = CONSOLES.find(c => c.id === systemId);
+  if (cfg.ui.homeMenu !== false) homemenu.begin({ systemId, exe, systemName: def ? def.name : systemId, hotkeys: {} });
+  try { presence.setGame(require('./main/scanner').cleanTitle(String(file)).title, def ? def.name : systemId); } catch {}
+  watchPad({ appPid: r.pid, home: true });
+  return { ...r, cover: coverWhileStarting(1) };
+}
+// Settings → Consoles: RocketLauncher found on this PC (its path, or ''), and its systems with the name each console
+// would use (no ROM paths go to the page: a count only)
+handle('rocket:find', async () => process.platform === 'win32' ? rocket.find() : '');
+handle('rocket:systems', async ({ exe } = {}) => {
+  const e = String(exe || (cfg.rocket && cfg.rocket.exe) || ''); if (process.platform !== 'win32' || !e || !paths.isFile(e)) return { list: [], names: {} };
+  const list = await rocket.systems(e, true), names = {};
+  for (const c of CONSOLES) { const n = rocket.nameFor(c.id, list); const s = list.find(x => x.name === n); names[c.id] = { name: n, known: !!s, ready: s ? s.ready : false, folders: s ? s.romPaths.length : 0,
+    matches: !!(s && (((cfg.systems[c.id] || {}).romDirs) || []).some(d => s.romPaths.some(p => path.resolve(p).toLowerCase() === path.resolve(emuPath(d) || d).toLowerCase()))) }; }
+  return { list: list.map(s => ({ name: s.name, ready: s.ready })), names };
+});
 // (busy check first: a .cia still installing, or a game running, must not have its emulator's settings rewritten under it)
 const busyCheck = () => { if (launching || launcher.isRunning()) throw new Error(launcher.busyMessage()); }; // (beta.10: names what's running)
 // (beta.10) a game's title for that message: the shelf's (the last scan), else its file or folder name, never a path

@@ -54,6 +54,9 @@ function defaults() {
     emuSetup: { auto: true, graphics: 'auto', resume: false, pending: [] },
     apps,
     ra: { user: '', key: '', enabled: true },
+    // (beta.12, Windows) RocketLauncher (main/rocket.js): its program, which consoles start through it (off · all · some:
+    // the consoles whose systems.<id>.viaRocket is on) and the front end name it's told (-p; '' leaves -p out)
+    rocket: { exe: '', mode: 'off', frontend: '' },
     // autoCovers / autoManuals: downloads from the Internet are opt-in for new installs; load() keeps them on for a config
     // saved before the keys existed, so nothing changes for people already using RustyShelf
     // (upstream beta.12) RomM (main/romm.js): the server's address, its HTTPS check skipped for a home server's own certificate,

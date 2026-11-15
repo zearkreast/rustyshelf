@@ -91,6 +91,7 @@ const DEFAULTS: &str = r#"{
   "emuSetup": { "auto": true, "graphics": "auto", "resume": false, "pending": [] },
   "apps": null,
   "ra": { "user": "", "key": "", "enabled": true },
+  "rocket": { "exe": "", "mode": "off", "frontend": "" },
   "romm": { "server": "", "skipTls": false, "cloud": true },
   "keys": { "fanart": "", "steamgriddb": "", "ssUser": "", "ssPass": "", "ssDevId": "", "ssDevPass": "", "rommToken": "", "rommTokenServer": "", "steamweb": "" },
   "art": { "styles": {}, "locks": {} },

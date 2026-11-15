@@ -319,7 +319,7 @@ function welcome(b){
 // Your consoles: every console plus Steam and the media apps as a card with a tick. On the very first run the ones with
 // an emulator or games found come ticked (pickInit, once); the rest wait under "More consoles". A card that started up top
 // stays there while the wizard is open (pickMain), so cards don't jump under the pointer. Unticked = no shelf.
-let wzPn,wzPnOn=false,emuAutoRan=false,pickDone=false,pickMain=null,pickMore=false,wizLook=null,artWatch=null,searched=false; // searched: Find was pressed (1.82)
+let wzPn,wzRl,wzPnOn=false,emuAutoRan=false,pickDone=false,pickMain=null,pickMore=false,wizLook=null,artWatch=null,searched=false; // searched: Find was pressed (1.82)
 function pickInit(){
   if(!winWizard()||pickDone||(info.config&&info.config.setupDone))return;pickDone=true; // (Android's wizard has its own Consoles page)
   for(const c of info.consoles){const sc=cfg.systems[c.id];if(sc)sc.enabled=pickFound(sc)} // (beta.7) RetroArch alone ticks nothing: it runs 22 consoles
@@ -366,6 +366,11 @@ function pickSection(b){
   if(winWizard()&&api.playniteFind){if(wzPn===undefined){wzPn=null;Promise.resolve(api.playniteFind()).then(f=>{wzPn=f||false;if(f)render()}).catch(()=>{wzPn=false})}
     if(wzPn)b.append(card("","",toggle("Import my Playnite library after setup (experimental)",wzPnOn,v=>{wzPnOn=!!v},"wz-pn"),
       el("div",{class:"hint-text",text:"Your Playnite games come over in one go: games you added by hand onto a Custom shelf, emulated games' folders onto their consoles. You see what's found before anything is added."})))}
+  // (beta.12) RocketLauncher on this PC (HyperSpin's launcher): one switch, off; on starts every console it has a system for
+  // through it (Settings → Consoles has the rest). Nothing shows when it isn't there
+  if(winWizard()&&api.rocketFind){if(wzRl===undefined){wzRl=null;Promise.resolve(api.rocketFind()).then(f=>{wzRl=f||false;if(f)render()}).catch(()=>{wzRl=false})}
+    if(wzRl)b.append(card("","",toggle("Start games through RocketLauncher",!!(cfg.rocket&&cfg.rocket.exe&&cfg.rocket.mode==="all"),v=>{cfg.rocket=cfg.rocket||{exe:"",mode:"off",frontend:""};cfg.rocket.exe=wzRl;cfg.rocket.mode=v?"all":"off";persist()},"wz-rl"),
+      el("div",{class:"hint-text",text:"Found RocketLauncher, HyperSpin's launcher. On: your games start through it, with its fade screens, bezels and pause menu. Off: RustyShelf starts your emulators itself. You can change this any time in Settings → Consoles."})))}
   b.append(el("p",{class:"wz2-foot",text:n?`${n} shel${n===1?"f":"ves"} picked.`:"Nothing picked yet."}));
 }
 // Finish setting up: only what the picked consoles still need (the emulator program, a games folder). Nothing missing:
