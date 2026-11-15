@@ -18,6 +18,7 @@ mod padwatch;
 mod phone;
 mod play;
 mod reader;
+mod romm;
 mod settings;
 mod shelf;
 mod sound;
@@ -82,6 +83,7 @@ fn main() {
         .init_resource::<reader::Reader>()
         .init_resource::<idle::Idle>()
         .init_resource::<museum::Museum>()
+        .init_resource::<romm::Sync>()
         .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, museum::setup).chain())
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
@@ -90,6 +92,7 @@ fn main() {
             (
                 loading::poll_library,
                 loading::recheck_folders,
+                romm::run,
                 play::watch_game,
                 phone::run,
                 idle::run,

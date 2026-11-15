@@ -95,6 +95,7 @@ pub fn run(
     mut images: ResMut<Assets<Image>>,
     mut parts: Query<(&Part, &mut Node, &mut Visibility, Option<&mut ImageNode>, Option<&mut Text>, Option<&mut TextColor>, Option<&mut TextFont>, Option<&mut BackgroundColor>, Option<&mut UiTransform>)>,
     mut inks: Local<(Color, Color, Color)>,
+    mut downloading: Local<Option<String>>,
 ) {
     let now = time.elapsed_secs();
     if !slide.on {
@@ -153,8 +154,21 @@ pub fn run(
             }
         }
     }
+    // a RomM game downloading first: the slide stays until it's in, its last line saying how far
+    let line = playing.romm.as_ref().map(|d| d.line.lock().unwrap().clone());
+    if line.is_none() && downloading.take().is_some() {
+        slide.since = now - 0.45;
+    }
+    if let Some(line) = line.filter(|l| downloading.as_ref() != Some(l)) {
+        for (part, _, _, _, text, ..) in &mut parts {
+            if let (Part::Emulator, Some(mut text)) = (part, text) {
+                text.0 = line.clone();
+            }
+        }
+        *downloading = Some(line);
+    }
     // it leaves when its time is up, or at once when the game didn't start
-    if slide.left.is_none() && (now - slide.since >= STAYS || playing.title.is_none()) {
+    if slide.left.is_none() && ((now - slide.since >= STAYS && playing.romm.is_none()) || playing.title.is_none()) {
         slide.left = Some(now);
     }
     let away = slide.left.map_or(0.0, |left| (now - left) / LEAVES);

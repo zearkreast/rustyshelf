@@ -2059,6 +2059,190 @@ fn image_ext(b: &[u8]) -> Option<&'static str> {
     }
 }
 
+// ---------- the shelves
+
+/// Settings' RomM, with the sign-in that belongs to its server.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Setup {
+    pub server: String,
+    pub skip_tls: bool,
+    /// the games not on this device yet are shown too
+    pub cloud: bool,
+    /// "" when not signed in, or signed in to another server
+    pub token: String,
+}
+
+impl Setup {
+    pub fn from_config(cfg: &crate::config::Config, seal_key: Option<&[u8; 32]>) -> Setup {
+        let r = cfg.raw().get("romm");
+        let server = js::text(r.and_then(|r| r.get("server")));
+        let mut token = cfg.api_key("rommToken", seal_key);
+        // a token belongs to the server it was paired with; one saved without its server is the saved server's
+        let bound = cfg.api_key("rommTokenServer", seal_key);
+        if !token.is_empty() && !bound.is_empty() && bound != origin_of(&server) {
+            token.clear();
+        }
+        Setup { skip_tls: js::truthy(r.and_then(|r| r.get("skipTls"))), cloud: r.and_then(|r| r.get("cloud")) != Some(&Value::Bool(false)), server, token }
+    }
+
+    /// RomM is set up and signed in.
+    pub fn on(&self) -> bool {
+        !self.server.trim().is_empty() && !self.token.is_empty()
+    }
+
+    pub fn client(&self, data_dir: &Path) -> Romm {
+        let r = Romm::new(data_dir);
+        let _ = r.set_server(&self.server, self.skip_tls);
+        r.set_token(Some(&self.token));
+        r
+    }
+}
+
+/// A file name for a RomM game's place in its console's folder.
+pub fn place_name(n: &str) -> String {
+    let n = if n.is_empty() { "game" } else { n };
+    let s: String = n.chars().map(|c| if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || (c as u32) < 0x20 { '_' } else { c }).collect();
+    let s: String = s.trim_end_matches(['.', ' ']).chars().take(180).collect();
+    if s.is_empty() {
+        "game".into()
+    } else {
+        s
+    }
+}
+
+/// Where a console's RomM games are downloaded to: its first games folder, else `RomM games\<console>` in the data
+/// folder.
+pub fn folder(rom_dirs: &[String], data_dir: &Path, console: &str, app_root: &Path) -> PathBuf {
+    match rom_dirs.first().filter(|d| !d.trim().is_empty()) {
+        Some(d) => crate::launch::emu_path(d, app_root),
+        None => data_dir.join("RomM games").join(console),
+    }
+}
+
+/// `romm-local.json`: where each downloaded RomM game ended up, by its RomM id.
+pub fn local_files(data_dir: &Path) -> HashMap<String, String> {
+    fs::read(data_dir.join("romm-local.json")).ok().and_then(|b| serde_json::from_slice::<serde_json::Map<String, Value>>(&b).ok()).map_or_else(HashMap::new, |m| {
+        m.into_iter().filter_map(|(k, v)| Some((k, v.as_str()?.to_string()))).collect()
+    })
+}
+
+pub fn set_local_file(data_dir: &Path, romm_id: u64, file: &Path) {
+    let f = data_dir.join("romm-local.json");
+    let mut m: serde_json::Map<String, Value> = fs::read(&f).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+    m.insert(romm_id.to_string(), json!(file.to_string_lossy()));
+    let _ = fs::create_dir_all(data_dir).and_then(|_| fs::write(&f, Value::Object(m).to_string()));
+}
+
+/// A console's RomM games that aren't on its shelf already (by place, by where a download went, or by title), at the
+/// place they'll have once downloaded, so favourites and playtime carry over.
+pub fn shelf_games(console: &str, local: &[crate::scanner::Game], games: &[Game], dir: &Path, done: &HashMap<String, String>) -> Vec<crate::scanner::Game> {
+    let lower = |p: &Path| p.to_string_lossy().to_lowercase();
+    let have: HashSet<String> = local.iter().map(|g| lower(&g.file)).collect();
+    let titles: HashSet<String> = local.iter().map(|g| g.title.to_lowercase()).collect();
+    let mut out = Vec::new();
+    for r in games {
+        let file = dir.join(place_name(r.file.as_deref().filter(|f| !f.is_empty()).unwrap_or(&r.title)));
+        let got = done.get(&r.romm_id.to_string()).filter(|g| !g.is_empty());
+        if have.contains(&lower(&file)) || got.is_some_and(|g| have.contains(&g.to_lowercase())) || titles.contains(&r.title.to_lowercase()) {
+            continue;
+        }
+        // downloaded already, somewhere the scan doesn't look (RustyShelf's own RomM folder): the game on this device
+        let here = got.map(PathBuf::from).filter(|g| g.is_file());
+        let f = here.clone().unwrap_or(file);
+        let info = crate::info::Info { overview: r.summary.clone(), release: r.released.clone(), genres: r.genres.clone(), ..crate::info::Info::default() };
+        out.push(crate::scanner::Game {
+            id: format!("{console}:{}", f.display()),
+            title: r.title.clone(),
+            ext: f.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default(),
+            size_bytes: r.size.unwrap_or(0),
+            added: r.updated_at.as_deref().map_or(0, |u| parse_iso(u).max(0) as u64),
+            discs: vec![f.clone()],
+            file: f,
+            art: crate::art::Art { front: r.cover.clone(), ..crate::art::Art::default() },
+            info: Some(info),
+            romm: Some(crate::scanner::RommRef { id: r.romm_id, multi: r.multi, cloud: here.is_none() }),
+            ..crate::scanner::Game::default()
+        });
+    }
+    out
+}
+
+/// The RomM game that's a shelf's game at `file` (its place once downloaded).
+pub fn game_at<'a>(games: &'a [Game], dir: &Path, file: &Path) -> Option<&'a Game> {
+    let lo = file.to_string_lossy().to_lowercase();
+    games.iter().find(|r| dir.join(place_name(r.file.as_deref().filter(|f| !f.is_empty()).unwrap_or(&r.title))).to_string_lossy().to_lowercase() == lo)
+}
+
+/// What the launch screen says about a download that failed.
+pub fn failure_text(e: &Error) -> String {
+    match e {
+        Error::Aborted => "Download stopped. Press Play again to carry on from where it was.".into(),
+        Error::HashMismatch(_) => "The download didn't match RomM's copy (checked and removed). Press Play to try again.".into(),
+        Error::Auth => "RomM turned RustyShelf away: pair it again in Settings → Accounts & services → RomM.".into(),
+        Error::NotFound => "RomM doesn't have that game any more.".into(),
+        Error::NoSpace => "Not enough free space for it on this drive.".into(),
+        Error::Offline(_) => "RomM can't be reached right now.".into(),
+        e => format!("RomM: {e}"),
+    }
+}
+
+/// Downloads a shelf's RomM game not on this device yet into `dir`; the file to start. `say` gets the launch
+/// screen's line.
+pub fn fetch(romm: &Romm, data_dir: &Path, game: &Game, dir: &Path, say: &mut dyn FnMut(String), cancel: Option<&AtomicBool>) -> Result<PathBuf, String> {
+    if let Some(got) = local_files(data_dir).get(&game.romm_id.to_string()).map(PathBuf::from).filter(|g| g.is_file()) {
+        return Ok(got);
+    }
+    let mb = |n: u64| if n >= 1_000_000_000 { format!("{:.1} GB", n as f64 / 1e9) } else { format!("{} MB", (n as f64 / 1e6).round().max(1.0)) };
+    say("Getting it from RomM…".into());
+    let mut progress = |p: DownloadProgress| match (p.phase, p.total) {
+        (Phase::Download, Some(t)) if t > 0 => say(format!("Getting it from RomM… {}% of {}", p.received * 100 / t, mb(t))),
+        (Phase::Extract, _) => say("Unpacking it…".into()),
+        _ => {}
+    };
+    let res = romm.download(game, dir, &mut progress, cancel).map_err(|e| failure_text(&e))?;
+    if !res.file.is_file() {
+        return Err("RomM's download didn't give a game file.".into());
+    }
+    if res.multi && !res.extracted {
+        return Err(format!("{} came as a zip RustyShelf couldn't unpack. It's in {}.", game.title, dir.display()));
+    }
+    set_local_file(data_dir, game.romm_id, &res.file);
+    Ok(res.file)
+}
+
+/// Play on a console's game at `file` that isn't there: downloaded from RomM first when it's a RomM game. None when
+/// it isn't one (or RomM is off).
+#[allow(clippy::too_many_arguments)]
+pub fn fetch_shelf_game(cfg: &crate::config::Config, seal_key: Option<&[u8; 32]>, data_dir: &Path, app_root: &Path, console: &str, rom_dirs: &[String], file: &Path, say: &mut dyn FnMut(String), cancel: Option<&AtomicBool>) -> Option<Result<PathBuf, String>> {
+    if file.exists() {
+        return None;
+    }
+    let setup = Setup::from_config(cfg, seal_key);
+    if !setup.on() {
+        return None;
+    }
+    let romm = setup.client(data_dir);
+    let lib = romm.cached();
+    let dir = folder(rom_dirs, data_dir, console, app_root);
+    let game = game_at(lib.consoles.get(console)?, &dir, file)?;
+    Some(fs::create_dir_all(&dir).map_err(|e| format!("RomM: {e}")).and_then(|_| fetch(&romm, data_dir, game, &dir, say, cancel)))
+}
+
+/// The background sync once the shelf is up, and the covers it brought (at most 500): true when the shelves would
+/// show something new.
+pub fn sync_for_shelf(cfg: &crate::config::Config, seal_key: Option<&[u8; 32]>, data_dir: &Path) -> bool {
+    let setup = Setup::from_config(cfg, seal_key);
+    if !setup.on() {
+        return false;
+    }
+    let romm = setup.client(data_dir);
+    let before = romm.cached().count;
+    let lib = romm.library(&mut |_| {}, None);
+    let all: Vec<Game> = lib.consoles.values().flatten().cloned().collect();
+    let covers = romm.covers(&all, 500, 3, None);
+    lib.fetched > 0 || lib.removed > 0 || covers.downloaded > 0 || before != lib.count
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2082,6 +2266,26 @@ mod tests {
         assert_eq!(date_of(Some(&json!(631_152_000_000u64 + 86_400_000))).as_deref(), Some("1990-01-02"));
         assert_eq!(date_of(Some(&json!(631_152_000))).as_deref(), Some("1990-01-01"));
         assert_eq!(date_of(Some(&json!(null))), None);
+    }
+
+    #[test]
+    fn on_the_shelf() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("nes");
+        let r = |id: u64, title: &str, file: &str| Game { romm_id: id, title: title.into(), file: Some(file.into()), ..Game::default() };
+        let games = [r(1, "Here By Name", "a.nes"), r(2, "Same Title", "b.nes"), r(3, "Cloud", "c:d?.nes"), r(4, "Downloaded", "e.nes")];
+        let local = [crate::scanner::Game { file: dir.join("a.nes"), title: "x".into(), ..Default::default() }, crate::scanner::Game { file: dir.join("zz.nes"), title: "same title".into(), ..Default::default() }];
+        let elsewhere = tmp.path().join("RomM games/nes/e.nes");
+        std::fs::create_dir_all(elsewhere.parent().unwrap()).unwrap();
+        std::fs::write(&elsewhere, b"x").unwrap();
+        let done = HashMap::from([("4".to_string(), elsewhere.to_string_lossy().into_owned())]);
+        let got = shelf_games("nes", &local, &games, &dir, &done);
+        assert_eq!(got.len(), 2);
+        assert_eq!((got[0].file.clone(), got[0].romm.map(|r| r.cloud)), (dir.join("c_d_.nes"), Some(true)));
+        assert_eq!(got[0].id, format!("nes:{}", dir.join("c_d_.nes").display()));
+        assert_eq!((got[1].file.clone(), got[1].romm.map(|r| r.cloud)), (elsewhere, Some(false)));
+        assert_eq!(game_at(&games, &dir, &dir.join("C_D_.nes")).map(|g| g.romm_id), Some(3));
+        assert_eq!(place_name("a/b. "), "a_b");
     }
 
     #[test]

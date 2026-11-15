@@ -677,6 +677,22 @@ pub fn heart(size: u32) -> Picture {
     picture(c)
 }
 
+/// The mark in the corner of a RomM game's cover that isn't on this device yet: a cloud with an arrow down, on a dark
+/// disc (style.css `.slot.cloud`).
+pub fn cloud(size: u32) -> Picture {
+    const SVG: &str = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='rgb(10,10,16)' fill-opacity='.75'/>\
+<g transform='translate(19 19) scale(2.583)' fill='none' stroke='#a9bfff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>\
+<path d='M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.2 4.5 4.5 0 0 0 7 18z'/><path d='M12 10v6m-2.5-2.5L12 16l2.5-2.5'/></g></svg>";
+    let size = size.max(1);
+    let mut pix = resvg::tiny_skia::Pixmap::new(size, size).expect("a mark's size");
+    if let Ok(tree) = resvg::usvg::Tree::from_str(SVG, &resvg::usvg::Options::default()) {
+        let k = size as f32 / 100.0;
+        resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(k, k), &mut pix.as_mut());
+    }
+    let rgba = pix.pixels().iter().flat_map(|p| { let d = p.demultiply(); [d.red(), d.green(), d.blue(), d.alpha()] }).collect();
+    Picture { width: size, height: size, rgba }
+}
+
 /// A case's spine as the shelf shows it when there's no picture of it: the printed sheet inside the case's border,
 /// the console's band at the top and the title running down it. `width` × `height` pixels, `scale` of them to a
 /// pixel of the shelf's own measure; `edge`: the border at the top and bottom, in that measure.

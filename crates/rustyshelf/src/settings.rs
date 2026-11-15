@@ -34,6 +34,7 @@ mod manuals;
 mod moving;
 mod mstudio;
 mod phone;
+mod romm;
 pub mod setup;
 mod storage;
 mod text;
@@ -95,6 +96,7 @@ enum Screen {
     /// RetroAchievements and Steam achievements, the whole account
     Trophies,
     Phone,
+    Romm,
     /// the room the PC games take, by drive
     Storage,
     /// which drives a search looks through as well as the usual places (Windows)
@@ -254,6 +256,7 @@ pub struct Settings {
     /// the Songs folder, or the Music folder, was asked to be read again
     pub reload_songs: bool,
     pub reload_music: bool,
+    romm: romm::RommUi,
 }
 
 /// Settings → Sounds.
@@ -333,6 +336,7 @@ impl Default for Settings {
             cues: Vec::new(),
             reload_songs: false,
             reload_music: false,
+            romm: Default::default(),
         }
     }
 }
@@ -1029,7 +1033,7 @@ impl Settings {
                     open("Display", String::new(), "", Screen::Display),
                     open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
                     Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() },
-                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, Steam, ScreenScraper", Screen::Accounts),
+                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, Steam, ScreenScraper, RomM", Screen::Accounts),
                     open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone),
                     open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
@@ -1860,6 +1864,7 @@ impl Settings {
             Screen::Find => self.find_page(),
             Screen::Accounts => self.accounts_page(),
             Screen::Phone => self.phone_page(),
+            Screen::Romm => self.romm_page(),
             Screen::Storage => self.storage_page(),
             Screen::Art => self.art_page(),
             Screen::ArtPart => self.art_part_page(),
@@ -2165,6 +2170,7 @@ pub fn input(
     }
     s.poll_core();
     s.poll_ra();
+    s.poll_romm();
     s.poll_moves();
     s.poll_update();
     s.poll_adding();
@@ -2309,7 +2315,7 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         return;
     }
     let page = s.page();
-    let link = s.pairing_link();
+    let link = s.pairing_link().or_else(|| s.romm_link());
     if s.qr.as_ref().map(|q| &q.0) != link.as_ref() {
         if let Some((_, old)) = s.qr.take() {
             images.remove(&old);

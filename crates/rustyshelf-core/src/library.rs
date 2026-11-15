@@ -303,13 +303,24 @@ impl Library {
             let shelves: Vec<Shelf> = jobs.into_iter().filter_map(|j| j.join().ok()).collect();
             (shelves, steam.join().unwrap_or_default(), pc.join().unwrap_or_default())
         });
+        let romm = crate::romm::Setup::from_config(&config, crate::seal::key(&paths::env_var).as_ref());
+        if romm.on() && romm.cloud {
+            let lib = romm.client(&data_dir).cached();
+            let done = crate::romm::local_files(&data_dir);
+            for shelf in shelves.iter_mut() {
+                let (Some(games), ShelfKind::Console { config: sc, .. }) = (lib.consoles.get(&shelf.id), &shelf.kind) else { continue };
+                let dir = crate::romm::folder(&sc.rom_dirs, &data_dir, &shelf.id, app_root);
+                let extra = crate::romm::shelf_games(&shelf.id, &shelf.games, games, &dir, &done);
+                shelf.games.extend(extra);
+            }
+        }
         // a console game's info goes by the name its art is looked up under: the one picked by hand (Details → Art
         // match), else the title read from its file
         let mut infos = crate::info::InfoCache::load(&data_dir.join("boxart-cache"));
         for shelf in shelves.iter_mut() {
             for g in shelf.games.iter_mut() {
                 let name = config.game(&g.id).and_then(|o| o.get("artName")).and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or(&g.title);
-                g.info = infos.get(&shelf.id, name);
+                g.info = infos.get(&shelf.id, name).or(g.info.take());
                 if let Some(t) = config.game_title(&g.id) {
                     g.title = t.to_string();
                 }

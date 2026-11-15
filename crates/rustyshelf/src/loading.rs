@@ -128,6 +128,22 @@ pub fn recheck_folders(time: Res<Time>, mut next: Local<f32>, base: Res<Base>, m
     refresh.0 = Some(Mutex::new(rx));
 }
 
+/// Reads the library again behind the shelf; false while it's already being read.
+pub fn read_again(refresh: &mut Refresh, root: &std::path::Path) -> bool {
+    if refresh.0.is_some() {
+        return false;
+    }
+    let (tx, rx) = channel();
+    let root = root.to_path_buf();
+    thread::spawn(move || {
+        if let Ok(fresh) = Library::load_from(&root) {
+            let _ = tx.send(fresh);
+        }
+    });
+    refresh.0 = Some(Mutex::new(rx));
+    true
+}
+
 pub fn start_library() -> LibraryRes {
     let (tx, rx) = channel();
     thread::spawn(move || {

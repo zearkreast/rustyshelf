@@ -60,7 +60,7 @@ impl Settings {
     }
 
     /// Keeps an API key as `set_ra_key` keeps RetroAchievements'.
-    fn set_api_key(&mut self, name: &str, key: String) {
+    pub(super) fn set_api_key(&mut self, name: &str, key: String) {
         let sealed = self.seal_key.filter(|_| !key.is_empty()).and_then(|k| seal::seal(&key, &k, seal::nonce()));
         match sealed {
             Some(s) => {
@@ -242,6 +242,13 @@ impl Settings {
                 });
             })),
             ..Row::default()
+        });
+        rows.push(Row {
+            label: "RomM".into(),
+            value: self.romm_state(),
+            hint: "Your RomM server's games on your shelves: RustyShelf's full box art and manuals for them, and a game not on this device yet is downloaded when you press Play.".into(),
+            press: Some(Box::new(|s: &mut Settings| s.go(Screen::Romm))),
+            step: None,
         });
         Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover. Steam: your achievements on the Trophies screen. ScreenScraper: box scans by region.".into(), rows }
     }

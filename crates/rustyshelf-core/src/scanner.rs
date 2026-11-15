@@ -106,6 +106,16 @@ pub struct Game {
     /// release, developer, genres … from the box art database or Steam's store
     pub info: Option<crate::info::Info>,
     pub source: Source,
+    /// a RomM game: its place once downloaded is `file`
+    pub romm: Option<RommRef>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RommRef {
+    pub id: u64,
+    pub multi: bool,
+    /// not on this device yet: Play downloads it first
+    pub cloud: bool,
 }
 
 /// What a scan reads from the data folder besides the settings: the lists fetched for it, and the folder sizes measured.

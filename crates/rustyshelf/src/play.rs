@@ -85,6 +85,14 @@ pub struct Playing {
     /// Home was asked for on a pad while the game is in front; and the Home menu asked for the game to be closed
     pub home_pressed: bool,
     pub close_asked: bool,
+    /// a RomM game being downloaded before it starts
+    pub romm: Option<Downloading>,
+}
+
+pub struct Downloading {
+    pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// what the boot slide says about it
+    pub line: std::sync::Arc<Mutex<String>>,
 }
 
 /// A helper program that runs beside the game and goes when the game does.
@@ -250,6 +258,13 @@ pub fn navigate(
     let asked = std::mem::take(&mut settings.play);
     // Settings has the keys while it's open, and so has the Home menu
     if settings.open || settings.keys_taken || (settings.just_closed && !asked) {
+        return;
+    }
+    if let Some(d) = playing.romm.as_ref().filter(|_| keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pads.iter().any(|p| p.just_pressed(settings.confirm().1))) {
+        // the part is kept for a resume
+        d.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        toast.text = "Stopping the download…".into();
+        toast.until = time.elapsed_secs() + 3.0;
         return;
     }
     if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() {
@@ -482,7 +497,19 @@ pub fn navigate(
             let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
             playing.console = console.id.clone();
             let waiting = settings.at_launch();
+            let (cancel, line) = (std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), std::sync::Arc::new(Mutex::new(String::new())));
+            if g.romm.is_some_and(|r| r.cloud) {
+                playing.romm = Some(Downloading { cancel: cancel.clone(), line: line.clone() });
+            }
             std::thread::spawn(move || {
+                let data = paths::data_dir(&root);
+                let seal = rustyshelf_core::seal::key(&paths::env_var);
+                let mut say = |t: String| *line.lock().unwrap() = t;
+                let file = match rustyshelf_core::romm::fetch_shelf_game(&cfg, seal.as_ref(), &data, &root, &console.id, &sc.rom_dirs, &file, &mut say, Some(&cancel)) {
+                    Some(Ok(got)) => got,
+                    Some(Err(why)) => return drop(tx.send(Err(LaunchError::Refused(why)))),
+                    None => file,
+                };
                 let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| {
                     let exe = p.exe.to_string_lossy().into_owned();
                     let still = waiting.and_then(|w| w.run(&p.exe));
@@ -612,6 +639,9 @@ pub fn watch_game(
         None | Some(Err(TryRecvError::Empty)) => {}
         Some(Ok(Ok((child, exe, still)))) => {
             info!("Launched {title}");
+            if playing.romm.take().is_some() {
+                crate::romm::DOWNLOADED.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
             if let Some(list) = still {
                 settings.set_pending(list);
             }

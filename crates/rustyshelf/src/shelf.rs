@@ -463,6 +463,7 @@ pub struct Kit {
     strip: Handle<StandardMaterial>,
     mirror: Handle<Mesh>,
     heart: Handle<StandardMaterial>,
+    cloud: Handle<StandardMaterial>,
     /// the case the plastic and the light were painted for
     made_for: (f32, f32),
 }
@@ -656,6 +657,7 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
         strip: materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, cull_mode: None, double_sided: true, ..default() }),
         mirror: meshes.add(mirror()),
         heart: clear(&mut materials, Color::WHITE),
+        cloud: clear(&mut materials, Color::WHITE),
         made_for: (0.0, 0.0),
     });
 }
@@ -719,6 +721,7 @@ pub fn measure(
         };
         wear(&kit.rim, picture(&mut images, rim_picture(now.bw, now.bh)));
         wear(&kit.heart, picture(&mut images, rustyshelf_core::drawn::heart(104)));
+        wear(&kit.cloud, picture(&mut images, rustyshelf_core::drawn::cloud(104)));
         // the curve of a spine, as style.css and setup.css shade it (.f-left::after chosen and not, .f-right::after)
         for (m, css) in kit.shade.iter().zip([
             "linear-gradient(90deg,rgba(0,0,0,.15),rgba(255,255,255,.14) 45%,rgba(0,0,0,.2))",
@@ -927,6 +930,11 @@ pub fn build_shelf(
                 if favourites.contains(&g.id.as_str()) {
                     let (size, inset) = (26.0 / stage.bh, 21.0 / stage.bh);
                     b.spawn((mesh(), MeshMaterial3d(kit.heart.clone()), Transform::from_xyz(w / 2.0 - inset, 0.5 - inset, d / 2.0 + 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
+                }
+                // a RomM game not on this device yet: a cloud in the other corner (Play downloads it first)
+                if g.romm.is_some_and(|r| r.cloud) {
+                    let (size, inset) = (26.0 / stage.bh, 21.0 / stage.bh);
+                    b.spawn((mesh(), MeshMaterial3d(kit.cloud.clone()), Transform::from_xyz(-w / 2.0 + inset, 0.5 - inset, d / 2.0 + 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
                 }
                 // every case: a pale strip of floor under it
                 b.spawn((mesh(), MeshMaterial3d(kit.strip.clone()), Transform::from_xyz(0.0, floor - 0.19, d / 2.0).with_scale(Vec3::new(w, 0.38, 1.0))));
