@@ -2229,5 +2229,209 @@
    "cover-shadow": "rgba(60,20,30,.28)",
    "word": "linear-gradient(180deg,#ff3d4f,#c4000f)"
   }
+ },
+ "media": {
+  "gc": {
+   "kind": "disc",
+   "size": 0.62,
+   "drive": "top"
+  },
+  "wii": {
+   "kind": "disc",
+   "size": 0.86,
+   "drive": "front"
+  },
+  "wiiu": {
+   "kind": "disc",
+   "size": 0.84,
+   "drive": "front"
+  },
+  "psp": {
+   "kind": "umd",
+   "size": 0.66,
+   "drive": "hatch"
+  },
+  "sw": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "sw2": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "n3ds": {
+   "kind": "cart",
+   "size": 0.29,
+   "drive": "slot"
+  },
+  "ps3": {
+   "kind": "disc",
+   "size": 0.78,
+   "drive": "front"
+  },
+  "ps4": {
+   "kind": "disc",
+   "size": 0.78,
+   "drive": "front"
+  },
+  "ps5": {
+   "kind": "disc",
+   "size": 0.78,
+   "drive": "front"
+  },
+  "x360": {
+   "kind": "disc",
+   "size": 0.8,
+   "drive": "tray"
+  },
+  "ps2": {
+   "kind": "disc",
+   "size": 0.8,
+   "drive": "tray"
+  },
+  "nes": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "fds": {
+   "kind": "cart",
+   "form": "floppy",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "snes": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "n64": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "gb": {
+   "kind": "cart",
+   "size": 0.45,
+   "drive": "slot"
+  },
+  "gbc": {
+   "kind": "cart",
+   "size": 0.45,
+   "drive": "slot"
+  },
+  "gba": {
+   "kind": "cart",
+   "size": 0.42,
+   "drive": "slot"
+  },
+  "nds": {
+   "kind": "cart",
+   "size": 0.29,
+   "drive": "slot"
+  },
+  "megadrive": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "mastersystem": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "gamegear": {
+   "kind": "cart",
+   "size": 0.45,
+   "drive": "slot"
+  },
+  "pcengine": {
+   "kind": "cart",
+   "size": 0.4,
+   "drive": "slot"
+  },
+  "neogeo": {
+   "kind": "cart",
+   "size": 0.55,
+   "drive": "slot"
+  },
+  "arcade": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "psx": {
+   "kind": "disc",
+   "size": 0.7,
+   "drive": "top"
+  },
+  "dreamcast": {
+   "kind": "disc",
+   "size": 0.7,
+   "drive": "top"
+  },
+  "saturn": {
+   "kind": "disc",
+   "size": 0.7,
+   "drive": "top"
+  },
+  "segacd": {
+   "kind": "disc",
+   "size": 0.7,
+   "drive": "top"
+  },
+  "sega32x": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "atari2600": {
+   "kind": "cart",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "atarilynx": {
+   "kind": "cart",
+   "size": 0.42,
+   "drive": "slot"
+  },
+  "wonderswan": {
+   "kind": "cart",
+   "size": 0.42,
+   "drive": "slot"
+  },
+  "dos": {
+   "kind": "cart",
+   "form": "floppy",
+   "size": 0.5,
+   "drive": "slot"
+  },
+  "xbox": {
+   "kind": "disc",
+   "size": 0.7,
+   "drive": "front"
+  },
+  "ngp": {
+   "kind": "cart",
+   "size": 0.4,
+   "drive": "slot"
+  },
+  "ngpc": {
+   "kind": "cart",
+   "size": 0.4,
+   "drive": "slot"
+  },
+  "gamecom": {
+   "kind": "cart",
+   "size": 0.42,
+   "drive": "slot"
+  },
+  "psvita": {
+   "kind": "cart",
+   "size": 0.36,
+   "drive": "slot"
+  }
  }
 }

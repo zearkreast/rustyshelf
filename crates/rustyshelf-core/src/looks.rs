@@ -190,6 +190,32 @@ struct Table {
     wordmarks: HashMap<String, (String, String)>,
     lettering: HashMap<String, Lettering>,
     boot: HashMap<String, BootVars>,
+    media: HashMap<String, Media>,
+}
+
+/// What a console's games come on: `kind` "disc", "cart" or "umd", and a `form` for a cartridge that's a floppy disk.
+#[derive(Deserialize)]
+struct Media {
+    kind: String,
+    form: Option<String>,
+}
+
+/// What a console's games come on, in a word: "Floppy disk", "Cartridge", "UMD" or "Disc".
+pub fn media_word(console: &str) -> &'static str {
+    match TABLE.media.get(console) {
+        Some(m) if m.form.as_deref() == Some("floppy") => "Floppy disk",
+        Some(m) if m.kind == "cart" => "Cartridge",
+        _ if console == "psp" => "UMD",
+        _ => "Disc",
+    }
+}
+
+/// The same word inside a sentence: "the cartridge", but "the UMD".
+pub fn media_word_lower(console: &str) -> String {
+    match media_word(console) {
+        "UMD" => "UMD".into(),
+        w => w.to_lowercase(),
+    }
 }
 
 static TABLE: LazyLock<Table> = LazyLock::new(|| serde_json::from_str(include_str!("../data/looks.json")).expect("data/looks.json"));
@@ -287,5 +313,11 @@ mod tests {
         assert_eq!(look("ps3").on_shelf("ps3"), Shape { depth: 0.066, edge: 0.024, edge_in: 0.0, rc: 0.02 });
         assert_eq!(look("x360").on_shelf("home").edge_in, 0.0);
         assert_eq!((look("sw").paper(), gc.paper()), ([1.0; 4], gc.case_color));
+    }
+
+    #[test]
+    fn each_console_s_games_come_on_their_own_media() {
+        assert_eq!([media_word("ps2"), media_word("snes"), media_word("sw"), media_word("psp"), media_word("dos"), media_word("fds"), media_word("nothing")], ["Disc", "Cartridge", "Cartridge", "UMD", "Floppy disk", "Floppy disk", "Disc"]);
+        assert_eq!((media_word_lower("nds"), media_word_lower("psp")), ("cartridge".to_string(), "UMD".to_string()));
     }
 }

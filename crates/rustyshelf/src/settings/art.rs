@@ -6,7 +6,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
 use rustyshelf_core::artjob::{self, Ask, Job, Remote, Set, SetDone};
 use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
-use rustyshelf_core::paths;
+use rustyshelf_core::{looks, paths};
 use std::sync::atomic::Ordering;
 
 use super::*;
@@ -74,11 +74,12 @@ fn now_ms() -> f64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
 }
 
-fn part_name(part: &str) -> &'static str {
+/// A part's name; the disc is named for what the console's games come on (a cartridge, a UMD, a floppy disk).
+fn part_name(part: &str, sys: &str) -> &'static str {
     match part {
         "back" => "Back",
         "spine" => "Spine",
-        "disc" => "Disc or cartridge",
+        "disc" => looks::media_word(sys),
         _ => "Front",
     }
 }
@@ -334,6 +335,7 @@ impl Settings {
     pub(super) fn art_sets_page(&self) -> Page {
         let pick = &self.art_pick;
         let title = format!("Complete sets · {}", pick.game.as_ref().map_or("", |g| g.title.as_str()));
+        let sys = pick.game.as_ref().map_or("", |g| g.sys.as_str());
         let mut rows: Vec<Row> = pick
             .sets
             .iter()
@@ -341,7 +343,7 @@ impl Settings {
             .map(|(i, set)| Row {
                 label: set.label.clone(),
                 value: if set.same { "Back and spine from one scan".into() } else { String::new() },
-                hint: format!("{}. Enter puts all four in; the pictures they replace are kept in the replaced folder.", studio::PARTS.iter().zip(&set.parts).map(|(p, c)| format!("{}: {}", part_name(p), if c.label.is_empty() { source_name(&c.source) } else { &c.label })).collect::<Vec<_>>().join(" · ")),
+                hint: format!("{}. Enter puts all four in; the pictures they replace are kept in the replaced folder.", studio::PARTS.iter().zip(&set.parts).map(|(p, c)| format!("{}: {}", part_name(p, sys), if c.label.is_empty() { source_name(&c.source) } else { &c.label })).collect::<Vec<_>>().join(" · ")),
                 press: Some(Box::new(move |s: &mut Settings| s.place_set(Some(i)))),
                 step: None,
             })
@@ -599,7 +601,7 @@ impl Settings {
             .into_iter()
             .zip(&g.current)
             .map(|(part, now)| Row {
-                label: part_name(part).into(),
+                label: part_name(part, &g.sys).into(),
                 value: now.as_ref().map_or("None yet".into(), |f| short(&f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())),
                 hint: "Every version of this part the box art sources have, to choose from".into(),
                 press: Some(Box::new(move |s: &mut Settings| s.open_art_part(part))),
@@ -613,7 +615,8 @@ impl Settings {
 
     pub(super) fn art_part_page(&self) -> Page {
         let pick = &self.art_pick;
-        let title = format!("{} · {}", part_name(pick.part), pick.game.as_ref().map_or("", |g| g.title.as_str()));
+        let sys = pick.game.as_ref().map_or("", |g| g.sys.as_str());
+        let title = format!("{} · {}", part_name(pick.part, sys), pick.game.as_ref().map_or("", |g| g.title.as_str()));
         let mut rows: Vec<Row> = pick
             .list
             .iter()
@@ -676,10 +679,10 @@ impl Settings {
         }
         if pick.listing.is_none() || pick.pending {
             let what = match pick.part {
-                "back" => "back cover",
-                "spine" => "spine",
-                "disc" => "disc",
-                _ => "front cover",
+                "back" => "back cover".to_string(),
+                "spine" => "spine".into(),
+                "disc" => looks::media_word_lower(sys),
+                _ => "front cover".into(),
             };
             rows.push(Row {
                 label: "A picture of yours…".into(),

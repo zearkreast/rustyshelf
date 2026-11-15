@@ -27,9 +27,11 @@ const looks = () => {
   const app = fs.readFileSync(path.join(ROOT, 'renderer', 'app.js'), 'utf8');
   const STYLE = new Function('return ' + /\nconst STYLE=(\{[\s\S]*?\n\});\n/.exec(app)[1])();
   const WORDMARKS = new Function('return ' + /\nconst WORDMARKS=(\{.*?\});\n/.exec(app)[1])();
+  const MEDIA = new Function('return ' + /\nconst MEDIA=(\{.*?\});\n/.exec(app)[1])();
   const win = {}; new Function('window', fs.readFileSync(path.join(ROOT, 'renderer', 'systems-extra.js'), 'utf8'))(win);
   STYLE.xsx = STYLE.xboxone; STYLE.xone = STYLE.xboxone; STYLE.all = STYLE.home; WORDMARKS.all = ['All Games', 'Whole library'];
   Object.assign(STYLE, win.BS_SYSTEMS_EXTRA.style || {}); Object.assign(WORDMARKS, win.BS_SYSTEMS_EXTRA.wordmarks || {});
+  Object.assign(MEDIA, win.BS_SYSTEMS_EXTRA.media || {}); // what each console's games come on: a disc, a cartridge, a UMD, a floppy disk
   // each shelf's lettering colours (the .wm-<id> rules of the renderer's style sheets; "" is a shelf without its own)
   const wm = {};
   for (const f of fs.readdirSync(path.join(ROOT, 'renderer')).filter(f => f.endsWith('.css')).sort()) {
@@ -64,7 +66,7 @@ const looks = () => {
   boot[''] = vars(/\.ins-slide\{[^}]*\}/.exec(bs)[0]);
   for (const m of bs.matchAll(/\.ins-slide\.bs-([a-z0-9]+)\{([^}]*)\}/g)) boot[m[1]] = { ...(boot[m[1]] || {}), ...vars(m[2]) };
   for (const m of bs.matchAll(/\.bs-([a-z0-9]+) \.bs-word \.wm-main\{background:([^;}]*(?:\([^)]*\))?[^;}]*)/g)) if (boot[m[1]]) boot[m[1]].word = m[2].trim();
-  return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS, lettering: wm, boot }, null, 1) + '\n';
+  return JSON.stringify({ style: STYLE, wordmarks: WORDMARKS, lettering: wm, boot, media: MEDIA }, null, 1) + '\n';
 };
 
 // the pictures and patterns the extra themes' backdrops are made of (renderer/themes-extra.js): they never change, so
