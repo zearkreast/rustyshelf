@@ -6,6 +6,7 @@
 
 mod appicon;
 mod boot;
+mod card;
 mod cheevos;
 mod home;
 mod hud;
@@ -21,6 +22,8 @@ mod romm;
 mod settings;
 mod shelf;
 mod sound;
+mod tour;
+mod whatsnew;
 mod wiimote;
 
 use bevy::prelude::*;
@@ -89,8 +92,11 @@ fn main() {
         .init_resource::<idle::Idle>()
         .init_resource::<romm::Sync>()
         .init_resource::<wiimote::Remote>()
+        .init_resource::<card::Card>()
+        .init_resource::<whatsnew::WhatsNew>()
+        .init_resource::<tour::Tour>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup).chain())
         .add_systems(Update, appicon::set)
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
@@ -103,6 +109,7 @@ fn main() {
                 phone::run,
                 idle::run,
                 home::run,
+                (card::run, whatsnew::run, tour::run).chain(),
                 reader::run,
                 shelf::inspect,
                 settings::input,

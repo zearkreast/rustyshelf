@@ -1,0 +1,67 @@
+[
+  {
+    "version": "0.1.0-alpha.3", "name": "0.1.0 alpha 3", "date": "2026-11-16", "title": "RustyShelf's icon, the museum, Kid mode and RomM",
+    "highlights": [
+      "The museum: the classic wall, rooms by maker or genre, the walkable arcade and the reading corner",
+      "Kid mode",
+      "RomM's games on the shelves",
+      "Xbox 360 achievements from Xenia and PS3 trophies from RPCS3",
+      "RustyShelf's icon in Explorer, the taskbar, the title bar and Alt+Tab"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["RustyShelf's icon", "The exe carries it for Explorer and the taskbar, and the window shows it in its title bar and in Alt+Tab."],
+        ["The museum", "The classic wall, rooms by maker or genre, the walkable arcade and the reading corner."],
+        ["Kid mode", ""],
+        ["RomM", "Your RomM server's games on your shelves."],
+        ["More achievements", "Xbox 360 achievements from Xenia and PS3 trophies from RPCS3."],
+        ["Magazines and guides", "The magazines and guides library."],
+        ["Mona Sans", "The shelf's lettering."],
+        ["Brazilian Portuguese", ""],
+        ["RocketLauncher", ""],
+        ["Attract mode and the screen dimmer", ""],
+        ["Screenshots in Details", ""],
+        ["The drives to search", ""],
+        ["Zoom in the manual reader", ""]
+      ] }
+    ]
+  },
+  {
+    "version": "0.1.0-alpha.2", "name": "0.1.0 alpha 2", "date": "2026-11-15", "title": "Turkish and French, a simpler first run, and Ports & Recomps",
+    "highlights": [
+      "Turkish and French",
+      "A simpler first run, with portable emulators found",
+      "The Ports & Recomps shelf",
+      "A real back for Steam games"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Turkish and French", ""],
+        ["A simpler first run", ""],
+        ["Portable emulators found", ""],
+        ["Games folders read deeper", ""],
+        ["The Ports & Recomps shelf", ""],
+        ["A real back for Steam games", ""],
+        ["The achievements wall's sections and sort", ""],
+        ["View for Details", ""],
+        ["Undo of emulator setup", "It puts back only its own keys."]
+      ] }
+    ]
+  },
+  {
+    "version": "0.1.0-alpha.1", "name": "0.1.0 alpha 1", "date": "2026-11-15", "title": "The first alpha of RustyShelf's native app",
+    "highlights": [
+      "The Rust rewrite of the Electron app: one exe for Windows",
+      "It shares the Electron app's data folder and file formats, so both can be used on the same library"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["The shelves", "Every console's shelf on the 3D shelf with the Electron app's layout, themes and backgrounds, Home and All shelves, Find a game, Details with game info, favourites, hidden games and collections."],
+        ["Playing", "Games with their emulators, the Home menu over a running game, the quit combo and Seamless play."],
+        ["Box art", "Downloads (libretro, LaunchBox, GameTDB, the Super Mario Wiki for Switch 2, ScreenScraper and SteamGridDB with your own account and key) and the Art Studio."],
+        ["Manuals", "archive.org, GamesDatabase, the scan collections and PDFs drawn into pages, with the Manual Studio and the reader."],
+        ["And more", "Steam and the other stores' PC games, RetroAchievements and Steam achievements, the phone companion, sounds and music, data export and the first-run setup."]
+      ] }
+    ]
+  }
+]

@@ -32,8 +32,10 @@ mod custom;
 mod find;
 mod kid;
 pub use kid::kid_hidden;
+pub use notes::notes;
 mod manuals;
 mod moving;
+mod notes;
 mod mstudio;
 mod linuxpc;
 mod phone;
@@ -104,6 +106,7 @@ enum Screen {
     /// (Linux) the Epic account's games, and the downloads
     EpicLibrary,
     EpicDownloads,
+    WhatsNew,
     /// the room the PC games take, by drive
     Storage,
     /// which drives a search looks through as well as the usual places (Windows)
@@ -2007,6 +2010,7 @@ impl Settings {
                 }))
                 .chain(self.moving_rows())
                 .chain([self.update_row()])
+                .chain(self.notes_rows())
                 .collect(),
             },
             Screen::Shelf => {
@@ -2180,6 +2184,7 @@ impl Settings {
             Screen::Romm => self.romm_page(),
             Screen::EpicLibrary => self.epic_library_page(),
             Screen::EpicDownloads => self.epic_downloads_page(),
+            Screen::WhatsNew => self.whatsnew_page(),
             Screen::Storage => self.storage_page(),
             Screen::Art => self.art_page(),
             Screen::ArtPart => self.art_part_page(),
