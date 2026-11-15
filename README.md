@@ -621,7 +621,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 - Sets itself up on the first run: it looks for your emulators, games folders, Steam and the streaming apps, shows the
   consoles it found switched on, and lets you change each one's emulator and games folders before the shelf opens.
-- Has Settings (S or F1, or View on the pad): each console's shelf, emulator and games folders, RetroArch, Steam and the
+- Has Settings (S or F1, or Start on the pad and then Settings; View opens Details): each console's shelf, emulator and games folders, RetroArch, Steam and the
   other stores, the PC games folder, box art downloads and their region, the art library, fullscreen, the quit combo,
   searching again and restoring the emulators' own settings. Everything is saved to `data\config.json` by the rules
   the Electron app's settings go through, so both apps keep reading the same file.

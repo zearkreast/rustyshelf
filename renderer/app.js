@@ -3754,7 +3754,8 @@ const PAD_HINTS=[
   {act:()=>openInspect(),pad:["R3"],label:"Inspect",when:canInspect},
   {act:()=>shuffle(),pad:["L3"],label:"Shuffle",when:notDet},
   {act:()=>window.BS_FIND&&BS_FIND.open(),pad:["L3"],label:"",hold:"Find",lo:ANDROID,when:notDet}, /* (upstream beta.12) the left stick's click held: Find a game (lo: on the Thor's narrower bar it gives way, as Shuffle does; the Search button is beside Menu there) */
-  {act:()=>Setup.open(),pad:["⧉"],label:"Settings",when:notDet},
+  {act:()=>Setup.open(),pad:["⧉"],label:"Settings",when:()=>ANDROID&&notDet()},
+  {act:()=>openDetails(),pad:["⧉"],label:"Details",when:()=>!ANDROID&&notDet()}, /* (beta.12, Windows / Linux: Minus opens Details; Settings is in the quick menu) */
   {act:()=>openMuseum(),pad:["⧉"],label:"",hold:"Museum",when:notDet},
   {act:()=>qmOpen(),pad:["☰"],label:"Menu",when:notDet},
   {act:()=>panelScroll($("details"),1),pad:["R"],label:"Scroll",when:()=>mode==="details"},
@@ -4346,7 +4347,7 @@ function pollBody(t){
       tap(gp,9,t,()=>{if(mode==="browse"||mode==="details")qmOpen()});if(B(9)&&!prevBtn.b9At)prevBtn.b9At=t;if(B(9)&&prevBtn.b9At&&t-prevBtn.b9At>650){prevBtn.b9At=0;tapAt[9]=0;setInput("pad");openSort()}if(!B(9))prevBtn.b9At=0;tap(gp,11,t,()=>openInspect());
       /* (upstream beta.12) the left stick's click held for a moment, on its own: Find a game (find.js). A tap is still Shuffle; held together with the right stick's click it's the quit combo, never this */
       if(B(10)&&B(11))prevBtn.b10At=Infinity;else if(B(10)&&!prevBtn.b10At)prevBtn.b10At=t;if(B(10)&&prevBtn.b10At&&t-prevBtn.b10At>600&&mode==="browse"&&window.BS_FIND){prevBtn.b10At=Infinity;tapAt[10]=0;setInput("pad");BS_FIND.open("pad")}if(!B(10))prevBtn.b10At=0;
-      tap(gp,10,t,()=>shuffle());tap(gp,8,t,()=>{if(mode==="customize")closeCustomize();else if(mode==="browse"||mode==="details")Setup.open()});if(B(8)&&!prevBtn.b8At)prevBtn.b8At=t;if(B(8)&&prevBtn.b8At&&t-prevBtn.b8At>650){prevBtn.b8At=0;tapAt[8]=0;setInput("pad");openMuseum()}if(!B(8))prevBtn.b8At=0;
+      tap(gp,10,t,()=>shuffle());tap(gp,8,t,()=>{if(mode==="customize")closeCustomize();else if(!ANDROID&&mode==="browse")openDetails();else if(!ANDROID&&mode==="details")closeDetails();else if(mode==="browse"||mode==="details")Setup.open()}); /* (beta.12, Windows / Linux: Minus / View opens Details, held the museum; Settings is in the quick menu) */if(B(8)&&!prevBtn.b8At)prevBtn.b8At=t;if(B(8)&&prevBtn.b8At&&t-prevBtn.b8At>650){prevBtn.b8At=0;tapAt[8]=0;setInput("pad");openMuseum()}if(!B(8))prevBtn.b8At=0;
       edge(gp,4,()=>letter(-1));edge(gp,5,()=>letter(1));edge(gp,6,()=>sysStep(-1));edge(gp,7,()=>sysStep(1));
       const rx=ax[2]||0;
       // right stick turns the box the way Inspect does: the stick sets a target, the box eases after it, and it settles on the nearest side when you let go

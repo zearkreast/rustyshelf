@@ -268,15 +268,14 @@ const KEYS: [(&[&str], &str); 11] = [
     (&["Esc"], "Exit"),
 ];
 /// (the pad's buttons by `pads::cap`'s keys)
-const PAD_KEYS: [(&[&str], &str); 9] = [
+const PAD_KEYS: [(&[&str], &str); 8] = [
     (&["L1", "R1"], "Letter"),
     (&["L2", "R2"], "System"),
     (&["tri"], "Flip · hold ♥"),
-    (&["sq"], "Details"),
+    (&["⧉"], "Details"),
     (&["x"], "Play"),
     (&["L3"], "Shuffle · hold Find"),
-    (&["⧉"], "Settings"),
-    (&["☰"], "Sort"),
+    (&["☰"], "Sort · Settings"),
     (&["o"], "Back"),
 ];
 
@@ -312,7 +311,7 @@ pub fn update(
         LibraryState::Failed(e) => note = format!("Your settings couldn't be read ({e})."),
         LibraryState::Ready(l) if l.shelves.is_empty() => {
             title = "Nothing on the shelf yet".into();
-            under = vec![format!("Connect your emulators and game folders in Settings ({})", if prompts.pad { settings.cap("⧉") } else { "S" })];
+            under = vec![format!("Connect your emulators and game folders in Settings ({})", if prompts.pad { settings.cap("☰") } else { "S" })];
         }
         LibraryState::Ready(l) => {
             let shelf = &l.shelves[cursor.shelf.min(l.shelves.len() - 1)];

@@ -1758,11 +1758,12 @@ pub fn input(
             Some(page)
         } else if keys.just_pressed(KeyCode::Slash) || (keys.just_pressed(KeyCode::KeyF) && (keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight))) {
             Some(Screen::Find)
-        } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Select) {
+        } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) {
             Some(Screen::Root)
         } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
             Some(Screen::Shelf)
-        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) {
+        // (as the Electron app: View / Minus opens Details; Settings is in the shelf menu, Start)
+        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || pad(GamepadButton::Select) {
             Some(Screen::Details)
         } else {
             None
