@@ -1,8 +1,8 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the pages and their wording follow
 // Collections in Boxshelf's renderer/settings.js, as RustyShelf has them.
 //! Your collections: shelves of your own, each a name and the games put on it (`ui.collections` in the settings:
-//! `[{ id, name, ids }]`). Details → Collections puts the chosen game on them; Settings → Collections renames and
-//! deletes them.
+//! `[{ id, name, ids, tag? }]`; a tag shelf also gathers every game with that genre). Details → Collections puts the
+//! chosen game on them; Settings → Collections renames and deletes them and adds tag shelves.
 
 use super::*;
 
@@ -139,8 +139,40 @@ impl Settings {
             });
         }
         if rows.is_empty() {
-            rows.push(Row { label: "No collections yet".into(), hint: "Open a game's Details and choose Collections to make one.".into(), ..Row::default() });
+            rows.push(Row { label: "No collections yet".into(), hint: "Open a game's Details and choose Collections to make one, or add a tag shelf below.".into(), ..Row::default() });
+        }
+        // a tag shelf: every game with that genre, from every console, plus any added to it by hand
+        let has = |g: &str| self.collections().iter().any(|c| c.get("tag").and_then(Value::as_str).is_some_and(|t| t.to_lowercase() == g.to_lowercase()));
+        if self.genres.is_empty() {
+            rows.push(Row { label: "No genres yet".into(), hint: "They come with your games' details (box art downloads fetch them).".into(), ..Row::default() });
+        }
+        for (g, n) in &self.genres {
+            let (g2, on) = (g.clone(), has(g));
+            rows.push(Row {
+                label: format!("Add a tag shelf: {g}"),
+                value: format!("{n} game{}{}", if *n == 1 { "" } else { "s" }, if on { " · on your shelves" } else { "" }),
+                hint: format!("A shelf of every {g} game, from every console. You can still add other games to it from their Details (Collections)."),
+                press: Some(Box::new(move |s: &mut Settings| s.add_tag_shelf(&g2))),
+                step: None,
+            });
         }
         Page { title: "Collections".into(), lead: "Shelves of your own, right after Home.".into(), rows }
+    }
+
+    fn add_tag_shelf(&mut self, genre: &str) {
+        let mut list = self.collections();
+        if list.iter().any(|c| c.get("tag").and_then(Value::as_str).is_some_and(|t| t.to_lowercase() == genre.to_lowercase())) {
+            self.say(format!("There's a {genre} shelf already"));
+            return;
+        }
+        if list.len() >= MOST {
+            self.say(format!("That's the most collections there can be ({MOST})."));
+            return;
+        }
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        let name: String = genre.chars().take(LONGEST).collect();
+        list.push(json!({ "id": format!("t{}", custom::base36(now)), "name": name, "ids": [], "tag": name }));
+        self.set(&["ui", "collections"], json!(list));
+        self.say(format!("{genre} shelf added"));
     }
 }

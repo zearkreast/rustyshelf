@@ -142,6 +142,31 @@ pub fn arrange(shelf_id: &str, games: &[Game], view: &View, history: &History) -
     shown
 }
 
+/// The genres the games have, for Add a tag shelf: each with how many games, the most first (then by name), at most 60.
+pub fn genre_counts(shelves: &[Shelf]) -> Vec<(String, usize)> {
+    let (mut seen, mut counts) = (HashSet::new(), HashMap::<String, usize>::new());
+    for g in shelves.iter().filter(|s| !matches!(s.kind, ShelfKind::Mixed)).flat_map(|s| &s.games) {
+        if !matches!(g.source, Source::Tile(_)) && seen.insert(g.id.as_str()) {
+            for x in g.info.as_ref().map(|i| i.genres()).unwrap_or_default() {
+                let k = x.split_whitespace().collect::<Vec<_>>().join(" ");
+                if !k.is_empty() {
+                    *counts.entry(k).or_default() += 1;
+                }
+            }
+        }
+    }
+    let mut out: Vec<(String, usize)> = counts.into_iter().collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| compare_exact(&a.0, &b.0)));
+    out.truncate(60);
+    out
+}
+
+fn tag_key(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+}
+
+static TAG_SPLIT: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r" *[/,&] *").unwrap());
+
 /// The shelves that mix the others' games, which come before them: Home (the twelve games played last, the latest
 /// first, then the favourites by title), All (every game by title, when the settings ask for it) and your
 /// collections (each one's games in the order they were added). They keep their own order whatever the shelves'
@@ -175,9 +200,19 @@ pub fn mixed_shelves(shelves: &[Shelf], ui: Option<&Value>, history: &History) -
 
     // (a game that's on two shelves under one id is taken from the later one)
     let by_id: HashMap<&str, (&Game, &str)> = all.iter().map(|x| (x.0.id.as_str(), *x)).collect();
+    let mut seen = HashSet::new();
+    let mut by_title: Vec<(&Game, &str)> = all.iter().copied().filter(|(g, _)| seen.insert(g.id.as_str())).collect();
+    by_title.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
     for c in ui.and_then(|u| u.get("collections")).and_then(Value::as_array).into_iter().flatten() {
         let (Some(id), Some(ids)) = (c.get("id").and_then(Value::as_str).filter(|i| !i.is_empty()), c.get("ids").and_then(Value::as_array)) else { continue };
-        let games: Vec<(&Game, &str)> = ids.iter().filter_map(|i| by_id.get(i.as_str()?).copied()).collect();
+        let mut games: Vec<(&Game, &str)> = ids.iter().filter_map(|i| by_id.get(i.as_str()?).copied()).collect();
+        // a tag shelf: after the games added by hand, every game whose genres include the tag ("Racing" finds
+        // "Racing / Driving" too), by title
+        if let Some(tag) = c.get("tag").and_then(Value::as_str).map(tag_key).filter(|t| !t.is_empty()) {
+            let have: HashSet<String> = games.iter().map(|(g, _)| g.id.clone()).collect();
+            let fits = |g: &Game| g.info.as_ref().is_some_and(|i| i.genres().iter().any(|x| { let k = tag_key(x); k == tag || TAG_SPLIT.split(&k).any(|p| p == tag) }));
+            games.extend(by_title.iter().copied().filter(|(g, _)| !have.contains(&g.id) && fits(g)));
+        }
         if games.is_empty() {
             continue;
         }
@@ -230,6 +265,22 @@ mod tests {
 
     fn game(id: &str, title: &str, year: Option<&str>, genres: Option<&str>, rating: Option<f64>) -> Game {
         Game { id: id.into(), title: title.into(), info: Some(Info { year: year.map(String::from), genres: genres.map(String::from), rating, players: Some("1-4".into()), ..Info::default() }), ..Game::default() }
+    }
+
+    #[test]
+    fn a_tag_shelf_gathers_a_genre_from_every_console() {
+        let history = History::load(tempfile::tempdir().unwrap().path());
+        let shelf = |id: &str, games: Vec<Game>| Shelf { id: id.into(), name: id.into(), kind: ShelfKind::Pc, games, from: Vec::new() };
+        let g = |id: &str, title: &str, genres: &str| game(id, title, None, Some(genres), None);
+        let shelves = vec![
+            shelf("gc", vec![g("a", "Zeta Run", "Racing / Driving"), g("b", "Omega Quest", "Role-Playing"), g("h", "Tau Racers", "Racing")]),
+            shelf("pc", vec![g("c", "Alpha Tale", "Sports;  racing "), g("d", "Phi", "Racingish"), g("e", "Delta", "Action, Racing")]),
+        ];
+        let ui = serde_json::json!({ "hidden": ["h"], "collections": [{ "id": "t", "name": "Racing", "ids": ["b", "a"], "tag": "Racing" }, { "id": "u", "name": "Nothing", "ids": [], "tag": "Puzzle" }] });
+        let mixed = mixed_shelves(&shelves, Some(&ui), &history);
+        let ids: Vec<(&str, Vec<&str>)> = mixed.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.id.as_str()).collect())).collect();
+        // the ones added by hand first, then the rest by title; hidden games and lookalike genres aren't on it
+        assert_eq!(ids, [("col-t", vec!["b", "a", "c", "e"])]);
     }
 
     #[test]

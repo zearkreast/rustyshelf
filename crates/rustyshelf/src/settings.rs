@@ -206,6 +206,8 @@ pub struct Settings {
     manual_search: manuals::ManualSearch,
     mstudio: mstudio::MStudio,
     trophies: trophies::Trophies,
+    /// the genres the games have and how many of each, for Add a tag shelf (read when Settings opens)
+    genres: Vec<(String, usize)>,
     storage: storage::Storage,
     art_pick: art::ArtPick,
     finding: find::Finding,
@@ -288,6 +290,7 @@ impl Default for Settings {
             manual_search: Default::default(),
             mstudio: Default::default(),
             trophies: Default::default(),
+            genres: Vec::new(),
             storage: Default::default(),
             art_pick: Default::default(),
             finding: Default::default(),
@@ -1788,6 +1791,7 @@ pub fn input(
                 s.find_from(b, &plays.0);
             }
         }
+        s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
         s.open = true;
         s.changed = false;
         s.rearranged = false;

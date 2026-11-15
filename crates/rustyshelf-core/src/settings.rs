@@ -434,7 +434,7 @@ pub fn sanitize(cfg: &mut Value) {
         }
         let dirs = strings(ui.get("previewDirs"), 1024, 20);
         ui.insert("previewDirs".into(), Value::Array(dirs));
-        // your collections (shelves of your own): [{ id, name, ids: [game ids] }]
+        // your collections (shelves of your own): [{ id, name, ids: [game ids], tag? }]
         let collections: Vec<Value> = ui
             .get("collections")
             .and_then(Value::as_array)
@@ -444,7 +444,11 @@ pub fn sanitize(cfg: &mut Value) {
             .take(50)
             .map(|c| {
                 let name = Some(tidy(c["name"].as_str().unwrap_or(""), 40)).filter(|n| !n.is_empty()).unwrap_or_else(|| "Collection".into());
-                json!({ "id": js::slice(c["id"].as_str().unwrap_or(""), 40), "name": name, "ids": strings(c.get("ids"), 1024, 5000) })
+                let mut o = json!({ "id": js::slice(c["id"].as_str().unwrap_or(""), 40), "name": name, "ids": strings(c.get("ids"), 1024, 5000) });
+                if let Some(tag) = c.get("tag").and_then(Value::as_str).filter(|t| !js::trim(t).is_empty()) {
+                    o["tag"] = json!(tidy(tag, 40));
+                }
+                o
             })
             .collect();
         ui.insert("collections".into(), Value::Array(collections));
