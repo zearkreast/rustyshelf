@@ -2129,10 +2129,42 @@ fn manual_collections_and_spreads_match_the_js() {
     recent.sort_by_key(|r| r["title"].as_str().unwrap().to_string());
     assert!(same(&Value::Array(recent.clone()), &f["recent"]), "{recent:?}");
     let key = |title: &str| format!("gc|{}", tmp.path().join(format!("roms/{title}.iso")).to_string_lossy().to_lowercase());
-    assert_eq!(json!([kept.forget(&key("Zeta Run (USA)"), now()), kept.forget(&key("Phi (USA)"), now()), kept.forget("gc|nothing", now())]), f["forgot"]);
+    assert_eq!(json!([kept.forget(&key("Phi (USA)"), now()), kept.forget("gc|nothing", now())]), f["forgot"]);
     assert!(same(&memo(), &f["memoAfter"]), "{}\nthe JS kept {}", memo(), f["memoAfter"]);
+
+    // "wrong manual": the copy goes aside and is never brought again; the next best takes its place
+    for w in f["wrong"].as_array().unwrap() {
+        let g = games.iter().find(|g| g.base == w[0].as_str().unwrap()).unwrap();
+        let r = rustyshelf_core::manuals::reject_manual(&site, &data, g, &now).unwrap();
+        assert_eq!(json!({ "moved": r.moved, "got": r.got, "from": r.from, "pdf": r.pdf, "offline": r.offline }), w[1], "{}", w[0]);
+    }
+    assert_eq!(json!(tree(&covers)), f["wrongTree"]);
+    assert!(same(&memo(), &f["wrongMemo"]), "{}\nthe JS kept {}", memo(), f["wrongMemo"]);
+    let read = |name: &str| -> Value { there(&serde_json::from_slice(&fs::read(data.join(name)).unwrap()).unwrap()) };
+    assert_eq!(read("manual-rejects.json"), f["wrongRejects"]);
+    let mut auto = read("manual-auto.json");
+    for v in auto.as_object_mut().unwrap().values_mut() {
+        v.as_object_mut().unwrap().remove("at");
+    }
+    assert!(same(&auto, &f["wrongAuto"]), "{auto}\nthe JS kept {}", f["wrongAuto"]);
+
+    // a console's choice and a game's lock, as the Electron app's Manual Studio keeps them
+    let mut stores = Stores::load(&data);
+    assert!(stores.set_pref("gc", "lang:xx").is_err());
+    stores.set_pref("gc", "lang:fr").unwrap();
+    stores.set_lock(&key("Sigma, The (USA)"), true, true, 5.0);
+    let kept = Stores::load(&data);
+    assert_eq!((kept.pref("gc").as_str(), kept.pref("wii").as_str()), ("lang:fr", "best"));
+    assert!(kept.is_locked(&key("Sigma, The (USA)")) && kept.locked(&key("Sigma, The (USA)")) && kept.is_locked(&key("Locked Game (USA)")) && !kept.is_locked(&key("Phi (USA)")));
+    // (the games that found nothing under the old choice are looked up again)
+    assert_eq!(read("manual-auto.json").as_object().unwrap().len(), 1);
+    assert_eq!(read("manual-studio.json")["locks"][key("Sigma, The (USA)").replace(&dir.to_lowercase(), "<tmp>")], json!({ "at": 5, "src": "cur" }));
+    stores.set_pref("gc", "best").unwrap();
+    stores.set_lock(&key("Sigma, The (USA)"), false, true, 6.0);
+    assert!(read("manual-studio.json")["prefs"].as_object().unwrap().is_empty() && !Stores::load(&data).is_locked(&key("Sigma, The (USA)")));
+
     // a console set to another language is left alone
     let before = asked();
     let _ = fs::remove_file(data.join("manual-collections.json"));
-    assert!(coll::run(&site, &data, &games, &stores, &now, &|sys| sys == "gc", &|| false).is_empty() && asked() == before);
+    assert!(coll::run(&site, &data, &games, &Stores::load(&data), &now, &|sys| sys == "gc", &|| false).is_empty() && asked() == before);
 }

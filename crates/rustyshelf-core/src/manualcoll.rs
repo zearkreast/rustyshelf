@@ -674,6 +674,28 @@ pub fn one(web: &dyn Web, g: &Game, hit: &Hit, memo: &mut Memo, now: f64, force:
     done
 }
 
+/// One game, now ("wrong manual"): the best collection copy that isn't one the player set aside (or `skip`, the
+/// copy that was there), downloaded and put in place. The pages there are now and where they're from; None
+/// when no collection has the game.
+pub fn fetch_for(web: &dyn Web, data_dir: &Path, g: &Game, stores: &Stores, memo: &mut Memo, now: &dyn Fn() -> f64, skip: Option<&str>) -> Option<(usize, String)> {
+    let key = g.key();
+    for col in collections(&g.sys) {
+        let Ok(ix) = index(web, &data_dir.join("boxart-cache"), col, now()) else { continue };
+        let Some(e) = matches(&ix.entries, g).into_iter().find(|x| {
+            let id = format!("{}/{}", col.id, x.name);
+            Some(id.as_str()) != skip && !stores.rejected(&key, &format!("coll:{id}"))
+        }) else {
+            continue;
+        };
+        let got = one(web, g, &Hit { col, ix: &ix, e }, memo, now(), true, &|| false);
+        memo.save();
+        if got == Ok(true) {
+            return Some((inspect(&g.dir, &g.base).count.max(1), format!("{} · {}", col.id, posix_basename(&e.name))));
+        }
+    }
+    None
+}
+
 /// A game the collections have a manual for, and whether its manual changed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Change {

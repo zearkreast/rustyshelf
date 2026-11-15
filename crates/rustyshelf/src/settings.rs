@@ -846,6 +846,10 @@ impl Settings {
                     rows.push(open(&format!("Set up {name} for me"), String::new(), &format!("Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for {name}: backed up first, and Undo puts it back."), Screen::EmuSetup(id.clone())));
                 }
                 rows.push(open("Emulator & advanced", String::new(), &format!("Open {name} on its own, launch options{}.", if id == "gc" { " and the real GameCube startup" } else { "" }), Screen::Advanced(id.clone())));
+                // (the Wii U reads its games' own manuals)
+                if id != "wiiu" {
+                    rows.push(self.manual_pref_row(id));
+                }
                 Page { title: c.name.clone(), lead: self.status(c), rows }
             }
             Screen::Emulator(id) => {
@@ -1434,6 +1438,7 @@ impl Settings {
                         step: None,
                     });
                 }
+                rows.extend(self.manual_rows());
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());
                     let turn = move |s: &mut Settings, d: i32| {

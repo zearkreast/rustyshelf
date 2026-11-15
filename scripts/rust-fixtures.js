@@ -1387,6 +1387,12 @@ async function manualcollFixtures() {
     ...Object.fromEntries([0, 1].map(i => [full('ia9.example.org', '/7/items/gc', GC, 'Blurry Game (USA)', i), { png: [400, 600] }])),
     ...Object.fromEntries([0, 1].map(i => [full('ia7.example.org', '/3/items/gcn', GC2, F2 + 'GCN_Alpha Tale (USA)', i), { png: [1300, 1800] }])),
     ...Object.fromEntries([0, 1].map(i => [full('ia6.example.org', '/1/items/hi', HI, 'Gamecube Games/GCN_Lambda_Golf_EN', i), { png: [2800, 3600] }])),
+    // for "wrong manual": the European Omega Quest, and an upload the search finds for Lambda Golf
+    ...listing(GC, 'Omega Quest (Europe) (En,Fr,De)', 2), ...Object.fromEntries([0, 1].map(i => [full('ia9.example.org', '/7/items/gc', GC, 'Omega Quest (Europe) (En,Fr,De)', i), { png: [1100, 1600] }])),
+    [`https://archive.org/advancedsearch.php?q=${encodeURIComponent('("Lambda Golf") AND mediatype:texts AND (manual OR instruction OR booklet) AND ("gamecube" OR "game cube" OR "gcn" OR "ngc")')}&fl[]=identifier&fl[]=title&fl[]=language&fl[]=imagecount&fl[]=downloads&rows=12&output=json`]:
+      { json: { response: { docs: [{ identifier: 'lambda-upload', title: 'Lambda Golf (GameCube) Manual', language: 'eng', imagecount: 2, downloads: 100 }] } } },
+    'https://archive.org/metadata/lambda-upload': { json: { files: [{ name: 'page 2.png', source: 'original', size: 30000 }, { name: 'page 1.png', source: 'original', size: 30000 }] } },
+    'https://archive.org/download/lambda-upload/page%201.png': { png: [1500, 2100] }, 'https://archive.org/download/lambda-upload/page%202.png': { png: [1500, 2100] },
   };
   const asked = [], real = https.get;
   https.get = (url, opts, cb) => { asked.push(url); const r = site[url] || { status: 404 }, req = new EventEmitter(); req.setTimeout = () => {}; req.destroy = e => { if (e) req.emit('error', e); };
@@ -1431,7 +1437,18 @@ async function manualcollFixtures() {
     out.report = report.sort((a, b) => (a.title < b.title ? -1 : 1)); out.memo = memo(); out.tree = tree(covers); out.asked = asked.length - before;
     const again = asked.length; out.doneAgain = await C.run(sys, { report: [], locked: (id, f) => /Locked Game/.test(f) }); out.askedAgain = asked.length - again;
     out.recent = C.recent(30).map(r => { const { at, ...rest } = r; return rest; }).sort((a, b) => (a.title < b.title ? -1 : 1));
-    out.forgot = [C.forget(key('Zeta Run (USA)')), C.forget(key('Phi (USA)')), C.forget('gc|nothing')]; out.memoAfter = memo();
+    out.forgot = [C.forget(key('Phi (USA)')), C.forget('gc|nothing')]; out.memoAfter = memo();
+    // "wrong manual": the copy goes aside and is never brought again; the next best takes its place
+    M.setStore(path.join(data, 'manual-auto.json'));
+    out.wrong = [];
+    for (const t of ['Zeta Run (USA)', 'Alpha Tale (USA)', 'Omega Quest (USA)', 'Lambda Golf (USA)', 'Phi (USA)']) {
+      const file = path.join(roms, t + '.iso'), collSrc = C.forget(key(t));
+      const r = await M.rejectManual(sys, 'gc', file, { collSrc, tryFirst: (def, sc, g) => C.fetchFor(def, sc, g, {}) });
+      out.wrong.push([t, { moved: r.moved, got: r.got, from: r.from || null, pdf: !!r.pdf, offline: !!r.offline }]);
+    }
+    out.wrongTree = tree(covers); out.wrongMemo = memo();
+    out.wrongRejects = there(JSON.parse(fs.readFileSync(path.join(data, 'manual-rejects.json'), 'utf8')));
+    out.wrongAuto = there(Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(path.join(data, 'manual-auto.json'), 'utf8'))).map(([k, v]) => { const { at, ...rest } = v; return [k, rest]; })));
     return out;
   } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
 }

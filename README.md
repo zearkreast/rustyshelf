@@ -666,7 +666,12 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   pages moved to `.manual-originals` beside them. A manual scanned open (two pages a picture) is cut into single
   pages, the front cover first. A PDF manual stays a PDF here, so a collection's manual that has no page scans
   (Microsoft's digital Xbox 360 manuals) and a small scan's sharper copy on GamesDatabase are left to the
-  Electron app, as are Repair, "wrong game" and the Manual Studio.
+  Electron app. Details has the Manual Studio's two switches for a manual that's there: Keep this manual (no
+  automatic pass changes it) and Wrong manual (the pages are another game's: they go to `.manual-originals`,
+  that copy is never brought again, and the next best takes its place, a collection's first). A console's page
+  says which manuals its games get (the best English one, or a language or region), in the Electron app's
+  `data\manual-studio.json`. Repair and the Manual Studio's list of every manual found, with Use, Undo and your
+  own PDF, are still the Electron app's.
 - Has the Home menu (Settings → Controller turns it off, or makes it a centred card). Over a running game, Guide
   on the pad (or View held on its own for a second) pauses the game with its emulator's own hotkey and brings
   RustyShelf forward with Resume, Save state, Load state, Screenshot, Power (Sleep, Restart, Shut down) and Quit

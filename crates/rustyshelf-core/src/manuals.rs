@@ -911,6 +911,7 @@ pub fn pref_pick(list: &[Candidate], pref: &str, rejected: &dyn Fn(&str) -> bool
 /// (`manual-rejects.json`), and each console's choice and the games whose manual was chosen by hand
 /// (`manual-studio.json`): the Electron app's own files in the data folder.
 pub struct Stores {
+    data_dir: PathBuf,
     auto_file: PathBuf,
     pub auto: Map<String, Value>,
     rejects: Map<String, Value>,
@@ -929,7 +930,7 @@ impl Stores {
             Some(Value::Object(m)) => m,
             _ => Map::new(),
         };
-        Stores { auto_file: data_dir.join("manual-auto.json"), auto: map(read("manual-auto.json")), rejects: map(read("manual-rejects.json")), studio: read("manual-studio.json").unwrap_or(Value::Null) }
+        Stores { data_dir: data_dir.to_path_buf(), auto_file: data_dir.join("manual-auto.json"), auto: map(read("manual-auto.json")), rejects: map(read("manual-rejects.json")), studio: read("manual-studio.json").unwrap_or(Value::Null) }
     }
 
     pub fn save(&self) {
@@ -941,6 +942,82 @@ impl Stores {
 
     pub fn rejected(&self, key: &str, id: &str) -> bool {
         !id.is_empty() && self.rejects.get(key).and_then(Value::as_array).is_some_and(|r| r.iter().any(|x| x.as_str() == Some(id)))
+    }
+
+    fn write(&self, name: &str, what: &Value) {
+        let (file, tmp) = (self.data_dir.join(name), self.data_dir.join(format!("{name}.tmp")));
+        if fs::create_dir_all(&self.data_dir).is_ok() && fs::write(&tmp, what.to_string()).is_ok() {
+            let _ = fs::rename(&tmp, &file);
+        }
+    }
+
+    /// Sets copies aside for a game: neither the automatic search nor the collections bring them again.
+    pub fn reject(&mut self, key: &str, ids: &[String]) {
+        let mut all: Vec<Value> = self.rejects.get(key).and_then(Value::as_array).cloned().unwrap_or_default();
+        for id in ids {
+            if !all.iter().any(|x| x.as_str() == Some(id)) {
+                all.push(json!(id));
+            }
+        }
+        self.rejects.insert(key.to_string(), Value::Array(all));
+        self.write("manual-rejects.json", &Value::Object(self.rejects.clone()));
+    }
+
+    /// The choices a console's manuals can follow, by id and name.
+    pub const PREFS: [(&'static str, &'static str); 7] =
+        [("best", "Best English manual"), ("region:eur", "English · Europe"), ("region:jpn", "Japanese"), ("lang:fr", "French"), ("lang:de", "German"), ("lang:es", "Spanish"), ("lang:it", "Italian")];
+
+    fn studio_part(&mut self, part: &str) -> &mut Map<String, Value> {
+        if !self.studio.is_object() {
+            self.studio = json!({});
+        }
+        let whole = self.studio.as_object_mut().expect("an object");
+        if !whole.get(part).is_some_and(Value::is_object) {
+            whole.insert(part.to_string(), json!({}));
+        }
+        whole[part].as_object_mut().expect("an object")
+    }
+
+    /// Makes a console's manuals follow a language or a region (one of `PREFS`). The games that found nothing
+    /// under the old choice are looked up again.
+    pub fn set_pref(&mut self, sys: &str, pref: &str) -> Result<(), String> {
+        if !Self::PREFS.iter().any(|p| p.0 == pref) {
+            return Err("Unknown choice.".into());
+        }
+        if pref == "best" {
+            self.studio_part("prefs").remove(sys);
+        } else {
+            self.studio_part("prefs").insert(sys.to_string(), json!(pref));
+        }
+        self.write("manual-studio.json", &self.studio);
+        let before = self.auto.len();
+        self.auto.retain(|k, v| !k.starts_with(&format!("{sys}|")) || js::truthy(v.get("got")));
+        if self.auto.len() != before {
+            self.save();
+        }
+        Ok(())
+    }
+
+    /// Keeps a game's manual as it is (or lets it go again): no automatic pass and no new console choice
+    /// changes it. `has`: whether it has a manual now.
+    pub fn set_lock(&mut self, key: &str, locked: bool, has: bool, now: f64) {
+        if locked {
+            let src = self.studio.get("cur").and_then(|c| c.get(key)).and_then(|c| c.get("src")).filter(|s| js::truthy(Some(s))).cloned().unwrap_or(json!(if has { "cur" } else { "none" }));
+            self.studio_part("locks").insert(key.to_string(), json!({ "at": js::num(now), "src": src }));
+        } else {
+            self.studio_part("locks").remove(key);
+        }
+        self.write("manual-studio.json", &self.studio);
+    }
+
+    /// The games whose manual the player locked, by key.
+    pub fn locked_keys(&self) -> std::collections::HashSet<String> {
+        self.studio.get("locks").and_then(Value::as_object).map(|l| l.iter().filter(|(_, v)| js::truthy(Some(v))).map(|(k, _)| k.clone()).collect()).unwrap_or_default()
+    }
+
+    /// Whether the player locked a game's manual.
+    pub fn is_locked(&self, key: &str) -> bool {
+        js::truthy(self.studio.get("locks").and_then(|l| l.get(key)))
     }
 
     /// A console's choice of language or region; "best" when none was made.
@@ -1044,4 +1121,99 @@ pub fn auto_fetch(web: &dyn Web, games: &[Wanted], stores: &mut Stores, now: f64
     }
     stores.save();
     (todo.len(), got)
+}
+
+/// What setting a manual aside came to.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Rejected {
+    /// the files moved aside
+    pub moved: usize,
+    /// the pages of the manual that came in its place (0: none did)
+    pub got: usize,
+    /// where that one is from
+    pub from: Option<String>,
+    /// it came as a PDF
+    pub pdf: bool,
+    /// the search couldn't be made
+    pub offline: bool,
+}
+
+/// "Wrong manual": the pages belong to another game. The copy is moved aside (to `.manual-originals`, so
+/// nothing is lost) and where it came from is remembered, so that neither the search nor the collections bring
+/// it again; then the next best takes its place: a scan collection's copy first, then the search's.
+pub fn reject_manual(web: &dyn Web, data_dir: &Path, g: &crate::manualcoll::Game, now: &dyn Fn() -> f64) -> Result<Rejected, String> {
+    use crate::manualcoll;
+    let key = g.key();
+    let mut stores = Stores::load(data_dir);
+    let mut memo = manualcoll::Memo::load(data_dir);
+    // which copy this was: the collections' record, the search's own, or (older downloads) the match the search
+    // makes now
+    let mut bad: Vec<String> = Vec::new();
+    if let Some(src) = memo.forget(&key, now()) {
+        bad.push(format!("coll:{src}"));
+        if let Some(pdf) = src.strip_prefix("gdb/") {
+            bad.push(format!("gdb:{pdf}"));
+        }
+    }
+    if let Some(got) = stores.auto.get(&key).and_then(|m| m.get("got")).filter(|got| js::truthy(Some(got))) {
+        bad.push(js::string(Some(got)));
+    }
+    let found = search(web, &g.sys, &g.title);
+    let cands: &[Candidate] = found.as_deref().unwrap_or(&[]);
+    let next = |stores: &Stores| cands.iter().find(|x| x.english() && x.score >= AUTO_MIN && !stores.rejected(&key, &x.id)).cloned();
+    if bad.is_empty() {
+        bad.extend(next(&stores).map(|top| top.id));
+    }
+    stores.reject(&key, &bad);
+    // the pages go aside
+    let pre = format!("{}-manual", g.base.to_lowercase());
+    let files: Vec<String> = fs::read_dir(&g.dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|f| {
+            let l = f.to_lowercase();
+            l.starts_with(&format!("{pre}-")) || l == format!("{pre}.pdf")
+        })
+        .collect();
+    let mut moved = 0;
+    if let Some(keep) = Some(()).filter(|()| !files.is_empty()).and_then(|()| crate::spreads::backup_dir(&g.dir, &g.base).ok()) {
+        for (i, f) in files.iter().enumerate() {
+            if let Err(e) = fs::rename(g.dir.join(f), keep.join(f)) {
+                // what moved goes back: the manual isn't left half there
+                for d in &files[..i] {
+                    let _ = fs::rename(keep.join(d), g.dir.join(d));
+                }
+                return Err(format!("Couldn't move the manual aside ({e}). Is a page open in another program?"));
+            }
+        }
+        moved = files.len();
+    }
+    if let Some((got, from)) = manualcoll::fetch_for(web, data_dir, g, &stores, &mut memo, now, None) {
+        stores.auto.remove(&key);
+        stores.save();
+        return Ok(Rejected { moved, got, from: Some(from), ..Rejected::default() });
+    }
+    let Some(next) = next(&stores) else {
+        let what = match &found {
+            Err(e) => json!({ "err": e.words(), "rejected": true }),
+            Ok(_) => json!({ "none": true, "rejected": true }),
+        };
+        stores.note(&key, now(), what);
+        stores.save();
+        return Ok(Rejected { moved, offline: found.is_err(), ..Rejected::default() });
+    };
+    let got = download(web, &next.id, &g.dir, &g.base, &|_, _| {});
+    let what = match &got {
+        Ok(_) => json!({ "got": next.id, "title": next.title }),
+        Err(why) => json!({ "err": why }),
+    };
+    stores.note(&key, now(), what);
+    stores.save();
+    Ok(match got {
+        Ok(Got::Pages(n)) => Rejected { moved, got: n, from: Some(next.title), ..Rejected::default() },
+        Ok(Got::Pdf(_)) => Rejected { moved, got: 1, from: Some(next.title), pdf: true, ..Rejected::default() },
+        Err(_) => Rejected { moved, from: Some(next.title), ..Rejected::default() },
+    })
 }
