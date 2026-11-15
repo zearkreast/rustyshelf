@@ -69,7 +69,7 @@ impl Settings {
     }
 
     /// The chosen game as the manual stores know it, when it's a console's game.
-    fn manual_game(&self) -> Option<manualcoll::Game> {
+    pub(super) fn manual_game(&self) -> Option<manualcoll::Game> {
         let c = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom)?;
         let (dir, base) = self.manual_place()?;
         let system = systems().console(&c.console)?.name.clone();
@@ -150,7 +150,7 @@ impl Settings {
     }
 
     /// The chosen game's manual as its folder has it now: Details shows it at once.
-    fn reread_manual(&mut self) {
+    pub(super) fn reread_manual(&mut self) {
         let Some((dir, base)) = self.manual_place() else { return };
         let files = manualcoll::manual_files(&dir, &base);
         let Some(c) = self.chosen.as_mut() else { return };

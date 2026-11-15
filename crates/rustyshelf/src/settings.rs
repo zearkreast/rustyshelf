@@ -32,6 +32,7 @@ mod custom;
 mod find;
 mod manuals;
 mod moving;
+mod mstudio;
 mod phone;
 pub mod setup;
 mod storage;
@@ -73,6 +74,7 @@ enum Screen {
     Playnite,
     /// the manuals found for the chosen game
     Manuals,
+    ManualStudio,
     BoxArt,
     Display,
     Sound,
@@ -144,6 +146,8 @@ enum Pick {
     ThemePicture,
     /// a picture of the player's own for a part of a game's box (true: the spine is cut from it)
     OwnArt(bool),
+    /// a PDF of the player's own as the chosen game's manual
+    OwnManual,
 }
 
 #[derive(Resource)]
@@ -197,6 +201,7 @@ pub struct Settings {
     update: update::Update,
     adding: addgames::Adding,
     manual_search: manuals::ManualSearch,
+    mstudio: mstudio::MStudio,
     storage: storage::Storage,
     art_pick: art::ArtPick,
     finding: find::Finding,
@@ -277,6 +282,7 @@ impl Default for Settings {
             update: Default::default(),
             adding: Default::default(),
             manual_search: Default::default(),
+            mstudio: Default::default(),
             storage: Default::default(),
             art_pick: Default::default(),
             finding: Default::default(),
@@ -694,6 +700,7 @@ impl Settings {
             Pick::ScanGames => self.scan_games(path),
             Pick::Playnite => self.read_playnite(Some(path)),
             Pick::OwnArt(cut) => self.own_art(path, cut),
+            Pick::OwnManual => self.own_manual(path),
             Pick::ThemePicture => match rustyshelf_core::customthemes::create(&rustyshelf_core::customthemes::root(&self.app_root), path, "") {
                 Ok(id) => {
                     self.set(&["ui", "theme"], json!(id));
@@ -1033,6 +1040,7 @@ impl Settings {
             Screen::CustomGame(i) => self.custom_game_page(*i),
             Screen::AddGames => self.add_games_page(),
             Screen::Manuals => self.manuals_page(),
+            Screen::ManualStudio => self.manual_studio_page(),
             Screen::Playnite => self.playnite_page(),
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
@@ -1465,6 +1473,7 @@ impl Settings {
                     });
                 }
                 rows.extend(self.manual_rows());
+                rows.extend(self.manual_studio_row());
                 if self.can_pick_art() {
                     rows.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
                 }
@@ -1809,6 +1818,7 @@ pub fn input(
     s.poll_update();
     s.poll_adding();
     s.poll_manuals();
+    s.poll_manual_studio();
     s.poll_storage();
     s.poll_art(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it
