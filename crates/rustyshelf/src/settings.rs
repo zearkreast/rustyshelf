@@ -1479,6 +1479,10 @@ impl Settings {
                     choice("Walls", "wall", &WALLS, ""),
                     choice("Floor", "floor", &FLOORS, ""),
                     choice("Shelves", "shelf", &SHELVES, ""),
+                    flag("Display plinths", "plinths", false, ""),
+                    flag("Velvet ropes", "ropes", false, ""),
+                    flag("Museum bench", "bench", false, ""),
+                    flag("Posters of your favourites", "posters", false, ""),
                 ];
                 Page { title: "Museum".into(), lead: "Hold View on the shelf, or press M, to walk in.".into(), rows }
             }

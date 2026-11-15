@@ -112,11 +112,16 @@ struct Style {
     wall: String,
     floor: String,
     shelf: String,
+    /// the gallery pieces: display plinths, velvet ropes, a bench, posters of your favourites
+    plinths: bool,
+    ropes: bool,
+    bench: bool,
+    posters: bool,
 }
 
 impl Default for Style {
     fn default() -> Self {
-        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into() }
+        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), plinths: false, ropes: false, bench: false, posters: false }
     }
 }
 
@@ -124,6 +129,7 @@ impl Style {
     fn read(ui: Option<&serde_json::Value>) -> Style {
         let st = |k: &str| ui.and_then(|u| u.get("museumStyle")).and_then(|x| x.get(k));
         let text = |k: &str, d: &str| st(k).and_then(|v| v.as_str()).unwrap_or(d).to_string();
+        let on = |k: &str| st(k).and_then(|v| v.as_bool()).unwrap_or(false);
         let chosen = ui.and_then(|u| u.get("museumLight")).and_then(|v| v.as_str()).unwrap_or("gallery").to_string();
         // following the time of day: Daylight in the morning, Classic in the afternoon, Evening at night
         let scene = if st("timeOfDay").and_then(|v| v.as_bool()).unwrap_or(false) {
@@ -144,6 +150,10 @@ impl Style {
             wall: text("wall", "plaster"),
             floor: text("floor", "stone"),
             shelf: text("shelf", "walnut"),
+            plinths: on("plinths"),
+            ropes: on("ropes"),
+            bench: on("bench"),
+            posters: on("posters"),
         }
     }
 
@@ -589,6 +599,21 @@ fn build(
     let (fw, fd) = (widest + 60.0, 40.0 + wall_w[1].max(wall_w[2]));
     let floor = materials.add(StandardMaterial { base_color: if floor_tex.is_some() { Color::WHITE } else { Color::srgb(0.12, 0.11, 0.1) }, base_color_texture: floor_tex, uv_transform: bevy::math::Affine2::from_scale(Vec2::new(fw / floor_tile, fd / floor_tile)), perceptual_roughness: floor_rough, metallic: floor_metal, ..default() });
     commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Plane3d::default().mesh().size(fw, fd))), MeshMaterial3d(floor), Transform::from_xyz(widest / 2.0, bottom, 10.0)));
+    let back_w = m.rows.iter().filter(|r| r.wall == 0).map(|r| r.end).fold(0.0, f32::max);
+    let rack_end = m.rack.units.last().map(|u| u.x1);
+    let favourites: Vec<Art> = m
+        .kept
+        .iter()
+        .flat_map(|(si, games)| games.iter().map(move |&gi| (*si, gi)))
+        .filter(|&(si, gi)| m.about.get(&lib.shelves[si].games[gi].id).is_some_and(|a| a.fav))
+        .take(4)
+        .map(|(si, gi)| {
+            let (s, g) = (&lib.shelves[si], &lib.shelves[si].games[gi]);
+            cover_of(g, &s.id, &looks::look_for(&s.id, g)).0
+        })
+        .collect();
+    let on_wall0 = on_wall[0].max(1) as f32;
+    gallery(commands, parents[0], style, (back_w, rack_end, side, bottom, -(on_wall0 - 1.0) * ROW / 2.0), &favourites, meshes, materials, covers, loader);
     let image = images.add(crate::loading::to_image(1, 1, vec![255; 4]));
     let face = materials.add(StandardMaterial { base_color: Color::srgba(1.0, 1.0, 1.0, 0.0), base_color_texture: Some(image.clone()), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
     let board = materials.add(StandardMaterial { base_color: Color::srgba_u8(0x8a, 0x6a, 0x34, 0), metallic: 0.7, perceptual_roughness: 0.35, alpha_mode: AlphaMode::Blend, ..default() });
@@ -1452,6 +1477,90 @@ fn civil(ms: u64) -> (i64, u32, u32) {
     let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
     let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
     (yoe + era * 400 + i64::from(m <= 2), m, d)
+}
+
+/// The gallery pieces the room asks for, kept to the sides and the foreground so they frame the shelves without ever
+/// covering a case: a white plinth each side with a favourite game under glass and its own light, velvet ropes in
+/// front of them, a bench facing the shelves, and two framed posters of favourites. `at`: the back wall's width, the
+/// reading corner's end, whether the room has side walls, the floor's height and the shelves' middle.
+#[allow(clippy::too_many_arguments)]
+fn gallery(
+    commands: &mut Commands,
+    parent: Entity,
+    style: &Style,
+    (max_w, rack_end, rooms, floor, mid_y): (f32, Option<f32>, bool, f32, f32),
+    favourites: &[Art],
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    covers: &mut Covers,
+    loader: &ArtLoader,
+) {
+    let mut put = |c: &mut Commands, mesh: Mesh, mat: Handle<StandardMaterial>, t: Transform| {
+        c.spawn((layer(), Mesh3d(meshes.add(mesh)), MeshMaterial3d(mat), t, ChildOf(parent)));
+    };
+    let metal = materials.add(StandardMaterial { base_color: hex(0x2a2c31), metallic: 0.85, perceptual_roughness: 0.3, ..default() });
+    let brass = materials.add(StandardMaterial { base_color: hex(0xb08a48), metallic: 0.9, perceptual_roughness: 0.25, ..default() });
+    let sides = if rooms { [-0.62, max_w + 0.62] } else { [-2.6, rack_end.unwrap_or(max_w) + 2.6] };
+    let fav = |k: usize| favourites.get((k + 2) % favourites.len().max(1)).or(favourites.get(k)).cloned();
+    if style.plinths {
+        let white = materials.add(StandardMaterial { base_color: hex(0xe9e6df), perceptual_roughness: 0.85, ..default() });
+        let glass = materials.add(StandardMaterial { base_color: Color::srgba(0.87, 0.93, 1.0, 0.12), perceptual_roughness: 0.02, metallic: 0.1, alpha_mode: AlphaMode::Blend, ..default() });
+        for (k, px) in sides.into_iter().enumerate() {
+            put(commands, Cuboid::new(1.05, 1.45, 1.05).into(), white.clone(), Transform::from_xyz(px, floor + 0.725, 0.75));
+            let case = materials.add(StandardMaterial { base_color: hex(0x1a1b20), perceptual_roughness: 0.35, ..default() });
+            let turn = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2 + if k == 1 { -0.35 } else { 0.35 });
+            put(commands, Cuboid::new(0.055, 0.8, 0.56).into(), case, Transform::from_xyz(px, floor + 1.45 + 0.42, 0.75).with_rotation(turn));
+            if let Some(art) = fav(k) {
+                let front = materials.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.35, ..default() });
+                covers.want(art, (front.clone(), 0.56 / 0.8), loader, materials);
+                // the cover on the case's face toward the room
+                put(commands, Rectangle::new(0.55, 0.79).into(), front, Transform::from_xyz(px, floor + 1.45 + 0.42, 0.75).with_rotation(turn) * Transform::from_xyz(0.029, 0.0, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)));
+            }
+            put(commands, Cuboid::new(0.88, 0.98, 0.88).into(), glass.clone(), Transform::from_xyz(px, floor + 1.45 + 0.49, 0.75));
+            commands.spawn((layer(), PointLight { color: hex(0xfff0dc), intensity: 22_000.0, range: 2.2, shadow_maps_enabled: false, ..default() }, Transform::from_xyz(px, floor + 1.45 + 0.95, 0.78), ChildOf(parent)));
+        }
+    }
+    if style.ropes {
+        let velvet = materials.add(StandardMaterial { base_color: hex(0x7a0e18), perceptual_roughness: 0.85, ..default() });
+        let spread = if rooms { 0.55 } else { 0.9 };
+        for px in sides {
+            for x in [px - spread, px + spread] {
+                put(commands, Cylinder::new(0.042, 1.35).into(), brass.clone(), Transform::from_xyz(x, floor + 0.675, 1.75));
+                put(commands, Sphere::new(0.07).into(), brass.clone(), Transform::from_xyz(x, floor + 1.38, 1.75));
+                put(commands, Cylinder::new(0.235, 0.055).into(), brass.clone(), Transform::from_xyz(x, floor + 0.028, 1.75));
+            }
+            // the rope sags between the posts: short straight lengths along the curve
+            let at = |t: f32| Vec3::new(px - spread + 2.0 * spread * t, floor + 1.26 - 0.28 * (1.0 - (2.0 * t - 1.0).powi(2)), 1.75);
+            for i in 0..12 {
+                let (a, b) = (at(i as f32 / 12.0), at((i + 1) as f32 / 12.0));
+                let mid = (a + b) / 2.0;
+                let len = a.distance(b);
+                let turn = Quat::from_rotation_arc(Vec3::Y, (b - a).normalize());
+                put(commands, Cylinder::new(0.032, len + 0.01).into(), velvet.clone(), Transform::from_translation(mid).with_rotation(turn));
+            }
+        }
+    }
+    if style.bench {
+        let (bz, bx) = (4.4, max_w / 2.0 - if rooms { 3.4 } else { 0.0 });
+        put(commands, Cuboid::new(2.8, 0.14, 0.72).into(), materials.add(StandardMaterial { base_color: hex(0x23201d), perceptual_roughness: 0.55, ..default() }), Transform::from_xyz(bx, floor + 0.62, bz));
+        put(commands, Cuboid::new(2.72, 0.07, 0.64).into(), materials.add(StandardMaterial { base_color: hex(0x3a1f1c), perceptual_roughness: 0.9, ..default() }), Transform::from_xyz(bx, floor + 0.725, bz));
+        for (dx, dz) in [(-1.3, -0.28), (-1.3, 0.28), (1.3, -0.28), (1.3, 0.28)] {
+            put(commands, Cuboid::new(0.055, 0.55, 0.055).into(), metal.clone(), Transform::from_xyz(bx + dx, floor + 0.275, bz + dz));
+        }
+    }
+    if style.posters {
+        let frame = materials.add(StandardMaterial { base_color: hex(0x1c140c), perceptual_roughness: 0.4, metallic: 0.2, ..default() });
+        let mount = materials.add(StandardMaterial { base_color: hex(0xeee8dc), perceptual_roughness: 0.9, ..default() });
+        let (fw, fh, py) = (0.95, 1.3, mid_y + 0.35);
+        for (k, art) in favourites.iter().take(2).enumerate() {
+            let px = if k == 1 { rack_end.unwrap_or(max_w) + 1.75 } else { -1.75 };
+            put(commands, Cuboid::new(fw + 0.1, fh + 0.1, 0.05).into(), frame.clone(), Transform::from_xyz(px, py, -DEPTH / 2.0 + 0.03));
+            put(commands, Rectangle::new(fw, fh).into(), mount.clone(), Transform::from_xyz(px, py, -DEPTH / 2.0 + 0.056));
+            let pic = materials.add(StandardMaterial { base_color: Color::WHITE, perceptual_roughness: 0.5, ..default() });
+            covers.want(art.clone(), (pic.clone(), fw / fh), loader, materials);
+            put(commands, Rectangle::new(fw * 0.8, fh * 0.8).into(), pic, Transform::from_xyz(px, py, -DEPTH / 2.0 + 0.058));
+        }
+    }
 }
 
 /// A shelf's own glow colour, which its row's lamp takes in Neon night.
