@@ -38,6 +38,9 @@ pub struct Sounds {
     later: Vec<(f32, &'static str)>,
     /// the shelf the cues are tuned to
     shelf: String,
+    /// the voice chosen, and the consoles given one of their own
+    voice: String,
+    by_shelf: std::collections::HashMap<String, String>,
     /// the menu music is asked to step back for the cue just played: how far (0 to 1), and for how long (ms)
     pub ducked: Option<(f32, f32)>,
 }
@@ -56,7 +59,7 @@ impl Default for Sounds {
         });
         let mut state = cues::Sound::default();
         state.set_songs(rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root()).0, true, 0.0);
-        Sounds { state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), ducked: None }
+        Sounds { state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: Default::default(), ducked: None }
     }
 }
 
@@ -90,7 +93,9 @@ pub fn run(mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<
         let s = settings.sound();
         sounds.on = s.on;
         sounds.volume = s.volume;
-        sounds.state.set_theme(&s.voice);
+        (sounds.voice, sounds.by_shelf) = (s.voice.clone(), s.by_shelf.clone());
+        let voice = sounds.by_shelf.get(&sounds.shelf).unwrap_or(&sounds.voice).clone();
+        sounds.state.set_theme(&voice);
         sounds.state.set_boot(&s.boot, s.boot_volume);
         let now = sounds.started.elapsed().as_secs_f64() * 1000.0;
         sounds.state.with_built_in(s.built_in_songs, now);
@@ -106,6 +111,8 @@ pub fn run(mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<
         if let Some(shelf) = l.shelves.get(cursor.shelf).filter(|s| s.id != sounds.shelf) {
             sounds.shelf = shelf.id.clone();
             sounds.state.set_shelf(&shelf.id);
+            let voice = sounds.by_shelf.get(&shelf.id).unwrap_or(&sounds.voice).clone();
+            sounds.state.set_theme(&voice);
         }
     }
     for (name, dir) in std::mem::take(&mut settings.cues) {

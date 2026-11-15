@@ -117,6 +117,8 @@ enum Screen {
     ArtSets,
     /// Settings → System → Kid mode
     Kid,
+    /// Settings → Sounds → Sound per console
+    SoundConsoles,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -129,6 +131,9 @@ struct Chosen {
 }
 
 type Press = Box<dyn Fn(&mut Settings) + Send + Sync>;
+
+/// The interface's voices, by `ui.soundTheme` and name.
+const VOICES: [(&str, &str); 6] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box"), ("disc", "Disc-era"), ("handheld", "Handheld"), ("living", "Living room")];
 
 /// The languages there are, each by its own name (never translated).
 const LANGUAGES: [(&str, &str); 4] = [("en", "English"), ("tr", "Türkçe"), ("fr", "Français"), ("pt", "Português (Brasil)")];
@@ -244,6 +249,8 @@ pub struct Settings {
     every_console: bool,
     /// the genres the games have and how many of each, for Add a tag shelf (read when Settings opens)
     genres: Vec<(String, usize)>,
+    /// the console shelves there are, by id and name (Sound per console)
+    console_shelves: Vec<(String, String)>,
     storage: storage::Storage,
     art_pick: art::ArtPick,
     finding: find::Finding,
@@ -289,6 +296,8 @@ pub struct SoundPrefs {
     pub music_level: f32,
     /// with the Melody voice, the built-in songs play along with your own
     pub built_in_songs: bool,
+    /// the consoles given a voice of their own (`ui.soundByShelf`), by shelf id
+    pub by_shelf: std::collections::HashMap<String, String>,
 }
 
 impl Default for Settings {
@@ -337,6 +346,7 @@ impl Default for Settings {
             trophies: Default::default(),
             every_console: false,
             genres: Vec::new(),
+            console_shelves: Vec::new(),
             storage: Default::default(),
             art_pick: Default::default(),
             kid_open: false,
@@ -425,6 +435,7 @@ impl Settings {
             music: Some(self.text(&["ui", "music"])).filter(|m| !m.is_empty()).unwrap_or_else(|| "off".into()),
             music_level: number(&["ui", "musicLevel"], 0.4),
             built_in_songs: self.flag(&["ui", "builtInSongs"], true),
+            by_shelf: self.cfg["ui"]["soundByShelf"].as_object().map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str().filter(|v| !v.is_empty())?.to_string()))).collect()).unwrap_or_default(),
         }
     }
 
@@ -576,7 +587,7 @@ impl Settings {
             // the music and the shelf read these as they go
         } else if matches!(path, ["ui", "builtInSongs"]) {
             self.sound_changed = true;
-        } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "bootSound" | "bootVolume")] = path {
+        } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "soundByShelf" | "bootSound" | "bootVolume")] = path {
             // heard at once: the boot for its own settings, a chime for the rest
             self.sound_changed = true;
             self.cues.push((if key.starts_with("boot") { "boot" } else { "open" }, 1));
@@ -1657,7 +1668,6 @@ impl Settings {
                 Page { title: "Display".into(), lead: String::new(), rows }
             }
             Screen::Sound => {
-                const VOICES: [(&str, &str); 6] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box"), ("disc", "Disc-era"), ("handheld", "Handheld"), ("living", "Living room")];
                 const TRACKS: [(&str, &str); 5] = [("drift", "Drift"), ("night", "Night"), ("glow", "Glow"), ("own", "Your music"), ("off", "Off")];
                 const BOOTS: [(&str, &str); 5] = [("chime", "Chime"), ("crystal", "Crystal"), ("pulse", "Pulse"), ("horizon", "Horizon"), ("keys", "Keys")];
                 let prefs = self.sound();
@@ -1707,6 +1717,7 @@ impl Settings {
                             press: Some(voice_press),
                             step: Some(voice_step),
                         },
+                        open("Sound per console", if prefs.by_shelf.is_empty() { String::new() } else { format!("{} with their own", prefs.by_shelf.len()) }, "Give a console its own sound; the rest use the one above.", Screen::SoundConsoles),
                 ];
                 if voice == "melody" {
                     rows.push(toggle("Include the built-in songs", &["ui", "builtInSongs"], true, "With Melody, RustyShelf's own songs play along with any MIDI files in your Songs folder."));
@@ -1734,6 +1745,38 @@ impl Settings {
                         },
                 ]);
                 Page { title: "Sounds".into(), lead: String::new(), rows }
+            }
+            Screen::SoundConsoles => {
+                let prefs = self.sound();
+                let mut list = self.console_shelves.clone();
+                let more: Vec<String> = prefs.by_shelf.keys().filter(|id| !list.iter().any(|(l, _)| l == *id)).cloned().collect();
+                list.extend(more.into_iter().map(|id| (id.clone(), systems().console(&id).map_or(id, |c| c.name.clone()))));
+                let rows = list
+                    .into_iter()
+                    .map(|(id, name)| {
+                        let now = prefs.by_shelf.get(&id).map(|v| rustyshelf_core::cues::theme(v).id);
+                        let at = now.and_then(|v| VOICES.iter().position(|x| x.0 == v)).map_or(0, |i| i + 1);
+                        let turn = move |s: &mut Settings, d: i32| {
+                            let next = (at as i32 + d).rem_euclid(VOICES.len() as i32 + 1) as usize;
+                            let mut map = s.cfg["ui"]["soundByShelf"].as_object().cloned().unwrap_or_default();
+                            match next {
+                                0 => map.remove(&id),
+                                n => map.insert(id.clone(), json!(VOICES[n - 1].0)),
+                            };
+                            s.set(&["ui", "soundByShelf"], Value::Object(map));
+                            s.cues.push(("open", 1));
+                        };
+                        let turn2 = turn.clone();
+                        Row {
+                            label: name.clone(),
+                            value: if at == 0 { "Same as everywhere".into() } else { VOICES[at - 1].1.into() },
+                            hint: format!("The sound {name}'s shelf plays."),
+                            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+                            step: Some(Box::new(turn2)),
+                        }
+                    })
+                    .collect::<Vec<Row>>();
+                Page { title: "Sound per console".into(), lead: "Each console can play its own sound; the rest use the one chosen in Sounds.".into(), rows }
             }
             Screen::Controller => {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];
@@ -2253,6 +2296,7 @@ pub fn input(
             }
         }
         s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
+        s.console_shelves = base.0.as_ref().map(|b| b.shelves.iter().filter(|sh| matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()).map(|sh| (sh.id.clone(), sh.name.clone())).collect()).unwrap_or_default();
         s.open = true;
         s.changed = false;
         s.rearranged = false;
