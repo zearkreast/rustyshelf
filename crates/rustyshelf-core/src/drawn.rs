@@ -838,3 +838,154 @@ pub fn lexend(weight: u32) -> &'static [u8] {
         _ => include_bytes!("../assets/fonts/Lexend-ExtraBold.ttf"),
     }
 }
+
+// ---------- a made back (ported from renderer/img-tools.js back) ----------
+
+/// What a made back prints: the description (`overview`), and on its bottom bar the age rating, players, publisher
+/// and year, each empty when unknown.
+pub struct BackText<'a> {
+    pub title: &'a str,
+    pub overview: &'a str,
+    pub esrb: &'a str,
+    pub players: &'a str,
+    pub publisher: &'a str,
+    pub year: &'a str,
+}
+
+fn pixmap_of(img: &image::RgbaImage) -> Option<Pixmap> {
+    let mut p = Pixmap::new(img.width(), img.height())?;
+    for (d, s) in p.pixels_mut().iter_mut().zip(img.pixels()) {
+        *d = tiny_skia::ColorU8::from_rgba(s[0], s[1], s[2], s[3]).premultiply();
+    }
+    Some(p)
+}
+
+/// `img` scaled to fill the box at (x, y, w, h), its middle kept, painted inside `shape`.
+fn cover_into(c: &mut Canvas, img: &Pixmap, shape: Option<Path>, x: f32, y: f32, w: f32, h: f32) {
+    let s = (w / img.width() as f32).max(h / img.height() as f32);
+    let (dx, dy) = (x + (w - img.width() as f32 * s) / 2.0, y + (h - img.height() as f32 * s) / 2.0);
+    let shader = tiny_skia::Pattern::new(img.as_ref(), SpreadMode::Pad, tiny_skia::FilterQuality::Bilinear, 1.0, Transform::from_row(s, 0.0, 0.0, s, dx, dy));
+    c.fill(shape, &Paint { shader, anti_alias: true, ..Paint::default() });
+}
+
+/// A back for a game that has none: its console's band, its artwork blurred behind, a big screenshot, the title and
+/// description, two more screenshots, and a bar with its rating, players, publisher and year. `front`: its cover,
+/// which sets the shape and stands in for missing artwork.
+pub fn made_back(front: &image::RgbaImage, shots: &[image::RgbaImage], art: Option<&image::RgbaImage>, band: &Band, t: &BackText) -> Option<Picture> {
+    let h = 1550.0_f32;
+    let w = (h * (front.width() as f32 / front.height().max(1) as f32).clamp(0.55, 0.8)).round();
+    let mut c = Canvas { pix: Pixmap::new(w as u32, h as u32)?, clip: None, t: Transform::identity() };
+    let shots: Vec<Pixmap> = shots.iter().take(3).filter_map(pixmap_of).collect();
+    let art = art.unwrap_or(front);
+    let art_pix = pixmap_of(art)?;
+    let m = (w * 0.06).round();
+    let hw = w - 2.0 * m;
+    c.rect(0.0, 0.0, w, h, &solid(rgba(0x0d, 0x0e, 0x12, 1.0)));
+    // a blur: the artwork shrunk to a few dozen pixels and stretched back
+    let small = image::imageops::resize(art, 24, (24.0 * art.height() as f32 / art.width().max(1) as f32).max(1.0) as u32, image::imageops::FilterType::Triangle);
+    if let Some(sp) = pixmap_of(&small) {
+        cover_into(&mut c, &sp, Rect::from_xywh(0.0, 0.0, w, h).map(PathBuilder::from_rect), -40.0, -40.0, w + 80.0, h + 80.0);
+    }
+    let stops = vec![GradientStop::new(0.0, rgba(8, 9, 13, 0.45)), GradientStop::new(0.45, rgba(8, 9, 13, 0.62)), GradientStop::new(1.0, rgba(8, 9, 13, 0.9))];
+    if let Some(shader) = LinearGradient::new(Point::from_xy(0.0, 0.0), Point::from_xy(0.0, h), stops, SpreadMode::Pad, Transform::identity()) {
+        c.rect(0.0, 0.0, w, h, &Paint { shader, anti_alias: true, ..Paint::default() });
+    }
+    let bh = (h * 0.062).round();
+    c.rect(0.0, 0.0, w, bh, &solid(of(band.bg)));
+    if !band.label.is_empty() {
+        let size = (bh * 0.42).round();
+        c.text(Face::Lexend(3), &band.label.to_uppercase(), size, m, bh / 2.0 + 1.0 + below_middle(Face::Lexend(3), size), 0.0, &solid(of(band.fg)));
+    }
+    static BREAK: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"([^.!?:;,\s])[ \t]*(\r?\n)+\s*").unwrap());
+    let text = BREAK.replace_all(t.overview, "$1. ").split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut y = bh + (h * 0.03).round();
+    let hh = (hw * if text.is_empty() { 1.05 } else { 9.0 / 16.0 }).round();
+    cover_into(&mut c, shots.first().unwrap_or(&art_pix), round_rect(m, y, hw, hh, 18.0), m, y, hw, hh);
+    c.stroke(round_rect(m, y, hw, hh, 18.0), &solid(rgba(255, 255, 255, 0.25)), &width(3.0));
+    y += hh + (h * 0.03).round();
+    let wrap_text = |c: &mut Canvas, y: &mut f32, text: &str, face: Face, size: f32, most: usize, lh: f32, ink: &Paint| {
+        let mut lines = wrap(face, text, size, hw);
+        if lines.len() > most {
+            lines.truncate(most);
+            let mut l = lines[most - 1].clone();
+            while !l.is_empty() && text_width(face, &format!("{l}…"), size) > hw {
+                l = l.trim_end().rsplit_once(' ').map_or(String::new(), |(a, _)| a.to_string());
+            }
+            lines[most - 1] = format!("{l}…");
+        }
+        for l in &lines {
+            *y += size * lh;
+            c.text(face, l, size, m, *y, 0.0, ink);
+        }
+    };
+    let title = t.title.split_whitespace().collect::<Vec<_>>().join(" ");
+    wrap_text(&mut c, &mut y, &title, Face::Lexend(3), (h * 0.034).round(), 2, 1.18, &solid(Color::WHITE));
+    y += (h * 0.012).round();
+    let strip = shots.len() >= 3;
+    let room = (h * if strip { 0.6 } else { 0.82 }).round() - y;
+    let fs = (h * 0.0195).round();
+    if !text.is_empty() {
+        let most = ((room / (fs * 1.42)).floor() as usize).max(3);
+        wrap_text(&mut c, &mut y, &text, Face::Lexend(0), fs, most, 1.42, &solid(rgba(255, 255, 255, 0.86)));
+    }
+    if strip {
+        let (top, gap) = ((h * 0.64).round(), (m * 0.5).round());
+        let sw = (hw - gap) / 2.0;
+        let sh = (sw * 9.0 / 16.0).round();
+        for (i, shot) in shots[1..3].iter().enumerate() {
+            let x = m + i as f32 * (sw + gap);
+            cover_into(&mut c, shot, round_rect(x, top, sw, sh, 12.0), x, top, sw, sh);
+            c.stroke(round_rect(x, top, sw, sh, 12.0), &solid(rgba(255, 255, 255, 0.22)), &width(2.0));
+        }
+    }
+    static RATING: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"^(EC|E10\+|E|T|M|AO|RP)(\s|$|-)").unwrap());
+    let esrb = RATING.captures(t.esrb.trim()).map(|m| m[1].to_string());
+    let players = t.players.trim().parse::<f64>().unwrap_or(0.0);
+    let line1 = if players > 1.0 { format!("1–{players} players") } else if players == 1.0 { "1 player".to_string() } else { String::new() };
+    let line2 = [t.publisher, t.year].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
+    if esrb.is_some() || !line1.is_empty() || !line2.is_empty() {
+        let (fy, fh) = ((h * 0.885).round(), (h * 0.085).round());
+        c.fill(round_rect(m, fy, hw, fh, 14.0), &solid(rgba(255, 255, 255, 0.08)));
+        let mut fx = m + (fh * 0.18).round();
+        if let Some(r) = &esrb {
+            let (bw2, bh2) = ((fh * 0.62).round(), (fh * 0.8).round());
+            let by = fy + (fh - bh2) / 2.0;
+            c.rect(fx, by, bw2, bh2, &solid(Color::WHITE));
+            c.rect(fx + 3.0, by + 3.0, bw2 - 6.0, bh2 - 6.0, &solid(Color::BLACK));
+            c.rect(fx + 6.0, by + 6.0, bw2 - 12.0, bh2 * 0.66, &solid(Color::WHITE));
+            let size = (bh2 * if r.len() > 2 { 0.3 } else { 0.5 }).round();
+            c.text(Face::Lexend(3), r, size, fx + bw2 / 2.0, by + 6.0 + bh2 * 0.33 + below_middle(Face::Lexend(3), size), 0.5, &solid(Color::BLACK));
+            let size = (bh2 * 0.17).round();
+            c.text(Face::Lexend(3), "ESRB", size, fx + bw2 / 2.0, by + bh2 * 0.85 + below_middle(Face::Lexend(3), size), 0.5, &solid(Color::WHITE));
+            fx += bw2 + (fh * 0.25).round();
+        }
+        if !line1.is_empty() {
+            let size = (fh * 0.26).round();
+            c.text(Face::Lexend(2), &line1, size, fx, fy + fh * if line2.is_empty() { 0.5 } else { 0.34 } + below_middle(Face::Lexend(2), size), 0.0, &solid(Color::WHITE));
+        }
+        if !line2.is_empty() {
+            let size = (fh * 0.22).round();
+            c.text(Face::Lexend(1), &line2, size, fx, fy + fh * if line1.is_empty() { 0.5 } else { 0.68 } + below_middle(Face::Lexend(1), size), 0.0, &solid(rgba(255, 255, 255, 0.7)));
+        }
+    }
+    Some(picture(c))
+}
+
+#[cfg(test)]
+mod made_back_tests {
+    use super::*;
+
+    #[test]
+    fn a_made_back_fills_its_case() {
+        let front = image::RgbaImage::from_pixel(600, 900, image::Rgba([200, 40, 40, 255]));
+        let shot = image::RgbaImage::from_fn(320, 180, |x, y| image::Rgba([(x % 255) as u8, (y % 255) as u8, 120, 255]));
+        let band = Band { bg: [0.07, 0.08, 0.1, 1.0], fg: [0.56, 0.7, 0.85, 1.0], label: "PC".into() };
+        let words = "Heading\nA long description of the game. ".repeat(20);
+        let t = BackText { title: "A Game", overview: &words, esrb: "T - Teen", players: "2", publisher: "Someone", year: "2020" };
+        let p = made_back(&front, &[shot.clone(), shot.clone(), shot], None, &band, &t).unwrap();
+        assert_eq!((p.width, p.height), (1033, 1550));
+        if let Ok(out) = std::env::var("MADE_BACK_OUT") {
+            image::RgbaImage::from_raw(p.width, p.height, p.rgba).unwrap().save(out).unwrap();
+        }
+    }
+}

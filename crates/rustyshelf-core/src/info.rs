@@ -51,6 +51,9 @@ pub struct Info {
     pub video: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Steam's long description, its paragraphs on lines of their own
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub about: Option<String>,
     #[serde(default)]
     pub shots: Vec<String>,
     #[serde(default)]
@@ -60,6 +63,16 @@ pub struct Info {
 }
 
 impl Info {
+    /// What Details says about the game: Steam's long description when it's the longer, on one line (its headings
+    /// run into the next sentence across a line break, so a break gets a full stop), else the short one.
+    pub fn description(&self) -> Option<String> {
+        static BREAK: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"([^.!?:;,\s])[ \t]*\n+\s*").unwrap());
+        match (&self.about, &self.overview) {
+            (Some(a), o) if a.chars().count() > o.as_deref().map_or(0, |o| o.chars().count()) => Some(BREAK.replace_all(a, "$1. ").split_whitespace().collect::<Vec<_>>().join(" ")),
+            (_, o) => o.clone(),
+        }
+    }
+
     /// The release year, from the date or the year alone.
     pub fn year(&self) -> Option<u32> {
         let y: String = self.release.as_deref().or(self.year.as_deref())?.chars().take(4).collect();
@@ -121,6 +134,7 @@ fn from_shard(shard: &ShardFile, title: &str) -> Option<Info> {
     // to one decimal; a rating that isn't a number is none
     let rating = g.rating.as_deref().filter(|r| !r.is_empty()).map(|r| js::number(Some(&Value::from(r)))).filter(|r| r.is_finite()).map(|r| js::round(r * 10.0) / 10.0);
     Some(Info {
+        about: None,
         overview: g.overview.clone(),
         release: g.release.clone(),
         year: g.year.clone(),

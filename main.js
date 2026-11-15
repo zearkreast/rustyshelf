@@ -738,7 +738,7 @@ async function buildLibrary() {
       const l = steamart.local(g.appid);
       const chosen = pccovers.cover(g.id), box = !chosen && boxOn && pccovers.consoleCover(g.id);
       const cPlat = (box || chosen) ? pccovers.consolePlat(g.id) : null;
-      return { ...g, ...(ownTitle(g.id) ? { title: ownTitle(g.id), fileTitle: g.title } : {}), info: steamart.gameInfo(g.appid), ...(cPlat ? { boxPlat: cPlat } : {}), art: { front: fileUrl(chosen || box || g.art.front || l.front), hero: fileUrl(g.art.hero || l.hero), ...boxParts((box || (chosen && cPlat)) && g.id) } };
+      return { ...g, ...(ownTitle(g.id) ? { title: ownTitle(g.id), fileTitle: g.title } : {}), info: steamart.gameInfo(g.appid), ...(cPlat ? { boxPlat: cPlat } : {}), art: { front: fileUrl(chosen || box || g.art.front || l.front), hero: fileUrl(g.art.hero || l.hero), ...(l.back && !cPlat && !box ? { back: fileUrl(l.back), madeBack: true } : {}), ...boxParts((box || (chosen && cPlat)) && g.id) } };
     });
   }
   // (beta.4) Epic's installs join the PC shelf; Quiver Launcher's apps and games added by hand get the Custom shelf. They
@@ -774,7 +774,7 @@ async function buildLibrary() {
     // (its size: its folder as measured in the background, until then what Epic says it installed (a game can download
     // more itself, MTG Arena does); Steam's games bring their own)
     const sizeBytes = g.installed === false ? 0 : (SIZED_SRC.has(g.source) && g.dir ? dirsize.get(g.dir) : 0) || g.installSize || 0;
-    return { kind: 'steam', source: g.source, id: g.id, title: g.title, ...(MINE_SRC.has(g.source) && g.exe ? { exe: g.exe, ...(g.args ? { args: g.args } : {}) } : {}), ...(g.shelf ? { platform: g.shelf } : {}), ...(g.portOf ? { portOf: g.portOf } : {}), ...(g.installed === false ? { installed: false } : {}), ...(sizeBytes ? { sizeBytes } : {}), ...(sid ? { info: steamart.gameInfo(sid) } : {}), ...(cPlat ? { boxPlat: cPlat } : {}), artFrom: (cPlat || box) ? 'console' : chosen ? 'yours' : auto ? 'store' : fCover ? 'folder' : l.front ? 'steam' : '', art: { front: fileUrl(front), hero: fileUrl(l.hero), icon: g.icon || undefined, ...boxParts((box || (chosen && cPlat)) && g.id) } }; };
+    return { kind: 'steam', source: g.source, id: g.id, title: g.title, ...(MINE_SRC.has(g.source) && g.exe ? { exe: g.exe, ...(g.args ? { args: g.args } : {}) } : {}), ...(g.shelf ? { platform: g.shelf } : {}), ...(g.portOf ? { portOf: g.portOf } : {}), ...(g.installed === false ? { installed: false } : {}), ...(sizeBytes ? { sizeBytes } : {}), ...(sid ? { info: steamart.gameInfo(sid) } : {}), ...(cPlat ? { boxPlat: cPlat } : {}), artFrom: (cPlat || box) ? 'console' : chosen ? 'yours' : auto ? 'store' : fCover ? 'folder' : l.front ? 'steam' : '', art: { front: fileUrl(front), hero: fileUrl(l.hero), icon: g.icon || undefined, ...(l.back && !cPlat && !box ? { back: fileUrl(l.back), madeBack: true } : {}), ...boxParts((box || (chosen && cPlat)) && g.id) } }; };
   pcAutoCovers([...epic, ...mine]);
   // (beta.10) a game added by hand can be moved to the PC shelf (Settings → Custom games → the game → Shelf); (supalii's
   // fork) or to a console's shelf, beside its ROMs: it's still started as its own program, not through the emulator. A
@@ -1319,7 +1319,8 @@ async function steamFill(lib) {
     }
     const r = games.length ? await steamart.fill(games) : { covers: 0, other: 0 };
     let posters = 0; try { posters = (await pccovers.fillMissing(noSteam)).downloaded; } catch (e) { log('PC posters failed', e.message); }
-    if ((r.covers || r.other || matched || posters) && alive()) win.webContents.send('library:changed', { covers: (r.covers || 0) + posters });
+    let backs = 0; try { backs = await makeSteamBacks(games); } catch (e) { log('Steam backs failed', e.message); }
+    if ((r.covers || r.other || matched || posters || backs) && alive()) win.webContents.send('library:changed', { covers: (r.covers || 0) + posters });
   } /* heroes and store info: a quiet refresh, no toast */ catch (e) { log('steam art failed', e.message); } finally { steamFilling = false; }
 }
 let autoManualsDone = false, autoManualJob = null, manualSeen = null, manualAgain = false;
@@ -1521,6 +1522,29 @@ async function renderSpine(id, title, front) {
   return Buffer.from(m[1], 'base64');
 }
 artstudio.setMaker({ back: renderBack, spine: renderSpine });
+// Steam has no box back to download: one is made from the store's screenshots and description. Keep in sync with
+// crates/rustyshelf-core/src/steamart.rs make_backs.
+const fromFileUrl = u => (/^bsfile:\/\/local\//.test(u || '') ? decodeURIComponent(u.slice(15).replace(/\?.*$/, '')) : null);
+async function makeSteamBacks(games) {
+  if (cfg.ui.makeBacks === false) return 0;
+  let made = 0;
+  for (const g of games) {
+    const id = g.appid, dest = steamart.backPath(id), info = steamart.gameInfo(id); if (g.boxPlat || !dest || !info || paths.isFile(dest)) continue;
+    const front = fromFileUrl(g.art && g.art.front) || steamart.local(id).front; if (!front || !paths.isFile(front) || !(info.shots || []).length) continue;
+    if (launcher.isRunning() || launching) break;
+    await uiQuiet();
+    const shots = []; for (const u of info.shots.slice(0, 3)) { const b = await fetchImage(u); if (b) shots.push(b); }
+    if (!shots.length) break; // offline: try again next time
+    const bg = info.bg ? await fetchImage(info.bg) : null, text = (info.about || '').length > (info.overview || '').length ? info.about : info.overview;
+    const r = await helperJob('img-tools.html', async () => { const b = await fs.promises.readFile(front); return { mode: 'back', data: new Uint8Array(b.buffer, b.byteOffset, b.length), shots: shots.map(x => new Uint8Array(x.buffer, x.byteOffset, x.length)), bg: bg ? new Uint8Array(bg.buffer, bg.byteOffset, bg.length) : null,
+      title: g.title, overview: text || '', esrb: '', players: '', pub: info.pub || info.dev || '', year: info.year || '', band: { bg: '#11141a', fg: '#8fb4d9', label: 'PC' } }; }, 30000, true);
+    const m = /^data:image\/jpeg;base64,(.+)$/.exec(String(((r && r.pages) || [])[0] || ''));
+    if (!m) { log('steam back', g.title, (r && r.err) || 'nothing made'); continue; }
+    try { await fs.promises.writeFile(dest, Buffer.from(m[1], 'base64')); made++; } catch (e) { log('steam back', g.title, e.message); }
+  }
+  if (made) log('Made Steam backs:', made);
+  return made;
+}
 handle('dialog:pick', async ({ kind, title, defaultPath, filters, multi }) => {
   const r = await dialog.showOpenDialog(win, {
     title, defaultPath,

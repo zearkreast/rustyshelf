@@ -1006,6 +1006,7 @@ function infoRows(g){
 function fmtRelease(r,y){if(r){const d=new Date(r);if(!isNaN(d))return d.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"})}return y||""}
 function descFor(g){
   const s=cur();
+  if(g.kind==="steam"&&g.info&&(g.info.about||"").length>(g.info.overview||"").length)return g.info.about.replace(/([^.!?:;,\s])[ \t]*\n+\s*/g,"$1. ").replace(/\s+/g," ").trim(); // (the store's long text runs headings into sentences across line breaks)
   if((g.kind==="rom"||g.kind==="steam")&&g.info&&g.info.overview)return g.info.overview;
   if(g.kind==="random")return `Spins through your games and lands on one at random. ${showPad()?padWord("L3")+" (press the left stick)":"R"} does the same from anywhere.`;
   if(g.kind==="setup"&&g.addGames)return "Puts more games on the Custom shelf: several programs at once, a whole folder of games, or your Playnite library.";

@@ -21,10 +21,11 @@ const asset = (id, name) => [
   `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${id}/${name}`,
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${name}`
 ];
+const backFile = id => path.join(dir, `${id}_backmade.jpg`);
 const coverFile = id => path.join(dir, `${id}_cover.jpg`), heroFile = id => path.join(dir, `${id}_hero.jpg`), missFile = id => path.join(dir, `${id}.nocover`); // (fork) new name: the old ".missing" marks were set before the store-assets lookup below and are ignored
 
 // Art RustyShelf has already downloaded for this game (used when Steam's own cache has none)
-function local(appid) { return { front: isFile(coverFile(appid)) ? coverFile(appid) : null, hero: isFile(heroFile(appid)) ? heroFile(appid) : null }; }
+function local(appid) { return { front: isFile(coverFile(appid)) ? coverFile(appid) : null, hero: isFile(heroFile(appid)) ? heroFile(appid) : null, back: dir && isFile(backFile(appid)) ? backFile(appid) : null }; }
 
 // null = the CDN answered "not here" (404/403 or a stub); throws on network trouble / server errors
 async function fetchBuf(url, ms = 20000) {
@@ -57,8 +58,9 @@ function recentlyMissed(id) { try { return Date.now() - fs.statSync(missFile(id)
 // Store info in the same shape as the LaunchBox info the console shelves get, plus metacritic
 function gameInfo(appid) {
   const d = info[appid]; if (!d || !d.ok) return null;
-  return { overview: d.overview, release: d.release, year: d.year, dev: d.dev, pub: d.pub, genres: d.genres, metacritic: d.metacritic, shots: d.shots || [], bg: d.bg || null, name: d.name };
+  return { overview: d.overview, release: d.release, year: d.year, dev: d.dev, pub: d.pub, genres: d.genres, metacritic: d.metacritic, shots: d.shots || [], bg: d.bg || null, name: d.name, about: d.about };
 }
+const plain = h => String(h || '').replace(/<\/(p|li|h\d|ul|ol)>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
 async function fetchInfo(appid) {
   try {
     const r = await net.fetch(`https://store.steampowered.com/api/appdetails?appids=${appid}&l=english`, { headers: { 'User-Agent': 'RustyShelf' }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
@@ -72,6 +74,7 @@ async function fetchInfo(appid) {
       genres: (d.genres || []).map(g => g.description).join('; ') || undefined,
       metacritic: d.metacritic && d.metacritic.score || undefined,
       overview: String(d.short_description || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").slice(0, 1200) || undefined,
+      about: plain(d.about_the_game).slice(0, 2000) || undefined, v: 2,
       shots: (d.screenshots || []).slice(0, 8).map(s => s.path_full).filter(u => /^https:\/\//.test(u)), bg: /^https:\/\//.test(d.background_raw || '') ? d.background_raw : null };
   } catch (e) { log('steam info', appid, e.message); }
 }
@@ -99,10 +102,12 @@ async function fill(games) {
       else break;
     }
     const old = info[id];
-    if (!old || Date.now() - old.at > (old.ok ? MONTH : RETRY)) { await fetchInfo(id); if (info[id] !== old && info[id].ok) other++; await new Promise(r => setTimeout(r, 350)); } // the store API rate-limits bursts; a failed refresh leaves the old entry, which isn't a change
+    if (!old || Date.now() - old.at > (old.ok ? MONTH : RETRY) || (old.ok && !old.v) /* (v2: the store's long description) */) { await fetchInfo(id); if (info[id] !== old && info[id].ok) other++; await new Promise(r => setTimeout(r, 350)); } // the store API rate-limits bursts; a failed refresh leaves the old entry, which isn't a change
   }
   if (need.length) { try { fs.writeFileSync(infoFile + '.tmp', JSON.stringify(info)); fs.renameSync(infoFile + '.tmp', infoFile); } catch {} } // temp + rename: a cut-off file lost every game's info
   return { covers, other };
 }
 
-module.exports = { init, local, gameInfo, fill };
+const backPath = appid => (dir ? backFile(appid) : null);
+
+module.exports = { init, local, gameInfo, fill, backPath };

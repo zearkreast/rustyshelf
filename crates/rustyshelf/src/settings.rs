@@ -1594,7 +1594,7 @@ impl Settings {
                     });
                 }
                 rows.extend(facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }));
-                let about = g.info.as_ref().and_then(|i| i.overview.clone()).unwrap_or_default();
+                let about = g.info.as_ref().and_then(|i| i.description()).unwrap_or_default();
                 let about: String = if about.chars().count() > 420 { format!("{}…", about.chars().take(419).collect::<String>()) } else { about };
                 Page { title: g.title.clone(), lead: about, rows }
             }

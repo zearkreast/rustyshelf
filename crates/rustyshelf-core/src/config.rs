@@ -152,6 +152,11 @@ impl Config {
     }
 
     /// Settings → Box art → download box art: Some(true) on, Some(false) off, None for a value that's neither.
+    /// Settings → Box art → "Make missing backs and spines" (on unless turned off)
+    pub fn make_backs(&self) -> bool {
+        self.raw.get("ui").and_then(|u| u.get("makeBacks")).and_then(Value::as_bool) != Some(false)
+    }
+
     pub fn auto_covers(&self) -> Option<bool> {
         self.raw.get("ui").and_then(|u| u.get("autoCovers")).and_then(Value::as_bool)
     }

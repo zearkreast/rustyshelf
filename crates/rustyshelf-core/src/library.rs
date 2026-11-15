@@ -70,6 +70,14 @@ impl PcArt<'_> {
         (local(format!("{appid}_cover.jpg")), local(format!("{appid}_hero.jpg")))
     }
 
+    /// The back made from the store's screenshots, for a game whose case isn't a console box.
+    fn steam_back(&self, art: &mut Art, box_plat: &Option<String>, appid: &str) {
+        let made = crate::steamart::back_file(self.data, appid);
+        if art.back.is_none() && box_plat.is_none() && is_file(&made) {
+            (art.back, art.made_back) = (Some(made), true);
+        }
+    }
+
     /// A game's front, and with a console box its back, its spine and the console it's from. The player's pick comes
     /// first, then its console box, then `auto`: the automatic covers, best first.
     fn case(&self, id: &str, auto: impl FnOnce() -> Option<PathBuf>) -> (Art, Option<String>) {
@@ -85,7 +93,8 @@ impl PcArt<'_> {
     fn steam_game(&self, g: SteamGame) -> Game {
         let id = format!("steam-{}", g.appid);
         let (cover, hero) = self.steam_art(&g.appid);
-        let (art, box_plat) = self.case(&id, || g.front.or(cover));
+        let (mut art, box_plat) = self.case(&id, || g.front.or(cover));
+        self.steam_back(&mut art, &box_plat, &g.appid);
         Game {
             title: self.cfg.game_title(&id).map(String::from).unwrap_or(g.title),
             id,
@@ -106,9 +115,12 @@ impl PcArt<'_> {
         let store = matches!(g.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder");
         let sid = store.then(|| self.steam_ids.get(&g.title.to_lowercase())).flatten();
         let (cover, hero) = sid.map(|sid| self.steam_art(sid)).unwrap_or_default();
-        let (art, box_plat) = self.case(&g.id, || {
+        let (mut art, box_plat) = self.case(&g.id, || {
             pccovers::auto_cover(self.data, &g.id).or_else(|| Some(&g.exe).filter(|e| !e.is_empty()).and_then(|e| pccovers::folder_cover(e))).or(cover)
         });
+        if let Some(sid) = sid {
+            self.steam_back(&mut art, &box_plat, sid);
+        }
         // only the games whose own folder is the game: a program added by hand may sit in a shared folder
         let sized = g.installed != Some(false) && matches!(g.source, "folder" | "epic" | "hoyoplay") && !g.dir.is_empty();
         Game {
@@ -551,7 +563,25 @@ fn steam_fill(lib: &Library, data_dir: &Path) -> bool {
         games.extend(others.iter().filter_map(|g| Some(Wanted { appid: ids.get(&g.title.to_lowercase())?.clone(), has_front: has(g).0, has_hero: has(g).1 })));
     }
     let (covers, other) = if games.is_empty() { (0, 0) } else { crate::steamart::fill(data_dir, &games) };
-    posters || covers + other + matched > 0
+    let backs = if lib.config.make_backs() { crate::steamart::make_backs(data_dir, &backs_for(pc, data_dir)) } else { 0 };
+    posters || covers + other + matched + backs > 0
+}
+
+/// The PC shelf's games a Steam back could be made for: their app, title and cover, when the case isn't a console box.
+fn backs_for(pc: &Shelf, data_dir: &Path) -> Vec<(String, String, PathBuf)> {
+    let ids = pcgames::steam_ids(data_dir);
+    pc.games
+        .iter()
+        .filter(|g| g.art.back.is_none() && g.box_plat.is_none())
+        .filter_map(|g| {
+            let appid = match &g.source {
+                Source::Steam { appid, .. } => appid.clone(),
+                Source::Pc(p) if matches!(p.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder") => ids.get(&g.title.to_lowercase())?.clone(),
+                _ => return None,
+            };
+            Some((appid, g.title.clone(), g.art.front.clone()?))
+        })
+        .collect()
 }
 
 /// SteamGridDB posters for the PC games that aren't Steam's and have no cover at all, wherever they sit (a program

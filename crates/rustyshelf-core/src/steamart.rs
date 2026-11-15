@@ -115,6 +115,16 @@ fn store_assets(id: &str, keys: &[&str]) -> Vec<String> {
     keys.iter().filter_map(|k| a[*k].as_str()).filter(|n| NAME.is_match(n)).flat_map(|n| asset(id, n)).collect()
 }
 
+/// The store's HTML as text, a paragraph, heading or list item a line. Keep in sync with main/steamart.js plain.
+fn plain(html: &str) -> String {
+    static BLOCK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)</(p|li|h\d|ul|ol)>|<br\s*/?>").unwrap());
+    static TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new("<[^>]+>").unwrap());
+    static SPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[ \t]+").unwrap());
+    static LINE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*\n\s*").unwrap());
+    let s = TAG.replace_all(&BLOCK.replace_all(html, "\n"), "").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&nbsp;", " ");
+    LINE.replace_all(&SPACE.replace_all(&s, " "), "\n").trim().to_string()
+}
+
 fn fetch_info(appid: &str) -> Option<Value> {
     static TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new("<[^>]+>").unwrap());
     let j = crate::net::get_json(&format!("https://store.steampowered.com/api/appdetails?appids={appid}&l=english"), Duration::from_secs(20)).ok()?;
@@ -126,6 +136,7 @@ fn fetch_info(appid: &str) -> Option<Value> {
     let joined = |k: &str, sep: &str, of: &dyn Fn(&Value) -> String| d.get(k).and_then(Value::as_array).map(|a| a.iter().map(of).collect::<Vec<_>>().join(sep)).unwrap_or_default();
     let text = |v: &Value| js::string(Some(v));
     let overview = TAG.replace_all(&js::text(d.get("short_description")), "").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'");
+    let about = plain(&js::text(d.get("about_the_game")));
     let shots: Vec<Value> = d
         .get("screenshots")
         .and_then(Value::as_array)
@@ -158,9 +169,58 @@ fn fetch_info(appid: &str) -> Option<Value> {
     if !overview.is_empty() {
         e.insert("overview".into(), json!(js::slice(&overview, 1200)));
     }
+    if !about.is_empty() {
+        e.insert("about".into(), json!(js::slice(&about, 2000)));
+    }
+    e.insert("v".into(), json!(2));
     e.insert("shots".into(), Value::Array(shots));
     e.insert("bg".into(), js::str_of(d.get("background_raw")).filter(|u| u.starts_with("https://")).map_or(Value::Null, Value::from));
     Some(Value::Object(e))
+}
+
+/// Where a Steam game's made back is kept.
+pub fn back_file(data_dir: &Path, appid: &str) -> PathBuf {
+    data_dir.join("steam-art").join(format!("{appid}_backmade.jpg"))
+}
+
+/// Backs for these Steam games (app id, title, cover) from their store screenshots, artwork and description, for the
+/// ones with store info and no made back yet (Steam has no box back to download). How many were made; it stops at
+/// the first game none of whose screenshots came (offline).
+pub fn make_backs(data_dir: &Path, games: &[(String, String, PathBuf)]) -> u32 {
+    let infos = crate::info::steam_infos(data_dir);
+    let fetch = |u: &str| crate::net::get_bytes(u, Duration::from_secs(10), 15_000_000).ok().flatten().and_then(|b| image::load_from_memory(&b).ok()).map(|i| i.to_rgba8());
+    let band = crate::looks::Band { bg: [0x11 as f32 / 255.0, 0x14 as f32 / 255.0, 0x1a as f32 / 255.0, 1.0], fg: [0x8f as f32 / 255.0, 0xb4 as f32 / 255.0, 0xd9 as f32 / 255.0, 1.0], label: "PC".into() };
+    let mut made = 0;
+    for (appid, title, front) in games {
+        let dest = back_file(data_dir, appid);
+        let Some(info) = infos.get(appid).filter(|i| !i.shots.is_empty()) else { continue };
+        if is_file(&dest) {
+            continue;
+        }
+        let Some(cover) = image::open(front).ok().map(|i| i.to_rgba8()) else { continue };
+        let shots: Vec<_> = info.shots.iter().take(3).filter_map(|u| fetch(u)).collect();
+        if shots.is_empty() {
+            break;
+        }
+        let art = info.bg.as_deref().and_then(fetch);
+        let (about, overview) = (info.about.as_deref().unwrap_or(""), info.overview.as_deref().unwrap_or(""));
+        let text = crate::drawn::BackText {
+            title,
+            overview: if about.chars().count() > overview.chars().count() { about } else { overview },
+            esrb: "",
+            players: "",
+            publisher: info.publisher.as_deref().or(info.dev.as_deref()).unwrap_or(""),
+            year: info.year.as_deref().unwrap_or(""),
+        };
+        let Some(p) = crate::drawn::made_back(&cover, &shots, art.as_ref(), &band, &text) else { continue };
+        let Some(img) = image::RgbaImage::from_raw(p.width, p.height, p.rgba) else { continue };
+        let mut jpg = Vec::new();
+        let enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpg, 90);
+        if image::DynamicImage::ImageRgba8(img).to_rgb8().write_with_encoder(enc).is_ok() && std::fs::create_dir_all(dest.parent().unwrap_or(data_dir)).and_then(|()| std::fs::write(&dest, &jpg)).is_ok() {
+            made += 1;
+        }
+    }
+    made
 }
 
 /// A Steam game on the shelf, and what it already has.
@@ -231,7 +291,11 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
             }
         }
         let due = match info.get(id) {
-            Some(old) => now() as f64 - js::number(old.get("at")) > if js::truthy(old.get("ok")) { MONTH } else { RETRY },
+            // (before v2 an entry had no long description)
+            Some(old) => {
+                let ok = js::truthy(old.get("ok"));
+                now() as f64 - js::number(old.get("at")) > (if ok { MONTH } else { RETRY }) || (ok && old.get("v").is_none())
+            }
             None => true,
         };
         if due {
