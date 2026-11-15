@@ -117,7 +117,7 @@ function upgrade(cfg) {
     if (!['drift', 'night', 'glow', 'own', 'off'].includes(cfg.ui.music || 'drift')) cfg.ui.music = 'drift'; // ('own': your own files, main/music.js)
     if (!['chime', 'crystal', 'pulse', 'horizon', 'keys'].includes(cfg.ui.bootSound || 'chime')) cfg.ui.bootSound = 'chime';
     if (typeof cfg.ui.discordPresence !== 'boolean') cfg.ui.discordPresence = false; cfg.ui.discordAppId = String(cfg.ui.discordAppId || '').replace(/\D/g, '').slice(0, 25); // (Discord Rich Presence: main/presence.js)
-    if (!['en', 'pt', 'fr'].includes(cfg.ui.language)) cfg.ui.language = 'en'; // (RustyShelf) English, Português (Brasil) (renderer/i18n.js, shared/i18n-main.js) or Français (renderer/i18n-fr-ui.js)
+    if (!['en', 'pt', 'fr', 'tr'].includes(cfg.ui.language)) cfg.ui.language = 'en'; // (RustyShelf) English, Português (Brasil) (renderer/i18n.js, shared/i18n-main.js), Français or Türkçe (renderer/i18n-dict.js)
   }
   for (const s of CONSOLES) {
     const c = cfg.systems[s.id];

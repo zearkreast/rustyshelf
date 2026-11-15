@@ -1,0 +1,3940 @@
+[
+ {
+  "lang": "fr",
+  "cases": [
+   [
+    "Continue & favorites",
+    "Reprendre et favoris"
+   ],
+   [
+    "Add games",
+    "Ajouter des jeux"
+   ],
+   [
+    "This week",
+    "Cette semaine"
+   ],
+   [
+    "Surprise pick",
+    "Jeu surprise"
+   ],
+   [
+    "Games found",
+    "Jeux trouvés"
+   ],
+   [
+    "Change or turn off",
+    "Modifier ou désactiver"
+   ],
+   [
+    "Puts more games on the Custom shelf: several programs at once, a whole folder of games, or your Playnite library.",
+    "Ajoute des jeux à l'étagère Personnalisé : plusieurs programmes d'un coup, un dossier entier de jeux ou votre bibliothèque Playnite."
+   ],
+   [
+    "Read manual",
+    "Lire le manuel"
+   ],
+   [
+    "Turn sound on",
+    "Activer le son"
+   ],
+   [
+    "Trailer sound: on",
+    "Son de la bande-annonce : activé"
+   ],
+   [
+    "Getting the trailer helper…",
+    "Récupération de l'assistant de bandes-annonces…"
+   ],
+   [
+    "RustyShelf isn't running from its AppImage",
+    "RustyShelf ne s'exécute pas depuis son AppImage"
+   ],
+   [
+    "Switch to Game Mode and start it from your Library (Non-Steam)",
+    "Passez en mode Jeu et lancez-le depuis votre bibliothèque (hors Steam)"
+   ],
+   [
+    "Update available",
+    "Mise à jour disponible"
+   ],
+   [
+    "Choose a cover",
+    "Choisir une jaquette"
+   ],
+   [
+    "Every custom game has a cover already",
+    "Chaque jeu personnalisé a déjà une jaquette"
+   ],
+   [
+    "About this game",
+    "À propos de ce jeu"
+   ],
+   [
+    "Cast & crew",
+    "Distribution et équipe"
+   ],
+   [
+    "Waiting for the background manual download to pause…",
+    "En attente de la mise en pause du téléchargement des manuels en arrière-plan…"
+   ],
+   [
+    "Couldn't replace the manual:",
+    "Impossible de remplacer le manuel :"
+   ],
+   [
+    "Take out disc",
+    "Retirer le disque"
+   ],
+   [
+    "Fix manual…",
+    "Corriger le manuel…"
+   ],
+   [
+    "Running through the",
+    "Exécution via"
+   ],
+   [
+    "Running through …",
+    "Exécution via …"
+   ],
+   [
+    "Couldn't close Steam: close it from the taskbar",
+    "Impossible de fermer Steam : fermez-le depuis la barre des tâches"
+   ],
+   [
+    "RetroAchievements didn't answer.",
+    "RetroAchievements n'a pas répondu."
+   ],
+   [
+    "All · Unlocked · Locked",
+    "Tous · Débloqués · Verrouillés"
+   ],
+   [
+    "Box art: N added",
+    "Jaquettes : N ajoutées"
+   ],
+   [
+    "Your 3D model",
+    "Votre modèle 3D"
+   ],
+   [
+    "None added",
+    "Aucun ajouté"
+   ],
+   [
+    "Built-in gaming PC",
+    "PC de jeu intégré"
+   ],
+   [
+    "Quick menu",
+    "Menu rapide"
+   ],
+   [
+    "Sign in once and RustyShelf tracks every unlock.",
+    "Connectez-vous une fois et RustyShelf suit chaque déblocage."
+   ],
+   [
+    "Box art",
+    "Jaquettes"
+   ],
+   [
+    "Use an image (PNG, SVG, WebP) or a video (MP4, WebM)",
+    "Utilisez une image (PNG, SVG, WebP) ou une vidéo (MP4, WebM)"
+   ],
+   [
+    "Nothing to shuffle on this shelf",
+    "Rien à mélanger sur cette étagère"
+   ],
+   [
+    "Classic is the original look. Lights out leaves only the TV and the shelves' own glow.",
+    "Classique est l'aspect d'origine. Lumières éteintes ne laisse que la télé et la lueur des étagères."
+   ],
+   [
+    "Dust in the light",
+    "Poussière dans la lumière"
+   ],
+   [
+    "Wall mount",
+    "Fixation murale"
+   ],
+   [
+    "At the TV, up and down change the channel too. Shuffle all mixes the other three",
+    "À la télé, haut et bas changent aussi de chaîne. « Tout mélanger » mixe les trois autres"
+   ],
+   [
+    "Gallery pieces",
+    "Pièces de galerie"
+   ],
+   [
+    "On the shelves",
+    "Sur les étagères"
+   ],
+   [
+    "No 3D model here",
+    "Aucun modèle 3D ici"
+   ],
+   [
+    "No 3D model on that shelf yet",
+    "Aucun modèle 3D sur cette étagère pour l'instant"
+   ],
+   [
+    "No pages found",
+    "Aucune page trouvée"
+   ],
+   [
+    "Guide box",
+    "Boîte de guides"
+   ],
+   [
+    "Tuning in…",
+    "Recherche de chaîne…"
+   ],
+   [
+    "Done reading",
+    "Lecture terminée"
+   ],
+   [
+    "Play this game",
+    "Jouer à ce jeu"
+   ],
+   [
+    "Back to shelf",
+    "Retour à l'étagère"
+   ],
+   [
+    "Flip through",
+    "Feuilleter"
+   ],
+   [
+    "Close the guide",
+    "Fermer le guide"
+   ],
+   [
+    "Flip · hold ♥",
+    "Retourner · maintenir ♥"
+   ],
+   [
+    "Home menu opened (from",
+    "Menu Accueil ouvert (depuis"
+   ],
+   [
+    "Couldn't reach the art sites. Try again from Settings → Box art",
+    "Impossible de joindre les sites de jaquettes. Réessayez depuis Paramètres → Jaquettes"
+   ],
+   [
+    "Choose manual…",
+    "Choisir un manuel…"
+   ],
+   [
+    "Pause (Y: full screen)",
+    "Pause (Y : plein écran)"
+   ],
+   [
+    "First played",
+    "Premier lancement"
+   ],
+   [
+    "No trailer or screenshots yet",
+    "Pas encore de bande-annonce ni de captures"
+   ],
+   [
+    "Game title",
+    "Titre du jeu"
+   ],
+   [
+    "Load state",
+    "Charger l'état"
+   ],
+   [
+    "Steam's cover",
+    "Jaquette Steam"
+   ],
+   [
+    "Preview mode: logos work in the desktop app",
+    "Mode aperçu : les logos fonctionnent dans l'application de bureau"
+   ],
+   [
+    "Catch every bug",
+    "Attraper tous les insectes"
+   ],
+   [
+    "Looking up the set-aside games…",
+    "Recherche des jeux mis de côté…"
+   ],
+   [
+    "Cut from full wrap · USA",
+    "Découpé du pourtour complet · USA"
+   ],
+   [
+    "Nothing to undo",
+    "Rien à annuler"
+   ],
+   [
+    "Best English manual",
+    "Meilleur manuel anglais"
+   ],
+   [
+    "Manuals in Italian",
+    "Manuels en italien"
+   ],
+   [
+    "Unknown choice.",
+    "Choix inconnu."
+   ],
+   [
+    "No.",
+    "N°"
+   ],
+   [
+    "Steam Deck graphics",
+    "Graphismes Steam Deck"
+   ],
+   [
+    "Use this folder",
+    "Utiliser ce dossier"
+   ],
+   [
+    "Hide the taskbar during games",
+    "Masquer la barre des tâches pendant les jeux"
+   ],
+   [
+    "Xenia runs Xbox 360 games: .iso discs, extracted folders, XBLA .xex files or .zar archives.",
+    "Xenia exécute les jeux Xbox 360 : disques .iso, dossiers extraits, fichiers XBLA .xex ou archives .zar."
+   ],
+   [
+    "Automatic picks for this PC",
+    "Choix automatiques pour ce PC"
+   ],
+   [
+    "Open site",
+    "Ouvrir le site"
+   ],
+   [
+    "Only the consoles I choose",
+    "Seulement les consoles que je choisis"
+   ],
+   [
+    "Leaves Proton, Steamworks Common Redistributables and other tools off the shelf.",
+    "Retire de l'étagère Proton, Steamworks Common Redistributables et d'autres outils."
+   ],
+   [
+    "Show installed Ubisoft games",
+    "Afficher les jeux Ubisoft installés"
+   ],
+   [
+    "Playnite, decomps, ports → Custom games",
+    "Playnite, décompilations, portages → Jeux personnalisés"
+   ],
+   [
+    "Large suits most 55\" and bigger TVs at 2–3 m. Extra large for very far seating.",
+    "Grande convient à la plupart des télés de 55\" et plus à 2–3 m. Très grande pour un recul important."
+   ],
+   [
+    "Looks in the custom themes folder again after you add, change or remove a theme.",
+    "Relit le dossier des thèmes personnalisés après un ajout, une modification ou une suppression."
+   ],
+   [
+    "Starting up",
+    "Démarrage"
+   ],
+   [
+    "Museum: after the RustyShelf logo the lights come up in the museum overview (a little slower to start than the shelf). B still takes you to the shelf any time.",
+    "Musée : après le logo RustyShelf, les lumières s'allument sur la vue d'ensemble du musée (un peu plus lent à démarrer que l'étagère). B vous ramène toujours à l'étagère."
+   ],
+   [
+    "Start in fullscreen",
+    "Démarrer en plein écran"
+   ],
+   [
+    "Reduce motion",
+    "Réduire les animations"
+   ],
+   [
+    "Ticks, whooshes and chimes as you move around.",
+    "Tics, souffles et carillons quand vous naviguez."
+   ],
+   [
+    "Next song",
+    "Chanson suivante"
+   ],
+   [
+    "Include the built-in songs",
+    "Inclure les chansons intégrées"
+   ],
+   [
+    "Console order",
+    "Ordre des consoles"
+   ],
+   [
+    "From this shelf",
+    "Depuis cette étagère"
+   ],
+   [
+    "Attract mode starts after",
+    "Le mode vitrine démarre après"
+   ],
+   [
+    "Dim the screen after",
+    "Assombrir l'écran après"
+   ],
+   [
+    "Cooler or warmer light.",
+    "Lumière plus froide ou plus chaude."
+   ],
+   [
+    "How the retro TV looks and sounds.",
+    "L'aspect et le son de la télé rétro."
+   ],
+   [
+    "Scanlines, curved glass and glow on the TV's picture.",
+    "Lignes de balayage, verre bombé et halo sur l'image de la télé."
+   ],
+   [
+    "The wood (or paint) of the shelves.",
+    "Le bois (ou la peinture) des étagères."
+   ],
+   [
+    "The lights come on shelf by shelf. Off goes straight to the overview.",
+    "Les lumières s'allument étagère par étagère. Désactivé va directement à la vue d'ensemble."
+   ],
+   [
+    "Press a button on a controller and RustyShelf shows what it is here.",
+    "Appuyez sur un bouton d'une manette et RustyShelf affiche ici ce que c'est."
+   ],
+   [
+    "Scroll speed",
+    "Vitesse de défilement"
+   ],
+   [
+    "Pointer speed",
+    "Vitesse du pointeur"
+   ],
+   [
+    "Buttons to hold",
+    "Boutons à maintenir"
+   ],
+   [
+    "Make missing backs and spines",
+    "Créer les faces arrière et tranches manquantes"
+   ],
+   [
+    "Only sure English manuals",
+    "Seulement les manuels anglais sûrs"
+   ],
+   [
+    "Every manual found for each game, per console: another language, region or sharper scan, or a PDF of your own.",
+    "Tous les manuels trouvés pour chaque jeu, par console : une autre langue, région ou un scan plus net, ou un PDF à vous."
+   ],
+   [
+    "In Details",
+    "Dans Détails"
+   ],
+   [
+    "How long you rest on a game before its preview starts (on the shelf, half a second more, so browsing quickly stays calm).",
+    "Le temps passé sur un jeu avant le début de son aperçu (sur l'étagère, une demi-seconde de plus, pour que la navigation rapide reste calme)."
+   ],
+   [
+    "Magazines\\\\ and Guides\\\\ are kept in this folder. Changing it doesn't move anything already downloaded: copy the two folders across yourself.",
+    "Magazines\\\\ et Guides\\\\ sont conservés dans ce dossier. Le changer ne déplace rien de ce qui est déjà téléchargé : copiez vous-même les deux dossiers."
+   ],
+   [
+    "Achievements on each game's details, and a summary after you play. Opens your account, its key, and the sign-in inside each emulator.",
+    "Succès dans les détails de chaque jeu, et un résumé après avoir joué. Ouvre votre compte, sa clé et la connexion dans chaque émulateur."
+   ],
+   [
+    "New PIN",
+    "Nouveau code PIN"
+   ],
+   [
+    "Press again to forget every paired phone",
+    "Appuyez de nouveau pour oublier tous les téléphones associés"
+   ],
+   [
+    "Opens the launcher you used before RustyShelf. RustyShelf stays ready in the background.",
+    "Ouvre le lanceur que vous utilisiez avant RustyShelf. RustyShelf reste prêt en arrière-plan."
+   ],
+   [
+    "Restore settings",
+    "Restaurer les réglages"
+   ],
+   [
+    "RustyShelf",
+    "RustyShelf"
+   ],
+   [
+    "Run setup again, the app folder, clearing the play history and restoring emulator settings.",
+    "Relancer la configuration, le dossier de l'application, effacer l'historique de jeu et restaurer les réglages des émulateurs."
+   ],
+   [
+    "Press again to clear the play history",
+    "Appuyez de nouveau pour effacer l'historique de jeu"
+   ],
+   [
+    "Web API key",
+    "Clé d'API Web"
+   ],
+   [
+    "Check again",
+    "Revérifier"
+   ],
+   [
+    "Test the connection",
+    "Tester la connexion"
+   ],
+   [
+    "Sign out of RomM",
+    "Se déconnecter de RomM"
+   ],
+   [
+    "Checks the key.",
+    "Vérifie la clé."
+   ],
+   [
+    "Your screenscraper.fr password. Stored encrypted, sent only to ScreenScraper.",
+    "Votre mot de passe screenscraper.fr. Stocké chiffré, envoyé uniquement à ScreenScraper."
+   ],
+   [
+    "Signs in and shows how many lookups the account has left today.",
+    "Se connecte et affiche combien de recherches il reste au compte aujourd'hui."
+   ],
+   [
+    "New PIN made",
+    "Nouveau code PIN créé"
+   ],
+   [
+    "No emulator set",
+    "Aucun émulateur défini"
+   ],
+   [
+    "Achievements won't unlock here until this is fixed.",
+    "Les succès ne se débloqueront pas ici tant que ce n'est pas corrigé."
+   ],
+   [
+    "Pairing was turned down in RomM.",
+    "L'association a été refusée dans RomM."
+   ],
+   [
+    "No emulator set for it in RocketLauncherUI",
+    "Aucun émulateur défini pour lui dans RocketLauncherUI"
+   ],
+   [
+    "The Switch emulator this shelf uses: Eden, Citron or Ryujinx. One game can use a different one: Details → Emulator.",
+    "L'émulateur Switch utilisé par cette étagère : Eden, Citron ou Ryujinx. Un jeu peut en utiliser un autre : Détails → Émulateur."
+   ],
+   [
+    "RocketLauncher system name",
+    "Nom du système dans RocketLauncher"
+   ],
+   [
+    "Where this console's games are. Subfolders are searched too. Select it twice to remove it from this shelf (nothing is deleted).",
+    "Où se trouvent les jeux de cette console. Les sous-dossiers sont aussi analysés. Sélectionnez-le deux fois pour le retirer de cette étagère (rien n'est supprimé)."
+   ],
+   [
+    "Boot screen with the game's cover",
+    "Écran de démarrage avec la jaquette du jeu"
+   ],
+   [
+    "What RustyShelf passes when it opens the emulator on its own.",
+    "Ce que RustyShelf transmet quand il ouvre l'émulateur seul."
+   ],
+   [
+    "How long the loading screen stays over the real GameCube startup. Lower shows more of it but may flash Dolphin.",
+    "Combien de temps l'écran de chargement reste sur le vrai démarrage GameCube. Plus bas en montre davantage mais peut faire clignoter Dolphin."
+   ],
+   [
+    "Own art folder",
+    "Dossier d'images personnel"
+   ],
+   [
+    "Puts the shelves back in RustyShelf's own order.",
+    "Remet les étagères dans l'ordre propre à RustyShelf."
+   ],
+   [
+    "Stopping after the games in progress",
+    "Arrêt après les jeux en cours"
+   ],
+   [
+    "Your consoles and what they still need.",
+    "Vos consoles et ce qu'il leur manque encore."
+   ],
+   [
+    "No console in this download.",
+    "Aucune console dans ce téléchargement."
+   ],
+   [
+    "Box art:",
+    "Jaquettes :"
+   ],
+   [
+    "Check stopped",
+    "Vérification arrêtée"
+   ],
+   [
+    "Stops looking. Nothing is downloaded.",
+    "Arrête la recherche. Rien n'est téléchargé."
+   ],
+   [
+    "Off takes the best match for every game, even unsure ones.",
+    "Désactivé prend la meilleure correspondance pour chaque jeu, même incertaine."
+   ],
+   [
+    "Nothing to download",
+    "Rien à télécharger"
+   ],
+   [
+    "Decomps, recomps, ports, any program",
+    "Décompilations, recompilations, portages, n'importe quel programme"
+   ],
+   [
+    "Choose Quiver Launcher's folder (the one with QuiverLauncher.exe)",
+    "Choisissez le dossier de Quiver Launcher (celui contenant QuiverLauncher.exe)"
+   ],
+   [
+    "Choose covers one by one",
+    "Choisir les jaquettes une par une"
+   ],
+   [
+    "Remove",
+    "Retirer"
+   ],
+   [
+    "No Switch 2 emulators yet: add one below",
+    "Aucun émulateur Switch 2 pour l'instant : ajoutez-en un ci-dessous"
+   ],
+   [
+    "Removed emulators are back on the list",
+    "Les émulateurs retirés sont de retour dans la liste"
+   ],
+   [
+    "Folder removed from the list (nothing was deleted)",
+    "Dossier retiré de la liste (rien n'a été supprimé)"
+   ],
+   [
+    "Nothing new found",
+    "Rien de nouveau trouvé"
+   ],
+   [
+    "Up to date",
+    "À jour"
+   ],
+   [
+    "Settings restored",
+    "Réglages restaurés"
+   ],
+   [
+    "Copying… · Stop",
+    "Copie… · Arrêter"
+   ],
+   [
+    "Nothing new to add",
+    "Rien de nouveau à ajouter"
+   ],
+   [
+    "Looking for Playnite…",
+    "Recherche de Playnite…"
+   ],
+   [
+    "Already on the Custom shelf",
+    "Déjà sur l'étagère Personnalisé"
+   ],
+   [
+    "Left out",
+    "Exclus"
+   ],
+   [
+    "Opens its download page. Unzip it over this folder: your settings are kept.",
+    "Ouvre sa page de téléchargement. Décompressez-la sur ce dossier : vos réglages sont conservés."
+   ],
+   [
+    "Steam's controller layout for RustyShelf",
+    "Disposition manette Steam pour RustyShelf"
+   ],
+   [
+    "Recommended on a Steam Deck",
+    "Recommandé sur une Steam Deck"
+   ],
+   [
+    "Press again to stop using this folder",
+    "Appuyez de nouveau pour ne plus utiliser ce dossier"
+   ],
+   [
+    "Steam trailer clips cleared",
+    "Extraits de bandes-annonces Steam effacés"
+   ],
+   [
+    "Sets the resolution to the Graphics preset below.",
+    "Règle la résolution sur le préréglage graphique ci-dessous."
+   ],
+   [
+    "Choose this console's emulator first",
+    "Choisissez d'abord l'émulateur de cette console"
+   ],
+   [
+    "Set up again",
+    "Reconfigurer"
+   ],
+   [
+    "Missing (one of these is enough)",
+    "Manquant (un seul suffit)"
+   ],
+   [
+    "New collection",
+    "Nouvelle collection"
+   ],
+   [
+    "Search for a cover",
+    "Rechercher une jaquette"
+   ],
+   [
+    "Real scans of the original box and disc for every game",
+    "De vrais scans du boîtier et du disque d'origine pour chaque jeu"
+   ],
+   [
+    "Front, back, spine and disc from one release, where a game has them",
+    "Face avant, arrière, tranche et disque d'une même sortie, quand un jeu les a"
+   ],
+   [
+    "Shelf style",
+    "Style d'étagère"
+   ],
+   [
+    "Not built yet",
+    "Pas encore construite"
+   ],
+   [
+    "No games on any shelf yet",
+    "Aucun jeu sur aucune étagère pour l'instant"
+   ],
+   [
+    "My picture…",
+    "Mon image…"
+   ],
+   [
+    "Kept from before",
+    "Conservé d'avant"
+   ],
+   [
+    "Get LaunchBox art",
+    "Obtenir les visuels LaunchBox"
+   ],
+   [
+    "The picture before this one",
+    "L'image précédente"
+   ],
+   [
+    "Every part for most consoles · free account",
+    "Toutes les parties pour la plupart des consoles · compte gratuit"
+   ],
+   [
+    "Every manual for this game · A opens them",
+    "Tous les manuels de ce jeu · A les ouvre"
+   ],
+   [
+    "Nothing to filter for this part",
+    "Rien à filtrer pour cette partie"
+   ],
+   [
+    "Loading manuals by console…",
+    "Chargement des manuels par console…"
+   ],
+   [
+    "Automatic downloads and a new console choice leave it as it is.",
+    "Les téléchargements automatiques et un nouveau choix de console n'y touchent pas."
+   ],
+   [
+    "One tap. RustyShelf's automatic downloads follow it, now and for new games.",
+    "Un seul appui. Les téléchargements automatiques de RustyShelf le suivent, maintenant et pour les nouveaux jeux."
+   ],
+   [
+    "This game is locked as it is: nothing automatic changes it. Your own changes here still work.",
+    "Ce jeu est verrouillé tel quel : rien d'automatique ne le change. Vos propres changements ici fonctionnent toujours."
+   ],
+   [
+    "Use this set",
+    "Utiliser cet ensemble"
+   ],
+   [
+    "Key not accepted",
+    "Clé refusée"
+   ],
+   [
+    "Open emulator",
+    "Ouvrir l'émulateur"
+   ],
+   [
+    "Your consoles",
+    "Vos consoles"
+   ],
+   [
+    "Open RustyShelf",
+    "Ouvrir RustyShelf"
+   ],
+   [
+    "Let's find your games",
+    "Trouvons vos jeux"
+   ],
+   [
+    "Tick the consoles you play, then point to each one's emulator and games folder.",
+    "Cochez les consoles que vous utilisez, puis indiquez l'émulateur et le dossier de jeux de chacune."
+   ],
+   [
+    "Folders with your games in them",
+    "Les dossiers contenant vos jeux"
+   ],
+   [
+    "Steam not found",
+    "Steam introuvable"
+   ],
+   [
+    "RustyShelf didn't find any emulators yet. Tick the consoles you play and you'll point to their emulator and games next.",
+    "RustyShelf n'a trouvé aucun émulateur pour l'instant. Cochez les consoles que vous utilisez et vous indiquerez ensuite leur émulateur et leurs jeux."
+   ],
+   [
+    "Finish setting up asks for what's still missing.",
+    "« Terminer la configuration » demande ce qui manque encore."
+   ],
+   [
+    "Find it…",
+    "Le trouver…"
+   ],
+   [
+    "Choose your Steam folder",
+    "Choisissez votre dossier Steam"
+   ],
+   [
+    "The highest-resolution pictures, and fan-made posters where no box scan exists.",
+    "Les images de plus haute résolution, et des affiches de fans là où aucun scan de boîtier n'existe."
+   ],
+   [
+    "Video previews are offered on the Done page.",
+    "Les aperçus vidéo sont proposés sur la page Terminé."
+   ],
+   [
+    "RustyShelf finds the covers, backs, spines and discs for your games online.",
+    "RustyShelf trouve en ligne les faces avant, arrière, tranches et disques de vos jeux."
+   ],
+   [
+    "Key works",
+    "La clé fonctionne"
+   ],
+   [
+    "Capitals and symbols",
+    "Majuscules et symboles"
+   ],
+   [
+    "GameCube startup",
+    "Démarrage GameCube"
+   ],
+   [
+    "Options when opening the emulator on its own",
+    "Options à l'ouverture de l'émulateur seul"
+   ],
+   [
+    "Back to the manuals list",
+    "Retour à la liste des manuels"
+   ],
+   [
+    "Your folders",
+    "Vos dossiers"
+   ],
+   [
+    "Already in your folder",
+    "Déjà dans votre dossier"
+   ],
+   [
+    "Box art & manuals from the internet",
+    "Jaquettes et manuels depuis Internet"
+   ],
+   [
+    "Finish setup to reach your shelf",
+    "Terminez la configuration pour accéder à votre étagère"
+   ],
+   [
+    "Move along the shelf with the stick, the d-pad or the arrow keys.",
+    "Déplacez-vous le long de l'étagère avec le stick, la croix ou les flèches."
+   ],
+   [
+    "Box art opens this game in the Art Studio. Customize changes the theme and sounds. Trophies connects RetroAchievements.",
+    "Jaquettes ouvre ce jeu dans l'Atelier d'art. Personnaliser change le thème et les sons. Trophées connecte RetroAchievements."
+   ],
+   [
+    "The museum has a short tour of its own the first time you go in. Watch this one again from Settings · Shelf · Show the tour.",
+    "Le musée a sa propre courte visite la première fois que vous y entrez. Revoyez celle-ci depuis Paramètres · Étagère · Afficher la visite guidée."
+   ],
+   [
+    "More: box art, rename, collections, emulator…",
+    "Plus : jaquettes, renommer, collections, émulateur…"
+   ],
+   [
+    "Today",
+    "Aujourd'hui"
+   ],
+   [
+    "Other",
+    "Autre"
+   ],
+   [
+    "Artwork",
+    "Illustrations"
+   ],
+   [
+    "Players",
+    "Joueurs"
+   ],
+   [
+    "Trailer",
+    "Bande-annonce"
+   ],
+   [
+    "System",
+    "Système"
+   ],
+   [
+    "Close",
+    "Fermer"
+   ],
+   [
+    "Locked",
+    "Verrouillé"
+   ],
+   [
+    "Missable",
+    "Manquable"
+   ],
+   [
+    "Classic",
+    "Classique"
+   ],
+   [
+    "Pulse",
+    "Pulsation"
+   ],
+   [
+    "Resume",
+    "Reprendre"
+   ],
+   [
+    "Checking…",
+    "Vérification…"
+   ],
+   [
+    "Brightness",
+    "Luminosité"
+   ],
+   [
+    "Position",
+    "Position"
+   ],
+   [
+    "Wallpaper",
+    "Papier peint"
+   ],
+   [
+    "Shelves",
+    "Étagères"
+   ],
+   [
+    "Hidden",
+    "Masqué"
+   ],
+   [
+    "Commercials",
+    "Publicités"
+   ],
+   [
+    "Starting…",
+    "Démarrage…"
+   ],
+   [
+    "Product",
+    "Produit"
+   ],
+   [
+    "About",
+    "À propos"
+   ],
+   [
+    "Clear",
+    "Effacer"
+   ],
+   [
+    "Applications",
+    "Applications"
+   ],
+   [
+    "Reprint",
+    "Réimpression"
+   ],
+   [
+    "Stopped",
+    "Arrêté"
+   ],
+   [
+    "Found",
+    "Trouvé"
+   ],
+   [
+    "Pictures",
+    "Images"
+   ],
+   [
+    "Window",
+    "Fenêtre"
+   ],
+   [
+    "Songs",
+    "Chansons"
+   ],
+   [
+    "Relaxed",
+    "Détendu"
+   ],
+   [
+    "Rescanning…",
+    "Réanalyse…"
+   ],
+   [
+    "Phone",
+    "Téléphone"
+   ],
+   [
+    "Launching",
+    "Lancement"
+   ],
+   [
+    "Stopping",
+    "Arrêt"
+   ],
+   [
+    "Download",
+    "Télécharger"
+   ],
+   [
+    "Finishing…",
+    "Finalisation…"
+   ],
+   [
+    "Special",
+    "Spécial"
+   ],
+   [
+    "Console",
+    "Console"
+   ],
+   [
+    "Square",
+    "Carré"
+   ],
+   [
+    "Systems",
+    "Systèmes"
+   ],
+   [
+    "Sharpest",
+    "Le plus net"
+   ],
+   [
+    "Fixed",
+    "Fixe"
+   ],
+   [
+    "Game info",
+    "Infos du jeu"
+   ],
+   [
+    "Q / E switch system.",
+    "Q / E changent de système."
+   ],
+   [
+    "Your consoles' look",
+    "L'aspect de vos consoles"
+   ],
+   [
+    "Language",
+    "Langue"
+   ],
+   [
+    "Pick the folder that holds your games, with one subfolder per console (like RetroBat's roms folder: gc, wii, ps2, psx…). Each console's subfolder is added as its games folder.",
+    "Choisissez le dossier qui contient vos jeux, avec un sous-dossier par console (comme le dossier roms de RetroBat : gc, wii, ps2, psx…). Le sous-dossier de chaque console est ajouté comme son dossier de jeux."
+   ],
+   [
+    "No console folder found in there",
+    "Aucun dossier de console trouvé là-dedans"
+   ],
+   [
+    "Pick a free, downloadable Zeta Run model in your browser — check its licence — and save the .glb Omega Quest to Downloads. RustyShelf installs it as soon as it lands.",
+    "Pick a free, downloadable Zeta Run model in your browser — check its licence — and save the .glb Omega Quest to Downloads. RustyShelf installs it as soon as it lands."
+   ],
+   [
+    "Pick a free, downloadable Omega Quest model in your browser Continue & favorites and save the .glb or .zip to Downloads. RustyShelf puts it in as soon as it lands.",
+    "Pick a free, downloadable Omega Quest model in your browser Continue & favorites and save the .glb or .zip to Downloads. RustyShelf puts it in as soon as it lands."
+   ],
+   [
+    "Downloads the Continue & favorites core from libretro, the same place RetroArch's Online Updater uses. It's also fetched by itself the first time you play.",
+    "Télécharge le cœur Reprendre et favoris depuis libretro, au même endroit que le Online Updater de RetroArch. Il est aussi récupéré tout seul la première fois que vous jouez."
+   ],
+   [
+    "To come back to the shelf, hold  + Zeta Run for a moment during any game. Quitting from the emulator's own menu works too.",
+    "To come back to the shelf, hold  + Zeta Run for a moment during any game. Quitting from the emulator's own menu works too."
+   ],
+   [
+    "Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for Zeta Run: backed up first, and Undo puts it back.",
+    "Manette, raccourcis du menu Accueil, un dossier BIOS unique et un préréglage graphique pour Zeta Run : sauvegardés d'abord, et Annuler les rétablit."
+   ],
+   [
+    "Jumps to Omega Quest's games in the Art Studio: its shelf style, and every version of any game's art Continue & favorites.",
+    "Jumps to Omega Quest's games in the Art Studio: its shelf style, and every version of any game's art Continue & favorites."
+   ],
+   [
+    "Pick how Continue & favorites's box art looks , then fine-tune any game.",
+    "Pick how Continue & favorites's box art looks , then fine-tune any game."
+   ],
+   [
+    "The short clips kept from Steam's trailers ( MB). They're fetched again the next time you rest on a game.",
+    "Les courts extraits conservés des bandes-annonces Steam ( Mo). Ils sont récupérés de nouveau la prochaine fois que vous vous arrêtez sur un jeu."
+   ],
+   [
+    "Box art is ready for Zeta Run gameOmega Quest. Change any console's look in Settings → Box art & manuals → Art Studio.",
+    "Les jaquettes sont prêtes pour Zeta Run jeux. Changez l'aspect de n'importe quelle console dans Paramètres → Jaquettes et manuels → Atelier d'art."
+   ],
+   [
+    "Opens Omega Quest on its own so you can change controllers, graphics and other settings. Close it to come back here.",
+    "Ouvre Omega Quest seul pour que vous puissiez changer les manettes, les graphismes et d'autres réglages. Fermez-le pour revenir ici."
+   ],
+   [
+    "No games found for Continue & favorites yet. Opens its page in Settings, where you can pick the folder your games are in.",
+    "Aucun jeu trouvé pour Reprendre et favoris pour l'instant. Ouvre sa page dans les paramètres, où vous pouvez choisir le dossier de vos jeux."
+   ],
+   [
+    "Always start Switch 2 games in this emulator \\. Zeta Run",
+    "Always start Switch 2 games in this emulator \\. Zeta Run"
+   ],
+   [
+    "Open Zeta Run on its own to check its setup: a missing BIOS, keys or firmware is the usual cause.",
+    "Ouvrez Zeta Run seul pour vérifier sa configuration : un BIOS, des clés ou un firmware manquant en est la cause habituelle."
+   ],
+   [
+    "RustyShelf looked online on Omega Quest and found no manual for this game. Search or add one here.",
+    "RustyShelf a cherché en ligne le Omega Quest et n'a trouvé aucun manuel pour ce jeu. Cherchez-en un ou ajoutez-le ici."
+   ],
+   [
+    "New covers for Continue & favorites of  gameZeta Run. Don't like them? Settings → Custom games → Undo",
+    "Nouvelles jaquettes pour Continue & favorites of jeux"
+   ],
+   [
+    "Spins through your games and lands on one at random.  does the same from anywhere.",
+    "Spins through your games and lands on one at random.  does the same from anywhere."
+   ],
+   [
+    "Controller set for Zeta Run. It lies on the museum shelf in front of the name plate",
+    "Manette définie pour Zeta Run. Elle est posée sur l'étagère du musée devant la plaque de nom"
+   ],
+   [
+    "Left as you had them: Omega Quest Continue & favorites.",
+    "Left as you had them: Omega Quest Continue & favorites."
+   ],
+   [
+    "Puts Continue & favorites's settings back exactly as they were before RustyShelf set it up.",
+    "Remet les réglages de Reprendre et favoris exactement comme avant la configuration par RustyShelf."
+   ],
+   [
+    "Found automatically. Point to  if it's installed somewhere unusual.",
+    "Found automatically. Point to  if it's installed somewhere unusual."
+   ],
+   [
+    "Applies the switches above to Zeta Run. Your files are backed up first.",
+    "Applique à Zeta Run les options ci-dessus. Vos fichiers sont d'abord sauvegardés."
+   ],
+   [
+    "Found Omega Quest emulatorContinue & favorites and filled them in ·  already set kept",
+    "Found Omega Quest emulatorContinue & favorites and filled them in ·  already set kept"
+   ],
+   [
+    "Very large: Continue & favorites. Takes a while and needs that much free space.",
+    "Très volumineux : Reprendre et favoris. Prend du temps et nécessite autant d'espace libre."
+   ],
+   [
+    "Playing · to come back here, hold  + Zeta Run for a moment",
+    "Playing · to come back here, hold  + Zeta Run for a moment"
+   ],
+   [
+    "Swapped in sharper or English manuals for Zeta Run gameOmega Quest: Continue & favorites",
+    "Manuels plus nets ou en anglais remplacés pour Zeta Run jeux : Reprendre et favoris"
+   ],
+   [
+    "New logo for Omega Quest. Restore previous brings the old one back",
+    "Nouveau logo pour Omega Quest. « Restaurer le précédent » ramène l'ancien"
+   ],
+   [
+    "Smoothness test Continue & favorites of : Zeta Run Omega Quest",
+    "Smoothness test Continue & favorites of : Zeta Run Omega Quest"
+   ],
+   [
+    "Press  to open Zeta Run settings and add a games folder",
+    "Press  to open Zeta Run settings and add a games folder"
+   ],
+   [
+    "Choose a Zeta Run console image Omega Quest",
+    "Choose a Zeta Run console image Omega Quest"
+   ],
+   [
+    "RetroArch has the Omega Quest core it uses for this console.",
+    "RetroArch a le cœur Omega Quest qu'il utilise pour cette console."
+   ],
+   [
+    "The folder with your Continue & favorites games \\",
+    "The folder with your Continue & favorites games \\"
+   ],
+   [
+    "Resealed  itemZeta Run: everything is back in its wrap",
+    "Resealed  itemZeta Run: everything is back in its wrap"
+   ],
+   [
+    "All Zeta Run covers · some backs, spines or discs missing",
+    "Toutes les Zeta Run jaquettes · certaines faces arrière, tranches ou disques manquent"
+   ],
+   [
+    "Added Omega Quest. Rename it in Custom games if you like.",
+    "Omega Quest ajouté. Renommez-le dans Jeux personnalisés si vous le souhaitez."
+   ],
+   [
+    "To leave a game, hold Continue & favorites +  for a moment",
+    "To leave a game, hold Continue & favorites +  for a moment"
+   ],
+   [
+    "Opens . Close it to come back to the shelf.",
+    "Ouvre . Fermez-le pour revenir à l'étagère."
+   ],
+   [
+    "Model set for Zeta Run. Inspect a game to see it.",
+    "Modèle défini pour Zeta Run. Inspectez un jeu pour le voir."
+   ],
+   [
+    "Downloading the new manual · page Omega Quest of Continue & favorites",
+    "Téléchargement du nouveau manuel · page Omega Quest sur Reprendre et favoris"
+   ],
+   [
+    "In your Stremio library · Continue & favorites to pick it up",
+    "Dans votre bibliothèque Stremio · Reprendre et favoris pour le prendre"
+   ],
+   [
+    "Sign in to RetroAchievements in 's settings.",
+    "Connectez-vous à RetroAchievements dans les réglages de ."
+   ],
+   [
+    "New and improved manuals for Zeta Run games: Omega Quest",
+    "Manuels nouveaux et améliorés pour Zeta Run jeux : Omega Quest"
+   ],
+   [
+    "RustyShelf Omega Quest is out: press again to get it",
+    "RustyShelf Omega Quest est disponible : appuyez de nouveau pour l'obtenir"
+   ],
+   [
+    "Box art & manuals › Continue & favorites ›  › Manual",
+    "Jaquettes et manuels  ›  Reprendre et favoris  ›  › Manual"
+   ],
+   [
+    "Found  new thingZeta Run and filled them in",
+    "Found  new thingZeta Run and filled them in"
+   ],
+   [
+    "Nothing found for \"Zeta Run\". Try another name.",
+    "Rien trouvé pour « Zeta Run ». Essayez un autre nom."
+   ],
+   [
+    "Box art & manuals › Omega Quest manuals › Choice",
+    "Jaquettes et manuels  ›  Manuels Omega Quest  ›  Choix"
+   ],
+   [
+    "Opening Continue & favorites's download page in your browser",
+    "Ouverture de la page de téléchargement de Reprendre et favoris dans votre navigateur"
+   ],
+   [
+    "Smoothness test: switching to a  window…",
+    "Smoothness test: switching to a  window…"
+   ],
+   [
+    "Opens Zeta Run's download page in your browser.",
+    "Ouvre la page de téléchargement de Zeta Run dans votre navigateur."
+   ],
+   [
+    "Streaming apps (Omega Quest) for the Media shelf",
+    "Applications de streaming (Omega Quest) pour l'étagère Média"
+   ],
+   [
+    "Found Continue & favorites emulator and filled them in",
+    "Reprendre et favoris émulateur trouvé et renseigné"
+   ],
+   [
+    "Still in its bag: hold  to open it",
+    "Still in its bag: hold  to open it"
+   ],
+   [
+    "Box art & manuals › Zeta Run › Shelf style",
+    "Jaquettes et manuels  ›  Zeta Run  ›  Style d'étagère"
+   ],
+   [
+    "RetroAchievements has no set for Omega Quest yet",
+    "RetroAchievements n'a pas encore d'ensemble pour Omega Quest"
+   ],
+   [
+    "Installed Continue & favorites as the  console model",
+    "Installed Continue & favorites as the  console model"
+   ],
+   [
+    "Press Enter, Esc,  or Zeta Run to skip",
+    "Press Enter, Esc,  or Zeta Run to skip"
+   ],
+   [
+    "Playing · press Zeta Run for the Home menu",
+    "En jeu · appuyez sur Zeta Run pour le menu Accueil"
+   ],
+   [
+    "Added Omega Quest gameContinue & favorites to the Custom shelf",
+    "Omega Quest jeux ajoutés à l'étagère Personnalisé"
+   ],
+   [
+    "Looking for the right manual for Continue & favorites…",
+    "Recherche du bon manuel pour Reprendre et favoris…"
+   ],
+   [
+    "Downloading…  of Zeta Run MB · Omega Quest%",
+    "Téléchargement… of Zeta Run MB · Omega Quest%"
+   ],
+   [
+    "Choose the folder with your Zeta Run games",
+    "Choisissez le dossier de vos jeux Zeta Run"
+   ],
+   [
+    "Added manuals for Omega Quest gameContinue & favorites: ",
+    "Added manuals for Omega Quest gameContinue & favorites: "
+   ],
+   [
+    "Restored Continue & favorites emulator settings file",
+    "Reprendre et favoris fichier de réglages d'émulateur restauré"
+   ],
+   [
+    "Tick or untick  for every console",
+    "Tick or untick  for every console"
+   ],
+   [
+    "Covers for Zeta Run under another name.",
+    "Jaquettes pour Zeta Run sous un autre nom."
+   ],
+   [
+    "Box art & manuals › Omega Quest › Continue & favorites",
+    "Jaquettes et manuels  ›  Omega Quest  ›  Reprendre et favoris"
+   ],
+   [
+    "Set up after you play once: Continue & favorites.",
+    "Configuré après une première partie : Reprendre et favoris."
+   ],
+   [
+    "Added covers for  new gameZeta Run",
+    "Added covers for  new gameZeta Run"
+   ],
+   [
+    "Choose a Zeta Run Omega Quest model Continue & favorites",
+    "Choose a Zeta Run Omega Quest model Continue & favorites"
+   ],
+   [
+    "Opens Omega Quest's official download page.",
+    "Ouvre la page de téléchargement officielle de Omega Quest."
+   ],
+   [
+    "Couldn't use your 3D console: Continue & favorites",
+    "Impossible d'utiliser votre console 3D : Reprendre et favoris"
+   ],
+   [
+    "The  program this shelf uses.",
+    "The  program this shelf uses."
+   ],
+   [
+    "Box art & manuals › Zeta Run manuals",
+    "Jaquettes et manuels  ›  Manuels Zeta Run"
+   ],
+   [
+    "Games found · Omega Quest not found yet",
+    "Jeux trouvés · Omega Quest pas encore trouvé"
+   ],
+   [
+    "Working · Continue & favorites look-ups left today",
+    "Fonctionne · Reprendre et favoris recherches restantes aujourd'hui"
+   ],
+   [
+    "Steam's cover for \"Zeta Run\".Omega Quest",
+    "Jaquette Steam pour « Zeta Run ».Omega Quest"
+   ],
+   [
+    "Finding covers for Zeta Run gameOmega Quest…",
+    "Recherche de jaquettes pour Zeta Run jeux…"
+   ],
+   [
+    "Choose a Omega Quest 3D model Continue & favorites",
+    "Choose a Omega Quest 3D model Continue & favorites"
+   ],
+   [
+    "Saved to your Continue & favorites folder: ",
+    "Saved to your Continue & favorites folder: "
+   ],
+   [
+    "Undo the  covers just found",
+    "Undo the  covers just found"
+   ],
+   [
+    "Getting the trailer helper… Zeta Run%",
+    "Récupération de l'assistant de bandes-annonces… Zeta Run%"
+   ],
+   [
+    "Hold Omega Quest to open your package",
+    "Maintenez Omega Quest pour ouvrir votre colis"
+   ],
+   [
+    "Puts Continue & favorites on the Media shelf.",
+    "Place Reprendre et favoris sur l'étagère Média."
+   ],
+   [
+    "Your Switch 2 emulators ()",
+    "Vos émulateurs Switch 2 ()"
+   ],
+   [
+    "Set up Zeta Run in Settings first",
+    "Configurez d'abord Zeta Run dans les paramètres"
+   ],
+   [
+    "Accounts & services › Omega QuestContinue & favorites",
+    "Comptes et services › Omega QuestContinue & favorites"
+   ],
+   [
+    "More consoles and apps (Continue & favorites)",
+    "Plus de consoles et d'applications (Reprendre et favoris)"
+   ],
+   [
+    "Magazines:  · Guides: Zeta Run",
+    "Magazines:  · Guides: Zeta Run"
+   ],
+   [
+    "New covers for Zeta Run gameOmega Quest",
+    "Nouvelles jaquettes pour Zeta Run jeux"
+   ],
+   [
+    "Show removed emulators (Omega Quest)",
+    "Afficher les émulateurs retirés (Omega Quest)"
+   ],
+   [
+    "On: Continue & favorites is on this shelf.",
+    "Activé : Reprendre et favoris est sur cette étagère."
+   ],
+   [
+    "All  games have a cover",
+    "All  games have a cover"
+   ],
+   [
+    "You've set Zeta Run up yourself",
+    "Vous avez configuré Zeta Run vous-même"
+   ],
+   [
+    "Couldn't set up Omega Quest: Continue & favorites",
+    "Impossible de configurer Omega Quest : Reprendre et favoris"
+   ],
+   [
+    "Re-fetching · Continue & favorites of ",
+    "Nouvelle récupération de · Continue & favorites of "
+   ],
+   [
+    "Console image set for ",
+    "Console image set for "
+   ],
+   [
+    "Earlier logo back for Zeta Run",
+    "Ancien logo rétabli pour Zeta Run"
+   ],
+   [
+    "Box art & manuals › Omega Quest",
+    "Jaquettes et manuels  ›  Omega Quest"
+   ],
+   [
+    "Yes, download Continue & favorites ()",
+    "Oui, télécharger Reprendre et favoris ()"
+   ],
+   [
+    "Added  games folderZeta Run",
+    "Added  games folderZeta Run"
+   ],
+   [
+    "Removed Zeta Run from favorites",
+    "Zeta Run retiré des favoris"
+   ],
+   [
+    "Downloading Omega Quest manualContinue & favorites…",
+    "Téléchargement de Omega Quest manuels…"
+   ],
+   [
+    "Bring them over from Continue & favorites",
+    "Les importer depuis Reprendre et favoris"
+   ],
+   [
+    "Reading the database… %",
+    "Lecture de la base de données… %"
+   ],
+   [
+    "Choose a Zeta Run boot video",
+    "Choisir une vidéo de démarrage Zeta Run"
+   ],
+   [
+    "Do the thing number Omega Quest",
+    "Faire la chose numéro Omega Quest"
+   ],
+   [
+    "Manual: Continue & favorites · your pick",
+    "Manuel : Reprendre et favoris · votre choix"
+   ],
+   [
+    "Boot video set for ",
+    "Boot video set for "
+   ],
+   [
+    "Boot video set for Zeta Run",
+    "Vidéo de démarrage définie pour Zeta Run"
+   ],
+   [
+    "Pages Omega Quest–Continue & favorites of ",
+    "Pages Omega Quest–Continue & favorites of "
+   ],
+   [
+    "The Continue & favorites of each case.",
+    "Le Reprendre et favoris de chaque boîtier."
+   ],
+   [
+    "Pages Zeta Run of Omega Quest",
+    "Pages Zeta Run sur Omega Quest"
+   ],
+   [
+    "Phone page now at Zeta Run",
+    "Page du téléphone maintenant sur Zeta Run"
+   ],
+   [
+    "Found Omega Quest new gameContinue & favorites",
+    "Omega Quest nouveaux jeux trouvés"
+   ],
+   [
+    "Which manuals for Continue & favorites?",
+    "Quels manuels pour Reprendre et favoris ?"
+   ],
+   [
+    "Ready ·  folderZeta Run",
+    "Ready ·  folderZeta Run"
+   ],
+   [
+    "Then pick a look: Zeta Run",
+    "Puis choisissez un aspect : Zeta Run"
+   ],
+   [
+    "Fill in the Omega Quest first",
+    "Renseignez d'abord Omega Quest"
+   ],
+   [
+    "Consoles › Continue & favoritesZeta Run",
+    "Consoles › Continue & favoritesZeta Run"
+   ],
+   [
+    "Trying ·  uses it",
+    "Trying ·  uses it"
+   ],
+   [
+    "New box art for Zeta Run",
+    "Nouvelle jaquette pour Zeta Run"
+   ],
+   [
+    "On now: Omega Quest · Continue & favorites",
+    "En ce moment : Omega Quest · Reprendre et favoris"
+   ],
+   [
+    "How should Continue & favorites look?",
+    "Quel aspect pour Reprendre et favoris ?"
+   ],
+   [
+    "Complete sets for ",
+    "Complete sets for "
+   ],
+   [
+    "Complete · Zeta Run games",
+    "Complet · Zeta Run jeux"
+   ],
+   [
+    "Its file's name: Omega Quest",
+    "Nom de son fichier : Omega Quest"
+   ],
+   [
+    "RustyShelf Continue & favorites is out",
+    "RustyShelf Reprendre et favoris est disponible"
+   ],
+   [
+    "Couldn't start: .",
+    "Impossible de démarrer : ."
+   ],
+   [
+    "Set up Zeta Run for me",
+    "Configurer Zeta Run pour moi"
+   ],
+   [
+    "Open Omega Quest once first",
+    "Ouvrez d'abord Omega Quest une fois"
+   ],
+   [
+    "More consoles (Continue & favorites)",
+    "Plus de consoles (Reprendre et favoris)"
+   ],
+   [
+    "Box art:  added",
+    "Box art:  added"
+   ],
+   [
+    "What's new in Zeta Run",
+    "Nouveautés de la Zeta Run"
+   ],
+   [
+    "New cover for Omega Quest",
+    "Nouvelle jaquette pour Omega Quest"
+   ],
+   [
+    "Cover · Continue & favorites pages",
+    "Couverture · Reprendre et favoris pages"
+   ],
+   [
+    "Page  of Zeta Run",
+    "Page of Zeta Run"
+   ],
+   [
+    "Choose a Zeta Run logo",
+    "Choisir un logo Zeta Run"
+   ],
+   [
+    "Page Omega Quest of Continue & favorites",
+    "Page Omega Quest sur Reprendre et favoris"
+   ],
+   [
+    "Cover · Continue & favorites pages",
+    "Couverture · Reprendre et favoris pages"
+   ],
+   [
+    "Page  of Zeta Run",
+    "Page of Zeta Run"
+   ],
+   [
+    "RomM: Zeta Run gameOmega Quest",
+    "RomM : Zeta Run jeux"
+   ],
+   [
+    "Found Omega Quest gameContinue & favorites",
+    "Omega Quest jeux trouvés"
+   ],
+   [
+    "Downloading… Continue & favorites MB",
+    "Téléchargement… Reprendre et favoris Mo"
+   ],
+   [
+    "Large download: ",
+    "Large download: "
+   ],
+   [
+    "Logo set for Zeta Run",
+    "Logo défini pour Zeta Run"
+   ],
+   [
+    "Your games (Omega Quest)",
+    "Vos jeux (Omega Quest)"
+   ],
+   [
+    "Since Continue & favorites: .",
+    "Depuis le Reprendre et favoris : ."
+   ],
+   [
+    "Use 's Dolphin",
+    "Utiliser le Dolphin de "
+   ],
+   [
+    "Results for “Zeta Run”",
+    "Résultats pour « Zeta Run »"
+   ],
+   [
+    "New: RustyShelf Omega Quest",
+    "Nouveau : RustyShelf Omega Quest"
+   ],
+   [
+    "Emulators: Continue & favorites",
+    "Émulateurs : Reprendre et favoris"
+   ],
+   [
+    "Steam folder: ",
+    "Steam folder: "
+   ],
+   [
+    "Yes, download Zeta Run",
+    "Oui, télécharger Zeta Run"
+   ],
+   [
+    "Already have: Omega Quest",
+    "Déjà présent : Omega Quest"
+   ],
+   [
+    "Fit: Continue & favorites console",
+    "Ajustement : console Reprendre et favoris"
+   ],
+   [
+    "Sharp ·  px",
+    "Sharp ·  px"
+   ],
+   [
+    "Most played: Zeta Run",
+    "Le plus joué : Zeta Run"
+   ],
+   [
+    "Games folder Omega Quest",
+    "Dossier de jeux Omega Quest"
+   ],
+   [
+    "No Continue & favoritesgames yet",
+    "Aucun jeu Reprendre et favorispour l'instant"
+   ],
+   [
+    "Starting in ",
+    "Démarrage de in "
+   ],
+   [
+    "Playing for Zeta Run",
+    "En jeu depuis Zeta Run"
+   ],
+   [
+    "Good · Omega Quest px",
+    "Bon · Omega Quest px"
+   ],
+   [
+    "Fair · Continue & favorites px",
+    "Moyen · Reprendre et favoris px"
+   ],
+   [
+    "All  manuals",
+    "All  manuals"
+   ],
+   [
+    "Back to \"Zeta Run\".",
+    "Retour à « Zeta Run »."
+   ],
+   [
+    "Downloading… Omega Quest%",
+    "Téléchargement… Omega Quest%"
+   ],
+   [
+    "Also found: Continue & favorites",
+    "Également trouvé : Reprendre et favoris"
+   ],
+   [
+    "New theme: ",
+    "New theme: "
+   ],
+   [
+    "Collections: Zeta Run",
+    "Collections : Zeta Run"
+   ],
+   [
+    "All Omega Quest covers",
+    "Les Omega Quest jaquettes"
+   ],
+   [
+    "Re-fetching Continue & favorites",
+    "Nouvelle récupération de Reprendre et favoris"
+   ],
+   [
+    "Pages –Zeta Run",
+    "Pages –Zeta Run"
+   ],
+   [
+    "Paste the Zeta Run",
+    "Collez Zeta Run"
+   ],
+   [
+    "Try Omega Quest again",
+    "Réessayer Omega Quest"
+   ],
+   [
+    "Set up: Continue & favorites.",
+    "Configuré : Reprendre et favoris."
+   ],
+   [
+    "Metacritic ",
+    "Metacritic "
+   ],
+   [
+    "Put Zeta Run back",
+    "Remettre Zeta Run"
+   ],
+   [
+    "Take Omega Quest out",
+    "Sortir Omega Quest"
+   ],
+   [
+    "Type the Continue & favorites",
+    "Saisissez Reprendre et favoris"
+   ],
+   [
+    "Lighting: ",
+    "Lighting: "
+   ],
+   [
+    "Restyling Zeta Run",
+    "Nouveau style pour Zeta Run"
+   ],
+   [
+    "Use for Omega Quest",
+    "Utiliser pour Omega Quest"
+   ],
+   [
+    "Use for Continue & favorites",
+    "Utiliser pour Reprendre et favoris"
+   ],
+   [
+    "Starting ",
+    "Démarrage "
+   ],
+   [
+    "No Zeta Run art",
+    "Pas de visuel Zeta Run"
+   ],
+   [
+    "Opening Omega Quest…",
+    "Ouverture de Omega Quest…"
+   ],
+   [
+    "Set up Continue & favorites",
+    "Configurer Reprendre et favoris"
+   ],
+   [
+    "Download ",
+    "Télécharger "
+   ],
+   [
+    "Volume Zeta Run%",
+    "Volume Zeta Run%"
+   ],
+   [
+    "Opens Omega Quest.",
+    "Ouvre Omega Quest."
+   ],
+   [
+    "Booting Continue & favorites",
+    "Démarrage de Reprendre et favoris"
+   ],
+   [
+    "Opening ",
+    "Opening "
+   ],
+   [
+    "Hidden: Zeta Run",
+    "Masqué : Zeta Run"
+   ],
+   [
+    "Checked Omega Quest",
+    "Vérifié Omega Quest"
+   ],
+   [
+    "Get Continue & favorites ↗",
+    "Obtenir Reprendre et favoris ↗"
+   ],
+   [
+    "Get  ↗",
+    "Obtenir ↗"
+   ],
+   [
+    "Get Zeta Run ↗",
+    "Obtenir Zeta Run ↗"
+   ],
+   [
+    "Rename Omega Quest",
+    "Renommer Omega Quest"
+   ],
+   [
+    "Found: Continue & favorites",
+    "Trouvé : Reprendre et favoris"
+   ],
+   [
+    "Games: ",
+    "Games: "
+   ],
+   [
+    "Cancel Zeta Run",
+    "Annuler Zeta Run"
+   ],
+   [
+    "Drive Omega Quest:",
+    "Disque Omega Quest:"
+   ],
+   [
+    "Warm Continue & favorites%",
+    "Chaud Reprendre et favoris%"
+   ],
+   [
+    "Cool %",
+    "Froid %"
+   ],
+   [
+    "Open Zeta Run",
+    "Ouvrir Zeta Run"
+   ],
+   [
+    "Page Omega Quest",
+    "Page Omega Quest"
+   ],
+   [
+    "Show Continue & favorites",
+    "Afficher Reprendre et favoris"
+   ],
+   [
+    "Find ",
+    "Find "
+   ],
+   [
+    "Find Zeta Run",
+    "Trouver Zeta Run"
+   ],
+   [
+    "Now: Omega Quest",
+    "En cours : Omega Quest"
+   ],
+   [
+    "View Continue & favorites",
+    "Voir Reprendre et favoris"
+   ],
+   [
+    "Get ",
+    "Obtenir "
+   ],
+   [
+    "Add Zeta Run",
+    "Ajouter Zeta Run"
+   ],
+   [
+    "  Add games  ",
+    "  Ajouter des jeux  "
+   ],
+   [
+    "Add\n  games",
+    "Ajouter des jeux"
+   ],
+   [
+    "12:30",
+    "12:30"
+   ],
+   [
+    "",
+    ""
+   ],
+   [
+    "Not a known text at all",
+    "Not a known text at all"
+   ],
+   [
+    "HYBRID CONSOLE",
+    "HYBRID CONSOLE"
+   ]
+  ]
+ },
+ {
+  "lang": "tr",
+  "cases": [
+   [
+    "Continue & favorites",
+    "Devam et ve favoriler"
+   ],
+   [
+    "Add games",
+    "Oyun ekle"
+   ],
+   [
+    "This week",
+    "Bu hafta"
+   ],
+   [
+    "Surprise pick",
+    "Sürpriz seçim"
+   ],
+   [
+    "Games found",
+    "Bulunan oyunlar"
+   ],
+   [
+    "Change or turn off",
+    "Değiştir veya kapat"
+   ],
+   [
+    "Puts more games on the Custom shelf: several programs at once, a whole folder of games, or your Playnite library.",
+    "Özel rafa daha fazla oyun ekler: aynı anda birkaç program, koca bir oyun klasörü ya da Playnite kütüphanen."
+   ],
+   [
+    "Read manual",
+    "Kılavuzu oku"
+   ],
+   [
+    "Turn sound on",
+    "Sesi aç"
+   ],
+   [
+    "Trailer sound: on",
+    "Fragman sesi: açık"
+   ],
+   [
+    "Getting the trailer helper…",
+    "Fragman yardımcısı indiriliyor…"
+   ],
+   [
+    "RustyShelf isn't running from its AppImage",
+    "RustyShelf, AppImage'ından çalışmıyor"
+   ],
+   [
+    "Switch to Game Mode and start it from your Library (Non-Steam)",
+    "Oyun Modu'na geç ve Kütüphanenden başlat (Steam dışı)"
+   ],
+   [
+    "Update available",
+    "Güncelleme var"
+   ],
+   [
+    "Choose a cover",
+    "Kapak seç"
+   ],
+   [
+    "Every custom game has a cover already",
+    "Her özel oyunun zaten bir kapağı var"
+   ],
+   [
+    "About this game",
+    "Bu oyun hakkında"
+   ],
+   [
+    "Cast & crew",
+    "Oyuncular ve ekip"
+   ],
+   [
+    "Waiting for the background manual download to pause…",
+    "Arka plandaki kılavuz indirmesinin duraklaması bekleniyor…"
+   ],
+   [
+    "Couldn't replace the manual:",
+    "Kılavuz değiştirilemedi:"
+   ],
+   [
+    "Take out disc",
+    "Diski çıkar"
+   ],
+   [
+    "Fix manual…",
+    "Kılavuzu düzelt…"
+   ],
+   [
+    "Running through the",
+    "Çalışıyor:"
+   ],
+   [
+    "Running through …",
+    "Çalışıyor: …"
+   ],
+   [
+    "Couldn't close Steam: close it from the taskbar",
+    "Steam kapatılamadı: görev çubuğundan kapat"
+   ],
+   [
+    "RetroAchievements didn't answer.",
+    "RetroAchievements yanıt vermedi."
+   ],
+   [
+    "All · Unlocked · Locked",
+    "Tümü · Açılan · Kilitli"
+   ],
+   [
+    "Box art: N added",
+    "Kutu kapağı: N eklendi"
+   ],
+   [
+    "Your 3D model",
+    "3D modelin"
+   ],
+   [
+    "None added",
+    "Eklenmedi"
+   ],
+   [
+    "Built-in gaming PC",
+    "Yerleşik oyun bilgisayarı"
+   ],
+   [
+    "Quick menu",
+    "Hızlı menü"
+   ],
+   [
+    "Sign in once and RustyShelf tracks every unlock.",
+    "Bir kez giriş yap, RustyShelf her açılan başarımı takip etsin."
+   ],
+   [
+    "Box art",
+    "Kutu kapağı"
+   ],
+   [
+    "Use an image (PNG, SVG, WebP) or a video (MP4, WebM)",
+    "Bir görsel (PNG, SVG, WebP) ya da video (MP4, WebM) kullan"
+   ],
+   [
+    "Nothing to shuffle on this shelf",
+    "Bu rafta karıştırılacak bir şey yok"
+   ],
+   [
+    "Classic is the original look. Lights out leaves only the TV and the shelves' own glow.",
+    "Klasik, orijinal görünümdür. Işıklar kapalı yalnızca TV'yi ve rafların kendi ışıltısını bırakır."
+   ],
+   [
+    "Dust in the light",
+    "Işıkta toz"
+   ],
+   [
+    "Wall mount",
+    "Duvar montajı"
+   ],
+   [
+    "At the TV, up and down change the channel too. Shuffle all mixes the other three",
+    "TV'nin başında yukarı ve aşağı kanalı da değiştirir. Tümünü karıştır diğer üçünü karıştırır"
+   ],
+   [
+    "Gallery pieces",
+    "Galeri eserleri"
+   ],
+   [
+    "On the shelves",
+    "Raflarda"
+   ],
+   [
+    "No 3D model here",
+    "Burada 3D model yok"
+   ],
+   [
+    "No 3D model on that shelf yet",
+    "O rafta henüz 3D model yok"
+   ],
+   [
+    "No pages found",
+    "Sayfa bulunamadı"
+   ],
+   [
+    "Guide box",
+    "Rehber kutusu"
+   ],
+   [
+    "Tuning in…",
+    "Kanal aranıyor…"
+   ],
+   [
+    "Done reading",
+    "Okumayı bitir"
+   ],
+   [
+    "Play this game",
+    "Bu oyunu oyna"
+   ],
+   [
+    "Back to shelf",
+    "Rafa dön"
+   ],
+   [
+    "Flip through",
+    "Göz gezdir"
+   ],
+   [
+    "Close the guide",
+    "Rehberi kapat"
+   ],
+   [
+    "Flip · hold ♥",
+    "Çevir · ♥ için basılı tut"
+   ],
+   [
+    "Home menu opened (from",
+    "Ana menü açıldı (kaynak:"
+   ],
+   [
+    "Couldn't reach the art sites. Try again from Settings → Box art",
+    "Görsel sitelerine ulaşılamadı. Ayarlar → Kutu kapağı'ndan tekrar dene"
+   ],
+   [
+    "Choose manual…",
+    "Kılavuz seç…"
+   ],
+   [
+    "Pause (Y: full screen)",
+    "Duraklat (Y: tam ekran)"
+   ],
+   [
+    "First played",
+    "İlk oynanış"
+   ],
+   [
+    "No trailer or screenshots yet",
+    "Henüz fragman veya ekran görüntüsü yok"
+   ],
+   [
+    "Game title",
+    "Oyun adı"
+   ],
+   [
+    "Load state",
+    "Durumu yükle"
+   ],
+   [
+    "Steam's cover",
+    "Steam'in kapağı"
+   ],
+   [
+    "Preview mode: logos work in the desktop app",
+    "Önizleme modu: logolar masaüstü uygulamasında çalışır"
+   ],
+   [
+    "Catch every bug",
+    "Her böceği yakala"
+   ],
+   [
+    "Looking up the set-aside games…",
+    "Kenara ayrılan oyunlara bakılıyor…"
+   ],
+   [
+    "Cut from full wrap · USA",
+    "Tam kaplamadan kesildi · ABD"
+   ],
+   [
+    "Nothing to undo",
+    "Geri alınacak bir şey yok"
+   ],
+   [
+    "Best English manual",
+    "En iyi İngilizce kılavuz"
+   ],
+   [
+    "Manuals in Italian",
+    "İtalyanca kılavuzlar"
+   ],
+   [
+    "Unknown choice.",
+    "Bilinmeyen seçim."
+   ],
+   [
+    "No.",
+    "No."
+   ],
+   [
+    "Steam Deck graphics",
+    "Steam Deck grafikleri"
+   ],
+   [
+    "Use this folder",
+    "Bu klasörü kullan"
+   ],
+   [
+    "Hide the taskbar during games",
+    "Oyun sırasında görev çubuğunu gizle"
+   ],
+   [
+    "Xenia runs Xbox 360 games: .iso discs, extracted folders, XBLA .xex files or .zar archives.",
+    "Xenia, Xbox 360 oyunlarını çalıştırır: .iso diskler, açılmış klasörler, XBLA .xex dosyaları veya .zar arşivleri."
+   ],
+   [
+    "Automatic picks for this PC",
+    "Bu bilgisayar için otomatik seçimler"
+   ],
+   [
+    "Open site",
+    "Siteyi aç"
+   ],
+   [
+    "Only the consoles I choose",
+    "Yalnızca seçtiğim konsollar"
+   ],
+   [
+    "Leaves Proton, Steamworks Common Redistributables and other tools off the shelf.",
+    "Proton, Steamworks Common Redistributables ve diğer araçları rafın dışında tutar."
+   ],
+   [
+    "Show installed Ubisoft games",
+    "Kurulu Ubisoft oyunlarını göster"
+   ],
+   [
+    "Playnite, decomps, ports → Custom games",
+    "Playnite, decomp'lar, portlar → Özel oyunlar"
+   ],
+   [
+    "Large suits most 55\" and bigger TVs at 2–3 m. Extra large for very far seating.",
+    "Büyük, 2–3 m mesafeden çoğu 55\" ve üzeri TV'ye uyar. Çok uzaktan oturuyorsan Çok büyük."
+   ],
+   [
+    "Looks in the custom themes folder again after you add, change or remove a theme.",
+    "Bir tema ekledikten, değiştirdikten veya kaldırdıktan sonra özel temalar klasörüne yeniden bakar."
+   ],
+   [
+    "Starting up",
+    "Başlangıç"
+   ],
+   [
+    "Museum: after the RustyShelf logo the lights come up in the museum overview (a little slower to start than the shelf). B still takes you to the shelf any time.",
+    "Müze: RustyShelf logosundan sonra müze genel görünümünde ışıklar yanar (raftan biraz daha yavaş açılır). B seni her zaman rafa götürür."
+   ],
+   [
+    "Start in fullscreen",
+    "Tam ekranda başlat"
+   ],
+   [
+    "Reduce motion",
+    "Hareketi azalt"
+   ],
+   [
+    "Ticks, whooshes and chimes as you move around.",
+    "Gezinirken tıkırtılar, hışırtılar ve çanlar."
+   ],
+   [
+    "Next song",
+    "Sonraki şarkı"
+   ],
+   [
+    "Include the built-in songs",
+    "Yerleşik şarkıları dahil et"
+   ],
+   [
+    "Console order",
+    "Konsol sırası"
+   ],
+   [
+    "From this shelf",
+    "Bu raftan"
+   ],
+   [
+    "Attract mode starts after",
+    "Vitrin modu başlama süresi"
+   ],
+   [
+    "Dim the screen after",
+    "Ekranı karartma süresi"
+   ],
+   [
+    "Cooler or warmer light.",
+    "Daha soğuk veya daha sıcak ışık."
+   ],
+   [
+    "How the retro TV looks and sounds.",
+    "Retro TV'nin görünümü ve sesi."
+   ],
+   [
+    "Scanlines, curved glass and glow on the TV's picture.",
+    "TV görüntüsünde tarama çizgileri, kavisli cam ve parıltı."
+   ],
+   [
+    "The wood (or paint) of the shelves.",
+    "Rafların ahşabı (veya boyası)."
+   ],
+   [
+    "The lights come on shelf by shelf. Off goes straight to the overview.",
+    "Işıklar raf raf yanar. Kapalı, doğrudan genel görünüme gider."
+   ],
+   [
+    "Press a button on a controller and RustyShelf shows what it is here.",
+    "Bir kontrolcüde bir düğmeye bas, RustyShelf burada ne olduğunu göstersin."
+   ],
+   [
+    "Scroll speed",
+    "Kaydırma hızı"
+   ],
+   [
+    "Pointer speed",
+    "İşaretçi hızı"
+   ],
+   [
+    "Buttons to hold",
+    "Basılı tutulacak düğmeler"
+   ],
+   [
+    "Make missing backs and spines",
+    "Eksik arka kapakları ve sırtları oluştur"
+   ],
+   [
+    "Only sure English manuals",
+    "Yalnızca kesin İngilizce kılavuzlar"
+   ],
+   [
+    "Every manual found for each game, per console: another language, region or sharper scan, or a PDF of your own.",
+    "Konsol başına, her oyun için bulunan tüm kılavuzlar: başka bir dil, bölge, daha net bir tarama ya da kendi PDF'in."
+   ],
+   [
+    "In Details",
+    "Ayrıntılarda"
+   ],
+   [
+    "How long you rest on a game before its preview starts (on the shelf, half a second more, so browsing quickly stays calm).",
+    "Önizlemesi başlamadan önce bir oyunda ne kadar durduğun (rafta yarım saniye daha fazla, böylece hızlı gezinmek sakin kalır)."
+   ],
+   [
+    "Magazines\\\\ and Guides\\\\ are kept in this folder. Changing it doesn't move anything already downloaded: copy the two folders across yourself.",
+    "Magazines\\\\ ve Guides\\\\ bu klasörde tutulur. Değiştirmek, zaten indirilmiş hiçbir şeyi taşımaz: iki klasörü kendin kopyala."
+   ],
+   [
+    "Achievements on each game's details, and a summary after you play. Opens your account, its key, and the sign-in inside each emulator.",
+    "Her oyunun ayrıntılarında başarımlar ve oynadıktan sonra bir özet. Hesabını, anahtarını ve her emülatördeki girişi açar."
+   ],
+   [
+    "New PIN",
+    "Yeni PIN"
+   ],
+   [
+    "Press again to forget every paired phone",
+    "Eşleşmiş tüm telefonları unutmak için tekrar bas"
+   ],
+   [
+    "Opens the launcher you used before RustyShelf. RustyShelf stays ready in the background.",
+    "RustyShelf'ten önce kullandığın başlatıcıyı açar. RustyShelf arka planda hazır bekler."
+   ],
+   [
+    "Restore settings",
+    "Ayarları geri yükle"
+   ],
+   [
+    "RustyShelf",
+    "RustyShelf"
+   ],
+   [
+    "Run setup again, the app folder, clearing the play history and restoring emulator settings.",
+    "Kurulumu yeniden çalıştır, uygulama klasörü, oynama geçmişini temizleme ve emülatör ayarlarını geri yükleme."
+   ],
+   [
+    "Press again to clear the play history",
+    "Oynama geçmişini temizlemek için tekrar bas"
+   ],
+   [
+    "Web API key",
+    "Web API anahtarı"
+   ],
+   [
+    "Check again",
+    "Tekrar kontrol et"
+   ],
+   [
+    "Test the connection",
+    "Bağlantıyı test et"
+   ],
+   [
+    "Sign out of RomM",
+    "RomM'dan çıkış yap"
+   ],
+   [
+    "Checks the key.",
+    "Anahtarı kontrol eder."
+   ],
+   [
+    "Your screenscraper.fr password. Stored encrypted, sent only to ScreenScraper.",
+    "screenscraper.fr parolan. Şifreli saklanır, yalnızca ScreenScraper'a gönderilir."
+   ],
+   [
+    "Signs in and shows how many lookups the account has left today.",
+    "Giriş yapar ve hesabın bugün kaç sorgu hakkı kaldığını gösterir."
+   ],
+   [
+    "New PIN made",
+    "Yeni PIN oluşturuldu"
+   ],
+   [
+    "No emulator set",
+    "Emülatör ayarlanmadı"
+   ],
+   [
+    "Achievements won't unlock here until this is fixed.",
+    "Bu düzeltilene kadar başarımlar burada açılmaz."
+   ],
+   [
+    "Pairing was turned down in RomM.",
+    "Eşleştirme RomM'da reddedildi."
+   ],
+   [
+    "No emulator set for it in RocketLauncherUI",
+    "RocketLauncherUI'da bunun için emülatör ayarlanmadı"
+   ],
+   [
+    "The Switch emulator this shelf uses: Eden, Citron or Ryujinx. One game can use a different one: Details → Emulator.",
+    "Bu rafın kullandığı Switch emülatörü: Eden, Citron veya Ryujinx. Bir oyun farklı birini kullanabilir: Ayrıntılar → Emülatör."
+   ],
+   [
+    "RocketLauncher system name",
+    "RocketLauncher sistem adı"
+   ],
+   [
+    "Where this console's games are. Subfolders are searched too. Select it twice to remove it from this shelf (nothing is deleted).",
+    "Bu konsolun oyunlarının bulunduğu yer. Alt klasörler de aranır. Bu raftan kaldırmak için iki kez seç (hiçbir şey silinmez)."
+   ],
+   [
+    "Boot screen with the game's cover",
+    "Oyunun kapağıyla açılış ekranı"
+   ],
+   [
+    "What RustyShelf passes when it opens the emulator on its own.",
+    "RustyShelf'in emülatörü tek başına açarken ilettiği şeyler."
+   ],
+   [
+    "How long the loading screen stays over the real GameCube startup. Lower shows more of it but may flash Dolphin.",
+    "Yükleme ekranının gerçek GameCube açılışının üzerinde ne kadar kaldığı. Düşük değer daha çoğunu gösterir ama Dolphin bir an görünebilir."
+   ],
+   [
+    "Own art folder",
+    "Kendi görsel klasörü"
+   ],
+   [
+    "Puts the shelves back in RustyShelf's own order.",
+    "Rafları RustyShelf'in kendi sırasına döndürür."
+   ],
+   [
+    "Stopping after the games in progress",
+    "Devam eden oyunlardan sonra duruluyor"
+   ],
+   [
+    "Your consoles and what they still need.",
+    "Konsolların ve hâlâ eksik olanlar."
+   ],
+   [
+    "No console in this download.",
+    "Bu indirmede konsol yok."
+   ],
+   [
+    "Box art:",
+    "Kutu kapağı:"
+   ],
+   [
+    "Check stopped",
+    "Kontrol durduruldu"
+   ],
+   [
+    "Stops looking. Nothing is downloaded.",
+    "Aramayı durdurur. Hiçbir şey indirilmez."
+   ],
+   [
+    "Off takes the best match for every game, even unsure ones.",
+    "Kapalı, her oyun için en iyi eşleşmeyi alır; emin olunmayanları bile."
+   ],
+   [
+    "Nothing to download",
+    "İndirilecek bir şey yok"
+   ],
+   [
+    "Decomps, recomps, ports, any program",
+    "Decomp'lar, recomp'lar, portlar, herhangi bir program"
+   ],
+   [
+    "Choose Quiver Launcher's folder (the one with QuiverLauncher.exe)",
+    "Quiver Launcher klasörünü seç (QuiverLauncher.exe olan)"
+   ],
+   [
+    "Choose covers one by one",
+    "Kapakları tek tek seç"
+   ],
+   [
+    "Remove",
+    "Kaldır"
+   ],
+   [
+    "No Switch 2 emulators yet: add one below",
+    "Henüz Switch 2 emülatörü yok: aşağıdan ekle"
+   ],
+   [
+    "Removed emulators are back on the list",
+    "Kaldırılan emülatörler listeye geri döndü"
+   ],
+   [
+    "Folder removed from the list (nothing was deleted)",
+    "Klasör listeden kaldırıldı (hiçbir şey silinmedi)"
+   ],
+   [
+    "Nothing new found",
+    "Yeni bir şey bulunamadı"
+   ],
+   [
+    "Up to date",
+    "Güncel"
+   ],
+   [
+    "Settings restored",
+    "Ayarlar geri yüklendi"
+   ],
+   [
+    "Copying… · Stop",
+    "Kopyalanıyor… · Durdur"
+   ],
+   [
+    "Nothing new to add",
+    "Eklenecek yeni bir şey yok"
+   ],
+   [
+    "Looking for Playnite…",
+    "Playnite aranıyor…"
+   ],
+   [
+    "Already on the Custom shelf",
+    "Zaten Özel rafta"
+   ],
+   [
+    "Left out",
+    "Dışarıda kalan"
+   ],
+   [
+    "Opens its download page. Unzip it over this folder: your settings are kept.",
+    "İndirme sayfasını açar. Bu klasörün üzerine çıkart: ayarların korunur."
+   ],
+   [
+    "Steam's controller layout for RustyShelf",
+    "RustyShelf için Steam kontrolcü düzeni"
+   ],
+   [
+    "Recommended on a Steam Deck",
+    "Steam Deck'te önerilir"
+   ],
+   [
+    "Press again to stop using this folder",
+    "Bu klasörü kullanmayı bırakmak için tekrar bas"
+   ],
+   [
+    "Steam trailer clips cleared",
+    "Steam fragman klipleri temizlendi"
+   ],
+   [
+    "Sets the resolution to the Graphics preset below.",
+    "Çözünürlüğü aşağıdaki Grafik ön ayarına göre ayarlar."
+   ],
+   [
+    "Choose this console's emulator first",
+    "Önce bu konsolun emülatörünü seç"
+   ],
+   [
+    "Set up again",
+    "Yeniden kur"
+   ],
+   [
+    "Missing (one of these is enough)",
+    "Eksik (bunlardan biri yeterli)"
+   ],
+   [
+    "New collection",
+    "Yeni koleksiyon"
+   ],
+   [
+    "Search for a cover",
+    "Kapak ara"
+   ],
+   [
+    "Real scans of the original box and disc for every game",
+    "Her oyun için orijinal kutu ve diskin gerçek taramaları"
+   ],
+   [
+    "Front, back, spine and disc from one release, where a game has them",
+    "Bir oyunda varsa tek bir sürümden ön, arka, sırt ve disk"
+   ],
+   [
+    "Shelf style",
+    "Raf stili"
+   ],
+   [
+    "Not built yet",
+    "Henüz oluşturulmadı"
+   ],
+   [
+    "No games on any shelf yet",
+    "Henüz hiçbir rafta oyun yok"
+   ],
+   [
+    "My picture…",
+    "Görselim…"
+   ],
+   [
+    "Kept from before",
+    "Öncekinden korundu"
+   ],
+   [
+    "Get LaunchBox art",
+    "LaunchBox görsellerini al"
+   ],
+   [
+    "The picture before this one",
+    "Bundan önceki görsel"
+   ],
+   [
+    "Every part for most consoles · free account",
+    "Çoğu konsol için tüm parçalar · ücretsiz hesap"
+   ],
+   [
+    "Every manual for this game · A opens them",
+    "Bu oyunun tüm kılavuzları · A açar"
+   ],
+   [
+    "Nothing to filter for this part",
+    "Bu parça için filtrelenecek bir şey yok"
+   ],
+   [
+    "Loading manuals by console…",
+    "Konsola göre kılavuzlar yükleniyor…"
+   ],
+   [
+    "Automatic downloads and a new console choice leave it as it is.",
+    "Otomatik indirmeler ve yeni bir konsol seçimi ona dokunmaz."
+   ],
+   [
+    "One tap. RustyShelf's automatic downloads follow it, now and for new games.",
+    "Tek dokunuş. RustyShelf'in otomatik indirmeleri, şimdi ve yeni oyunlar için, bunu izler."
+   ],
+   [
+    "This game is locked as it is: nothing automatic changes it. Your own changes here still work.",
+    "Bu oyun olduğu gibi kilitli: otomatik hiçbir şey onu değiştirmez. Burada kendi yaptığın değişiklikler yine çalışır."
+   ],
+   [
+    "Use this set",
+    "Bu seti kullan"
+   ],
+   [
+    "Key not accepted",
+    "Anahtar kabul edilmedi"
+   ],
+   [
+    "Open emulator",
+    "Emülatörü aç"
+   ],
+   [
+    "Your consoles",
+    "Konsolların"
+   ],
+   [
+    "Open RustyShelf",
+    "RustyShelf'i aç"
+   ],
+   [
+    "Let's find your games",
+    "Oyunlarını bulalım"
+   ],
+   [
+    "Tick the consoles you play, then point to each one's emulator and games folder.",
+    "Oynadığın konsolları işaretle, sonra her birinin emülatörünü ve oyun klasörünü göster."
+   ],
+   [
+    "Folders with your games in them",
+    "İçinde oyunların olan klasörler"
+   ],
+   [
+    "Steam not found",
+    "Steam bulunamadı"
+   ],
+   [
+    "RustyShelf didn't find any emulators yet. Tick the consoles you play and you'll point to their emulator and games next.",
+    "RustyShelf henüz emülatör bulamadı. Oynadığın konsolları işaretle, sonra emülatörlerini ve oyunlarını göstereceksin."
+   ],
+   [
+    "Finish setting up asks for what's still missing.",
+    "Kurulumu bitir, hâlâ eksik olanları sorar."
+   ],
+   [
+    "Find it…",
+    "Bul…"
+   ],
+   [
+    "Choose your Steam folder",
+    "Steam klasörünü seç"
+   ],
+   [
+    "The highest-resolution pictures, and fan-made posters where no box scan exists.",
+    "En yüksek çözünürlüklü görseller ve kutu taraması olmayanlar için hayran yapımı posterler."
+   ],
+   [
+    "Video previews are offered on the Done page.",
+    "Video önizlemeleri Bitti sayfasında sunulur."
+   ],
+   [
+    "RustyShelf finds the covers, backs, spines and discs for your games online.",
+    "RustyShelf oyunların için kapakları, arkaları, sırtları ve diskleri çevrimiçi bulur."
+   ],
+   [
+    "Key works",
+    "Anahtar çalışıyor"
+   ],
+   [
+    "Capitals and symbols",
+    "Büyük harfler ve semboller"
+   ],
+   [
+    "GameCube startup",
+    "GameCube açılışı"
+   ],
+   [
+    "Options when opening the emulator on its own",
+    "Emülatörü tek başına açarken seçenekler"
+   ],
+   [
+    "Back to the manuals list",
+    "Kılavuz listesine dön"
+   ],
+   [
+    "Your folders",
+    "Klasörlerin"
+   ],
+   [
+    "Already in your folder",
+    "Zaten klasöründe"
+   ],
+   [
+    "Box art & manuals from the internet",
+    "İnternetten kutu kapakları ve kılavuzlar"
+   ],
+   [
+    "Finish setup to reach your shelf",
+    "Rafına ulaşmak için kurulumu bitir"
+   ],
+   [
+    "Move along the shelf with the stick, the d-pad or the arrow keys.",
+    "Rafta çubukla, yön tuşlarıyla veya ok tuşlarıyla ilerle."
+   ],
+   [
+    "Box art opens this game in the Art Studio. Customize changes the theme and sounds. Trophies connects RetroAchievements.",
+    "Kutu kapağı bu oyunu Art Studio'da açar. Özelleştir temayı ve sesleri değiştirir. Kupalar RetroAchievements'ı bağlar."
+   ],
+   [
+    "The museum has a short tour of its own the first time you go in. Watch this one again from Settings · Shelf · Show the tour.",
+    "Müzenin, ilk girişinde kendine ait kısa bir turu var. Bu turu Ayarlar · Raf · Turu göster'den yeniden izle."
+   ],
+   [
+    "More: box art, rename, collections, emulator…",
+    "Daha fazla: kutu kapağı, yeniden adlandır, koleksiyonlar, emülatör…"
+   ],
+   [
+    "Today",
+    "Bugün"
+   ],
+   [
+    "Other",
+    "Diğer"
+   ],
+   [
+    "Artwork",
+    "Görseller"
+   ],
+   [
+    "Players",
+    "Oyuncular"
+   ],
+   [
+    "Trailer",
+    "Fragman"
+   ],
+   [
+    "System",
+    "Sistem"
+   ],
+   [
+    "Close",
+    "Kapat"
+   ],
+   [
+    "Locked",
+    "Kilitli"
+   ],
+   [
+    "Missable",
+    "Kaçırılabilir"
+   ],
+   [
+    "Classic",
+    "Klasik"
+   ],
+   [
+    "Pulse",
+    "Nabız"
+   ],
+   [
+    "Resume",
+    "Devam et"
+   ],
+   [
+    "Checking…",
+    "Kontrol ediliyor…"
+   ],
+   [
+    "Brightness",
+    "Parlaklık"
+   ],
+   [
+    "Position",
+    "Konum"
+   ],
+   [
+    "Wallpaper",
+    "Duvar kâğıdı"
+   ],
+   [
+    "Shelves",
+    "Raflar"
+   ],
+   [
+    "Hidden",
+    "Gizli"
+   ],
+   [
+    "Commercials",
+    "Reklamlar"
+   ],
+   [
+    "Starting…",
+    "Başlatılıyor…"
+   ],
+   [
+    "Product",
+    "Ürün"
+   ],
+   [
+    "About",
+    "Hakkında"
+   ],
+   [
+    "Clear",
+    "Temizle"
+   ],
+   [
+    "Applications",
+    "Uygulamalar"
+   ],
+   [
+    "Reprint",
+    "Yeni baskı"
+   ],
+   [
+    "Stopped",
+    "Durduruldu"
+   ],
+   [
+    "Found",
+    "Bulundu"
+   ],
+   [
+    "Pictures",
+    "Görseller"
+   ],
+   [
+    "Window",
+    "Pencere"
+   ],
+   [
+    "Songs",
+    "Şarkılar"
+   ],
+   [
+    "Relaxed",
+    "Rahat"
+   ],
+   [
+    "Rescanning…",
+    "Yeniden taranıyor…"
+   ],
+   [
+    "Phone",
+    "Telefon"
+   ],
+   [
+    "Launching",
+    "Başlatılıyor"
+   ],
+   [
+    "Stopping",
+    "Durduruluyor"
+   ],
+   [
+    "Download",
+    "İndir"
+   ],
+   [
+    "Finishing…",
+    "Bitiriliyor…"
+   ],
+   [
+    "Special",
+    "Özel"
+   ],
+   [
+    "Console",
+    "Konsol"
+   ],
+   [
+    "Square",
+    "Kare"
+   ],
+   [
+    "Systems",
+    "Sistemler"
+   ],
+   [
+    "Sharpest",
+    "En net"
+   ],
+   [
+    "Fixed",
+    "Düzeltildi"
+   ],
+   [
+    "Game info",
+    "Oyun bilgisi"
+   ],
+   [
+    "Q / E switch system.",
+    "Q / E sistemi değiştirir."
+   ],
+   [
+    "Your consoles' look",
+    "Konsollarının görünümü"
+   ],
+   [
+    "Language",
+    "Dil"
+   ],
+   [
+    "Pick the folder that holds your games, with one subfolder per console (like RetroBat's roms folder: gc, wii, ps2, psx…). Each console's subfolder is added as its games folder.",
+    "Oyunlarını barındıran, her konsol için bir alt klasörü olan klasörü seç (RetroBat'ın roms klasörü gibi: gc, wii, ps2, psx…). Her konsolun alt klasörü oyun klasörü olarak eklenir."
+   ],
+   [
+    "No console folder found in there",
+    "Orada konsol klasörü bulunamadı"
+   ],
+   [
+    "Find emulators in a folder",
+    "Bir klasörde emülatör bul"
+   ],
+   [
+    "Auto-hide navigation shortcuts",
+    "Gezinme kısayollarını otomatik gizle"
+   ],
+   [
+    "Rooms",
+    "Odalar"
+   ],
+   [
+    "Get all missing art",
+    "Eksik tüm kapakları indir"
+   ],
+   [
+    "Automatically update on startup",
+    "Açılışta otomatik güncelle"
+   ],
+   [
+    "Show Quiver's games",
+    "Quiver'ın oyunlarını göster"
+   ],
+   [
+    "Update",
+    "Güncelle"
+   ],
+   [
+    "Game data folder",
+    "Oyun verisi klasörü"
+   ],
+   [
+    "Move up",
+    "Yukarı taşı"
+   ],
+   [
+    "Undo",
+    "Geri al"
+   ],
+   [
+    "One setting for how much RustyShelf asks of your graphics card.",
+    "RustyShelf'in ekran kartından ne kadar güç isteyeceği için tek bir ayar."
+   ],
+   [
+    "Download what's still missing: covers, backs, spines and discs. It keeps going while you look at other pages.",
+    "Hâlâ eksik olanları indir: kapaklar, arka kapaklar, sırtlar ve diskler. Sen başka sayfalara bakarken de devam eder."
+   ],
+   [
+    "Point to retroarch.exe",
+    "retroarch.exe'yi göster"
+   ],
+   [
+    "On",
+    "Açık"
+   ],
+   [
+    "Pick a free, downloadable Zeta Run model in your browser — check its licence — and save the .glb Omega Quest to Downloads. RustyShelf installs it as soon as it lands.",
+    "Pick a free, downloadable Zeta Run model in your browser — check its licence — and save the .glb Omega Quest to Downloads. RustyShelf installs it as soon as it lands."
+   ],
+   [
+    "Pick a free, downloadable Omega Quest model in your browser Continue & favorites and save the .glb or .zip to Downloads. RustyShelf puts it in as soon as it lands.",
+    "Pick a free, downloadable Omega Quest model in your browser Continue & favorites and save the .glb or .zip to Downloads. RustyShelf puts it in as soon as it lands."
+   ],
+   [
+    "Downloads the Continue & favorites core from libretro, the same place RetroArch's Online Updater uses. It's also fetched by itself the first time you play.",
+    "Devam et ve favoriler çekirdeğini, RetroArch'ın Online Updater'ının kullandığı yerden, libretro'dan indirir. İlk oynadığında da kendiliğinden indirilir."
+   ],
+   [
+    "To come back to the shelf, hold  + Zeta Run for a moment during any game. Quitting from the emulator's own menu works too.",
+    "To come back to the shelf, hold  + Zeta Run for a moment during any game. Quitting from the emulator's own menu works too."
+   ],
+   [
+    "Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for Zeta Run: backed up first, and Undo puts it back.",
+    "Zeta Run için kontrolcü, Ana menü kısayol tuşları, tek bir BIOS klasörü ve bir grafik ön ayarı: önce yedeklenir, Geri al hepsini geri koyar."
+   ],
+   [
+    "Jumps to Omega Quest's games in the Art Studio: its shelf style, and every version of any game's art Continue & favorites.",
+    "Jumps to Omega Quest's games in the Art Studio: its shelf style, and every version of any game's art Continue & favorites."
+   ],
+   [
+    "Pick how Continue & favorites's box art looks , then fine-tune any game.",
+    "Pick how Continue & favorites's box art looks , then fine-tune any game."
+   ],
+   [
+    "The short clips kept from Steam's trailers ( MB). They're fetched again the next time you rest on a game.",
+    "Steam fragmanlarından tutulan kısa klipler ( MB). Bir dahaki sefere bir oyunda durduğunda yeniden indirilirler."
+   ],
+   [
+    "Box art is ready for Zeta Run gameOmega Quest. Change any console's look in Settings → Box art & manuals → Art Studio.",
+    "Zeta Run oyun için kutu kapakları hazır. Herhangi bir konsolun görünümünü Ayarlar → Kutu kapağı ve kılavuzlar → Art Studio'dan değiştir."
+   ],
+   [
+    "Opens Omega Quest on its own so you can change controllers, graphics and other settings. Close it to come back here.",
+    "Kontrolcüleri, grafikleri ve diğer ayarları değiştirebilmen için Omega Quest uygulamasını tek başına açar. Buraya dönmek için kapat."
+   ],
+   [
+    "No games found for Continue & favorites yet. Opens its page in Settings, where you can pick the folder your games are in.",
+    "Devam et ve favoriler için henüz oyun bulunamadı. Ayarlar'da sayfasını açar; oyunlarının bulunduğu klasörü orada seçebilirsin."
+   ],
+   [
+    "Always start Switch 2 games in this emulator \\. Zeta Run",
+    "Always start Switch 2 games in this emulator \\. Zeta Run"
+   ],
+   [
+    "Open Zeta Run on its own to check its setup: a missing BIOS, keys or firmware is the usual cause.",
+    "Kurulumunu kontrol etmek için Zeta Run uygulamasını tek başına aç: genelde sebep eksik bir BIOS, anahtarlar veya firmware'dir."
+   ],
+   [
+    "RustyShelf looked online on Omega Quest and found no manual for this game. Search or add one here.",
+    "RustyShelf Omega Quest tarihinde çevrimiçi aradı ve bu oyun için kılavuz bulamadı. Buradan ara veya ekle."
+   ],
+   [
+    "New covers for Continue & favorites of  gameZeta Run. Don't like them? Settings → Custom games → Undo",
+    "Continue & favorites of oyun için yeni kapaklar"
+   ],
+   [
+    "Spins through your games and lands on one at random.  does the same from anywhere.",
+    "Spins through your games and lands on one at random.  does the same from anywhere."
+   ],
+   [
+    "Controller set for Zeta Run. It lies on the museum shelf in front of the name plate",
+    "Kontrolcü Zeta Run için ayarlandı. Müze rafında isim plakasının önünde duruyor"
+   ],
+   [
+    "Left as you had them: Omega Quest Continue & favorites.",
+    "Left as you had them: Omega Quest Continue & favorites."
+   ],
+   [
+    "Puts Continue & favorites's settings back exactly as they were before RustyShelf set it up.",
+    "Devam et ve favoriler ayarlarını, RustyShelf kurmadan önceki hâline tam olarak geri koyar."
+   ],
+   [
+    "Found automatically. Point to  if it's installed somewhere unusual.",
+    "Found automatically. Point to  if it's installed somewhere unusual."
+   ],
+   [
+    "Applies the switches above to Zeta Run. Your files are backed up first.",
+    "Yukarıdaki anahtarları Zeta Run için uygular. Dosyaların önce yedeklenir."
+   ],
+   [
+    "Found Omega Quest emulatorContinue & favorites and filled them in ·  already set kept",
+    "Found Omega Quest emulatorContinue & favorites and filled them in ·  already set kept"
+   ],
+   [
+    "Very large: Continue & favorites. Takes a while and needs that much free space.",
+    "Çok büyük: Devam et ve favoriler. Biraz sürer ve o kadar boş alan gerekir."
+   ],
+   [
+    "Playing · to come back here, hold  + Zeta Run for a moment",
+    "Playing · to come back here, hold  + Zeta Run for a moment"
+   ],
+   [
+    "Swapped in sharper or English manuals for Zeta Run gameOmega Quest: Continue & favorites",
+    "Zeta Run oyun için daha net veya İngilizce kılavuzlar yerleştirildi: Devam et ve favoriler"
+   ],
+   [
+    "New logo for Omega Quest. Restore previous brings the old one back",
+    "Omega Quest için yeni logo. Öncekini geri yükle eskisini geri getirir"
+   ],
+   [
+    "Smoothness test Continue & favorites of : Zeta Run Omega Quest",
+    "Smoothness test Continue & favorites of : Zeta Run Omega Quest"
+   ],
+   [
+    "Press  to open Zeta Run settings and add a games folder",
+    "Press  to open Zeta Run settings and add a games folder"
+   ],
+   [
+    "Choose a Zeta Run console image Omega Quest",
+    "Choose a Zeta Run console image Omega Quest"
+   ],
+   [
+    "RetroArch has the Omega Quest core it uses for this console.",
+    "RetroArch'ta bu konsol için kullandığı Omega Quest çekirdeği var."
+   ],
+   [
+    "The folder with your Continue & favorites games \\",
+    "The folder with your Continue & favorites games \\"
+   ],
+   [
+    "Resealed  itemZeta Run: everything is back in its wrap",
+    "Resealed  itemZeta Run: everything is back in its wrap"
+   ],
+   [
+    "All Zeta Run covers · some backs, spines or discs missing",
+    "Tüm Zeta Run kapak · bazı arkalar, sırtlar veya diskler eksik"
+   ],
+   [
+    "Added Omega Quest. Rename it in Custom games if you like.",
+    "Omega Quest eklendi. İstersen Özel oyunlar'dan yeniden adlandır."
+   ],
+   [
+    "To leave a game, hold Continue & favorites +  for a moment",
+    "To leave a game, hold Continue & favorites +  for a moment"
+   ],
+   [
+    "Opens . Close it to come back to the shelf.",
+    " açılır. Rafa dönmek için kapat."
+   ],
+   [
+    "Model set for Zeta Run. Inspect a game to see it.",
+    "Model Zeta Run için ayarlandı. Görmek için bir oyunu incele."
+   ],
+   [
+    "Downloading the new manual · page Omega Quest of Continue & favorites",
+    "Yeni kılavuz indiriliyor · sayfa Omega Quest / Devam et ve favoriler"
+   ],
+   [
+    "In your Stremio library · Continue & favorites to pick it up",
+    "Stremio kütüphanende · almak için Devam et ve favoriler"
+   ],
+   [
+    "Sign in to RetroAchievements in 's settings.",
+    " ayarlarından RetroAchievements'a giriş yap."
+   ],
+   [
+    "New and improved manuals for Zeta Run games: Omega Quest",
+    "Zeta Run oyun için yeni ve iyileştirilmiş kılavuzlar: Omega Quest"
+   ],
+   [
+    "RustyShelf Omega Quest is out: press again to get it",
+    "RustyShelf Omega Quest çıktı: indirmek için tekrar bas"
+   ],
+   [
+    "Box art & manuals › Continue & favorites ›  › Manual",
+    "Kutu kapağı ve kılavuzlar  ›  Devam et ve favoriler  ›  › Manual"
+   ],
+   [
+    "Found  new thingZeta Run and filled them in",
+    "Found  new thingZeta Run and filled them in"
+   ],
+   [
+    "Nothing found for \"Zeta Run\". Try another name.",
+    "\"Zeta Run\" için bir şey bulunamadı. Başka bir ad dene."
+   ],
+   [
+    "Box art & manuals › Omega Quest manuals › Choice",
+    "Kutu kapağı ve kılavuzlar  ›  Omega Quest kılavuzları  ›  Seçim"
+   ],
+   [
+    "Opening Continue & favorites's download page in your browser",
+    "Devam et ve favoriler indirme sayfası tarayıcında açılıyor"
+   ],
+   [
+    "Smoothness test: switching to a  window…",
+    "Smoothness test: switching to a  window…"
+   ],
+   [
+    "Opens Zeta Run's download page in your browser.",
+    "Zeta Run indirme sayfasını tarayıcında açar."
+   ],
+   [
+    "Streaming apps (Omega Quest) for the Media shelf",
+    "Medya rafı için yayın uygulamaları (Omega Quest)"
+   ],
+   [
+    "Found Continue & favorites emulator and filled them in",
+    "Devam et ve favoriler emülatör bulundu ve dolduruldu"
+   ],
+   [
+    "Still in its bag: hold  to open it",
+    "Still in its bag: hold  to open it"
+   ],
+   [
+    "Box art & manuals › Zeta Run › Shelf style",
+    "Kutu kapağı ve kılavuzlar  ›  Zeta Run  ›  Raf stili"
+   ],
+   [
+    "RetroAchievements has no set for Omega Quest yet",
+    "RetroAchievements'ta henüz Omega Quest için set yok"
+   ],
+   [
+    "Installed Continue & favorites as the  console model",
+    "Installed Continue & favorites as the  console model"
+   ],
+   [
+    "Press Enter, Esc,  or Zeta Run to skip",
+    "Press Enter, Esc,  or Zeta Run to skip"
+   ],
+   [
+    "Playing · press Zeta Run for the Home menu",
+    "Oynanıyor · Ana menü için Zeta Run tuşuna bas"
+   ],
+   [
+    "Added Omega Quest gameContinue & favorites to the Custom shelf",
+    "Omega Quest oyun Özel rafa eklendi"
+   ],
+   [
+    "Looking for the right manual for Continue & favorites…",
+    "Devam et ve favoriler için doğru kılavuz aranıyor…"
+   ],
+   [
+    "Downloading…  of Zeta Run MB · Omega Quest%",
+    "İndiriliyor… %of Zeta Run MB · Omega Quest"
+   ],
+   [
+    "Choose the folder with your Zeta Run games",
+    "Zeta Run oyunlarının olduğu klasörü seç"
+   ],
+   [
+    "Added manuals for Omega Quest gameContinue & favorites: ",
+    "Added manuals for Omega Quest gameContinue & favorites: "
+   ],
+   [
+    "Restored Continue & favorites emulator settings file",
+    "Devam et ve favoriler emülatör ayar dosyası geri yüklendi"
+   ],
+   [
+    "Tick or untick  for every console",
+    "Tick or untick  for every console"
+   ],
+   [
+    "Covers for Zeta Run under another name.",
+    "Başka bir ad altında Zeta Run için kapaklar."
+   ],
+   [
+    "Box art & manuals › Omega Quest › Continue & favorites",
+    "Kutu kapağı ve kılavuzlar  ›  Omega Quest  ›  Devam et ve favoriler"
+   ],
+   [
+    "Set up after you play once: Continue & favorites.",
+    "Bir kez oynadıktan sonra kurulur: Devam et ve favoriler."
+   ],
+   [
+    "Added covers for  new gameZeta Run",
+    "Added covers for  new gameZeta Run"
+   ],
+   [
+    "Choose a Zeta Run Omega Quest model Continue & favorites",
+    "Choose a Zeta Run Omega Quest model Continue & favorites"
+   ],
+   [
+    "Opens Omega Quest's official download page.",
+    "Omega Quest resmî indirme sayfasını açar."
+   ],
+   [
+    "Couldn't use your 3D console: Continue & favorites",
+    "3D konsolun kullanılamadı: Devam et ve favoriler"
+   ],
+   [
+    "The  program this shelf uses.",
+    "The  program this shelf uses."
+   ],
+   [
+    "Box art & manuals › Zeta Run manuals",
+    "Kutu kapağı ve kılavuzlar  ›  Zeta Run kılavuzları"
+   ],
+   [
+    "Games found · Omega Quest not found yet",
+    "Oyunlar bulundu · Omega Quest henüz bulunamadı"
+   ],
+   [
+    "Working · Continue & favorites look-ups left today",
+    "Çalışıyor · bugün Devam et ve favoriler sorgu hakkı kaldı"
+   ],
+   [
+    "Steam's cover for \"Zeta Run\".Omega Quest",
+    "\"Zeta Run\" için Steam kapağı.Omega Quest"
+   ],
+   [
+    "Finding covers for Zeta Run gameOmega Quest…",
+    "Zeta Run oyun için kapak aranıyor…"
+   ],
+   [
+    "Choose a Omega Quest 3D model Continue & favorites",
+    "Choose a Omega Quest 3D model Continue & favorites"
+   ],
+   [
+    "Saved to your Continue & favorites folder: ",
+    "Saved to your Continue & favorites folder: "
+   ],
+   [
+    "Undo the  covers just found",
+    "Undo the  covers just found"
+   ],
+   [
+    "Getting the trailer helper… Zeta Run%",
+    "Fragman yardımcısı indiriliyor… %Zeta Run"
+   ],
+   [
+    "Hold Omega Quest to open your package",
+    "Koliyi açmak için Omega Quest basılı tut"
+   ],
+   [
+    "Puts Continue & favorites on the Media shelf.",
+    "Devam et ve favoriler uygulamasını Medya rafına koyar."
+   ],
+   [
+    "Your Switch 2 emulators ()",
+    "Switch 2 emülatörlerin ()"
+   ],
+   [
+    "Set up Zeta Run in Settings first",
+    "Önce Ayarlar'dan Zeta Run kur"
+   ],
+   [
+    "Accounts & services › Omega QuestContinue & favorites",
+    "Hesaplar ve hizmetler › Omega QuestContinue & favorites"
+   ],
+   [
+    "More consoles and apps (Continue & favorites)",
+    "Daha fazla konsol ve uygulama (Devam et ve favoriler)"
+   ],
+   [
+    "Magazines:  · Guides: Zeta Run",
+    "Magazines:  · Guides: Zeta Run"
+   ],
+   [
+    "New covers for Zeta Run gameOmega Quest",
+    "Zeta Run oyun için yeni kapaklar"
+   ],
+   [
+    "Show removed emulators (Omega Quest)",
+    "Kaldırılan emülatörleri göster (Omega Quest)"
+   ],
+   [
+    "On: Continue & favorites is on this shelf.",
+    "Açık: Devam et ve favoriler bu rafta."
+   ],
+   [
+    "All  games have a cover",
+    "All  games have a cover"
+   ],
+   [
+    "You've set Zeta Run up yourself",
+    "Zeta Run kurulumunu kendin yaptın"
+   ],
+   [
+    "Couldn't set up Omega Quest: Continue & favorites",
+    "Omega Quest kurulamadı: Devam et ve favoriler"
+   ],
+   [
+    "Re-fetching · Continue & favorites of ",
+    "Yeniden indiriliyor: · Continue & favorites of "
+   ],
+   [
+    "Console image set for ",
+    "Console image set for "
+   ],
+   [
+    "Earlier logo back for Zeta Run",
+    "Zeta Run için önceki logo geri geldi"
+   ],
+   [
+    "Box art & manuals › Omega Quest",
+    "Kutu kapağı ve kılavuzlar  ›  Omega Quest"
+   ],
+   [
+    "Yes, download Continue & favorites ()",
+    "Evet, Devam et ve favoriler indir ()"
+   ],
+   [
+    "Added  games folderZeta Run",
+    "Added  games folderZeta Run"
+   ],
+   [
+    "Removed Zeta Run from favorites",
+    "Zeta Run favorilerden kaldırıldı"
+   ],
+   [
+    "Downloading Omega Quest manualContinue & favorites…",
+    "Omega Quest kılavuz indiriliyor…"
+   ],
+   [
+    "Bring them over from Continue & favorites",
+    "Devam et ve favoriler kaynağından aktar"
+   ],
+   [
+    "Reading the database… %",
+    "Veritabanı okunuyor… %"
+   ],
+   [
+    "Choose a Zeta Run boot video",
+    "Bir Zeta Run açılış videosu seç"
+   ],
+   [
+    "Do the thing number Omega Quest",
+    "Omega Quest numaralı şeyi yap"
+   ],
+   [
+    "Manual: Continue & favorites · your pick",
+    "Kılavuz: Devam et ve favoriler · senin seçimin"
+   ],
+   [
+    "Boot video set for ",
+    "Boot video set for "
+   ],
+   [
+    "Boot video set for Zeta Run",
+    "Açılış videosu Zeta Run için ayarlandı"
+   ],
+   [
+    "Pages Omega Quest–Continue & favorites of ",
+    "Sayfa Omega Quest–Continue & favorites of "
+   ],
+   [
+    "The Continue & favorites of each case.",
+    "Her kutunun Devam et ve favoriler kısmı."
+   ],
+   [
+    "Pages Zeta Run of Omega Quest",
+    "Sayfa Zeta Run / Omega Quest"
+   ],
+   [
+    "Phone page now at Zeta Run",
+    "Telefon sayfası artık şurada: Zeta Run"
+   ],
+   [
+    "Found Omega Quest new gameContinue & favorites",
+    "Omega Quest yeni oyun bulundu"
+   ],
+   [
+    "Which manuals for Continue & favorites?",
+    "Devam et ve favoriler için hangi kılavuzlar?"
+   ],
+   [
+    "Ready ·  folderZeta Run",
+    "Ready ·  folderZeta Run"
+   ],
+   [
+    "Then pick a look: Zeta Run",
+    "Sonra bir görünüm seç: Zeta Run"
+   ],
+   [
+    "Fill in the Omega Quest first",
+    "Önce Omega Quest doldur"
+   ],
+   [
+    "Consoles › Continue & favoritesZeta Run",
+    "Konsollar › Continue & favoritesZeta Run"
+   ],
+   [
+    "Trying ·  uses it",
+    "Trying ·  uses it"
+   ],
+   [
+    "New box art for Zeta Run",
+    "Zeta Run için yeni kutu kapağı"
+   ],
+   [
+    "On now: Omega Quest · Continue & favorites",
+    "Şimdi oynuyor: Omega Quest · Devam et ve favoriler"
+   ],
+   [
+    "How should Continue & favorites look?",
+    "Devam et ve favoriler nasıl görünsün?"
+   ],
+   [
+    "Complete sets for ",
+    "Complete sets for "
+   ],
+   [
+    "Complete · Zeta Run games",
+    "Tamamlandı · Zeta Run oyun"
+   ],
+   [
+    "Its file's name: Omega Quest",
+    "Dosyasının adı: Omega Quest"
+   ],
+   [
+    "RustyShelf Continue & favorites is out",
+    "RustyShelf Devam et ve favoriler çıktı"
+   ],
+   [
+    "Couldn't start: .",
+    "Başlatılamadı: ."
+   ],
+   [
+    "Set up Zeta Run for me",
+    "Zeta Run benim için kur"
+   ],
+   [
+    "Open Omega Quest once first",
+    "Önce Omega Quest bir kez aç"
+   ],
+   [
+    "More consoles (Continue & favorites)",
+    "Daha fazla konsol (Devam et ve favoriler)"
+   ],
+   [
+    "Box art:  added",
+    "Box art:  added"
+   ],
+   [
+    "What's new in Zeta Run",
+    "Zeta Run sürümündeki yenilikler"
+   ],
+   [
+    "New cover for Omega Quest",
+    "Omega Quest için yeni kapak"
+   ],
+   [
+    "Cover · Continue & favorites pages",
+    "Kapak · Devam et ve favoriler sayfa"
+   ],
+   [
+    "Page  of Zeta Run",
+    "Sayfa of Zeta Run"
+   ],
+   [
+    "Choose a Zeta Run logo",
+    "Bir Zeta Run logosu seç"
+   ],
+   [
+    "Page Omega Quest of Continue & favorites",
+    "Sayfa Omega Quest / Devam et ve favoriler"
+   ],
+   [
+    "Cover · Continue & favorites pages",
+    "Kapak · Devam et ve favoriler sayfa"
+   ],
+   [
+    "Page  of Zeta Run",
+    "Sayfa of Zeta Run"
+   ],
+   [
+    "RomM: Zeta Run gameOmega Quest",
+    "RomM: Zeta Run oyun"
+   ],
+   [
+    "Found Omega Quest gameContinue & favorites",
+    "Omega Quest oyun bulundu"
+   ],
+   [
+    "Downloading… Continue & favorites MB",
+    "İndiriliyor… Devam et ve favoriler MB"
+   ],
+   [
+    "Large download: ",
+    "Large download: "
+   ],
+   [
+    "Logo set for Zeta Run",
+    "Logo Zeta Run için ayarlandı"
+   ],
+   [
+    "Your games (Omega Quest)",
+    "Oyunların (Omega Quest)"
+   ],
+   [
+    "Since Continue & favorites: .",
+    "Devam et ve favoriler tarihinden beri: ."
+   ],
+   [
+    "Use 's Dolphin",
+    " içindeki Dolphin'i kullan"
+   ],
+   [
+    "Results for “Zeta Run”",
+    "“Zeta Run” için sonuçlar"
+   ],
+   [
+    "New: RustyShelf Omega Quest",
+    "Yeni: RustyShelf Omega Quest"
+   ],
+   [
+    "Emulators: Continue & favorites",
+    "Emülatörler: Devam et ve favoriler"
+   ],
+   [
+    "Steam folder: ",
+    "Steam folder: "
+   ],
+   [
+    "Yes, download Zeta Run",
+    "Evet, Zeta Run indir"
+   ],
+   [
+    "Already have: Omega Quest",
+    "Zaten var: Omega Quest"
+   ],
+   [
+    "Fit: Continue & favorites console",
+    "Sığdır: Devam et ve favoriler konsolu"
+   ],
+   [
+    "Sharp ·  px",
+    "Sharp ·  px"
+   ],
+   [
+    "Most played: Zeta Run",
+    "En çok oynanan: Zeta Run"
+   ],
+   [
+    "Games folder Omega Quest",
+    "Oyun klasörü Omega Quest"
+   ],
+   [
+    "No Continue & favoritesgames yet",
+    "Henüz Devam et ve favorileroyun yok"
+   ],
+   [
+    "Starting in ",
+    "Başlatılıyor: in "
+   ],
+   [
+    "Playing for Zeta Run",
+    "Zeta Run süredir oynanıyor"
+   ],
+   [
+    "Good · Omega Quest px",
+    "İyi · Omega Quest px"
+   ],
+   [
+    "Fair · Continue & favorites px",
+    "Orta · Devam et ve favoriler px"
+   ],
+   [
+    "All  manuals",
+    "All  manuals"
+   ],
+   [
+    "Back to \"Zeta Run\".",
+    "\"Zeta Run\" geri geldi."
+   ],
+   [
+    "Downloading… Omega Quest%",
+    "İndiriliyor… %Omega Quest"
+   ],
+   [
+    "Also found: Continue & favorites",
+    "Ayrıca bulunan: Devam et ve favoriler"
+   ],
+   [
+    "New theme: ",
+    "New theme: "
+   ],
+   [
+    "Collections: Zeta Run",
+    "Koleksiyonlar: Zeta Run"
+   ],
+   [
+    "All Omega Quest covers",
+    "Tüm Omega Quest kapak"
+   ],
+   [
+    "Re-fetching Continue & favorites",
+    "Yeniden indiriliyor: Devam et ve favoriler"
+   ],
+   [
+    "Pages –Zeta Run",
+    "Sayfa –Zeta Run"
+   ],
+   [
+    "Paste the Zeta Run",
+    "Zeta Run yapıştır"
+   ],
+   [
+    "Try Omega Quest again",
+    "Omega Quest yeniden dene"
+   ],
+   [
+    "Set up: Continue & favorites.",
+    "Kuruldu: Devam et ve favoriler."
+   ],
+   [
+    "Metacritic ",
+    "Metacritic "
+   ],
+   [
+    "Put Zeta Run back",
+    "Zeta Run geri koy"
+   ],
+   [
+    "Take Omega Quest out",
+    "Omega Quest çıkar"
+   ],
+   [
+    "Type the Continue & favorites",
+    "Devam et ve favoriler yaz"
+   ],
+   [
+    "Lighting: ",
+    "Lighting: "
+   ],
+   [
+    "Restyling Zeta Run",
+    "Zeta Run için yeni stil"
+   ],
+   [
+    "Use for Omega Quest",
+    "Omega Quest için kullan"
+   ],
+   [
+    "Use for Continue & favorites",
+    "Devam et ve favoriler için kullan"
+   ],
+   [
+    "Starting ",
+    "Başlatılıyor "
+   ],
+   [
+    "No Zeta Run art",
+    "Zeta Run görseli yok"
+   ],
+   [
+    "Opening Omega Quest…",
+    "Açılıyor: Omega Quest…"
+   ],
+   [
+    "Set up Continue & favorites",
+    "Devam et ve favoriler kur"
+   ],
+   [
+    "Download ",
+    "İndir "
+   ],
+   [
+    "Volume Zeta Run%",
+    "Ses düzeyi %Zeta Run"
+   ],
+   [
+    "Opens Omega Quest.",
+    "Omega Quest açılır."
+   ],
+   [
+    "Booting Continue & favorites",
+    "Açılıyor: Devam et ve favoriler"
+   ],
+   [
+    "Opening ",
+    "Opening "
+   ],
+   [
+    "Hidden: Zeta Run",
+    "Gizli: Zeta Run"
+   ],
+   [
+    "Checked Omega Quest",
+    "Kontrol edildi: Omega Quest"
+   ],
+   [
+    "Get Continue & favorites ↗",
+    "Devam et ve favoriler edin ↗"
+   ],
+   [
+    "Get  ↗",
+    "↗ edin"
+   ],
+   [
+    "Get Zeta Run ↗",
+    "Zeta Run edin ↗"
+   ],
+   [
+    "Rename Omega Quest",
+    "Omega Quest yeniden adlandır"
+   ],
+   [
+    "Found: Continue & favorites",
+    "Bulunan: Devam et ve favoriler"
+   ],
+   [
+    "Games: ",
+    "Games: "
+   ],
+   [
+    "Cancel Zeta Run",
+    "Zeta Run iptal et"
+   ],
+   [
+    "Drive Omega Quest:",
+    "Sürücü Omega Quest:"
+   ],
+   [
+    "Warm Continue & favorites%",
+    "Sıcak %Devam et ve favoriler"
+   ],
+   [
+    "Cool %",
+    "Soğuk %"
+   ],
+   [
+    "Open Zeta Run",
+    "Zeta Run aç"
+   ],
+   [
+    "Page Omega Quest",
+    "Sayfa Omega Quest"
+   ],
+   [
+    "Show Continue & favorites",
+    "Devam et ve favoriler göster"
+   ],
+   [
+    "Find ",
+    "Find "
+   ],
+   [
+    "Find Zeta Run",
+    "Zeta Run bul"
+   ],
+   [
+    "Now: Omega Quest",
+    "Şimdi: Omega Quest"
+   ],
+   [
+    "View Continue & favorites",
+    "Devam et ve favoriler görüntüle"
+   ],
+   [
+    "Get ",
+    "Edin "
+   ],
+   [
+    "Add Zeta Run",
+    "Zeta Run ekle"
+   ],
+   [
+    "  Add games  ",
+    "  Oyun ekle  "
+   ],
+   [
+    "Add\n  games",
+    "Oyun ekle"
+   ],
+   [
+    "12:30",
+    "12:30"
+   ],
+   [
+    "",
+    ""
+   ],
+   [
+    "Not a known text at all",
+    "Not a known text at all"
+   ],
+   [
+    "HYBRID CONSOLE",
+    "HYBRID CONSOLE"
+   ]
+  ]
+ }
+]

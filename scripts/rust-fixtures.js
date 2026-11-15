@@ -747,6 +747,20 @@ async function raFixtures() {
     out.asked = asked; return out;
   } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// ---- the interface in another language (renderer/i18n-dict.js): texts through the French and Turkish dictionaries ----
+function i18nFixtures(lang) {
+  const vm = require('vm'), read = f => fs.readFileSync(path.join(__dirname, '..', 'renderer', f), 'utf8');
+  const doc = { documentElement: { lang: '' }, body: null, title: '', addEventListener() {} };
+  const win = { localStorage: { getItem: () => lang }, document: doc, MutationObserver: class { observe() {} }, NodeFilter: {}, requestAnimationFrame: () => 0 };
+  win.window = win; vm.createContext(win);
+  vm.runInContext(read('i18n-fr.js'), win); vm.runInContext(read('i18n-tr.js'), win); vm.runInContext(read('i18n-dict.js'), win);
+  const D = lang === 'tr' ? win.BS_I18N_TR : win.BS_I18N_FR, keys = Object.keys(D.exact);
+  // a sentence each pattern matches: its groups filled with made-up words or a known text
+  const fill = ['Zeta Run', 'Omega Quest', keys[0], ''];
+  const made = D.patterns.map(([src], i) => src.replace(/^\^|\$$/g, '').replace(/\\s\+/g, ' ').replace(/\((?:\.\*\?|\.\+\?|[^()]*)\)/g, () => fill[i++ % fill.length]).replace(/\\(.)/g, '$1'));
+  const texts = [...keys.filter((_, i) => i % 7 === 0), ...made, '  Add games  ', 'Add\n  games', '12:30', '', 'Not a known text at all', keys[3].toUpperCase()];
+  return { lang, cases: texts.map(t => [t, win.BS_tr(t)]) };
+}
 // ---- Steam achievements for the Trophies screen (main/steamach.js), over a made-up Steam API ----
 async function steamachFixtures() {
   const https = require('https'), { EventEmitter } = require('events');
@@ -1713,6 +1727,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'ra.json'), JSON.stringify(await raFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'i18n.json'), JSON.stringify(['fr', 'tr'].map(i18nFixtures), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'steamach.json'), JSON.stringify(await steamachFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'raemu.json'), JSON.stringify(await raemuFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'gametdb.json'), JSON.stringify(await gametdbFixtures(), null, 1) + '\n');

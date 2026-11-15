@@ -1,14 +1,15 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0). Written by Haseo
-// (https://github.com/Haseosama) in their Boxshelf fork: the interface in French, the English on screen swapped for its
-// French (i18n-fr.js) as it's drawn. On when Settings → Display → Language is Français (localStorage "bs.lang").
+// (https://github.com/Haseosama) in their Boxshelf fork for French: the English on screen swapped, as it's drawn, for
+// the chosen language's (Settings → Display → Language, localStorage "bs.lang"): French (i18n-fr.js) or Turkish
+// (i18n-tr.js). Keep the matching in sync with crates/rustyshelf-core/src/i18n.rs.
 (function () {
   "use strict";
-  let on = false;
-  try { on = localStorage.getItem("bs.lang") === "fr"; } catch {}
-  if (!on || !window.BS_I18N_FR) return;
+  let lang = "";
+  try { lang = localStorage.getItem("bs.lang") || ""; } catch {}
+  const D = { fr: window.BS_I18N_FR, tr: window.BS_I18N_TR }[lang];
+  if (!D) return;
 
-  document.documentElement.lang = "fr";
-  const D = window.BS_I18N_FR;
+  document.documentElement.lang = lang;
   const exact = new Map(Object.entries(D.exact));
   const pats = D.patterns.map(([s, f]) => { try { return [new RegExp(s, "s"), f]; } catch { return null; } }).filter(Boolean);
   const norm = s => s.replace(/\s+/g, " ").trim();

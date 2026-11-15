@@ -1149,6 +1149,13 @@ impl Settings {
                 let clock = self.text(&["ui", "clock"]);
                 let mut rows = vec![
                     choice(
+                        "Language",
+                        &["ui", "language"],
+                        named(&[("en", "English"), ("fr", "Français"), ("tr", "Türkçe"), ("pt", "Português (Brasil)")]),
+                        &self.text(&["ui", "language"]),
+                        "The language the screen is shown in. Português (Brasil) is in the Electron app only for now: here it shows English.",
+                    ),
+                    choice(
                         "Theme",
                         &["ui", "theme"],
                         rustyshelf_core::themes::themes().into_iter().map(|t| (t.id, t.name)).chain(self.custom_themes.iter().cloned()).collect(),
@@ -1976,10 +1983,19 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
     let first = if n <= WINDOW { 0 } else { at.saturating_sub(WINDOW / 2).min(n - WINDOW) };
     let font = |size: f32| TextFont::from_font_size(FontSize::VMin(size)).with_font(face.0.clone());
-    let hint = if s.note.is_empty() { page.rows.get(at).map(|r| r.hint.clone()).unwrap_or_default() } else { s.note.clone() };
+    let lang = s.text(&["ui", "language"]);
+    let t = |text: &str| rustyshelf_core::i18n::tr(&lang, text);
+    let hint = t(&if s.note.is_empty() { page.rows.get(at).map(|r| r.hint.clone()).unwrap_or_default() } else { s.note.clone() });
     let style = (s.glyphs(), s.swap());
     let (ok, back) = (rustyshelf_core::pads::button_word(true, style.0, style.1), rustyshelf_core::pads::button_word(false, style.0, style.1));
-    let keys = format!("▲ ▼  Move      ◀ ▶  Change      Enter · {ok}  Choose      Esc · {back}  Back{}", if s.wizard { String::new() } else { format!("      F1 · {}  Close", s.cap("☰")) });
+    let keys = format!(
+        "▲ ▼  {}      ◀ ▶  {}      Enter · {ok}  {}      Esc · {back}  {}{}",
+        t("Move"),
+        t("Change"),
+        t("Choose"),
+        t("Back"),
+        if s.wizard { String::new() } else { format!("      F1 · {}  {}", s.cap("☰"), t("Close")) }
+    );
     commands
         .spawn((
             SettingsUi,
@@ -1988,8 +2004,8 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
             GlobalZIndex(10),
         ))
         .with_children(|p| {
-            p.spawn((Text::new(page.title.clone()), font(4.4), TextColor(STEEL)));
-            p.spawn((Node { margin: UiRect::vertical(vmin(1.2)), max_width: percent(80), ..default() }, Text::new(page.lead.clone()), font(2.1), TextColor(DIM)));
+            p.spawn((Text::new(t(&page.title)), font(4.4), TextColor(STEEL)));
+            p.spawn((Node { margin: UiRect::vertical(vmin(1.2)), max_width: percent(80), ..default() }, Text::new(t(&page.lead)), font(2.1), TextColor(DIM)));
             if first > 0 {
                 p.spawn((Text::new("▲"), font(1.6), TextColor(DIM)));
             }
@@ -2000,8 +2016,8 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
                     BackgroundColor(if chosen { CHOSEN } else { Color::NONE }),
                 ))
                 .with_children(|r| {
-                    r.spawn((Text::new(row.label.clone()), font(2.5), TextColor(if chosen { STEEL } else { DIM })));
-                    r.spawn((Text::new(row.value.clone()), font(2.2), TextColor(if chosen { RUST } else { DIM })));
+                    r.spawn((Text::new(t(&row.label)), font(2.5), TextColor(if chosen { STEEL } else { DIM })));
+                    r.spawn((Text::new(t(&row.value)), font(2.2), TextColor(if chosen { RUST } else { DIM })));
                 });
             }
             if first + WINDOW < n {

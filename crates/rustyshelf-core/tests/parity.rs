@@ -2592,3 +2592,14 @@ fn steam_achievements_match_electron() {
     assert_eq!(Value::from(combine(None, None, &["why".into()]).err()), c["none"]);
     assert_eq!(Value::from(combine(None, None, &[]).err()), c["nothing"]);
 }
+
+#[test]
+fn translations_match_electron() {
+    for fx in fixture("i18n.json").as_array().unwrap() {
+        let lang = fx["lang"].as_str().unwrap();
+        for c in fx["cases"].as_array().unwrap() {
+            let (text, want) = (c[0].as_str().unwrap(), c[1].as_str().unwrap());
+            assert_eq!(rustyshelf_core::i18n::tr(lang, text), want, "{lang} {text:?}");
+        }
+    }
+}

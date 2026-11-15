@@ -881,6 +881,8 @@ Brought into RustyShelf from other people's forks (they are the authors or co-au
 
 - [Gilang](https://github.com/gilangbros-hub): the Famicom Disk System shelf ([original](https://github.com/gilangbros-hub/boxshelf-source/commit/3eb635ba13bbe00ee53d71db4ee76e0cb71dc6cd))
 - [Thanks2111](https://github.com/Thanks2111): Português (Brasil): the language is a choice now
+- [gfadeyi](https://github.com/gfadeyi): the PowerA Switch pad, the cover loop when a game window vanishes, manual passes in the background, Steam's hashed store covers, and the Trophies screen with Steam achievements
+- [Haseo](https://github.com/Haseosama): Français (Settings → Display → Language, in both apps), games folders found in a folder, the drives to search, and the museum with huge libraries
 - [supalii](https://github.com/supalii): Custom games on any shelf, the Xbox One shelf, PC posters and hidden tiles (from supalii's fork)
 - [TrapEmAll](https://github.com/TrapEmAll): Retro TV guide: the progress line no longer stops the guide drawing; Retro TV: live progress for the commercial search and ad downloads; Credit TrapEmAll for the Museum's look-around; Museum: look left and right, and the side displays reachable from the wide view
 

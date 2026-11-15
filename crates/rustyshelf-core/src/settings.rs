@@ -216,7 +216,7 @@ fn upgrade(cfg: &mut Value) {
         }
         let digits: String = js::text(ui.get("discordAppId")).chars().filter(char::is_ascii_digit).take(25).collect();
         set(ui, "discordAppId", json!(digits));
-        if !one_of(ui.get("language"), &["en", "pt", "fr"]) {
+        if !one_of(ui.get("language"), &["en", "pt", "fr", "tr"]) {
             set(ui, "language", json!("en"));
         }
     }
