@@ -262,7 +262,7 @@ pub enum Behind {
 
 /// A sheet waiting for its picture: its material, and its width for its height (the picture is cut to it; a sheet
 /// of no shape takes the picture whole).
-type Sheet = (Handle<StandardMaterial>, f32);
+pub type Sheet = (Handle<StandardMaterial>, f32);
 
 /// Pictures in flight or loaded: which sheets wait for which file.
 #[derive(Resource, Default)]
@@ -283,7 +283,7 @@ impl Covers {
     }
 
     /// Puts a picture on a sheet: at once when it's loaded, else when it arrives.
-    fn want(&mut self, art: Art, sheet: Sheet, loader: &ArtLoader, materials: &mut Assets<StandardMaterial>) {
+    pub fn want(&mut self, art: Art, sheet: Sheet, loader: &ArtLoader, materials: &mut Assets<StandardMaterial>) {
         let key = art.key();
         match self.loaded.get(&key) {
             Some(Some((img, aspect))) => show(materials, &sheet, img, *aspect),
@@ -314,7 +314,7 @@ fn show(materials: &mut Assets<StandardMaterial>, sheet: &Sheet, img: &Handle<Im
     m.uv_transform = bevy::math::Affine2::from_scale_angle_translation(scale, 0.0, offset);
 }
 
-fn color(c: Rgba) -> Color {
+pub fn color(c: Rgba) -> Color {
     Color::srgba(c[0], c[1], c[2], c[3])
 }
 
@@ -743,7 +743,7 @@ fn app_hue(app: &str) -> Option<f32> {
 /// A game's cover on the shelf `own`, and the colour that's the game's until its cover is seen: its own picture,
 /// or one drawn from its title; the shelf's own cases have theirs (the emulator's is drawn from its name and its
 /// shelf's).
-fn cover_of(g: &rustyshelf_core::scanner::Game, own: &str, look: &looks::Look) -> (Art, f32) {
+pub fn cover_of(g: &rustyshelf_core::scanner::Game, own: &str, look: &looks::Look) -> (Art, f32) {
     let tile = match g.source {
         Source::Tile(t) => Some(t),
         _ => None,

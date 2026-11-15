@@ -10,6 +10,7 @@ mod home;
 mod hud;
 mod idle;
 mod loading;
+mod museum;
 mod music;
 mod osk;
 mod padwatch;
@@ -79,8 +80,9 @@ fn main() {
         .init_resource::<home::Home>()
         .init_resource::<reader::Reader>()
         .init_resource::<idle::Idle>()
+        .init_resource::<museum::Museum>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, museum::setup).chain())
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
             Update,
@@ -91,7 +93,7 @@ fn main() {
                 phone::run,
                 idle::run,
                 home::run,
-                reader::run,
+                (reader::run, museum::run).chain(),
                 shelf::inspect,
                 settings::input,
                 play::navigate,

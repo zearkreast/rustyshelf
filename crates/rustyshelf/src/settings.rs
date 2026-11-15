@@ -212,6 +212,8 @@ pub struct Settings {
     pub manual: Option<Vec<PathBuf>>,
     /// `manual` is a game's screenshots (their addresses), shown one at a time
     pub gallery: bool,
+    /// View / Minus was let go quickly (held, it opens the museum)
+    pub select_tapped: bool,
     /// the phone companion, and its pairing code as it was last drawn: what it says, and its picture
     pub phone: Option<std::sync::Arc<rustyshelf_core::companion::Companion>>,
     qr: Option<(String, Handle<Image>)>,
@@ -303,6 +305,7 @@ impl Default for Settings {
             pad_auto: Glyphs::Xbox,
             manual: None,
             gallery: false,
+            select_tapped: false,
             phone: None,
             qr: None,
             moves: Default::default(),
@@ -2089,7 +2092,7 @@ pub fn input(
         } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
             Some(Screen::Shelf)
         // (as the Electron app: View / Minus opens Details; Settings is in the shelf menu, Start)
-        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || pad(GamepadButton::Select) {
+        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || std::mem::take(&mut s.select_tapped) {
             Some(Screen::Details)
         } else {
             None
