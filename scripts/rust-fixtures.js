@@ -1586,6 +1586,37 @@ async function provenanceFixtures() {
   fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }
+// a module's inner function, for a fixture: its file compiled again with that name exported
+function inner(rel, names) {
+  const Module = require('module'), file = path.join(ROOT, rel);
+  const m = new Module(file, module); m.filename = file; m.paths = Module._nodeModulePaths(path.dirname(file));
+  m._compile(fs.readFileSync(file, 'utf8') + '\nmodule.exports.__inner = { ' + names.join(', ') + ' };', file);
+  return m.exports;
+}
+function artsetsFixtures() {
+  const A = inner('main/artstudio.js', ['buildSets']), out = {};
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-sets-'));
+  let cfg = { ui: {}, art: { styles: {}, locks: {} } };
+  A.init({ dataDir: tmp, log() {}, getCfg: () => cfg, setArt() {}, consoles: () => [], pruneDelay: 1e9, migrateDelay: 1e9 });
+  let n = 0;
+  const C = (source, region, more = {}) => ({ key: 'k' + (++n), url: `https://example.invalid/${source}/${n}.jpg`, ext: '.jpg', source, region, edition: 'original', kind: 'scan', label: `${source} ${region}`, ...more });
+  const wrapEu = 'https://example.invalid/launchbox/full-eu.jpg', wrapUs = 'https://example.invalid/gametdb/full-us.jpg';
+  const L = {
+    front: [C('current', 'usa', { file: '/x.png' }), C('launchbox', 'usa', { w: 1000, h: 1400 }), C('launchbox', 'eur'), C('launchbox', 'jpn', { fan: true }), C('gametdb', 'usa', { kind: 'hd' }), C('gametdb', 'eur'), C('libretro', 'usa', { kind: 'clean' }), C('screenscraper', 'jpn'), C('steamgriddb', ''), C('launchbox', 'world'), C('launchbox', 'usa', { dup: 'k2' })],
+    back: [C('launchbox', 'usa'), C('launchbox', 'eur', { url: wrapEu, cut: 'back' }), C('gametdb', 'usa', { url: wrapUs, cut: 'back' }), C('gametdb', 'eur', { guess: true }), C('screenscraper', 'jpn'), C('earlier', 'usa', { file: '/y.png' })],
+    spine: [C('launchbox', 'usa'), C('launchbox', 'eur'), C('launchbox', 'eur', { url: wrapEu, cut: 'spine' }), C('gametdb', 'usa', { url: wrapUs, cut: 'spine' }), C('gametdb', 'eur', { guess: true, cached: true }), C('screenscraper', 'jpn'), C('launchbox', '')],
+    disc: [C('launchbox', 'usa'), C('launchbox', 'world'), C('gametdb', 'usa', { kind: 'clean', guess: true }), C('gametdb', '', {}), C('screenscraper', 'jpn'), C('launchbox', 'eur', { fan: true })],
+  };
+  out.lists = L;
+  out.cases = [];
+  for (const [ui, region] of [[{}, 'USA'], [{}, 'Europe'], [{ artRegion: 'jpn' }, 'Japan'], [{ artHD: false }, '']]) {
+    cfg = { ui, art: { styles: {}, locks: {} } };
+    const sets = A.__inner.buildSets({ sysId: 'gc', game: { region } }, JSON.parse(JSON.stringify(L)));
+    out.cases.push({ ui, region, sets: sets.map(s => ({ id: s.id, label: s.label, region: s.region, source: s.source, hd: s.hd, same: s.same, parts: ['front', 'back', 'spine', 'disc'].map(p => s.parts[p].key) })) });
+  }
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1601,6 +1632,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'pads.json'), JSON.stringify(padsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'manualcoll.json'), JSON.stringify(await manualcollFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'provenance.json'), JSON.stringify(await provenanceFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'artsets.json'), JSON.stringify(artsetsFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'wikiart.json'), JSON.stringify(await wikiartFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'artstudio.json'), JSON.stringify(await artstudioFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');

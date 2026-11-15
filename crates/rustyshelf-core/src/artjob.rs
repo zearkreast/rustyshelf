@@ -271,6 +271,146 @@ pub fn clear_picks(cfg: &mut Value, sys: &str) {
     locks.retain(|_, e| e.as_object().is_none_or(|o| !o.is_empty()));
 }
 
+// ---------- complete sets: a front, back, spine and disc that belong together ----------
+
+/// One set: every part from one region and source family (or the best of each source for a region, or the HD set).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Set {
+    pub id: String,
+    pub label: String,
+    pub region: String,
+    /// "launchbox", "gametdb", "screenscraper" or "mixed"
+    pub source: String,
+    pub hd: bool,
+    /// the back and the spine cut from the same full scan: they read as one box
+    pub same: bool,
+    pub parts: [Cand; 4],
+}
+
+/// A real release's picture that can be had: not the one in use, an earlier one, a SteamGridDB poster, fan art,
+/// or a guess not yet seen.
+fn set_usable(c: &Cand) -> bool {
+    !matches!(c.source.as_str(), "current" | "earlier" | "steamgriddb") && c.dup.is_none() && !c.fan && !(c.guess && !c.cached)
+}
+
+fn region_ok(c: &Cand, r: &str, strict: bool) -> bool {
+    c.region == r || (!strict && (c.region.is_empty() || c.region == "world"))
+}
+
+/// The complete sets the four parts' lists make, sources' own families first and back-and-spine-from-one-scan first
+/// among them; the region of the game's own copy first.
+pub fn build_sets(style: &Value, game_region: &str, lists: &[Vec<Cand>; 4]) -> Vec<Set> {
+    const SOURCES: [(&str, &str); 3] = [("launchbox", "LaunchBox scans"), ("gametdb", "GameTDB"), ("screenscraper", "ScreenScraper scans")];
+    let ctx = Ctx { style, game_region, sharp: Some(true) };
+    let mut out: Vec<Set> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut add = |id: String, label: String, region: &str, source: &str, hd: bool, look: &str, pred: &dyn Fn(&Cand, &str) -> bool| {
+        let mut parts: Vec<Cand> = Vec::new();
+        for (i, p) in PARTS.iter().enumerate() {
+            let mut pool: Vec<Cand> = lists[i].iter().filter(|c| set_usable(c) && pred(c, p)).cloned().collect();
+            // the spine from the same full scan as the back (one wrap, cut twice), when there is one
+            if let (&"spine", Some(back)) = (p, parts.get(1).filter(|b| b.cut.is_some())) {
+                let same: Vec<Cand> = pool.iter().filter(|c| c.cut.is_some() && c.url == back.url).cloned().collect();
+                if !same.is_empty() {
+                    pool = same;
+                }
+            }
+            let Some(best) = studio::rank_list(&pool, look, &ctx).first().map(|c| (*c).clone()) else { return };
+            parts.push(best);
+        }
+        // (the HD set stays even when a region set has the same four: it's what the HD shelf style asks for)
+        if !seen.insert(parts.iter().map(|c| c.key.as_str()).collect::<Vec<_>>().join("|")) && !hd {
+            return;
+        }
+        let same = parts[1].cut.is_some() && parts[2].cut.is_some() && parts[1].url == parts[2].url;
+        let parts: [Cand; 4] = parts.try_into().expect("four parts");
+        out.push(Set { id, label: format!("{label} · complete"), region: region.into(), source: source.into(), hd, same, parts });
+    };
+    let own = studio::game_region(game_region);
+    let mut regions = ["usa", "eur", "jpn"];
+    regions.sort_by_key(|r| *r != own);
+    for r in regions {
+        let name = match r {
+            "usa" => "USA",
+            "eur" => "Europe",
+            _ => "Japan",
+        };
+        let look = format!("region:{r}");
+        for (src, src_name) in SOURCES {
+            add(format!("{r}-{src}"), format!("{name} · {src_name}"), r, src, false, &look, &|c: &Cand, p: &str| c.source == src && region_ok(c, r, p != "disc"));
+        }
+        add(format!("{r}-mixed"), format!("{name} · best of each source"), r, "mixed", false, &look, &|c: &Cand, p: &str| region_ok(c, r, p != "disc"));
+    }
+    add("hd".into(), "HD".into(), "", "mixed", true, "hd", &|_: &Cand, _: &str| true);
+    out.sort_by_key(|s| (s.source == "mixed", !s.same));
+    out
+}
+
+/// What a set put in, to undo it: the parts it changed and which of them had a picture before.
+#[derive(Debug, Clone, Default)]
+pub struct SetDone {
+    pub changed: Vec<&'static str>,
+    pub had: [bool; 4],
+}
+
+impl Studio {
+    /// Puts a whole set in use: every picture downloaded first (nothing changes if one can't be had), then each
+    /// part (old pictures to `replaced`); a part that fails to go in puts the ones already in back.
+    pub fn apply_set(&self, g: &mut GameArt, set: &Set, now: f64) -> Result<SetDone, String> {
+        let mut srcs = Vec::new();
+        let mut miss = Vec::new();
+        for (i, p) in PARTS.iter().enumerate() {
+            match self.fetch_cand(&set.parts[i], &g.sys, now) {
+                Ok(Some(f)) => srcs.push(f),
+                _ => miss.push(*p),
+            }
+        }
+        if !miss.is_empty() {
+            return Err(format!("The {} of that set couldn't be downloaded. Nothing was changed.", miss.join(" and ")));
+        }
+        let had = g.current.clone().map(|c| c.is_some_and(|f| f.is_file()));
+        let mut done = SetDone { changed: Vec::new(), had };
+        for (i, p) in PARTS.iter().enumerate() {
+            match self.apply(g, p, &set.parts[i], now) {
+                Ok(true) => done.changed.push(p),
+                Ok(false) => {}
+                Err(e) => {
+                    let _ = self.revert_parts(g, &done, now);
+                    return Err(format!("That set couldn't be put in ({e}). Nothing was changed."));
+                }
+            }
+        }
+        Ok(done)
+    }
+
+    /// The parts a set changed, as they were before it: the newest picture in `replaced` back for a part that had
+    /// one; for a part that had none, the set's picture moves to `replaced`.
+    pub fn revert_parts(&self, g: &mut GameArt, done: &SetDone, now: f64) -> Result<(), String> {
+        for p in &done.changed {
+            let i = PARTS.iter().position(|x| x == p).unwrap_or(0);
+            if done.had[i] {
+                self.undo(g, p, now)?;
+                continue;
+            }
+            let Some(cur) = g.current[i].clone().filter(|f| f.is_file()) else { continue };
+            let dir = cur.parent().map_or_else(|| g.dir.clone(), Path::to_path_buf).join("replaced");
+            std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+            let ext = cur.extension().map_or(String::new(), |e| format!(".{}", e.to_string_lossy()));
+            let stamp = boxart::art_stamp();
+            let mut to = dir.join(format!("{}{} ({stamp}){ext}", g.base, studio::suffix(p)));
+            let mut n = 2;
+            // never over an earlier one
+            while to.symlink_metadata().is_ok() {
+                to = dir.join(format!("{}{} ({stamp}-{n}){ext}", g.base, studio::suffix(p)));
+                n += 1;
+            }
+            std::fs::rename(&cur, &to).map_err(|e| e.to_string())?;
+            g.current[i] = None;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,7 +432,7 @@ mod tests {
         let all = [true; 4];
         assert!(parts_to_redo(std::slice::from_ref(&authentic), &authentic, &Value::Null, all, "USA").is_empty());
         assert_eq!(parts_to_redo(std::slice::from_ref(&authentic), &authentic, &json!({ "back": { "look": "exact" } }), [true, true, false, true], "USA"), ["back", "spine"]);
-        assert_eq!(parts_to_redo(&[authentic.clone()], &hd, &Value::Null, all, "USA"), PARTS);
+        assert_eq!(parts_to_redo(std::slice::from_ref(&authentic), &hd, &Value::Null, all, "USA"), PARTS);
         // a style the shelf may still partly show counts too
         assert_eq!(parts_to_redo(&[eur, hd.clone()], &hd, &Value::Null, all, "USA").len(), 4);
         assert_ne!(sig_key(&authentic), sig_key(&hd));
@@ -303,6 +443,35 @@ mod tests {
         let mut cfg = json!({ "art": { "locks": { "gc|/a.iso": { "front": { "look": "exact" } }, "gc|/b.iso": { "all": true, "front": { "look": "exact" } }, "gc|/c.iso": { "back": { "look": "hd" }, "note": 1 }, "wii|/d.iso": { "front": { "look": "exact" } } } } });
         clear_picks(&mut cfg, "gc");
         assert_eq!(cfg["art"]["locks"], json!({ "gc|/b.iso": { "all": true, "front": { "look": "exact" } }, "gc|/c.iso": { "note": 1 }, "wii|/d.iso": { "front": { "look": "exact" } } }));
+    }
+
+    #[test]
+    fn a_set_goes_in_whole_and_comes_out_again() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (data, art, src) = (tmp.path().join("data"), tmp.path().join("covers"), tmp.path().join("src"));
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::create_dir_all(&art).unwrap();
+        let pic = |name: &str, shade: u8| {
+            let f = src.join(name);
+            image::RgbImage::from_pixel(60, 80, image::Rgb([shade, 0, 0])).save(&f).unwrap();
+            f
+        };
+        let old_front = art.join("Zeta Run (USA).png");
+        std::fs::copy(pic("old.png", 9), &old_front).unwrap();
+        let cand = |f: PathBuf| Cand { key: f.to_string_lossy().into(), source: "launchbox".into(), ext: ".png".into(), file: Some(f), ..Cand::default() };
+        let set = Set { id: "usa-launchbox".into(), label: "USA".into(), region: "usa".into(), source: "launchbox".into(), hd: false, same: false, parts: [cand(pic("f.png", 1)), cand(pic("b.png", 2)), cand(pic("s.png", 3)), cand(pic("d.png", 4))] };
+        let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: tmp.path().join("Zeta Run (USA).iso"), region: "USA".into(), dir: art.clone(), base: "Zeta Run (USA)".into(), current: [Some(old_front.clone()), None, None, None] };
+        let st = Studio::new(&data);
+        let done = st.apply_set(&mut g, &set, 1.0).unwrap();
+        assert_eq!((done.changed.len(), done.had), (4, [true, false, false, false]));
+        assert!(g.current.iter().all(|c| c.as_ref().is_some_and(|f| f.is_file())));
+        st.revert_parts(&mut g, &done, 2.0).unwrap();
+        assert_eq!(std::fs::read(&old_front).unwrap(), std::fs::read(src.join("old.png")).unwrap());
+        assert!(g.current[1..].iter().all(Option::is_none));
+        // nothing is lost: the set's pictures are in replaced
+        assert_eq!(std::fs::read_dir(art.join("replaced")).unwrap().count(), 4);
+        let missing = Set { parts: [cand(src.join("gone.png")), set.parts[1].clone(), set.parts[2].clone(), set.parts[3].clone()], ..set };
+        assert!(st.apply_set(&mut g, &missing, 3.0).unwrap_err().starts_with("The front of that set"));
     }
 
     #[test]

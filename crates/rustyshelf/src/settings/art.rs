@@ -4,7 +4,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
-use rustyshelf_core::artjob::{self, Job, Remote};
+use rustyshelf_core::artjob::{self, Job, Remote, Set, SetDone};
 use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
 use rustyshelf_core::paths;
 use std::sync::atomic::Ordering;
@@ -20,6 +20,9 @@ type Picture = (u32, u32, Vec<u8>);
 
 /// What came of putting a picture in use: the game with its pictures as they are now, and whether anything moved.
 type Placed = Result<(GameArt, bool), String>;
+
+/// What came of putting a set in (Some) or taking it out again (None): the game with its pictures as they are now.
+type SetPlaced = Result<(GameArt, Option<(Set, SetDone)>), String>;
 
 #[derive(Default)]
 pub(super) struct ArtPick {
@@ -37,6 +40,12 @@ pub(super) struct ArtPick {
     shown: Option<(String, Handle<Image>)>,
     /// previews that couldn't be had
     failed: Vec<String>,
+    /// the chosen game's complete sets, while they're gathered, and one being put in
+    sets: Vec<Set>,
+    sets_listing: Option<Mutex<Receiver<Vec<Set>>>>,
+    set_placing: Option<Mutex<Receiver<SetPlaced>>>,
+    /// the last set put in, to undo it: the game's lock key, what it changed, and its locks before
+    last_set: Option<(String, SetDone, Value)>,
     /// the consoles being restyled, and how each run ends
     restyles: Vec<Restyle>,
     /// per console, every style its shelf may still partly show (a restyle stopped leaves some games in the one
@@ -179,8 +188,86 @@ impl Settings {
             let ctx = Ctx { style: &style, game_region: &game.region, sharp: None };
             let _ = tx.send(studio::rank_list(&shown, &studio::look_for(&style, part), &ctx).into_iter().cloned().collect());
         });
-        self.art_pick = ArtPick { game: Some(g), part, listing: Some(Mutex::new(rx)), ..Default::default() };
+        self.art_pick = ArtPick { game: Some(g), part, listing: Some(Mutex::new(rx)), last_set: self.art_pick.last_set.take(), restyles: std::mem::take(&mut self.art_pick.restyles), stale: std::mem::take(&mut self.art_pick.stale), ..Default::default() };
         self.go(Screen::ArtPart);
+    }
+
+    /// Opens the chosen game's complete sets: the four parts' lists are read off the frame.
+    fn open_art_sets(&mut self) {
+        let Some(g) = self.art_game() else { return };
+        let (data, style) = (paths::data_dir(&self.app_root), studio::style_for(&self.cfg, &g.sys));
+        let (tx, rx) = channel();
+        let game = g.clone();
+        std::thread::spawn(move || {
+            let (st, mut remote) = (Studio::new(&data), Remote::new(&data, &game.sys));
+            let region = style["region"].as_str().unwrap_or("usa");
+            let lists = studio::PARTS.map(|part| st.list_for(&game, part, remote.cands(&game, part, region, true, now_ms()), now_ms()));
+            let _ = tx.send(artjob::build_sets(&style, &game.region, &lists));
+        });
+        let last = self.art_pick.last_set.take().filter(|l| l.0 == studio::lock_key(&g.sys, &g.file));
+        self.art_pick = ArtPick { game: Some(g), sets_listing: Some(Mutex::new(rx)), last_set: last, restyles: std::mem::take(&mut self.art_pick.restyles), stale: std::mem::take(&mut self.art_pick.stale), ..Default::default() };
+        self.go(Screen::ArtSets);
+    }
+
+    /// Puts a set in (Some, by its place in the list) or the last one out again (None), off the frame.
+    fn place_set(&mut self, at: Option<usize>) {
+        let Some(mut g) = self.art_pick.game.clone().filter(|_| self.art_pick.set_placing.is_none()) else { return };
+        let data = paths::data_dir(&self.app_root);
+        let work: Box<dyn FnOnce(&Studio, &mut GameArt) -> SetPlaced + Send> = match at {
+            Some(i) => {
+                let Some(set) = self.art_pick.sets.get(i).cloned() else { return };
+                Box::new(move |st, g| st.apply_set(g, &set, now_ms()).map(|done| (g.clone(), Some((set, done)))))
+            }
+            None => {
+                let Some((_, done, _)) = self.art_pick.last_set.clone() else { return };
+                Box::new(move |st, g| st.revert_parts(g, &done, now_ms()).map(|()| (g.clone(), None)))
+            }
+        };
+        let (tx, rx) = channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(work(&Studio::new(&data), &mut g));
+        });
+        self.art_pick.set_placing = Some(Mutex::new(rx));
+        self.redraw = true;
+    }
+
+    /// The chosen game's pictures as `g` has them now.
+    fn art_now(&mut self, g: &GameArt) {
+        if let Some(c) = self.chosen.as_mut() {
+            let [front, back, spine, disc] = g.current.clone();
+            (c.game.art.front, c.game.art.back, c.game.art.spine, c.game.art.disc) = (front, back, spine, disc);
+            (c.game.art.made_back, c.game.art.made_spine) = (false, false);
+        }
+    }
+
+    pub(super) fn art_sets_page(&self) -> Page {
+        let pick = &self.art_pick;
+        let title = format!("Complete sets · {}", pick.game.as_ref().map_or("", |g| g.title.as_str()));
+        let mut rows: Vec<Row> = pick
+            .sets
+            .iter()
+            .enumerate()
+            .map(|(i, set)| Row {
+                label: set.label.clone(),
+                value: if set.same { "Back and spine from one scan".into() } else { String::new() },
+                hint: format!("{}. Enter puts all four in; the pictures they replace are kept in the replaced folder.", studio::PARTS.iter().zip(&set.parts).map(|(p, c)| format!("{}: {}", part_name(p), if c.label.is_empty() { source_name(&c.source) } else { &c.label })).collect::<Vec<_>>().join(" · ")),
+                press: Some(Box::new(move |s: &mut Settings| s.place_set(Some(i)))),
+                step: None,
+            })
+            .collect();
+        if pick.last_set.is_some() && pick.set_placing.is_none() {
+            rows.push(Row { label: "Undo the set".into(), hint: "The four parts as they were before the set went in.".into(), press: Some(Box::new(|s: &mut Settings| s.place_set(None))), ..Row::default() });
+        }
+        let lead = if pick.set_placing.is_some() {
+            "Downloading the set and putting it in…".to_string()
+        } else if pick.sets_listing.is_some() {
+            "Looking through the box art lists…".into()
+        } else if pick.sets.is_empty() {
+            "No source has a front, back, spine and disc that go together for this game.".into()
+        } else {
+            "A front, back, spine and disc from one region and source, so the case reads as one box.".into()
+        };
+        Page { title, lead, rows }
     }
 
     /// Puts a version in use (`key`), or the picture before the one in use back (None).
@@ -237,6 +324,46 @@ impl Settings {
                 self.say(format!("{name}: {msg}."));
                 self.changed = true;
             }
+        }
+        if let Some(sets) = self.art_pick.sets_listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+            (self.art_pick.sets_listing, self.art_pick.sets, self.redraw) = (None, sets, true);
+        }
+        if let Some(done) = self.art_pick.set_placing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+            self.art_pick.set_placing = None;
+            match done {
+                Ok((g, Some((set, done)))) => {
+                    let key = studio::lock_key(&g.sys, &g.file);
+                    let before = self.cfg["art"]["locks"][key.as_str()].clone();
+                    for (p, c) in studio::PARTS.iter().zip(&set.parts) {
+                        self.set(&["art", "locks", &key, p], json!({ "look": "exact", "key": c.key, "at": now_ms() }));
+                    }
+                    self.art_now(&g);
+                    self.say(if done.changed.is_empty() { "That set is in use already.".into() } else { format!("{} is in use now; the shelf shows it when Settings closes.", set.label) });
+                    self.art_pick.last_set = Some((key, done, before));
+                    self.art_pick.game = Some(g);
+                }
+                Ok((g, None)) => {
+                    // the parts' picks as they were; a game lock set since stays
+                    if let Some((key, _, before)) = self.art_pick.last_set.take() {
+                        for p in studio::PARTS {
+                            match before.get(p) {
+                                Some(was) => self.set(&["art", "locks", &key, p], was.clone()),
+                                None => {
+                                    if let Some(e) = self.cfg.get_mut("art").and_then(|a| a.get_mut("locks")).and_then(|l| l.get_mut(&key)).and_then(Value::as_object_mut) {
+                                        e.remove(p);
+                                    }
+                                }
+                            }
+                        }
+                        self.save();
+                    }
+                    self.art_now(&g);
+                    self.say("The parts are as they were before the set.".into());
+                    self.art_pick.game = Some(g);
+                }
+                Err(why) => self.say(why),
+            }
+            self.redraw = true;
         }
         let on_page = self.stack.last().is_some_and(|p| p.0 == Screen::ArtPart);
         if let Some(list) = self.art_pick.listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
@@ -351,7 +478,9 @@ impl Settings {
                 press: Some(Box::new(move |s: &mut Settings| s.open_art_part(part))),
                 step: None,
             })
-            .collect();
+            .collect::<Vec<Row>>();
+        let mut rows = rows;
+        rows.push(Row { label: "Complete sets".into(), hint: "A front, back, spine and disc that belong together, from one region and source".into(), press: Some(Box::new(|s: &mut Settings| s.open_art_sets())), ..Row::default() });
         Page { title: format!("Box art · {title}"), lead: "A part chosen here stays as chosen: the automatic art check leaves it alone.".into(), rows }
     }
 

@@ -95,6 +95,7 @@ enum Screen {
     /// the chosen game's box art, part by part; and one part's versions
     Art,
     ArtPart,
+    ArtSets,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -342,7 +343,6 @@ impl Settings {
         at(&self.cfg, path).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default()
     }
 
-    /// Saves the settings as they are now.
     /// Says something under the page that's open.
     pub fn say(&mut self, text: String) {
         self.note = text;
@@ -1505,6 +1505,7 @@ impl Settings {
             Screen::Storage => self.storage_page(),
             Screen::Art => self.art_page(),
             Screen::ArtPart => self.art_part_page(),
+            Screen::ArtSets => self.art_sets_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);

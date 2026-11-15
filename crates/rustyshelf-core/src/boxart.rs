@@ -109,7 +109,7 @@ fn same_path(a: &Path, b: &Path) -> bool {
 }
 
 /// A stamp for a replaced picture's name: the time, to the millisecond, with dashes.
-fn art_stamp() -> String {
+pub(crate) fn art_stamp() -> String {
     let ms = now();
     let (days, rest) = ((ms / 86_400_000) as i64, ms % 86_400_000);
     // civil date from days since 1970 (Howard Hinnant's algorithm)

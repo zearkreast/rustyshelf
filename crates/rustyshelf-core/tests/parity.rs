@@ -2455,3 +2455,37 @@ fn provenance_matches_electron() {
     let kept: Value = serde_json::from_slice(&fs::read(d2.join("art-provenance.json")).unwrap()).unwrap();
     assert_eq!(kept["at"], 5);
 }
+
+#[test]
+fn art_sets_match_electron() {
+    use rustyshelf_core::artstudio::{style_for, Cand};
+    let fx = fixture("artsets.json");
+    let cand = |v: &Value| Cand {
+        key: v["key"].as_str().unwrap().into(),
+        url: v["url"].as_str().unwrap().into(),
+        ext: v["ext"].as_str().unwrap().into(),
+        source: v["source"].as_str().unwrap().into(),
+        region: v["region"].as_str().unwrap().into(),
+        edition: v["edition"].as_str().unwrap().into(),
+        kind: v["kind"].as_str().unwrap().into(),
+        label: v["label"].as_str().unwrap().into(),
+        w: v["w"].as_u64().map(|n| n as u32),
+        h: v["h"].as_u64().map(|n| n as u32),
+        fan: v["fan"] == true,
+        guess: v["guess"] == true,
+        cached: v["cached"] == true,
+        dup: v["dup"].as_str().map(String::from),
+        cut: v["cut"].as_str().map(String::from),
+        file: v["file"].as_str().map(std::path::PathBuf::from),
+        ..Cand::default()
+    };
+    let lists: [Vec<Cand>; 4] = ["front", "back", "spine", "disc"].map(|p| fx["lists"][p].as_array().unwrap().iter().map(cand).collect());
+    for c in fx["cases"].as_array().unwrap() {
+        let style = style_for(&serde_json::json!({ "ui": c["ui"] }), "gc");
+        let got: Vec<Value> = rustyshelf_core::artjob::build_sets(&style, c["region"].as_str().unwrap(), &lists)
+            .iter()
+            .map(|s| serde_json::json!({ "id": s.id, "label": s.label, "region": s.region, "source": s.source, "hd": s.hd, "same": s.same, "parts": s.parts.iter().map(|p| p.key.clone()).collect::<Vec<_>>() }))
+            .collect();
+        assert_eq!(Value::from(got), c["sets"], "{}", c["ui"]);
+    }
+}
