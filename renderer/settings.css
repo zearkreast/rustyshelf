@@ -222,7 +222,7 @@ body.bss-reduce #bss,body.reduce-motion #bss{transition-duration:.12s}
 .bss-root.narrow .bss-key{min-width:56px;height:56px;font-size:21px;padding:0 8px}
 .bss-root.narrow .bss-key.wide{min-width:150px}.bss-root.narrow .bss-key.mid{min-width:90px;font-size:17px}
 .bss-root.narrow .bss-krow{gap:8px;margin-bottom:8px}
-@media (prefers-reduced-motion:reduce){.bss-list,.bss-osk,.bss-hl{transition:none}.bss-scroll.enter,.bss-row.press,.bss-val .txt b{animation:none}}
+body.reduce-motion .bss-list,body.reduce-motion .bss-osk,body.reduce-motion .bss-hl{transition:none}body.reduce-motion .bss-scroll.enter,body.reduce-motion .bss-row.press,body.reduce-motion .bss-val .txt b{animation:none}
 body.bss-reduce .bss-list,body.bss-reduce .bss-osk,body.bss-reduce .bss-hl{transition:none}
 body.bss-reduce .bss-scroll.enter,body.bss-reduce .bss-row.press,body.bss-reduce .bss-val .txt b{animation:none}
 
@@ -471,7 +471,7 @@ body.safe-area #app>#bss{scale:var(--safe-inv,1)}
 .bss-root.narrow .bsa-scene{height:380px}.bss-root.narrow .bsa-case{--h:308px;--mw:300px}
 .bss-root.narrow .bsa-pill{padding:0 14px;font-size:15.5px}
 .bss-root.narrow .bsa-part{padding:0 12px;gap:10px}.bss-root.narrow .bsa-part .nm{font-size:17px}
-@media (prefers-reduced-motion:reduce){.bsa-case,.bsa-disc,.bsa-ph.wait::after{animation:none}.bsa-grid,.bsa-cgrid,.bsa-turn{transition:none}}
+body.reduce-motion .bsa-case,body.reduce-motion .bsa-disc,body.reduce-motion .bsa-ph.wait::after{animation:none}body.reduce-motion .bsa-grid,body.reduce-motion .bsa-cgrid,body.reduce-motion .bsa-turn{transition:none}
 body.bss-reduce .bsa-case,body.bss-reduce .bsa-disc,body.bss-reduce .bsa-ph.wait::after{animation:none}
 body.bss-reduce .bsa-grid,body.bss-reduce .bsa-cgrid{transition:none}
 /* Pick exact for the disc (mockup screen 4): a full-width row of big discs; the chosen one spins (X stops it) */

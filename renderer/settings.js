@@ -88,6 +88,10 @@ const T=(label,path,def,info,x={})=>({t:"toggle",label,info,...bindb(path,def),.
 const S=(label,path,def,min,max,step,fmt,info,x={})=>({t:"slider",label,min,max,step,fmt,info,...bindv(path,def),...x});
 const A=(label,btn,info,run,x={})=>({t:"action",label,btn,info,run,...x});
 // (upstream beta.12) Seamless play (Windows, main/seamless.js): on unless turned off; the screen mode (never chosen: Start in fullscreen decides)
+/* (beta.12) Reduce motion: Off (the default), Follow the system ("system"), On; the system's own switch counts only when followed */
+const rmSys=()=>{const o=window.bsPlatform&&bsPlatform.os;return o==="android"?"Android":o==="linux"?"the system":"Windows"};
+const rmSysOff=()=>{try{return matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return false}};
+const rmOn=()=>{const v=gp("ui.reduceMotion");return v===true||(v==="system"&&rmSysOff())};
 const smOn=()=>!!(window.bsPlatform&&bsPlatform.has("winMode"))&&gp("ui.seamless")!==false;
 const smMode=()=>{const m=gp("ui.screenMode");return m==="window"||m==="full"?m:gp("ui.startFullscreen")===false?"window":"full"};
 const F=(label,path,kind,info,x={})=>({t:"path",label,kind,info,...bindv(path,""),d:undefined,...x});
@@ -247,7 +251,7 @@ function build(){
       T("Hide the taskbar during games","ui.hideTaskbar",true,"Nothing but RustyShelf and your game on screen: the Windows taskbar on the screen RustyShelf is on is hidden while a game starts, runs and closes, and comes back on the shelf. Your other screens keep theirs.",{keys:"taskbar windows bar immersion flash desktop start menu",when:()=>!(smOn()&&smMode()==="window")}),
       C("Screen","ui.display",()=>displays,"","Which screen RustyShelf opens on, for a PC with both a monitor and a TV. Games open on the same screen.",{when:()=>!!(displays&&displays.length),keys:"monitor tv hdmi output display second",live:v=>{if(api.moveToDisplay){const d=(displays||[]).find(x=>x[0]===v);Promise.resolve(api.moveToDisplay(v||(d&&d[2])||"")).catch(e=>toast(errMsg(e)))}}}),
       S("Fit to TV","ui.safeArea",100,90,100,1,v=>v+"%","Shrinks everything slightly if your TV cuts off the edges of the picture (overscan). Watch the corners of the screen while you change it.",{keys:"overscan safe area edges cut off zoom",live:v=>{applyUi({safeArea:v});fit()}}),
-      T("Reduce motion","ui.reduceMotion",false,"Tones down the startup ripple, the museum walk-in and the moving theme backgrounds.",{keys:"animation accessibility motion sickness",live:v=>{applyUi({reduceMotion:v});document.body.classList.toggle("bss-reduce",!!v)}}),
+      C("Reduce motion","ui.reduceMotion",[[false,"Off"],["system","Follow "+rmSys()],[true,"On"]],false,"On tones down the startup ripple, the museum walk-in and the moving theme backgrounds (the shelf still slides)."+(rmSysOff()?` ${rmSys().replace(/^t/,"T")}'s animation effects are off: Follow ${rmSys()} would tone RustyShelf down too.`:""),{keys:"animation accessibility motion sickness effects windows",live:v=>{applyUi({reduceMotion:v});document.body.classList.toggle("bss-reduce",rmOn())}}),
       C("Box shine","ui.boxShine",[["on","On"],["less","Less"],["off","Off"]],"on","The shine that glides over the box front when you stop on a game. Less leaves it to the landed game; Off turns it off completely.",{keys:"box shine sheen gloss glare glossiness light reflection finish cover",live:v=>applyUi({boxShine:v})}),
     ]),
   ]},
@@ -1607,7 +1611,7 @@ function prep(inf,opts){opts=opts||{};ensureDom();openId++;info=inf;cfg=clone(in
   studioClear();sRet=0;sInfo=null;sInfoBusy=false;sGames={};sCands={};sSets={};sBusy={};needRescan=false;raChanged=false;pending=false;raEmu=null;emuAsk=null;listSig="";edit=null;grab=null;results=null;query="";preSearch=null;sub=null;secI=0;rowI=0;ci=0;focus="side";infoOpen=false;det=null;ipl=null;pathOk={};status={};askT={};displays=null;outputs=null;hidden=null;readWhere=null;readOld=null;mInfo=null;mInfoBusy=false;mGames={};mCands={};mBusy={};mMsg={};
   device=document.body.classList.contains("pad-input")?"pad":"key";
   try{const g=window.BS_activePad?window.BS_activePad():[...(navigator.getGamepads?navigator.getGamepads():[])].find(x=>x&&x.connected);if(g)padId=g.id}catch{}
-  document.body.classList.toggle("bss-reduce",gp("ui.reduceMotion")===true);
+  document.body.classList.toggle("bss-reduce",rmOn());
   applyTint();build();route(opts.page,opts)}
 function show(inf,opts){if(window.Shelf&&Shelf.previewStop)Shelf.previewStop(); /* (beta.7: a playing preview ends when Settings opens) */prep(inf,opts);E.osk.classList.remove("on");root.classList.add("on");root.setAttribute("aria-hidden","false");isOpen=true;active=true;cover(true);fit();render();startPoll();loadAsync();
 }

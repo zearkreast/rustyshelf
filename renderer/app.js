@@ -41,11 +41,11 @@ const APP_HUE={stremio:265,nuvio:200};
 const ANDROID=!!(window.bsPlatform&&bsPlatform.os==="android");
 let fxOn=true;
 let glowEls=null,lastGlow="",letterAnim=null;
-let reduceMotion=false; // Settings → Display → Reduce motion (on top of the system's own setting)
+let reduceMotion=false,rmPref=false; // Settings → Display → Reduce motion: Off (false, the default: every effect), On (true), Follow Windows ("system"); reduceMotion is the result
 const PADMAP={swap:false};window.BS_PAD={confirm:0,back:1}; // Settings → Controller → Confirm button (see applyConfirm)
 // Scroll speed: how soon a held direction starts repeating on the shelf (and the museum wall), and how fast it goes
 const SCROLL={relaxed:{f:1.4,kbd:95},normal:{f:1,kbd:0},fast:{f:.7,kbd:0}};let scrollCfg=SCROLL.normal,kbdMoveAt=0;
-const reducedMQ=matchMedia("(prefers-reduced-motion: reduce)"),reduced=()=>reduceMotion||reducedMQ.matches;
+const reducedMQ=matchMedia("(prefers-reduced-motion: reduce)"),reduced=()=>reduceMotion; /* (beta.12) Windows' own "Animation effects" switch counts only under Follow Windows: off by itself it made the shelf jump from game to game */
 let shelves=[],sysIdx=0,sel=0,flipped=false,spin=0,mode="browse",inputMode="kbd",soundOn=true,touchBack=false; /* touchBack: see BS_TOUCH.back */
 let slots=[],bw=240,bh=340,bd=24,OS=1,themes={},cfgInfo=null;
 const cur=()=>shelves[sysIdx];
@@ -4647,7 +4647,9 @@ const uiNow=()=>(cfgInfo&&cfgInfo.config.ui)||{};
 let safeScale=1;
 function applySafeArea(p){p=+p;if(!(p>=90&&p<=100))p=100;const s=Math.round(p)/100;if(s===safeScale)return;safeScale=s;
   const r=document.documentElement.style;r.setProperty("--safe",String(s));r.setProperty("--safe-inv",(1/s).toFixed(5));document.body.classList.toggle("safe-area",s<1)}
-function applyReduceMotion(on){on=!!on;if(on===reduceMotion&&document.body.classList.contains("reduce-motion")===on)return;reduceMotion=on;document.body.classList.toggle("reduce-motion",on);if(window.ThemeFx&&ThemeFx.refresh)ThemeFx.refresh()}
+function applyReduceMotion(v){rmPref=v===true?true:v==="system"?"system":false;const on=rmPref===true||(rmPref==="system"&&reducedMQ.matches);
+  if(on===reduceMotion&&document.body.classList.contains("reduce-motion")===on)return;reduceMotion=on;document.body.classList.toggle("reduce-motion",on);document.body.classList.toggle("bss-reduce",on);if(window.ThemeFx&&ThemeFx.refresh)ThemeFx.refresh()}
+reducedMQ.addEventListener("change",()=>{if(rmPref==="system")applyReduceMotion("system")}); /* (Follow Windows: turned on or off there while RustyShelf runs) */
 // Confirm button: "a" (Xbox / PlayStation style: bottom button confirms) or "b" (Nintendo style: the right button
 // confirms). Swapped once, where the controller is read (padView), so every screen (shelf, Details, Inspect, reader,
 // museum, Sort, quick menu, Settings) gets it; the prompts swap with it (glyph / btnWord). window.BS_PAD tells others.
@@ -4704,7 +4706,7 @@ function dimPad(gp,t){let act=false;const bs=gp.buttons;for(let i=0;i<bs.length;
 // Settings → applies one or more ui keys at once (the whole set at start-up)
 function applyUi_(u){
   if("safeArea" in u)applySafeArea(u.safeArea);
-  if("reduceMotion" in u)applyReduceMotion(u.reduceMotion===true);
+  if("reduceMotion" in u)applyReduceMotion(u.reduceMotion);
   // (beta.11) the light that sweeps over a box when it lands: on (default), less (only once you stay on a box a moment), off
   if("boxShine" in u){const v=u.boxShine==="off"||u.boxShine==="less"?u.boxShine:"on";document.body.classList.toggle("shine-off",v==="off");document.body.classList.toggle("shine-less",v==="less")}
   if("clock" in u||"clock24" in u)clock();

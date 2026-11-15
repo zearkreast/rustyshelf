@@ -345,10 +345,9 @@ body.aside *,body.aside *::before,body.aside *::after{animation-play-state:pause
   .details{width:100%;top:46%;border-left:0;border-top:1px solid var(--line);padding-top:24px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
   .hint{padding:4px 7px;font-size:11px;gap:5px}
 }
-@media (prefers-reduced-motion:reduce){
-  .slot,.box,#scene,.bg-layer,.details{transition-duration:.01s!important}
-  .letter-flash.go,.info.swap .g-title,.info.swap .g-meta,.sel-halo,.slot.landed .sheen::after{animation:none}
-}
+/* (beta.12) Reduce motion follows RustyShelf's own setting (body.reduce-motion: On, or Follow Windows with Windows'
+   animation effects off), never Windows by itself: the shelf still slides from game to game (it used to jump) */
+body.reduce-motion .letter-flash.go,body.reduce-motion .info.swap .g-title,body.reduce-motion .info.swap .g-meta,body.reduce-motion .sel-halo,body.reduce-motion .slot.landed .sheen::after{animation:none}
 
 /* ---------- colour themes (the wash itself is painted from app.js; these add each theme's ambient layer) ---------- */
 .theme-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;display:none}
@@ -365,7 +364,7 @@ body.theme-aurora .theme-fx i:nth-child(3){top:-6%;background:linear-gradient(90
 @keyframes aurA{from{transform:translateX(-8%) rotate(-4deg) scaleY(.8)}to{transform:translateX(8%) rotate(3deg) scaleY(1.15)}}
 @keyframes aurB{from{transform:translateX(10%) rotate(5deg)}to{transform:translateX(-10%) rotate(-3deg) scaleY(1.2)}}
 body:not(.fx) .theme-fx i{animation:none!important}
-@media (prefers-reduced-motion:reduce){.theme-fx i{animation:none!important}}
+body.reduce-motion .theme-fx i{animation:none!important}
 #app.bg-art .theme-fx{display:none}
 
 /* ---------- volume beside the clock ---------- */
@@ -504,7 +503,7 @@ body.pad-input,body.pad-input *{cursor:none!important}
 @keyframes lFloat{from{transform:translateY(0)}to{transform:translateY(-8px)}}
 @keyframes lGlare{to{left:140%}}
 @keyframes lUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.l-bg img,.l-card,.l-glare{animation:none!important}}
+body.reduce-motion .l-bg img,body.reduce-motion .l-card,body.reduce-motion .l-glare{animation:none!important}
 
 /* the console tabs stay put in the centre whatever the brand corner shows ("GameCube" vs "PS3"): a 3-column grid
    instead of space-between, which re-centred the tabs every time the brand's width changed */

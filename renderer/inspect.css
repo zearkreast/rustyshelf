@@ -98,7 +98,7 @@ body.reduce-motion .slot.held .face{transition:opacity .18s}
 .isp-title{font-size:clamp(20px,2.4vw,34px);font-weight:500;text-align:center;text-shadow:0 2px 20px rgba(0,0,0,.5)}
 .isp-step{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-dim)}
 .isp-hints{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 6px;padding:6px 8px;border-radius:999px;background:rgba(10,12,22,.78);border:1px solid var(--line);pointer-events:auto;max-width:100%}
-@media (prefers-reduced-motion:reduce){.isp-case,.isp-lid,.isp-disc{transition-duration:.01s}.inspect.out .isp-disc-top{animation:none}}
+body.reduce-motion .isp-case,body.reduce-motion .isp-lid,body.reduce-motion .isp-disc{transition-duration:.01s}body.reduce-motion .inspect.out .isp-disc-top{animation:none}
 
 /* museum: the whole collection as a shelving wall */
 .museum{position:absolute;inset:0;z-index:20;opacity:0;pointer-events:none;transition:opacity .6s,visibility 0s .6s;visibility:hidden;background:#06070c;will-change:opacity} /* its own layer: the fade runs on the graphics side. Hidden once faded out: a will-change layer at opacity 0 is still drawn, every frame, over the whole screen */

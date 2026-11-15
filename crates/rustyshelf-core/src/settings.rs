@@ -501,10 +501,12 @@ pub fn sanitize(cfg: &mut Value) {
             ui.insert(k.to_string(), d[*k].clone());
         }
     }
-    for k in ["clock24", "reduceMotion"] {
-        if !ui.get(k).is_some_and(Value::is_boolean) {
-            ui.insert(k.into(), d[k].clone());
-        }
+    if !ui.get("clock24").is_some_and(Value::is_boolean) {
+        ui.insert("clock24".into(), d["clock24"].clone());
+    }
+    // Reduce motion: false Off, true On, "system" Follow Windows
+    if !ui.get("reduceMotion").is_some_and(|v| v.is_boolean() || v == "system") {
+        ui.insert("reduceMotion".into(), d["reduceMotion"].clone());
     }
     bool_or(ui, "seamless", true);
     let vol = written(ui.get("trailerVol")).filter(|n| (0.0..=1.0).contains(n)).unwrap_or(0.7);

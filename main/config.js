@@ -252,7 +252,9 @@ function sanitize(cfg) {
     pending: [...new Set((Array.isArray(e.pending) ? e.pending : []).filter(x => typeof x === 'string' && x && x.length <= 1024))].slice(0, 40) }; }
   cfg.emuSeen = Array.isArray(cfg.emuSeen) ? [...new Set(cfg.emuSeen.filter(x => typeof x === 'string' && x && x.length <= 1024))].slice(0, 20) : [];
   for (const [k, list] of Object.entries(ONE_OF)) if (!list.includes(ui[k])) ui[k] = d[k];
-  for (const k of ['clock24', 'reduceMotion']) if (typeof ui[k] !== 'boolean') ui[k] = d[k];
+  if (typeof ui.clock24 !== 'boolean') ui.clock24 = d.clock24;
+  // (beta.12) Reduce motion: false Off (every effect, whatever the system says), true On, 'system' Follow Windows
+  if (typeof ui.reduceMotion !== 'boolean' && ui.reduceMotion !== 'system') ui.reduceMotion = d.reduceMotion;
   // (upstream beta.12) Seamless play (main/seamless.js): on unless turned off; the screen mode ('' = never chosen: Start in
   // fullscreen decides); Window mode's last place and size
   if (typeof ui.seamless !== 'boolean') ui.seamless = true;

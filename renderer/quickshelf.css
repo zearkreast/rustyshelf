@@ -102,4 +102,4 @@ body.perf-low .qm{background:rgba(10,12,20,.94)!important;backdrop-filter:none;-
 #app.qm-open .hud-top>.right{opacity:0;pointer-events:none}
 
 /* Windows' own "show animations" switch off: the same quick fades as RustyShelf's Reduce motion */
-@media (prefers-reduced-motion:reduce){.qm,.qm-hl,.qm-sub,.qm-act,.qm-opt,#app.qm-open #scene{transition-duration:.12s!important}}
+body.reduce-motion .qm,body.reduce-motion .qm-hl,body.reduce-motion .qm-sub,body.reduce-motion .qm-act,body.reduce-motion .qm-opt,body.reduce-motion #app.qm-open #scene{transition-duration:.12s!important}
