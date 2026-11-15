@@ -52,17 +52,50 @@ dist/
 *.pkg
 *.bin
 *.rustyshelf-bak
+*.apk
+*.aab
+*.AppImage
+*.pdb
+# test and report output
+linux-test-out/
+community-report/
+test-results/
+playwright-report/
+# caches, editors, the OS
+__pycache__/
+*.pyc
+*.rs.bk
+*.blend1
+*.tmp
+*.swp
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+# secrets and signing keys
 .env
-CLAUDE.md
-CLAUDE.local.md
-HANDOFF.md
-.claude/
+.env.*
 *.key
+*.pem
+*.p12
+*.pfx
 keys.txt
 prod.keys
 title.keys
 *.keystore
 *.jks
+# local notes and AI assistant files
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+MEMORY.md
+memories.md
+HANDOFF.md
+.claude/
+.cursor/
+.mcp.json
 # the 3D PC model isn't part of the public source (its origin isn't recorded)
 renderer/models/*.glb
 # (RustyShelf issue 26) the ScreenScraper developer login CI writes from secrets: never in git
