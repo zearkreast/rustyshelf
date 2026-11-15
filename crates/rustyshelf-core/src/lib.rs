@@ -51,6 +51,7 @@ pub mod pcfolder;
 pub mod pcgames;
 pub mod pkg;
 pub mod presence;
+pub mod provenance;
 pub mod ra;
 pub mod racores;
 pub mod raemu;

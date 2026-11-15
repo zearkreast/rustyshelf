@@ -2402,3 +2402,56 @@ fn wikiart_matches_electron() {
     assert_eq!((&got[0]["source"], &got[0]["label"], &got[0]["type"], &got[0]["ext"]), (&serde_json::json!("mariowiki"), &serde_json::json!("Super Mario Wiki · Zeta Run box NA"), &serde_json::json!("Box - Front"), &serde_json::json!(".png")));
     assert!(rustyshelf_core::artstudio::candidates("switch", "Zeta Run", Path::new("/roms/Zeta Run.nsp"), "front", &from).is_empty());
 }
+
+#[test]
+fn provenance_matches_electron() {
+    use rustyshelf_core::provenance;
+    let fx = fixture("provenance.json");
+    let tmp = tempfile::tempdir().unwrap();
+    let (data, art) = (tmp.path().join("data"), tmp.path().join("roms").join("covers"));
+    fs::create_dir_all(&data).unwrap();
+    fs::create_dir_all(&art).unwrap();
+    let t = fx["t"].as_u64().unwrap();
+    for (f, v) in fx["files"].as_object().unwrap() {
+        let n = v[0].as_u64().unwrap() as u8;
+        let p = art.join(f);
+        fs::write(&p, vec![n; 100 + n as usize]).unwrap();
+        let at = std::time::UNIX_EPOCH + std::time::Duration::from_millis(t + v[1].as_u64().unwrap());
+        fs::File::options().write(true).open(&p).unwrap().set_modified(at).unwrap();
+    }
+    let root = tmp.path().to_string_lossy().to_lowercase();
+    let put = |v: &Value| -> Value { serde_json::from_str(&v.to_string().replace("<tmp>", &root)).unwrap() };
+    let back = |v: Value| -> Value { serde_json::from_str(&v.to_string().replace(&root, "<tmp>")).unwrap() };
+    fs::write(data.join("art-provenance.json"), put(&fx["prov"]).to_string()).unwrap();
+    provenance::init(&data);
+    for o in fx["origins"].as_array().unwrap() {
+        let p = art.join(o[0].as_str().unwrap());
+        let got = serde_json::json!([o[0], provenance::origin_of(&p), provenance::may_replace(&p, false), provenance::may_replace(&p, true), provenance::is_poster(&p)]);
+        assert_eq!(&got, o);
+    }
+    provenance::copied(&art.join("auto.png"), &art.join("hand.png"));
+    provenance::copied(&art.join("own.png"), &art.join("touched.png"));
+    provenance::copied(&art.join("legacy.png"), &art.join("late.png"));
+    provenance::flush();
+    let mut saved: Value = serde_json::from_slice(&fs::read(data.join("art-provenance.json")).unwrap()).unwrap();
+    // (other tests place pictures at the same time: theirs are on record too)
+    for m in ["files", "base"] {
+        saved[m].as_object_mut().unwrap().retain(|k, _| k.starts_with(&root));
+    }
+    assert_eq!(back(saved).to_string(), fx["after"].to_string());
+    // the first look is made once: a picture with the very bytes of one the Art Studio downloaded is RustyShelf's
+    let other = tempfile::tempdir().unwrap();
+    let (d2, cand) = (other.path().join("data"), other.path().join("data").join("art-cand"));
+    fs::create_dir_all(&cand).unwrap();
+    let (a, b) = (other.path().join("a.png"), other.path().join("b.png"));
+    fs::write(&a, b"one picture").unwrap();
+    fs::write(&b, b"another one").unwrap();
+    fs::write(cand.join("0123.png"), b"one picture").unwrap();
+    provenance::init(&d2);
+    assert!(!provenance::looked());
+    assert_eq!(provenance::first_look(&[a.clone(), b.clone(), b.clone()], &cand, 5), (1, 1));
+    assert_eq!((provenance::origin_of(&a), provenance::origin_of(&b), provenance::may_replace(&b, true)), (Some("rustyshelf"), Some("legacy"), true));
+    assert_eq!(provenance::first_look(&[a], &cand, 6), (0, 0));
+    let kept: Value = serde_json::from_slice(&fs::read(d2.join("art-provenance.json")).unwrap()).unwrap();
+    assert_eq!(kept["at"], 5);
+}

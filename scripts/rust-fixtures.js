@@ -1565,6 +1565,27 @@ async function wikiartFixtures() {
   fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }
+async function provenanceFixtures() {
+  const A = require('../main/artstudio'), covers = require('../main/covers'), out = {};
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-prov-')), data = path.join(tmp, 'data'), art = path.join(tmp, 'roms', 'covers');
+  for (const d of [data, art]) fs.mkdirSync(d, { recursive: true });
+  const T = 1767225600000; // 1 Jan 2026
+  const files = { 'auto.png': [10, 0], 'own.png': [11, 0], 'poster.png': [12, 0], 'legacy.png': [13, 0], 'hand.png': [14, 0], 'touched.png': [15, 0], 'late.png': [16, 1500], 'later.png': [17, 2500], 'grown.png': [18, 0] };
+  for (const [f, [n, late]] of Object.entries(files)) { const p = path.join(art, f); fs.writeFileSync(p, Buffer.alloc(100 + n, n)); fs.utimesSync(p, new Date(T), new Date(T + late)); }
+  const k = f => path.resolve(path.join(art, f)).toLowerCase(), size = f => 100 + files[f][0];
+  const prov = { v: 1, at: T, files: { [k('auto.png')]: ['auto', size('auto.png'), T], [k('own.png')]: ['own', size('own.png'), T], [k('poster.png')]: ['poster', size('poster.png'), T], [k('touched.png')]: ['studio', size('touched.png'), T - 5000],
+    [k('late.png')]: ['auto', size('late.png'), T], [k('later.png')]: ['auto', size('later.png'), T], [k('grown.png')]: ['auto', 1, T], [k('gone.png')]: ['auto', 1, T] }, base: { [k('legacy.png')]: [size('legacy.png'), T], [k('hand.png')]: [1, T] } };
+  fs.writeFileSync(path.join(data, 'art-provenance.json'), JSON.stringify(prov));
+  A.init({ dataDir: data, log() {}, getCfg: () => ({ ui: {}, art: { styles: {}, locks: {} } }), setArt() {}, consoles: () => [], pruneDelay: 1e9, migrateDelay: 1e9 });
+  const rel = v => JSON.parse(JSON.stringify(v).split(tmp.toLowerCase()).join('<tmp>'));
+  out.prov = rel(prov); out.files = files; out.t = T;
+  const names = [...Object.keys(files), 'gone.png'];
+  out.origins = names.map(f => { const p = path.join(art, f); return [f, A.originOf(p), A.mayReplace(p, false), A.mayReplace(p, true), A.isPoster(p)]; });
+  A.copied(path.join(art, 'auto.png'), path.join(art, 'hand.png')); A.copied(path.join(art, 'own.png'), path.join(art, 'touched.png')); A.copied(path.join(art, 'legacy.png'), path.join(art, 'late.png'));
+  out.after = rel(A._t.provGet());
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1579,6 +1600,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'pcach.json'), JSON.stringify(await pcachFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'pads.json'), JSON.stringify(padsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'manualcoll.json'), JSON.stringify(await manualcollFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'provenance.json'), JSON.stringify(await provenanceFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'wikiart.json'), JSON.stringify(await wikiartFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'artstudio.json'), JSON.stringify(await artstudioFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');

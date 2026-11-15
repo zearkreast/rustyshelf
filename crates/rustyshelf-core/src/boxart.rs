@@ -129,6 +129,11 @@ fn art_stamp() -> String {
 /// holds each distinct picture once: an older copy with the very bytes of one just moved there goes. Returns the
 /// picture's file and the files moved.
 pub fn place_art(dir: &Path, base: &str, suffix: &str, src: &Path, ext: &str) -> std::io::Result<(PathBuf, Vec<PathBuf>)> {
+    place_art_as(dir, base, suffix, src, ext, "auto")
+}
+
+/// [`place_art`], with the picture on record (`crate::provenance`) as from `origin`.
+pub fn place_art_as(dir: &Path, base: &str, suffix: &str, src: &Path, ext: &str, origin: &str) -> std::io::Result<(PathBuf, Vec<PathBuf>)> {
     let (dest, old, stamp) = (dir.join(format!("{base}{suffix}{ext}")), dir.join(REPLACED), art_stamp());
     let mut moved: Vec<(PathBuf, PathBuf)> = Vec::new();
     let mut put = || -> std::io::Result<()> {
@@ -164,6 +169,7 @@ pub fn place_art(dir: &Path, base: &str, suffix: &str, src: &Path, ext: &str) ->
     if let Ok(f) = std::fs::File::options().write(true).open(&dest) {
         let _ = f.set_modified(std::time::SystemTime::now());
     }
+    crate::provenance::record(&dest, origin);
     if !moved.is_empty() {
         let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
         let others: Vec<PathBuf> = covers::replaced_for(&names, base, suffix).into_iter().map(|(n, _)| old.join(n)).filter(|f| !moved.iter().any(|m| same_path(&m.1, f))).collect();

@@ -196,6 +196,7 @@ impl Library {
     pub fn load_from(app_root: &Path) -> Result<Library, LoadError> {
         let data_dir = paths::data_dir(app_root);
         let config = Config::load(&data_dir)?;
+        crate::provenance::init(&data_dir);
         let lib = ArtLibrary::from_config(&config, app_root);
         let data = ScanData::load(&data_dir);
         let retroarch = config.retroarch();
@@ -313,6 +314,12 @@ pub fn upkeep(lib: &Library) -> bool {
     }
     changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
     changed |= steam_fill(lib, &data_dir);
+    // (before any picture is replaced: an HD upgrade asks it)
+    if !crate::provenance::looked() {
+        let art: Vec<PathBuf> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).flat_map(|s| &s.games).flat_map(|g| [&g.art.front, &g.art.back, &g.art.spine, &g.art.disc]).flatten().cloned().collect();
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+        crate::provenance::first_look(&art, &data_dir.join("art-cand"), now);
+    }
     changed |= auto_covers(lib, &data_dir);
     changed | auto_manuals(lib, &data_dir)
 }

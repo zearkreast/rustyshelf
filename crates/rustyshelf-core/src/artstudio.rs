@@ -718,7 +718,7 @@ impl Studio {
         // out of replaced\ first: it mustn't be taken for an old one there
         let inc = Self::incoming(g, part, &ext, now);
         std::fs::rename(file, &inc).map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { "That earlier picture is no longer there.".to_string() } else { e.to_string() })?;
-        match crate::boxart::place_art(&g.dir, &g.base, suffix(part), &inc, &ext) {
+        match crate::boxart::place_art_as(&g.dir, &g.base, suffix(part), &inc, &ext, "restored") {
             Ok((dest, _)) => {
                 g.current[part_index(part)] = Some(dest);
                 Ok(true)
@@ -747,7 +747,7 @@ impl Studio {
         std::fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
         let inc = Self::incoming(g, part, &c.ext, now);
         std::fs::copy(&src, &inc).map_err(|e| e.to_string())?;
-        match crate::boxart::place_art(&g.dir, &g.base, suffix(part), &inc, &c.ext) {
+        match crate::boxart::place_art_as(&g.dir, &g.base, suffix(part), &inc, &c.ext, "studio") {
             Ok((dest, _)) => {
                 g.current[part_index(part)] = Some(dest);
                 Ok(true)
@@ -857,7 +857,7 @@ impl Studio {
         } else {
             std::fs::copy(src, &inc).map(|_| ())
         };
-        let placed = made.and_then(|()| crate::boxart::place_art(&g.dir, &g.base, suffix(part), &inc, if cut { ".jpg" } else { ext }));
+        let placed = made.and_then(|()| crate::boxart::place_art_as(&g.dir, &g.base, suffix(part), &inc, if cut { ".jpg" } else { ext }, "own"));
         match placed {
             Ok((dest, _)) => {
                 g.current[i] = Some(dest);
