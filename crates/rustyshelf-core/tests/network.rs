@@ -24,7 +24,7 @@ fn steam_art_downloads() {
     let (covers, other) = fill(tmp.path(), &games);
     assert_eq!((covers, other), (1, 2));
     let there = |f: &str| tmp.path().join(f).exists();
-    assert!(there("steam-art/620_cover.jpg") && there("steam-art/620_hero.jpg") && there("steam-art/4294967000.missing") && there("steam-art/4294967000_hero.missing"));
+    assert!(there("steam-art/620_cover.jpg") && there("steam-art/620_hero.jpg") && there("steam-art/4294967000.nocover") && there("steam-art/4294967000_hero.nocover"));
     let info: serde_json::Value = serde_json::from_slice(&std::fs::read(tmp.path().join("steam-info.json")).unwrap()).unwrap();
     assert_eq!((info["620"]["ok"].as_bool(), info["4294967000"]["ok"].as_bool()), (Some(true), Some(false)));
     assert!(info["620"]["release"].as_str().is_some_and(|r| r.len() == 10) && info["620"]["shots"].as_array().is_some_and(|s| !s.is_empty()));

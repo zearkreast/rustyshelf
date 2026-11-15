@@ -21,7 +21,7 @@ const asset = (id, name) => [
   `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${id}/${name}`,
   `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${name}`
 ];
-const coverFile = id => path.join(dir, `${id}_cover.jpg`), heroFile = id => path.join(dir, `${id}_hero.jpg`), missFile = id => path.join(dir, `${id}.missing`);
+const coverFile = id => path.join(dir, `${id}_cover.jpg`), heroFile = id => path.join(dir, `${id}_hero.jpg`), missFile = id => path.join(dir, `${id}.nocover`); // (fork) new name: the old ".missing" marks were set before the store-assets lookup below and are ignored
 
 // Art RustyShelf has already downloaded for this game (used when Steam's own cache has none)
 function local(appid) { return { front: isFile(coverFile(appid)) ? coverFile(appid) : null, hero: isFile(heroFile(appid)) ? heroFile(appid) : null }; }
@@ -41,6 +41,17 @@ async function save(urls, dest) {
   for (const u of urls) { try { const b = await fetchBuf(u); if (b && !require('./imgcheck').isImageBuf(b)) { err = true; continue; } if (b) { fs.mkdirSync(dir, { recursive: true }); try { fs.writeFileSync(dest + '.part', b); fs.renameSync(dest + '.part', dest); } catch (e) { try { fs.unlinkSync(dest + '.part'); } catch {} throw e; } return 'ok'; } } catch { err = true; } }
   return err ? 'error' : 'missing';
 }
+// Newer games keep their art under a hashed folder (steam/apps/<id>/<hash>/library_capsule.jpg): the plain addresses
+// above answer 404 for them. Steam's public store API names the real files.
+async function storeAssets(id) {
+  try {
+    const q = encodeURIComponent(JSON.stringify({ ids: [{ appid: +id }], data_request: { include_assets: true } }));
+    const r = await net.fetch(`https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=${q}`, { headers: { 'User-Agent': 'RustyShelf' }, cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    const it = (((await r.json()) || {}).response || {}).store_items; return (it && it[0] && it[0].assets) || null;
+  } catch { return null; }
+}
+const fromAssets = (id, a, keys) => keys.map(k => a && a[k]).filter(n => typeof n === 'string' && /^[\w./-]+$/.test(n)).flatMap(n => asset(id, n));
 function recentlyMissed(id) { try { return Date.now() - fs.statSync(missFile(id)).mtimeMs < RETRY; } catch { return false; } }
 
 // Store info in the same shape as the LaunchBox info the console shelves get, plus metacritic
@@ -74,13 +85,15 @@ async function fill(games) {
   for (const g of need) {
     const id = g.appid;
     if (!g.art.front && !isFile(coverFile(id)) && !recentlyMissed(id)) {
-      const r = await save(asset(id, 'library_600x900_2x.jpg').concat(asset(id, 'library_600x900.jpg')), coverFile(id));
+      let r = await save(asset(id, 'library_600x900_2x.jpg').concat(asset(id, 'library_600x900.jpg')), coverFile(id));
+      if (r === 'missing') { const a = await storeAssets(id), more = fromAssets(id, a, ['library_capsule_2x', 'library_capsule']); if (more.length) r = await save(more, coverFile(id)); } // hashed store art
       if (r === 'ok') covers++;
       else if (r === 'missing') { try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(missFile(id), ''); } catch {} log('steam cover: none on the CDN for', id, g.title); }
       else { log('steam art: network trouble, trying again next launch'); break; } // offline: don't mark anything, don't hammer
     }
     if (!g.art.hero && !isFile(heroFile(id)) && !recentlyMissed(id + '_hero')) {
-      const r = await save(asset(id, 'library_hero.jpg'), heroFile(id));
+      let r = await save(asset(id, 'library_hero.jpg'), heroFile(id));
+      if (r === 'missing') { const a = await storeAssets(id), more = fromAssets(id, a, ['library_hero_2x', 'library_hero']); if (more.length) r = await save(more, heroFile(id)); } // hashed store art
       if (r === 'ok') other++;
       else if (r === 'missing') { try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(missFile(id + '_hero'), ''); } catch {} } // the folder may not exist yet: without it the marker was lost and the lookup repeated every launch
       else break;

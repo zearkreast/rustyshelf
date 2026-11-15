@@ -103,6 +103,18 @@ fn release_date(rel: &str) -> (String, String) {
 }
 
 /// The store's page for an app as the entry kept for it; None when the store couldn't be asked.
+/// Newer games keep their art under a hashed folder (steam/apps/<id>/<hash>/library_capsule.jpg): the plain
+/// addresses answer 404 for them. Steam's public store API names the real files: the addresses of the first of `keys`
+/// it has.
+fn store_assets(id: &str, keys: &[&str]) -> Vec<String> {
+    static NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[\w./-]+$").unwrap());
+    let Ok(n) = id.parse::<u64>() else { return Vec::new() };
+    let q = js::encode_uri_component(&json!({ "ids": [{ "appid": n }], "data_request": { "include_assets": true } }).to_string());
+    let Ok(j) = crate::net::get_json(&format!("https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json={q}"), Duration::from_secs(15)) else { return Vec::new() };
+    let a = &j["response"]["store_items"][0]["assets"];
+    keys.iter().filter_map(|k| a[*k].as_str()).filter(|n| NAME.is_match(n)).flat_map(|n| asset(id, n)).collect()
+}
+
 fn fetch_info(appid: &str) -> Option<Value> {
     static TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new("<[^>]+>").unwrap());
     let j = crate::net::get_json(&format!("https://store.steampowered.com/api/appdetails?appids={appid}&l=english"), Duration::from_secs(20)).ok()?;
@@ -174,7 +186,8 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
         let mut tried = TRIED.lock().unwrap();
         games.iter().filter(|g| tried.insert(g.appid.clone())).collect()
     };
-    let missed = |name: &str| dir.join(format!("{name}.missing"));
+    // (".nocover": a ".missing" mark was set before the store API was asked, and isn't trusted)
+    let missed = |name: &str| dir.join(format!("{name}.nocover"));
     let recently_missed = |name: &str| {
         let at = missed(name).metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok());
         at.is_some_and(|t| (now() as f64 - t.as_millis() as f64) < RETRY)
@@ -188,7 +201,14 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
         let (cover, hero) = (dir.join(format!("{id}_cover.jpg")), dir.join(format!("{id}_hero.jpg")));
         if !g.has_front && !is_file(&cover) && !recently_missed(id) {
             let urls = [asset(id, "library_600x900_2x.jpg"), asset(id, "library_600x900.jpg")].concat();
-            match save(&urls, &cover) {
+            let mut got = save(&urls, &cover);
+            if matches!(got, Saved::Missing) {
+                let more = store_assets(id, &["library_capsule_2x", "library_capsule"]);
+                if !more.is_empty() {
+                    got = save(&more, &cover);
+                }
+            }
+            match got {
                 Saved::Ok => covers += 1,
                 Saved::Missing => remember(id),
                 // offline: nothing is marked, the CDN isn't hammered
@@ -197,7 +217,14 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
         }
         let hero_mark = format!("{id}_hero");
         if !g.has_hero && !is_file(&hero) && !recently_missed(&hero_mark) {
-            match save(&asset(id, "library_hero.jpg"), &hero) {
+            let mut got = save(&asset(id, "library_hero.jpg"), &hero);
+            if matches!(got, Saved::Missing) {
+                let more = store_assets(id, &["library_hero_2x", "library_hero"]);
+                if !more.is_empty() {
+                    got = save(&more, &hero);
+                }
+            }
+            match got {
                 Saved::Ok => other += 1,
                 Saved::Missing => remember(&hero_mark),
                 Saved::Error => break,
