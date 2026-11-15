@@ -695,8 +695,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   freely with the arrows or a stick, tipped, flipped to its other side and brought nearer or further; M reads
   its manual, Enter plays it, Escape puts it back. The case doesn't open yet.
 - Has the Art Studio's picker (Details → Box art): for a console game's front, back, spine and disc, every
-  version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps) and, on Switch 2, the
-  Super Mario Wiki's box, the picture in use
+  version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps), on Switch 2 the
+  Super Mario Wiki's box, with your own account ScreenScraper's scans and with your own key SteamGridDB's posters
+  for the front (only the HD look picks one by itself), the picture in use
   and the ones replaced before it, the best for the console's style first by the Electron app's own points
   (authentic, HD, a region, special edition), each shown beside the list as it's highlighted. Enter puts one in
   use: the old picture goes to `replaced` beside it, never deleted, a spine or a back is cut from a full wrap
@@ -721,7 +722,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (ScreenScraper's scans and SteamGridDB's posters among the versions, backs and spines made by RustyShelf), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
+rest of the Art Studio (backs and spines made by RustyShelf among the versions), the Manual Studio, opening the case in Inspect (its disc and its manual inside) and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started
 yet, and Android isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.

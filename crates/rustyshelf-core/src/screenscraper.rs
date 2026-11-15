@@ -410,6 +410,16 @@ impl ScreenScraper {
         self.state.lock().unwrap().creds.settled()
     }
 
+    /// The account kept in Settings (`data/config.json`), or None when there's none.
+    pub fn from_settings(data_dir: &Path) -> Option<ScreenScraper> {
+        let cfg = crate::config::Config::load(data_dir).ok()?;
+        let seal = crate::seal::key(&crate::paths::env_var);
+        let k = |n: &str| cfg.api_key(n, seal.as_ref());
+        let site = ScreenScraper::new(data_dir);
+        site.set_creds(Creds { user: k("ssUser"), pass: k("ssPass"), dev_id: k("ssDevId"), dev_pass: k("ssDevPass") });
+        site.configured().then_some(site)
+    }
+
     pub fn configured(&self) -> bool {
         let c = self.creds();
         !c.user.is_empty() && !c.pass.is_empty()

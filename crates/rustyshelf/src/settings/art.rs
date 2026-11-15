@@ -4,7 +4,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
-use rustyshelf_core::artjob::{self, Job, Remote, Set, SetDone};
+use rustyshelf_core::artjob::{self, Ask, Job, Remote, Set, SetDone};
 use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
 use rustyshelf_core::paths;
 use std::sync::atomic::Ordering;
@@ -77,6 +77,9 @@ fn source_name(source: &str) -> &str {
         "launchbox" => "LaunchBox",
         "libretro" => "libretro",
         "gametdb" => "GameTDB",
+        "steamgriddb" => "SteamGridDB",
+        "screenscraper" => "ScreenScraper",
+        "mariowiki" => "Super Mario Wiki",
         "current" => "In use",
         "earlier" => "Replaced earlier",
         other => other,
@@ -198,7 +201,7 @@ impl Settings {
         let game = g.clone();
         std::thread::spawn(move || {
             let region = style["region"].as_str().unwrap_or("usa");
-            let remote = Remote::new(&data, &game.sys).cands(&game, part, region, true, now_ms());
+            let remote = Remote::new(&data, &game.sys).cands(&game, part, region, Ask { wiki: true, posters: true, ss_cache_only: false }, now_ms());
             let list = Studio::new(&data).list_for(&game, part, remote, now_ms());
             // the best for the console's style first
             let shown: Vec<Cand> = studio::shown(&list).cloned().collect();
@@ -218,7 +221,8 @@ impl Settings {
         std::thread::spawn(move || {
             let (st, mut remote) = (Studio::new(&data), Remote::new(&data, &game.sys));
             let region = style["region"].as_str().unwrap_or("usa");
-            let lists = studio::PARTS.map(|part| st.list_for(&game, part, remote.cands(&game, part, region, true, now_ms()), now_ms()));
+            let ask = Ask { wiki: true, posters: false, ss_cache_only: false };
+            let lists = studio::PARTS.map(|part| st.list_for(&game, part, remote.cands(&game, part, region, ask, now_ms()), now_ms()));
             let _ = tx.send(artjob::build_sets(&style, &game.region, &lists));
         });
         let last = self.art_pick.last_set.take().filter(|l| l.0 == studio::lock_key(&g.sys, &g.file));

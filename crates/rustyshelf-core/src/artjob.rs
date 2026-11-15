@@ -43,23 +43,64 @@ pub fn parts_to_redo(bases: &[Value], after: &Value, lock: &Value, has: [bool; 4
         .collect()
 }
 
-/// The sources' lists for one console's games, read once.
+/// The sources' lists for one console's games, read once; SteamGridDB and ScreenScraper with the user's own key
+/// and account only.
 pub struct Remote {
     cache: PathBuf,
     sys: String,
     index: Option<boxart::Index>,
     libretro: Option<covers::LibretroNames>,
     tdb: Option<serde_json::Map<String, Value>>,
+    sg: Option<crate::steamgrid::SteamGrid>,
+    ss: Option<crate::screenscraper::ScreenScraper>,
+}
+
+/// Which of the slower sources a list asks.
+#[derive(Debug, Clone, Copy)]
+pub struct Ask {
+    /// the Super Mario Wiki (Switch 2)
+    pub wiki: bool,
+    /// SteamGridDB's posters for the front (only HD may pick one)
+    pub posters: bool,
+    /// ScreenScraper from its cache only: a whole console's restyle never spends the account's daily lookups
+    pub ss_cache_only: bool,
 }
 
 impl Remote {
     pub fn new(data_dir: &Path, sys: &str) -> Remote {
         let cache = data_dir.join("boxart-cache");
-        Remote { index: boxart::ready_index(&cache), libretro: boxart::libretro_names(&cache, sys), tdb: if gametdb::has(sys) { gametdb::index(&cache, sys) } else { None }, sys: sys.into(), cache }
+        Remote {
+            index: boxart::ready_index(&cache),
+            libretro: boxart::libretro_names(&cache, sys),
+            tdb: if gametdb::has(sys) { gametdb::index(&cache, sys) } else { None },
+            sg: crate::steamgrid::SteamGrid::from_settings(data_dir),
+            ss: crate::screenscraper::ScreenScraper::from_settings(data_dir),
+            sys: sys.into(),
+            cache,
+        }
     }
 
-    /// Every version the sources have of a part of this game (the Super Mario Wiki asked when `wiki`).
-    pub fn cands(&mut self, g: &GameArt, part: &str, region: &str, wiki: bool, now: f64) -> Vec<Cand> {
+    /// Every version the sources have of a part of this game.
+    pub fn cands(&mut self, g: &GameArt, part: &str, region: &str, ask: Ask, now: f64) -> Vec<Cand> {
+        let mut out = self.listed(g, part, region, ask.wiki, now);
+        if let (Some(sg), true, "front") = (&self.sg, ask.posters, part) {
+            let names = covers::lookup_names(&g.title);
+            for p in sg.posters(&crate::steamgrid::Game { appid: "", title: &g.title, names: &names }) {
+                let label = ["SteamGridDB", p.style_name(), &if p.author.is_empty() { String::new() } else { format!("by {}", p.author) }].into_iter().filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" · ");
+                let hd = p.w.max(p.h) >= 900;
+                out.push(Cand { url: p.url, ext: p.ext.into(), source: "steamgriddb".into(), kind_of: "grid".into(), edition: "original".into(), kind: if hd { "hd" } else { "clean" }.into(), w: Some(p.w), h: Some(p.h), rank: p.rank as f64, label, ..Cand::default() });
+            }
+        }
+        if let Some(ss) = &self.ss {
+            let file = g.file.to_string_lossy();
+            for c in ss.candidates(&g.sys, &crate::screenscraper::Rom { file: &file, title: &g.title, size_bytes: 0 }, part, ask.ss_cache_only, true) {
+                out.push(Cand { url: c.url, ext: c.ext, cut: c.cut.map(String::from), src: c.src, source: "screenscraper".into(), kind_of: c.kind, region: c.region.into(), edition: "original".into(), kind: "scan".into(), label: c.label, ..Cand::default() });
+            }
+        }
+        out
+    }
+
+    fn listed(&mut self, g: &GameArt, part: &str, region: &str, wiki: bool, now: f64) -> Vec<Cand> {
         let shard = covers::launchbox_platform(&self.sys).and_then(|plat| self.index.as_mut()?.platform(plat));
         let names = covers::lookup_names(&g.title);
         let ask = |p: &str| crate::wikiart::find(&self.cache, &g.sys, &names, p, "usa", now, &crate::wikiart::ask);
@@ -92,7 +133,8 @@ impl Studio {
         let mut order: Vec<Cand> = studio::rank_list(&usable, look, &ctx).into_iter().cloned().collect();
         let mut failed: Vec<String> = Vec::new();
         if look == "hd" {
-            let probe: Vec<usize> = order.iter().enumerate().filter(|(_, c)| c.file.is_none() && !c.cached).map(|(i, _)| i).take(4).collect();
+            // (SteamGridDB says its posters' sizes)
+            let probe: Vec<usize> = order.iter().enumerate().filter(|(_, c)| c.file.is_none() && !c.cached && c.source != "steamgriddb").map(|(i, _)| i).take(4).collect();
             for i in probe {
                 if stop() {
                     return None;
@@ -227,7 +269,8 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
                         continue;
                     }
                     let region = after["region"].as_str().unwrap_or("usa");
-                    let lists = PARTS.map(|p| st.list_for(&g, p, remote.lock().unwrap().cands(&g, p, region, true, now()), now()));
+                    let ask = Ask { wiki: true, posters: false, ss_cache_only: true };
+                    let lists = PARTS.map(|p| st.list_for(&g, p, remote.lock().unwrap().cands(&g, p, region, ask, now()), now()));
                     let want_hd = js::truthy(after.get("setsHd"));
                     let set = build_sets(after, &g.region, &lists).into_iter().find(|x| if want_hd { x.hd } else { x.region == region && !x.hd });
                     if let Some(Ok(done)) = set.map(|set| st.apply_set(&mut g, &set, now())) {
@@ -246,7 +289,8 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
                     }
                     let look = studio::look_for(after, part);
                     let region = studio::region_for_look(after, &look, &g.region);
-                    let list = st.list_for(&g, part, remote.lock().unwrap().cands(&g, part, &region, true, now()), now());
+                    let ask = Ask { wiki: true, posters: look == "hd", ss_cache_only: true };
+                    let list = st.list_for(&g, part, remote.lock().unwrap().cands(&g, part, &region, ask, now()), now());
                     let (best, errs) = st.pick_best(&g, &list, &look, after, now(), &stop);
                     net_err.fetch_add(errs, Ordering::Relaxed);
                     let Some((c, _)) = best else {

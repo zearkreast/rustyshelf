@@ -683,6 +683,15 @@ impl Studio {
         }
         std::fs::create_dir_all(&self.cand_dir).map_err(|e| e.to_string())?;
         let get = |to: &Path| -> Result<bool, String> {
+            // (ScreenScraper's addresses are signed with the account as they're fetched)
+            if crate::screenscraper::is_media(&c.url) {
+                let Some(site) = crate::screenscraper::ScreenScraper::from_settings(&self.data_dir) else { return Ok(false) };
+                let got = site.download(&c.url, to)?;
+                if got == crate::screenscraper::Got::Missing {
+                    self.mark_missing(&c.url, now);
+                }
+                return Ok(got == crate::screenscraper::Got::Ok);
+            }
             let got = crate::boxart::download_ex(&c.url, to, false)?;
             if got == crate::boxart::Outcome::Missing {
                 self.mark_missing(&c.url, now);

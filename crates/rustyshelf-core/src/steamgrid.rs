@@ -192,6 +192,15 @@ impl SteamGrid {
         self.state.lock().unwrap().key = key.trim().to_string();
     }
 
+    /// With the key kept in Settings (`data/config.json`), or None when there's none.
+    pub fn from_settings(data_dir: &Path) -> Option<SteamGrid> {
+        let cfg = crate::config::Config::load(data_dir).ok()?;
+        let key = cfg.api_key("steamgriddb", crate::seal::key(&crate::paths::env_var).as_ref());
+        let sg = SteamGrid::new(data_dir);
+        sg.set_key(&key);
+        sg.enabled().then_some(sg)
+    }
+
     pub fn enabled(&self) -> bool {
         let s = self.state.lock().unwrap();
         !s.key.is_empty() && s.key != s.bad
