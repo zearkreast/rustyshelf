@@ -104,7 +104,8 @@ const DEFAULTS: &str = r#"{
     "updateCheck": true,
     "autoUpdate": false,
     "openInto": "last", "display": "", "safeArea": 100, "clock": "full", "clock24": false, "reduceMotion": false, "dimMinutes": 0, "confirmButton": "auto",
-    "scrollSpeed": "normal", "artRegion": "auto", "audioOut": "", "hidden": [], "museumStyle": { "walkIn": true } }
+    "scrollSpeed": "normal", "artRegion": "auto", "audioOut": "", "hidden": [],
+    "museumStyle": { "walkIn": true, "grouping": "manufacturer" }, "arcadeCap": 24 }
 }"#;
 
 /// Saved values over the defaults, so new options appear after an update. Where the default is a section or a list,
@@ -236,6 +237,10 @@ fn existing_user(cfg: &mut Value, saved: Option<&Value>) {
         if ui.and_then(|u| u.get(k)).is_none() {
             cfg["ui"][k] = json!(true);
         }
+    }
+    // the museum's themed rooms are for new installs: a file saved before the choice existed keeps the Classic wall
+    if ui.and_then(|u| u.get("museumStyle")).filter(|m| is_obj(Some(m))).and_then(|m| m.get("grouping")).is_none() {
+        cfg["ui"]["museumStyle"]["grouping"] = json!("classic");
     }
 }
 
@@ -568,18 +573,23 @@ pub fn sanitize(cfg: &mut Value) {
     if !is_obj(ui.get("museumStyle")) {
         ui.insert("museumStyle".into(), json!({}));
     }
+    let cap = js::number(ui.get("arcadeCap"));
+    ui.insert("arcadeCap".into(), if cap.is_finite() { js::num(js::round(cap.clamp(20.0, 30.0))) } else { json!(24) });
     if ui.contains_key("museumLight") && !one_of(ui.get("museumLight"), &["gallery", "daylight", "night", "neon", "spotlit", "lightsout"]) {
         ui.insert("museumLight".into(), json!("gallery"));
     }
     // the museum's Retro TV: anything unknown is dropped, so the room falls back to its default
     let ms = ui["museumStyle"].as_object_mut().unwrap();
     bool_or(ms, "walkIn", true);
-    for (k, list) in [("tvStand", &["cart", "cabinet", "floor", "wall"][..]), ("tvSize", &["s", "m", "l"]), ("tvPos", &["left", "centre", "right"]), ("tvCh", &["ads", "trailers", "recent", "mix"])] {
+    if ms.contains_key("grouping") && !one_of(ms.get("grouping"), &["classic", "manufacturer", "genre"]) {
+        ms.insert("grouping".into(), json!("classic"));
+    }
+    for (k, list) in [("tvStand", &["cart", "cabinet", "floor", "wall"][..]), ("tvSize", &["s", "m", "l"]), ("tvPos", &["left", "centre", "right"]), ("tvCh", &["ads", "trailers", "recent", "mix"]), ("tvModel", &["crt", "wood", "flat"])] {
         if ms.contains_key(k) && !one_of(ms.get(k), list) {
             ms.shift_remove(k);
         }
     }
-    for k in ["tv", "tvMute", "tvNear", "tvAnim"] {
+    for k in ["tv", "tvMute", "tvNear", "tvAnim", "tvSpatial"] {
         if ms.get(k).is_some_and(|v| !v.is_boolean()) {
             ms.shift_remove(k);
         }
