@@ -83,7 +83,7 @@ impl Settings {
             Row {
                 label: "Kid mode".into(),
                 value: on_off(on),
-                hint: "Only the shelves ticked below show, and Settings, hiding, box art and Exit need the PIN. Playing, Details, manuals and the museum work as usual.".into(),
+                hint: "Only the shelves ticked below show, and Settings, hiding, box art and Exit need the PIN. Playing, Details and manuals work as usual.".into(),
                 press: Some(Box::new(move |s: &mut Settings| s.kid_switch(!on))),
                 step: Some(Box::new(move |s: &mut Settings, _| s.kid_switch(!on))),
             },

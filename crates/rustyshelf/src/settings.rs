@@ -108,10 +108,6 @@ enum Screen {
     Storage,
     /// which drives a search looks through as well as the usual places (Windows)
     Drives,
-    /// the museum's reading corner: where the magazines and guides are kept
-    Reading,
-    /// the museum's rooms, lighting and finishes
-    Museum,
     /// the chosen game's box art, part by part; and one part's versions
     Art,
     ArtPart,
@@ -156,7 +152,7 @@ fn restart() {
 }
 
 /// Settings' tabs, by what you came to do.
-const TABS: [&str; 8] = ["Library", "Look", "Sound", "Box art & media", "Controls", "Shelf & museum", "Accounts", "System"];
+const TABS: [&str; 8] = ["Library", "Look", "Sound", "Box art & media", "Controls", "Shelf", "Accounts", "System"];
 
 /// The interface's voices, by `ui.soundTheme` and name.
 const VOICES: [(&str, &str); 6] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box"), ("disc", "Disc-era"), ("handheld", "Handheld"), ("living", "Living room")];
@@ -190,7 +186,6 @@ enum Pick {
     Steam,
     GamesDir,
     ArtLibrary,
-    ReadingLibrary,
     ArtDir(String),
     CustomGame,
     ExportTo,
@@ -264,8 +259,6 @@ pub struct Settings {
     pub manual: Option<Vec<PathBuf>>,
     /// `manual` is a game's screenshots (their addresses), shown one at a time
     pub gallery: bool,
-    /// View / Minus was let go quickly (held, it opens the museum)
-    pub select_tapped: bool,
     /// the phone companion, and its pairing code as it was last drawn: what it says, and its picture
     pub phone: Option<std::sync::Arc<rustyshelf_core::companion::Companion>>,
     qr: Option<(String, Handle<Image>)>,
@@ -372,7 +365,6 @@ impl Default for Settings {
             pad_auto: Glyphs::Xbox,
             manual: None,
             gallery: false,
-            select_tapped: false,
             phone: None,
             qr: None,
             moves: Default::default(),
@@ -998,7 +990,6 @@ impl Settings {
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
-            Pick::ReadingLibrary => self.set(&["ui", "readingLibrary"], json!(p)),
             Pick::ArtDir(id) => self.set(&["systems", &id, "artDir"], json!(p)),
             Pick::CustomGame => self.add_custom(&p),
             Pick::ExportTo => self.export_to(path),
@@ -1072,23 +1063,13 @@ impl Settings {
             }
             "Look" => ("How RustyShelf looks and moves: theme, size, clock and effects.", rows_of(Screen::Display)),
             "Sound" => ("Interface sounds, menu music and songs.", rows_of(Screen::Sound)),
-            "Box art & media" => {
-                let mut rows = rows_of(Screen::BoxArt);
-                rows.push(open("Magazines & guides", String::new(), "The museum's reading corner: where your magazines and strategy guides are kept", Screen::Reading));
-                ("Covers, manuals and magazines: where they come from and when they download.", rows)
-            }
+            "Box art & media" => ("Covers and manuals: where they come from and when they download.", rows_of(Screen::BoxArt)),
             "Controls" => {
                 let mut rows = rows_of(Screen::Controller);
                 rows.push(open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone));
                 ("Your controller, and how to leave a game.", rows)
             }
-            "Shelf & museum" => (
-                "What the shelf shows, and the museum room.",
-                vec![
-                    open("Museum", String::new(), "Its rooms, lighting, walls, floor and shelves", Screen::Museum),
-                    open("Shelf", String::new(), "The order of every shelf, and which games they show", Screen::Shelf),
-                ],
-            ),
+            "Shelf" => ("What the shelf shows.", vec![open("Shelf", String::new(), "The order of every shelf, and which games they show", Screen::Shelf)]),
             "Accounts" => {
                 let mut rows = vec![Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() }];
                 rows.extend(rows_of(Screen::Accounts));
@@ -1633,80 +1614,6 @@ impl Settings {
                 }
                 let lead = if self.wizard { "Step 2 of 3 · The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." } else { "The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." };
                 Page { title: "PC games and apps".into(), lead: lead.into(), rows }
-            }
-            Screen::Museum => {
-                // keep in sync with museum.rs: the scenes and finishes it draws
-                const GROUPINGS: [(&str, &str); 3] = [("classic", "Classic wall"), ("manufacturer", "Rooms by maker"), ("genre", "Rooms by genre")];
-                const SCENES: [(&str, &str); 6] = [("gallery", "Classic"), ("daylight", "Daylight"), ("night", "Evening"), ("neon", "Neon night"), ("spotlit", "Spotlit gallery"), ("lightsout", "Lights out")];
-                const WALLS: [(&str, &str); 7] = [("plaster", "Dark plaster"), ("wood", "Wood panels"), ("brick", "Brick"), ("wallpaper", "Wallpaper"), ("green", "Green"), ("burgundy", "Burgundy"), ("navy", "Navy")];
-                const FLOORS: [(&str, &str); 4] = [("stone", "Stone"), ("wood", "Wood boards"), ("carpet", "Carpet"), ("checker", "Checkerboard")];
-                const SHELVES: [(&str, &str); 4] = [("walnut", "Walnut"), ("oak", "Oak"), ("black", "Black"), ("white", "White")];
-                let style = |k: &str| at(&self.cfg, &["ui", "museumStyle", k]).cloned();
-                let choice = |label: &str, key: &'static str, list: &'static [(&'static str, &'static str)], hint: &str| -> Row {
-                    let now = style(key).and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
-                    let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
-                    let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "museumStyle", key], json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
-                    Row { label: label.into(), value: list[at].1.into(), hint: hint.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) }
-                };
-                let flag = |label: &str, key: &'static str, default: bool, hint: &str| -> Row {
-                    let on = style(key).and_then(|v| v.as_bool()).unwrap_or(default);
-                    let flip = move |s: &mut Settings| s.set(&["ui", "museumStyle", key], json!(!on));
-                    Row { label: label.into(), value: on_off(on), hint: hint.into(), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) }
-                };
-                let range = |label: &str, key: &'static str, (min, max, step, default): (f64, f64, f64, f64), shown: fn(f64) -> String| -> Row {
-                    let now = style(key).and_then(|v| v.as_f64()).unwrap_or(default);
-                    let turn = move |s: &mut Settings, d: i32| {
-                        let v = ((now + step * f64::from(d)).clamp(min, max) * 100.0).round() / 100.0;
-                        s.set(&["ui", "museumStyle", key], json!(v));
-                    };
-                    Row { label: label.into(), value: shown(now), hint: String::new(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) }
-                };
-                let scene = self.text(&["ui", "museumLight"]);
-                let at = SCENES.iter().position(|x| x.0 == scene).unwrap_or(0);
-                let turn = move |s: &mut Settings, d: i32| {
-                    s.set(&["ui", "museumLight"], json!(SCENES[(at as i32 + d).rem_euclid(SCENES.len() as i32) as usize].0));
-                    s.set(&["ui", "museumStyle", "timeOfDay"], json!(false));
-                };
-                let rows = vec![
-                    choice("Organization", "grouping", &GROUPINGS, "Themed rooms by maker or genre, with an arcade, computers and a reading room; Classic is the single wall"),
-                    Row { label: "Scene".into(), value: SCENES[at].1.into(), hint: "Classic is the original look. Lights out leaves only the TV and the shelves' own glow.".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) },
-                    flag("Follow the time of day", "timeOfDay", false, "Daylight in the morning, Classic in the afternoon, Evening at night"),
-                    flag("Lights come on as you walk in", "walkIn", true, "Off: the room opens with the lamps already on"),
-                    range("Brightness", "bright", (0.4, 1.6, 0.1, 1.0), |v| format!("{}%", (v * 100.0).round())),
-                    range("Warmth", "warmth", (-1.0, 1.0, 0.1, 0.0), |v| if v > 0.05 { format!("Warm {}%", (v * 100.0).round()) } else if v < -0.05 { format!("Cool {}%", (-v * 100.0).round()) } else { "Neutral".into() }),
-                    range("Spotlight on the case", "spot", (0.0, 2.0, 0.1, 1.0), |v| format!("{}%", (v * 100.0).round())),
-                    range("Dust in the light", "dust", (0.0, 2.0, 0.25, 1.0), |v| if v <= 0.0 { "Off".into() } else { format!("{}%", (v * 100.0).round()) }),
-                    choice("Walls", "wall", &WALLS, ""),
-                    choice("Floor", "floor", &FLOORS, ""),
-                    choice("Shelves", "shelf", &SHELVES, ""),
-                    flag("Display plinths", "plinths", false, ""),
-                    flag("Velvet ropes", "ropes", false, ""),
-                    flag("Museum bench", "bench", false, ""),
-                    flag("Posters of your favourites", "posters", false, ""),
-                    flag("New games arrive by mail", "mail", true, "From your next visit"),
-                ];
-                Page { title: "Museum".into(), lead: "Hold View on the shelf, or press M, to walk in.".into(), rows }
-            }
-            Screen::Reading => {
-                let lib = self.text(&["ui", "readingLibrary"]);
-                let root = rustyshelf_core::reading::root(Some(&lib), &self.app_root);
-                let shown = |k: &str| Row { label: k.into(), value: short(&root.join(k).to_string_lossy()), hint: "Each issue or guide is a PDF, a comic archive (.cbz, .cbr, .zip) or a folder of page images; a folder of them is a series".into(), ..Row::default() };
-                let rows = vec![
-                    Row {
-                        label: "Magazines & guides folder".into(),
-                        value: if lib.is_empty() { "Beside RustyShelf".into() } else { short(&lib) },
-                        hint: "Magazines and Guides are kept in this folder. Changing it doesn't move anything already there: copy the two folders across yourself  ·  Enter chooses it, ◀ goes back to beside RustyShelf".into(),
-                        press: Some(Box::new(|s: &mut Settings| s.pick(Pick::ReadingLibrary, "Choose a folder for your magazines and guides", true))),
-                        step: Some(Box::new(|s: &mut Settings, d| {
-                            if d < 0 {
-                                s.set(&["ui", "readingLibrary"], json!(""));
-                            }
-                        })),
-                    },
-                    shown("Magazines"),
-                    shown("Guides"),
-                ];
-                Page { title: "Magazines & guides".into(), lead: "The museum's reading corner: where your magazines and strategy guides live.".into(), rows }
             }
             Screen::BoxArt => {
                 let lib = self.text(&["ui", "artLibrary"]);
@@ -2506,7 +2413,7 @@ pub fn input(
         } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
             Some(Screen::Shelf)
         // (as the Electron app: View / Minus opens Details; Settings is in the shelf menu, Start)
-        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || std::mem::take(&mut s.select_tapped) {
+        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || pad(GamepadButton::Select) {
             Some(Screen::Details)
         } else {
             None

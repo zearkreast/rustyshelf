@@ -249,17 +249,6 @@ pub enum Art {
     Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
     /// a spine painted `width` × `height` pixels, two to a pixel of the shelf: `edge` is the case's border there
     Spine { look: Box<Look>, title: String, label: String, width: u32, height: u32, edge: f32 },
-    /// a museum row's name plate, and its section labels
-    Plaque { name: String, lines: Vec<String> },
-    Tabs { labels: Vec<(String, u32)>, tall: u32 },
-    /// an arcade cabinet's marquee
-    Marquee { title: String },
-    /// the reading corner's: a magazine's or guide's stand-in cover, a rack's name plate, an empty rack's note
-    RackCover { guide: bool, title: String, series: String },
-    NamePlate { label: String },
-    RackNote { heading: [String; 2], lines: Vec<String> },
-    /// a delivery's label: its values and its words (drawn::delivery_label)
-    Label { values: [String; 4], words: [String; 7] },
 }
 
 impl Art {
@@ -275,13 +264,6 @@ impl Art {
                 PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
             }
             Art::Spine { look, title, label, width, height, edge } => PathBuf::from(format!("drawn:{}|s|{title}|{label}|{width}x{height}|{edge}", look.id)),
-            Art::Plaque { name, lines } => PathBuf::from(format!("drawn:plaque|{name}|{}", lines.join("|"))),
-            Art::Tabs { labels, tall } => PathBuf::from(format!("drawn:tabs|{tall}|{}", labels.iter().map(|(l, w)| format!("{l}:{w}")).collect::<Vec<_>>().join("|"))),
-            Art::Marquee { title } => PathBuf::from(format!("drawn:marquee|{title}")),
-            Art::RackCover { guide, title, series } => PathBuf::from(format!("drawn:rackcover|{guide}|{title}|{series}")),
-            Art::NamePlate { label } => PathBuf::from(format!("drawn:plate|{label}")),
-            Art::RackNote { heading, lines } => PathBuf::from(format!("drawn:racknote|{}|{}", heading.join("|"), lines.join("|"))),
-            Art::Label { values, words } => PathBuf::from(format!("drawn:label|{}|{}", values.join("|"), words.join("|"))),
         }
     }
 
@@ -303,13 +285,6 @@ impl Art {
             }),
             Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
             Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
-            Art::Plaque { name, lines } => drawn(rustyshelf_core::drawn::plaque(name, lines)),
-            Art::Tabs { labels, tall } => drawn(rustyshelf_core::drawn::tabs(labels, *tall)),
-            Art::Marquee { title } => drawn(rustyshelf_core::drawn::marquee(title)),
-            Art::RackCover { guide, title, series } => drawn(rustyshelf_core::drawn::rack_cover(*guide, title, series)),
-            Art::NamePlate { label } => drawn(rustyshelf_core::drawn::name_plate(label)),
-            Art::RackNote { heading, lines } => drawn(rustyshelf_core::drawn::rack_note([&heading[0], &heading[1]], lines)),
-            Art::Label { values, words } => drawn(rustyshelf_core::drawn::delivery_label(values.each_ref().map(String::as_str), words.each_ref().map(String::as_str))),
         }
     }
 }

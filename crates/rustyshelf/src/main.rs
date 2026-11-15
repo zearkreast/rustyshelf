@@ -5,17 +5,12 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod appicon;
-mod arcade;
 mod boot;
 mod cheevos;
 mod home;
 mod hud;
 mod idle;
 mod loading;
-mod console_model;
-mod mail;
-mod museum;
-mod rack;
 mod music;
 mod osk;
 mod padwatch;
@@ -64,8 +59,6 @@ fn main() {
                     }),
                     ..default()
                 })
-                // your own 3D consoles are loaded from themes\<system>, outside the assets folder
-                .set(bevy::asset::AssetPlugin { unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow, ..default() }),
         )
         .insert_resource(loading::start_library())
         .init_resource::<loading::Refresh>()
@@ -94,11 +87,10 @@ fn main() {
         .init_resource::<home::Home>()
         .init_resource::<reader::Reader>()
         .init_resource::<idle::Idle>()
-        .init_resource::<museum::Museum>()
         .init_resource::<romm::Sync>()
         .init_resource::<wiimote::Remote>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, museum::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup).chain())
         .add_systems(Update, appicon::set)
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
@@ -111,7 +103,7 @@ fn main() {
                 phone::run,
                 idle::run,
                 home::run,
-                (reader::run, museum::run, console_model::fit).chain(),
+                reader::run,
                 shelf::inspect,
                 settings::input,
                 play::navigate,
