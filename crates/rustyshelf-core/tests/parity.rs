@@ -2323,6 +2323,10 @@ fn art_studio_lists_and_places_pictures_as_the_js_does() {
         Some(when) if !["5 Jan 2026", "30 Sept 2025", "1 Feb 2026"].contains(&when) => "Earlier · TODAY".to_string(),
         _ => label.to_string(),
     };
+    for h in f["heads"].as_array().unwrap() {
+        let got = studio::image_info(&decode(&h[0])).map(|(ext, size)| json!({ "ext": ext, "w": size.map(|z| z.0), "h": size.map(|z| z.1) }));
+        assert_eq!(json!(got), h[1], "{}", h[0]);
+    }
     for (i, s) in f["steps"].as_array().unwrap().iter().enumerate() {
         let part = s["part"].as_str().unwrap();
         let offered = list(&g, part);
@@ -2339,4 +2343,24 @@ fn art_studio_lists_and_places_pictures_as_the_js_does() {
         let front: Vec<Value> = studio::shown(&list(&g, "front")).map(|c| json!([c.source, day(&c.label), c.in_use])).collect();
         assert_eq!(Value::Array(front), s["front"], "step {i}: {} {part}", s["what"]);
     }
+
+    // a picture of the player's own: copied in, the old one kept; what isn't a picture, or is too small, is refused
+    let mine = tmp.path().join("mine.png");
+    image::RgbImage::from_pixel(300, 420, image::Rgb([10, 200, 90])).save(&mine).unwrap();
+    let before = g.current[0].clone().unwrap();
+    st.own(&mut g, "front", &mine, false, now + 100.0).unwrap();
+    assert!(mine.is_file() && fs::read(g.current[0].as_ref().unwrap()).unwrap() == fs::read(&mine).unwrap() && g.current[0].as_ref().unwrap().ends_with("covers/Zeta Run (USA).png"));
+    assert!(!before.is_file() || before == *g.current[0].as_ref().unwrap());
+    let in_use = g.current[0].clone().unwrap();
+    st.own(&mut g, "front", &in_use, false, now + 101.0).unwrap();
+    let small = tmp.path().join("small.png");
+    image::RgbImage::from_pixel(40, 300, image::Rgb([0, 0, 0])).save(&small).unwrap();
+    assert_eq!(st.own(&mut g, "front", &small, false, now + 102.0).unwrap_err(), "That picture is too small (40 × 300).");
+    st.own(&mut g, "spine", &small, false, now + 103.0).unwrap();
+    assert_eq!(st.own(&mut g, "spine", &mine, true, now + 104.0).unwrap_err(), "For a spine cut, pick a picture of the whole box opened flat: back, spine and front side by side.");
+    let text = tmp.path().join("notes.png");
+    fs::write(&text, "not a picture ".repeat(40)).unwrap();
+    assert_eq!(st.own(&mut g, "back", &text, false, now + 105.0).unwrap_err(), "That file isn't a PNG, JPEG or WebP picture.");
+    assert_eq!(st.own(&mut g, "back", &tmp.path().join("gone.png"), false, now + 106.0).unwrap_err(), "That file can't be opened.");
+    assert!(g.current[1].is_none());
 }

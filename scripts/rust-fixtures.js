@@ -1533,6 +1533,10 @@ async function artstudioFixtures() {
     // (a picture replaced during this run carries today's date)
     const day = l => (/^Earlier · /.test(l) && !['5 Jan 2026', '30 Sept 2025', '1 Feb 2026'].includes(l.slice(10)) ? 'Earlier · TODAY' : l);
     out.steps.push({ what, part, key, error, holds: holds(), locks: rel(locks), front: (await listed('front')).filter(c => c.shown).map(c => [c.source, day(c.label), c.inUse]) }); }
+  const riff = (kind, rest) => Buffer.concat([Buffer.from('RIFF\0\0\0\0WEBP' + kind, 'latin1'), Buffer.from(rest), Buffer.alloc(16)]);
+  out.heads = [pngHead(640, 480), pngHead(640, 480).subarray(0, 23), jpegHead(300, 200, 0), Buffer.from([0xff, 0xd8, 0x00, 0x00]), riff('VP8X', [0, 0, 0, 0, 10, 0, 0, 0, 0x1f, 0x03, 0x00, 0x57, 0x02, 0x00]), riff('VP8 ', [0, 0, 0, 0, 0, 0, 0, 0x9d, 0x01, 0x2a, 0x20, 0xc3, 0x58, 0x82]),
+    riff('VP8 ', [0, 0, 0, 0, 0, 0, 0, 0x9d, 0x01, 0x2b, 0x20, 0x03, 0x58, 0x02]), riff('VP8L', [0, 0, 0, 0, 0x2f, 0x1f, 0xc3, 0x95, 0x00]), riff('VP8L', [0, 0, 0, 0, 0x2e, 0x1f, 0xc3, 0x95, 0x00]), riff('ALPH', [0]), Buffer.from('GIF89a' + ' '.repeat(40), 'latin1'), Buffer.alloc(0)]
+    .map(b => [b64(b), A._t.imageInfo(b)]);
   covers._setIndex(undefined); fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }

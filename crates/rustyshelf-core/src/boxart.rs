@@ -583,7 +583,7 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
-// TODO: still Electron-only: the Art Studio's styles and locks, sharper scans over low-res pictures, spines cut from
+// TODO: still Electron-only: the Art Studio's styles, sharper scans over low-res pictures, spines cut from
 // LaunchBox's full box wraps, the Super Mario Wiki, SteamGridDB posters and drawn cartridges
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
     let Run { art, app_root, cache_dir, kinds, region } = *run;

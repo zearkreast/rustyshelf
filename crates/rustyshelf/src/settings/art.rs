@@ -109,16 +109,27 @@ impl Settings {
 
     /// Puts a version in use (`key`), or the picture before the one in use back (None).
     fn place_art(&mut self, key: Option<String>) {
+        let chosen = key.as_ref().and_then(|k| self.art_pick.list.iter().find(|c| c.key == *k)).cloned();
+        self.place_with(key, move |st, g, part| match &chosen {
+            Some(c) => st.apply(g, part, c, now_ms()),
+            None => st.undo(g, part, now_ms()).map(|()| true),
+        });
+    }
+
+    /// Puts a picture of the player's own in use for the part that's open; `cut`: the spine cut from a picture
+    /// of the whole box.
+    pub(super) fn own_art(&mut self, file: &Path, cut: bool) {
+        let file = file.to_path_buf();
+        self.place_with(Some("own".into()), move |st, g, part| st.own(g, part, &file, cut, now_ms()).map(|()| true));
+    }
+
+    /// Changes the open part's picture off the frame; `key` is what the part is then locked as.
+    fn place_with(&mut self, key: Option<String>, work: impl FnOnce(&Studio, &mut GameArt, &str) -> Result<bool, String> + Send + 'static) {
         let Some(mut g) = self.art_pick.game.clone().filter(|_| self.art_pick.placing.is_none()) else { return };
         let (part, data) = (self.art_pick.part, paths::data_dir(&self.app_root));
-        let chosen = key.as_ref().and_then(|k| self.art_pick.list.iter().find(|c| c.key == *k)).cloned();
         let (tx, rx) = channel();
         std::thread::spawn(move || {
-            let st = Studio::new(&data);
-            let done = match &chosen {
-                Some(c) => st.apply(&mut g, part, c, now_ms()),
-                None => st.undo(&mut g, part, now_ms()).map(|()| true),
-            };
+            let done = work(&Studio::new(&data), &mut g, part);
             let _ = tx.send(done.map(|moved| (g, moved)));
         });
         self.art_pick.placing = Some((key, Mutex::new(rx)));
@@ -152,6 +163,7 @@ impl Settings {
                         }
                     }
                     self.say(match (moved, key.is_some()) {
+                        (_, true) if key.as_deref() == Some("own") => "Your picture is in use now, and stays until you change it.".into(),
                         (false, _) => "That's the picture in use already.".into(),
                         (true, true) => "In use now. The picture it replaced is kept in the replaced folder beside it; the shelf shows the new one when Settings closes.".into(),
                         (true, false) => "The earlier picture is back.".into(),
@@ -274,6 +286,26 @@ impl Settings {
             format!("{} to choose from, the best for this console's style first.", rows.len())
         };
         if pick.listing.is_none() {
+            let what = match pick.part {
+                "back" => "back cover",
+                "spine" => "spine",
+                "disc" => "disc",
+                _ => "front cover",
+            };
+            rows.push(Row {
+                label: "A picture of yours…".into(),
+                hint: format!("Choose a PNG, JPEG or WebP picture for the {what}. It's copied in; the file stays where it is."),
+                press: Some(Box::new(move |s: &mut Settings| s.pick(Pick::OwnArt(false), &format!("Your own {what}"), false))),
+                ..Row::default()
+            });
+            if pick.part == "spine" {
+                rows.push(Row {
+                    label: "Cut the spine from a picture of the whole box…".into(),
+                    hint: "Choose a picture of the box opened flat (back, spine and front side by side): the spine is cut out of it.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.pick(Pick::OwnArt(true), "A picture of the whole box to cut the spine from", false))),
+                    ..Row::default()
+                });
+            }
             rows.push(Row { label: "Put the earlier picture back".into(), hint: "The picture this part had before the one in use.".into(), press: Some(Box::new(|s: &mut Settings| s.place_art(None))), ..Row::default() });
         }
         Page { title, lead, rows }

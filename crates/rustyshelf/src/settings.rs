@@ -141,6 +141,8 @@ enum Pick {
     ScanGames,
     Playnite,
     ThemePicture,
+    /// a picture of the player's own for a part of a game's box (true: the spine is cut from it)
+    OwnArt(bool),
 }
 
 #[derive(Resource)]
@@ -691,6 +693,7 @@ impl Settings {
             Pick::ImportFrom => self.import_from(path),
             Pick::ScanGames => self.scan_games(path),
             Pick::Playnite => self.read_playnite(Some(path)),
+            Pick::OwnArt(cut) => self.own_art(path, cut),
             Pick::ThemePicture => match rustyshelf_core::customthemes::create(&rustyshelf_core::customthemes::root(&self.app_root), path, "") {
                 Ok(id) => {
                     self.set(&["ui", "theme"], json!(id));

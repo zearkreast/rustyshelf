@@ -764,6 +764,102 @@ impl Studio {
     }
 }
 
+/// A picture by its first bytes, not its name: its type (with the dot), and its size where the header says it
+/// (a JPEG's is read from the file). None for anything but a PNG, a JPEG or a WebP.
+pub fn image_info(head: &[u8]) -> Option<(&'static str, Option<(u32, u32)>)> {
+    let le = |at: usize, n: usize| head[at..at + n].iter().rev().fold(0u32, |v, b| (v << 8) | u32::from(*b));
+    if head.len() >= 24 && head.starts_with(b"\x89PNG") {
+        let be = |at: usize| u32::from_be_bytes(head[at..at + 4].try_into().expect("four bytes"));
+        return Some((".png", Some((be(16), be(20)))));
+    }
+    if head.len() >= 4 && head.starts_with(&[0xff, 0xd8, 0xff]) {
+        return Some((".jpg", None));
+    }
+    if head.len() >= 30 && head.starts_with(b"RIFF") && &head[8..12] == b"WEBP" {
+        return match &head[12..16] {
+            b"VP8X" => Some((".webp", Some((1 + le(24, 3), 1 + le(27, 3))))),
+            b"VP8 " if head[23..26] == [0x9d, 0x01, 0x2a] => Some((".webp", Some((le(26, 2) & 0x3fff, le(28, 2) & 0x3fff)))),
+            b"VP8L" if head[20] == 0x2f => {
+                let b = le(21, 4);
+                Some((".webp", Some((1 + (b & 0x3fff), 1 + ((b >> 14) & 0x3fff)))))
+            }
+            _ => None,
+        };
+    }
+    None
+}
+
+/// the biggest file taken as a picture of the player's own
+const OWN_MAX: u64 = 40 * 1024 * 1024;
+
+/// A picture of the player's own, checked: its type and size, or a sentence for the screen.
+fn check_image(file: &Path, part: &str, cut: bool) -> Result<(&'static str, u32, u32), String> {
+    use std::io::Read;
+    let mut head = Vec::with_capacity(64);
+    std::fs::File::open(file).and_then(|f| f.take(64).read_to_end(&mut head)).map_err(|_| "That file can't be opened.".to_string())?;
+    let (ext, size) = image_info(&head).ok_or("That file isn't a PNG, JPEG or WebP picture.")?;
+    let (w, h) = match size {
+        Some(z) => z,
+        None => crate::boxart::size_of(file).ok_or("That JPEG picture couldn't be read.")?,
+    };
+    let (lo, hi) = (w.min(h), w.max(h));
+    if lo < if part == "spine" && !cut { 12 } else { 64 } || hi < 120 {
+        return Err(format!("That picture is too small ({w} × {h})."));
+    }
+    if hi > 20_000 || u64::from(w) * u64::from(h) > 200_000_000 {
+        return Err(format!("That picture is too big ({w} × {h})."));
+    }
+    if cut && f64::from(w) < f64::from(h) * 1.2 {
+        return Err("For a spine cut, pick a picture of the whole box opened flat: back, spine and front side by side.".into());
+    }
+    Ok((ext, w, h))
+}
+
+impl Studio {
+    /// Puts a picture of the player's own in use for a part. The file is copied, never moved; the picture it
+    /// replaces goes to `replaced\`. `cut`: it's a picture of the whole box opened flat, and the spine is cut
+    /// from it.
+    pub fn own(&self, g: &mut GameArt, part: &str, src: &Path, cut: bool, now: f64) -> Result<(), String> {
+        let cut = cut && part == "spine";
+        let meta = std::fs::metadata(src).map_err(|_| "That file can't be opened.".to_string())?;
+        if !meta.is_file() {
+            return Err("Pick a picture file.".into());
+        }
+        if meta.len() > OWN_MAX {
+            return Err("That picture is over 40 MB. Pick a smaller one.".into());
+        }
+        if meta.len() < 200 {
+            return Err("That file is empty or damaged.".into());
+        }
+        std::fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
+        let i = part_index(part);
+        let same = |a: &Path, b: &Path| crate::art::resolve(a).to_string_lossy().to_lowercase() == crate::art::resolve(b).to_string_lossy().to_lowercase();
+        // the picture already in use, picked again: nothing to copy
+        if !cut && g.current[i].as_ref().is_some_and(|cur| same(cur, src)) {
+            return check_image(src, part, false).map(|_| ());
+        }
+        let (ext, _, _) = check_image(src, part, cut)?;
+        let inc = Self::incoming(g, part, if cut { ".jpg" } else { ext }, now);
+        let made = if cut {
+            let piece = crate::boxart::cut_wrap(src, &g.sys, "spine").ok_or("No spine could be cut from that picture. Pick a picture of the whole box opened flat (back, spine and front).")?;
+            std::fs::write(&inc, piece)
+        } else {
+            std::fs::copy(src, &inc).map(|_| ())
+        };
+        let placed = made.and_then(|()| crate::boxart::place_art(&g.dir, &g.base, suffix(part), &inc, if cut { ".jpg" } else { ext }));
+        match placed {
+            Ok((dest, _)) => {
+                g.current[i] = Some(dest);
+                Ok(())
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&inc);
+                Err(e.to_string())
+            }
+        }
+    }
+}
+
 /// The candidates of a list the picker shows: not a copy of another, and a guessed address only once it has
 /// really downloaded.
 pub fn shown(list: &[Cand]) -> impl Iterator<Item = &Cand> {
