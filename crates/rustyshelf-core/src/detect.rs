@@ -269,6 +269,160 @@ impl<'a> Detector<'a> {
         out
     }
 
+    /// As `detect_all`, and the drives chosen looked through as well (Haseosama's fork): what they have is added to
+    /// each console's finds, its emulator only where none was found in the usual places.
+    pub fn detect_with(&self, drives: &[String]) -> Detected {
+        let mut out = self.detect_all();
+        let roots: Vec<PathBuf> = drives.iter().filter(|d| is_drive_root(d)).map(|d| PathBuf::from(format!("{}\\", d.trim_end_matches(['\\', '/'])))).collect();
+        for (id, e) in self.scan_roots(&roots) {
+            let Some((_, s)) = out.systems.iter_mut().find(|(i, _)| *i == id) else { continue };
+            if let Some(emu) = &e.emulator {
+                if !s.emulators.iter().any(|x| x.eq_ignore_ascii_case(emu)) {
+                    s.emulators.push(emu.clone());
+                }
+                if s.emulator.is_none() {
+                    s.emulator = Some(emu.clone());
+                }
+            }
+            for d in e.rom_dirs {
+                if !s.rom_dirs.iter().any(|x| x.eq_ignore_ascii_case(&d)) {
+                    s.rom_dirs.push(d);
+                }
+            }
+        }
+        out
+    }
+
+    /// These folders looked through five folders deep, nearest the top first: emulators by their program's name, and
+    /// games folders by a console's folder name, only somewhere a folder above says roms / games / emulation (a "psx"
+    /// folder anywhere else is someone's photos). Each stops after 400,000 folders or three minutes. Keep in sync
+    /// with main/detect.js scanDrives.
+    pub fn scan_roots(&self, roots: &[PathBuf]) -> Vec<(String, Found)> {
+        const SKIP: [&str; 12] = ["windows", "$recycle.bin", "system volume information", "node_modules", "appdata", "programdata", "winsxs", "recovery", "perflogs", "$windows.~bt", "msocache", ".git"];
+        const ROMISH: [&str; 8] = ["rom", "game", "iso", "emul", "retro", "batocera", "recalbox", "jeux"];
+        let mut names: HashMap<String, Vec<String>> = HashMap::new();
+        let mut patterns: Vec<(Regex, String)> = Vec::new();
+        let mut rom_names: HashMap<String, Vec<String>> = HashMap::new();
+        for c in &self.systems.consoles {
+            for n in &c.exe_names {
+                match n.strip_prefix("re:") {
+                    Some(p) => {
+                        if let Ok(re) = Regex::new(&format!("(?i){p}")) {
+                            patterns.push((re, c.id.clone()));
+                        }
+                    }
+                    None => names.entry(n.to_lowercase()).or_default().push(c.id.clone()),
+                }
+            }
+            for n in &c.rom_folder_names {
+                rom_names.entry(n.to_lowercase()).or_default().push(c.id.clone());
+            }
+        }
+        let mut found: Vec<(String, Found)> = Vec::new();
+        fn get<'f>(found: &'f mut Vec<(String, Found)>, id: &str) -> &'f mut Found {
+            let k = found.iter().position(|(i, _)| i == id).unwrap_or_else(|| {
+                found.push((id.to_string(), Found::default()));
+                found.len() - 1
+            });
+            &mut found[k].1
+        }
+        let mut emulator_hits: Vec<(String, String)> = Vec::new();
+        let mut rom_hits: Vec<(String, String)> = Vec::new();
+        for root in roots.iter().filter(|r| is_dir(r)) {
+            let started = std::time::Instant::now();
+            let mut queue: std::collections::VecDeque<(PathBuf, usize, bool)> = [(root.clone(), 0, false)].into();
+            let mut seen = 0usize;
+            while let Some((d, depth, romish)) = queue.pop_front() {
+                seen += 1;
+                if seen > 400_000 || started.elapsed().as_secs() >= 180 {
+                    break;
+                }
+                for ent in read_dir_sorted(&d) {
+                    let Ok(kind) = ent.file_type() else { continue };
+                    let full = ent.path();
+                    let low = ent.file_name().to_string_lossy().to_lowercase();
+                    if kind.is_file() {
+                        for id in names.get(&low).into_iter().flatten() {
+                            emulator_hits.push((id.clone(), full.to_string_lossy().into_owned()));
+                        }
+                        if low.ends_with(".exe") {
+                            for (_, id) in patterns.iter().filter(|(re, _)| re.is_match(&low)) {
+                                emulator_hits.push((id.clone(), full.to_string_lossy().into_owned()));
+                            }
+                        }
+                    } else if kind.is_dir() && !SKIP.contains(&low.as_str()) && !low.starts_with('$') {
+                        if let Some(ids) = rom_names.get(&low).filter(|_| romish) {
+                            for id in ids {
+                                rom_hits.push((id.clone(), full.to_string_lossy().into_owned()));
+                            }
+                            continue;
+                        }
+                        if depth < 5 {
+                            queue.push_back((full, depth + 1, romish || ROMISH.iter().any(|w| low.contains(w))));
+                        }
+                    }
+                }
+            }
+        }
+        for (id, exe) in emulator_hits {
+            get(&mut found, &id).emulator.get_or_insert(exe);
+        }
+        for (id, dir) in rom_hits {
+            let f = get(&mut found, &id);
+            if !f.rom_dirs.contains(&dir) {
+                f.rom_dirs.push(dir);
+            }
+        }
+        found
+    }
+
+    /// (Haseosama's fork) A folder with one folder of games per console (RetroBat's roms: gc, wii, ps2 …), up to three
+    /// folders down, by console id. A console's folder isn't looked into. Keep in sync with main/detect.js romFoldersIn.
+    pub fn rom_folders_in(&self, dir: &str) -> Vec<(String, Vec<String>)> {
+        static SKIP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(\$recycle\.bin|system volume information|windows|node_modules)$").unwrap());
+        let mut out: Vec<(String, Vec<String>)> = Vec::new();
+        if dir.is_empty() || !is_dir(Path::new(dir)) {
+            return out;
+        }
+        let mut by_name: HashMap<String, Vec<String>> = HashMap::new();
+        for c in &self.systems.consoles {
+            for n in &c.rom_folder_names {
+                by_name.entry(n.to_lowercase()).or_default().push(c.id.clone());
+            }
+        }
+        let mut queue: std::collections::VecDeque<(PathBuf, usize)> = [(PathBuf::from(dir), 0)].into();
+        let mut seen = 0;
+        while let Some((d, depth)) = queue.pop_front() {
+            seen += 1;
+            if seen > 4000 {
+                break;
+            }
+            for ent in read_dir_sorted(&d) {
+                let name = ent.file_name().to_string_lossy().into_owned();
+                if !ent.file_type().is_ok_and(|t| t.is_dir()) || name.starts_with('.') {
+                    continue;
+                }
+                let full = ent.path().to_string_lossy().into_owned();
+                if let Some(ids) = by_name.get(&name.to_lowercase()) {
+                    for id in ids {
+                        let k = out.iter().position(|(i, _)| i == id).unwrap_or_else(|| {
+                            out.push((id.clone(), Vec::new()));
+                            out.len() - 1
+                        });
+                        if !out[k].1.contains(&full) {
+                            out[k].1.push(full.clone());
+                        }
+                    }
+                    continue;
+                }
+                if depth < 2 && !SKIP.is_match(&name) {
+                    queue.push_back((ent.path(), depth + 1));
+                }
+            }
+        }
+        out
+    }
+
     /// One console's emulator and games folders (a console added in an update, found once as setup would have).
     pub fn detect_system(&self, id: &str) -> Option<Found> {
         Some(self.console(self.systems.console(id)?, &Index::new(2, usize::MAX)))
@@ -294,6 +448,63 @@ impl<'a> Detector<'a> {
     }
 }
 
+fn is_drive_root(d: &str) -> bool {
+    let b = d.trim_end_matches(['\\', '/']).as_bytes();
+    b.len() == 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
+}
+
+/// A drive the drive search can look through (Windows): its letter, its root, and whether Windows is on it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Drive {
+    pub letter: char,
+    pub path: String,
+    pub system: bool,
+}
+
+/// The drives there are (Windows; none elsewhere).
+pub fn list_drives() -> Vec<Drive> {
+    if !cfg!(windows) {
+        return Vec::new();
+    }
+    let sys = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into()).trim_end_matches(':').to_uppercase();
+    (b'A'..=b'Z')
+        .map(char::from)
+        .filter(|l| std::fs::read_dir(format!("{l}:\\")).is_ok())
+        .map(|l| Drive { letter: l, path: format!("{l}:\\"), system: l.to_string() == sys })
+        .collect()
+}
+
 fn is_retroarch(exe: &str) -> bool {
     js::basename(exe).to_lowercase().contains("retroarch")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_drive_is_searched_deep_and_games_folders_only_under_a_games_folder() {
+        let root = std::env::temp_dir().join(format!("rs-drives-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let d = Detector::new(&root);
+        let gc = d.systems.console("gc").unwrap();
+        let exe = gc.exe_names.iter().find(|n| !n.starts_with("re:")).unwrap().clone();
+        for dir in ["Stuff/Emus/a/dolphin", "My Games/roms/gamecube", "Photos/gc", "Windows/gc", "a/b/c/d/e/f/roms/gc"] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        std::fs::write(root.join("Stuff/Emus/a/dolphin").join(&exe), b"").unwrap();
+        let found = d.scan_roots(std::slice::from_ref(&root));
+        let f = &found.iter().find(|(id, _)| id == "gc").unwrap().1;
+        assert_eq!(f.emulator.as_deref(), Some(root.join("Stuff/Emus/a/dolphin").join(&exe).to_str().unwrap()));
+        // a "gc" folder of photos, one under Windows and one six folders down are left alone
+        assert_eq!(f.rom_dirs, vec![root.join("My Games/roms/gamecube").to_string_lossy().into_owned()]);
+        assert!(is_drive_root("D:") && is_drive_root("d:\\") && !is_drive_root("D:\\Games") && !is_drive_root("/mnt"));
+        // a RetroBat-style roms folder: each console's folder, its own subfolders not looked into
+        std::fs::create_dir_all(root.join("RetroBat/roms/snes/snes")).unwrap();
+        let per = d.rom_folders_in(root.join("RetroBat").to_str().unwrap());
+        let get = |id: &str| per.iter().find(|(i, _)| i == id).map(|(_, v)| v.clone()).unwrap_or_default();
+        assert_eq!(get("snes"), vec![root.join("RetroBat/roms/snes").to_string_lossy().into_owned()]);
+        assert!(get("gc").is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

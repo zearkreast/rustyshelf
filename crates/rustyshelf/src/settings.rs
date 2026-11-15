@@ -97,6 +97,8 @@ enum Screen {
     Phone,
     /// the room the PC games take, by drive
     Storage,
+    /// which drives a search looks through as well as the usual places (Windows)
+    Drives,
     /// the chosen game's box art, part by part; and one part's versions
     Art,
     ArtPart,
@@ -158,6 +160,8 @@ enum Pick {
     OwnManual,
     /// RocketLauncher.exe, when it wasn't found
     Rocket,
+    /// a folder with a folder of games per console (RetroBat's roms)
+    RomFoldersIn,
 }
 
 #[derive(Resource)]
@@ -173,6 +177,8 @@ pub struct Settings {
     stack: Vec<(Screen, usize)>,
     found: Option<Detected>,
     looking: Option<Mutex<Receiver<Detected>>>,
+    /// the drives a search can look through, and whether each is ticked
+    drives: Vec<(rustyshelf_core::detect::Drive, bool)>,
     picking: Option<(Pick, Mutex<Receiver<Option<PathBuf>>>)>,
     redraw: bool,
     /// something was saved since Settings opened: the shelves are read again when it closes
@@ -274,6 +280,7 @@ impl Default for Settings {
             stack: vec![(if wizard { Screen::Welcome } else { Screen::Root }, 0)],
             found: None,
             looking: None,
+            drives: Vec::new(),
             picking: None,
             redraw: true,
             changed: false,
@@ -742,15 +749,29 @@ impl Settings {
         self.redraw = true;
     }
 
-    /// Looks for emulators, games folders, Steam and the media apps, off the screen's thread.
+    /// Asks which drives to look through as well (Windows, when there are drives), then looks.
     fn look(&mut self) {
+        if self.looking.is_some() {
+            return;
+        }
+        let drives = rustyshelf_core::detect::list_drives();
+        if drives.is_empty() {
+            return self.look_in(Vec::new());
+        }
+        self.drives = drives.into_iter().map(|d| { let ticked = !d.system; (d, ticked) }).collect();
+        self.go(Screen::Drives);
+    }
+
+    /// Looks for emulators, games folders, Steam and the media apps, off the screen's thread; `drives` are searched
+    /// deep as well.
+    fn look_in(&mut self, drives: Vec<String>) {
         if self.looking.is_some() {
             return;
         }
         let (tx, rx) = channel();
         let root = self.app_root.clone();
         std::thread::spawn(move || {
-            let _ = tx.send(Detector::new(&root).detect_all());
+            let _ = tx.send(Detector::new(&root).detect_with(&drives));
         });
         self.looking = Some(Mutex::new(rx));
         self.redraw = true;
@@ -846,6 +867,27 @@ impl Settings {
                 }
                 self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", if set == 1 { "" } else { "s" }) });
             }
+            Pick::RomFoldersIn => {
+                let found = Detector::new(&self.app_root).rom_folders_in(&p);
+                let mut added = 0;
+                for (id, dirs) in &found {
+                    let mut have = self.list(&["systems", id, "romDirs"]);
+                    for d in dirs {
+                        if !have.iter().any(|x| x.eq_ignore_ascii_case(d)) {
+                            have.push(d.clone());
+                            added += 1;
+                        }
+                    }
+                    self.set(&["systems", id, "romDirs"], json!(have));
+                }
+                self.say(if added > 0 {
+                    format!("Added {added} games folder{}", if added == 1 { "" } else { "s" })
+                } else if !found.is_empty() {
+                    "Those folders were already added".into()
+                } else {
+                    format!("No console's folder found in {}", short(&p))
+                });
+            }
             Pick::Rocket if path.file_name().is_some_and(|n| n.eq_ignore_ascii_case("RocketLauncher.exe")) => {
                 self.set(&["rocket", "exe"], json!(p));
                 self.say(format!("RocketLauncher found in {}", short(&p)));
@@ -920,6 +962,55 @@ impl Settings {
                     self.language_row(),
                 ],
             },
+            Screen::Drives => {
+                let mut rows: Vec<Row> = self
+                    .drives
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (d, on))| {
+                        let flip: Press = Box::new(move |s: &mut Settings| {
+                            if let Some(x) = s.drives.get_mut(i) {
+                                x.1 = !x.1;
+                            }
+                            s.redraw = true;
+                        });
+                        Row {
+                            label: format!("Drive {}:", d.letter),
+                            value: on_off(*on),
+                            hint: if d.system { "Windows drive".into() } else { String::new() },
+                            press: Some(flip),
+                            step: Some(Box::new(move |s: &mut Settings, _| {
+                                if let Some(x) = s.drives.get_mut(i) {
+                                    x.1 = !x.1;
+                                }
+                                s.redraw = true;
+                            })),
+                        }
+                    })
+                    .collect();
+                rows.push(Row {
+                    label: "Search these drives".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        let chosen = s.drives.iter().filter(|(_, on)| *on).map(|(d, _)| d.path.clone()).collect();
+                        s.back();
+                        s.look_in(chosen);
+                    })),
+                    ..Row::default()
+                });
+                rows.push(Row {
+                    label: "Usual places only".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        s.back();
+                        s.look_in(Vec::new());
+                    })),
+                    ..Row::default()
+                });
+                Page {
+                    title: "Which drives should RustyShelf search?".into(),
+                    lead: "The usual places (the RustyShelf folder, the Desktop, Program Files …) are always looked through. The drives ticked here are searched too, for emulators and games folders: a big drive can take a few minutes.".into(),
+                    rows,
+                }
+            }
             Screen::Root => Page {
                 title: "Settings".into(),
                 lead: String::new(),
@@ -978,6 +1069,13 @@ impl Settings {
                     value: "Choose their folder".into(),
                     hint: "If you downloaded your emulators and unzipped them yourself (to Downloads, another drive, a USB stick), choose the folder they're in: every console missing one gets the one found there.".into(),
                     press: Some(Box::new(|s: &mut Settings| s.pick(Pick::EmulatorsIn, "Choose the folder your emulators are in", true))),
+                    ..Row::default()
+                });
+                rows.push(Row {
+                    label: "Find games folders in a folder".into(),
+                    value: "Choose".into(),
+                    hint: "A folder with a folder of games for each console, named after it (like RetroBat's roms folder: gc, wii, ps2, psx…): each console's folder is added to its games folders.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.pick(Pick::RomFoldersIn, "Choose the folder with a folder of games per console", true))),
                     ..Row::default()
                 });
                 if cfg!(windows) && !self.wizard {
