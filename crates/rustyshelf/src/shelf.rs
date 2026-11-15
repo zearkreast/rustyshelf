@@ -88,7 +88,7 @@ struct Place {
 
 /// A value on its way from one number to another.
 #[derive(Clone, Copy)]
-struct Eased {
+pub struct Eased {
     from: f32,
     to: f32,
     since: f32,
@@ -157,6 +157,8 @@ impl Default for Inspect {
 
 /// seconds a case takes up into the hand and back
 const HOLD_UP: f32 = 0.45;
+/// seconds the chosen cover's rim light takes to fade out or back in
+const RIM_FADE: f32 = 0.3;
 /// degrees a second a held direction turns the case
 const SPIN: f32 = 150.0;
 
@@ -246,6 +248,11 @@ pub struct Either([Handle<StandardMaterial>; 2]);
 /// What only the chosen case wears: the light inside its covers' edges, its cover mirrored in the floor.
 #[derive(Component)]
 pub struct OnChosen;
+
+/// The light inside the chosen case's cover edges, which fades rather than popping when Inspect picks the case up or
+/// sets it down.
+#[derive(Component)]
+pub struct Rim;
 
 #[derive(Component)]
 pub struct ShelfCamera;
@@ -922,7 +929,7 @@ pub fn build_shelf(
                 }
                 // the chosen case: light inside its covers' edges, and its cover mirrored in the floor
                 for (z, turn) in [(d / 2.0 + 4.0 * SKIN, 0.0), (-d / 2.0 - 4.0 * SKIN, PI)] {
-                    b.spawn((OnChosen, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, z, turn, w, 1.0), Visibility::Hidden));
+                    b.spawn((OnChosen, Rim, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, z, turn, w, 1.0), Visibility::Hidden));
                 }
                 let floor = -0.5 - 3.0 / stage.bh;
                 b.spawn((OnChosen, Mesh3d(kit.mirror.clone()), MeshMaterial3d(mirrored), Transform::from_xyz(sheet_x, floor - edge, d / 2.0).with_scale(Vec3::new(sheet_w, sheet_h, 1.0)), Visibility::Hidden));
@@ -1002,11 +1009,16 @@ pub fn arrange(
     mut slots: Query<(&mut Slot, &mut Transform, &mut Visibility, &Children), (Without<Turning>, Without<OnChosen>)>,
     mut turning: Query<(&mut Transform, &Children), With<Turning>>,
     mut either: Query<(&Either, &mut MeshMaterial3d<StandardMaterial>)>,
-    mut worn: Query<&mut Visibility, (With<OnChosen>, Without<Slot>)>,
+    mut worn: Query<(&mut Visibility, Has<Rim>), (With<OnChosen>, Without<Slot>)>,
     inspect: Res<Inspect>,
+    mut rim: Local<Option<Eased>>,
 ) {
     let now = time.elapsed_secs();
     let held = inspect.held.now(now, HOLD_UP, EASE);
+    // out as Inspect picks the case up, back once it's set down
+    let rim = rim.get_or_insert(Eased::at(1.0));
+    let glow = rim.now(now, RIM_FADE, EASE).clamp(0.0, 1.0);
+    rim.head_for(if inspect.on || held > 0.0 { 0.0 } else { 1.0 }, glow, now);
     for (mut s, mut t, mut seen, children) in &mut slots {
         let chosen = s.index == cursor.game;
         let to = place(s.index, cursor.game, &stage);
@@ -1064,15 +1076,19 @@ pub fn arrange(
                         m.0 = want.clone();
                     }
                 }
-                if let Ok(mut seen) = worn.get_mut(part) {
+                if let Ok((mut seen, is_rim)) = worn.get_mut(part) {
                     // (its light on the floor and its mirror image stay on the shelf)
-                    seen.set_if_neq(if chosen && held == 0.0 { Visibility::Inherited } else { Visibility::Hidden });
+                    let on = chosen && if is_rim { glow > 0.0 } else { held == 0.0 };
+                    seen.set_if_neq(if on { Visibility::Inherited } else { Visibility::Hidden });
                 }
             }
         }
         if chosen {
             if let Some(mut m) = materials.get_mut(&kit.rim) {
-                m.base_color = lit(s.hue, 0.9);
+                let want = lit(s.hue, 0.9).with_alpha(glow);
+                if m.base_color != want {
+                    m.base_color = want;
+                }
             }
         }
     }
