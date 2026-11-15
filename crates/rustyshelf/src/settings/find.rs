@@ -28,7 +28,8 @@ impl Settings {
     pub(super) fn find_from(&mut self, library: &rustyshelf_core::library::Library, plays: &rustyshelf_core::history::History) {
         let mut found = Finding::default();
         let mut seen = std::collections::HashSet::new();
-        for shelf in &library.shelves {
+        let kid = super::kid_hidden(self.cfg.get("ui"));
+        for shelf in library.shelves.iter().filter(|s| !kid.contains(&s.id)) {
             for g in shelf.games.iter().filter(|g| seen.insert(g.id.clone())) {
                 let last = shelfview::played(g, plays).filter(|p| p.count > 0).map_or(0, |p| p.last);
                 found.games.push(Entry::new(&g.id, &g.title, &shelf.name, last));

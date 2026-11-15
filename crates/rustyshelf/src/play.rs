@@ -19,6 +19,9 @@ use crate::padwatch::{self, Watch};
 use crate::loading::{LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
+/// What Kid mode says to something only a grown-up may do.
+pub const KID_SAYS: &str = "Kid mode is on: a grown-up can change this in Settings";
+
 /// The play history, shared with the Electron app.
 #[derive(Resource)]
 pub struct Plays(pub History);
@@ -268,7 +271,11 @@ pub fn navigate(
         return;
     }
     if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() {
-        exit.write(AppExit::Success);
+        if settings.kid_on() {
+            (toast.text, toast.until) = (KID_SAYS.into(), time.elapsed_secs() + 3.0);
+        } else {
+            exit.write(AppExit::Success);
+        }
     }
     if playing.title.is_some() {
         // a combo still held from closing the game mustn't count on the shelf
@@ -285,7 +292,11 @@ pub fn navigate(
     let combo = l.config.quit_combo();
     // held on the shelf, the quit combo closes RustyShelf
     if combo.as_deref().is_some_and(|c| padwatch::held_here(&mut held, &pads, padwatch::mask(c), time.elapsed().as_millis() as u64)) {
-        exit.write(AppExit::Success);
+        if settings.kid_on() {
+            (toast.text, toast.until) = (KID_SAYS.into(), time.elapsed_secs() + 3.0);
+        } else {
+            exit.write(AppExit::Success);
+        }
     }
     if l.shelves.is_empty() {
         return;

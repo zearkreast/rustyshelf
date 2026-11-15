@@ -371,6 +371,7 @@ pub fn run(
                     }
                 }
                 "settings" => settings.open_root(),
+                "restart" | "shutdown" | "quitapp" if settings.kid_on() => (toast.text, toast.until) = (crate::play::KID_SAYS.into(), now + 3.0),
                 "sleep" | "restart" | "shutdown" => padwatch::power(match action.as_str() {
                     "sleep" => "sleep",
                     "restart" => "restart",

@@ -30,6 +30,8 @@ mod art;
 mod collections;
 mod custom;
 mod find;
+mod kid;
+pub use kid::kid_hidden;
 mod manuals;
 mod moving;
 mod mstudio;
@@ -107,6 +109,8 @@ enum Screen {
     Art,
     ArtPart,
     ArtSets,
+    /// Settings → System → Kid mode
+    Kid,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -172,6 +176,8 @@ enum Pick {
 #[derive(Resource)]
 pub struct Settings {
     pub open: bool,
+    /// the Kid mode PIN was given since Settings opened
+    kid_open: bool,
     /// closed by a key this frame: the shelf doesn't take that key too
     pub just_closed: bool,
     /// the first run: the pages come one after another, and can't be left before the last
@@ -324,6 +330,7 @@ impl Default for Settings {
             genres: Vec::new(),
             storage: Default::default(),
             art_pick: Default::default(),
+            kid_open: false,
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -948,6 +955,18 @@ impl Settings {
     }
 
     fn page(&self) -> Page {
+        let screen = &self.stack.last().expect("a page").0;
+        if let Some(locked) = self.kid_lock_page(screen) {
+            return locked;
+        }
+        let mut page = self.screen_page();
+        if self.kid_locked() && *screen == Screen::Details {
+            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Collections" | "Manual Studio"));
+        }
+        page
+    }
+
+    fn screen_page(&self) -> Page {
         let toggle = |label: &str, path: &'static [&'static str], default: bool, hint: &str| -> Row {
             Row {
                 label: label.to_string(),
@@ -1723,6 +1742,7 @@ impl Settings {
                     },
                 ]
                 .into_iter()
+                .chain([open("Kid mode", on_off(self.kid_on()), "A PIN for Settings, and only the shelves you choose", Screen::Kid)])
                 .chain(self.moving_rows())
                 .chain([self.update_row()])
                 .collect(),
@@ -1899,6 +1919,7 @@ impl Settings {
             Screen::Storage => self.storage_page(),
             Screen::Art => self.art_page(),
             Screen::ArtPart => self.art_part_page(),
+            Screen::Kid => self.kid_page(),
             Screen::ArtSets => self.art_sets_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
@@ -2282,7 +2303,7 @@ pub fn input(
         s.redraw = true;
     }
     if !s.open {
-        s.just_closed = true;
+        (s.just_closed, s.kid_open) = (true, false);
     }
     // Find a game's choice: the shelf goes to it, on its own console's shelf
     if let (Some((shelf, id)), LibraryState::Ready(l)) = (s.go_to.take(), &lib.0) {

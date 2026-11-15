@@ -66,6 +66,9 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
             shelf.games.push(tile("setup-custom".into(), "Add games".into(), Tile::AddCustom));
         }
     }
+    // Kid mode: only the shelves ticked for kids
+    let kid = crate::settings::kid_hidden(ui);
+    lib.shelves.retain(|s| !kid.contains(&s.id));
     // a console's shelf with nothing to show (its games all hidden) isn't shown
     lib.shelves.retain(|s| !s.games.is_empty());
     // your own order of the shelves (ui.shelfOrder); the ones it doesn't name keep theirs, after the rest
@@ -76,6 +79,16 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
     }
     // Home, All and the collections come first, in their own order
     let mut shelves = rustyshelf_core::shelfview::mixed_shelves(&base.shelves, base.config.raw().get("ui"), history);
+    if !kid.is_empty() {
+        for s in shelves.iter_mut() {
+            let keep: Vec<bool> = s.from.iter().map(|f| !kid.contains(f)).collect();
+            let mut at = keep.iter();
+            s.games.retain(|_| *at.next().unwrap_or(&true));
+            let mut at = keep.iter();
+            s.from.retain(|_| *at.next().unwrap_or(&true));
+        }
+        shelves.retain(|s| !s.games.is_empty());
+    }
     shelves.append(&mut lib.shelves);
     lib.shelves = shelves;
     lib
