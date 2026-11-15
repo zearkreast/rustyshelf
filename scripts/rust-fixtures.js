@@ -286,6 +286,20 @@ async function pcFixtures() {
     const again = (await pcgames.xboxGames()).map(game); fs.rmSync(data, { recursive: true, force: true }); return { answer, first, again }; };
   out.xbox = { scan: pcgames.xboxScan([at('xbox'), at('nope')]), cases: [await xbox(PC.xboxAnswer), await xbox('')] };
   out.quiver = PC.quiver.map(chosen => ({ chosen, games: pcgames.quiverGames(at(chosen)).map(game) }));
+  // moved from Quiver 3 to Quiver 4: Settings on the old folder, Quiver 4 in AppData using its Apps folder
+  { const files = { 'moved/Quiver3/QuiverLauncher.exe': 'x', 'moved/Quiver3/settings.json': '{}',
+      'moved/Quiver3/apps.json': J({ apps: [{ name: 'Zeta Run Port', repository: 'MadeUp/ZetaRun', folderName: 'ZetaRun' }] }),
+      'moved/Quiver3/Apps/ZetaRun/zeta.exe': 'x', 'moved/Quiver3/Apps/OmegaKart/omega.exe': 'x',
+      'moved/AppData/com.quiverlauncher.app/apps-folder.json': J({ path: '{tmp}/moved/Quiver3/Apps' }),
+      'moved/AppData/com.quiverlauncher.app/installs.json': J({ 'github:MadeUp/OmegaKart': { folder: 'OmegaKart', executables: ['omega.exe'] } }),
+      'moved/AppData/com.quiverlauncher.app/library.json': J([{ id: 'github:MadeUp/OmegaKart' }]),
+      'moved/AppData/com.quiverlauncher.app/catalog.json': J([{ id: 'github:MadeUp/OmegaKart', slug: 'omegakart', name: 'Omega Kart (Port)', tags: [] }]) };
+    const T = tmp.split(path.sep).join('/'), rel = o => JSON.parse(JSON.stringify(o).split(T).join('{tmp}'));
+    for (const [f, c] of Object.entries(files)) { const p = path.join(tmp, f); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, c.split('{tmp}').join(T)); if (f.endsWith('.exe')) fs.chmodSync(p, 0o755); }
+    process.env.APPDATA = path.join(tmp, 'moved', 'AppData');
+    const chosen = path.join(tmp, 'moved', 'Quiver3'), roots = pcgames.quiverRoots(chosen).map(r => r.split(path.sep).join('/'));
+    out.quiverMoved = { files, roots: rel(roots), games: rel(pcgames.quiverGames(chosen).map(game)) };
+    delete process.env.APPDATA; }
   const custom = JSON.parse(fill(J(PC.custom)));
   out.custom = { list: PC.custom, games: (await pcgames.customGames(custom)).map(game) };
   out.folder = { ...PC.folder, games: pcfolder.scan({ gamesDir: at(PC.folder.gamesDir), ownDir: at(PC.folder.ownDir), programs: PC.folder.programs, skip: PC.folder.skip.map(at) }).map(game) };

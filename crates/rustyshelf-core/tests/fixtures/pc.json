@@ -1042,6 +1042,55 @@
    "games": []
   }
  ],
+ "quiverMoved": {
+  "files": {
+   "moved/Quiver3/QuiverLauncher.exe": "x",
+   "moved/Quiver3/settings.json": "{}",
+   "moved/Quiver3/apps.json": "{\"apps\":[{\"name\":\"Zeta Run Port\",\"repository\":\"MadeUp/ZetaRun\",\"folderName\":\"ZetaRun\"}]}",
+   "moved/Quiver3/Apps/ZetaRun/zeta.exe": "x",
+   "moved/Quiver3/Apps/OmegaKart/omega.exe": "x",
+   "moved/AppData/com.quiverlauncher.app/apps-folder.json": "{\"path\":\"{tmp}/moved/Quiver3/Apps\"}",
+   "moved/AppData/com.quiverlauncher.app/installs.json": "{\"github:MadeUp/OmegaKart\":{\"folder\":\"OmegaKart\",\"executables\":[\"omega.exe\"]}}",
+   "moved/AppData/com.quiverlauncher.app/library.json": "[{\"id\":\"github:MadeUp/OmegaKart\"}]",
+   "moved/AppData/com.quiverlauncher.app/catalog.json": "[{\"id\":\"github:MadeUp/OmegaKart\",\"slug\":\"omegakart\",\"name\":\"Omega Kart (Port)\",\"tags\":[]}]"
+  },
+  "roots": [
+   "{tmp}/moved/Quiver3",
+   "{tmp}/moved/AppData/com.quiverlauncher.app"
+  ],
+  "games": [
+   {
+    "id": "quiver-github-madeup-omegakart",
+    "source": "quiver",
+    "title": "Omega Kart (Port)",
+    "exe": "{tmp}/moved/Quiver3/Apps/OmegaKart/omega.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   },
+   {
+    "id": "quiver-madeup-zetarun",
+    "source": "quiver",
+    "title": "Zeta Run Port",
+    "exe": "{tmp}/moved/Quiver3/Apps/ZetaRun/zeta.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": null,
+    "native": false,
+    "programs": []
+   }
+  ]
+ },
  "custom": {
   "list": [
    {

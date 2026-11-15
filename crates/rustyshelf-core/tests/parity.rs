@@ -248,6 +248,22 @@ fn pc_games_match_the_js_lists() {
     for case in fx["quiver"].as_array().unwrap() {
         same("quiver", &pcgames::quiver_games(&at(case["chosen"].as_str().unwrap())), &case["games"]);
     }
+    // moved from Quiver 3 to Quiver 4: Quiver 4's name wins for an app only it knows
+    {
+        let moved = &fx["quiverMoved"];
+        let t = tmp.path().to_string_lossy().into_owned();
+        for (f, c) in moved["files"].as_object().unwrap() {
+            let p = tmp.path().join(f);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, c.as_str().unwrap().replace("{tmp}", &t)).unwrap();
+            if f.ends_with(".exe") {
+                fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
+            }
+        }
+        let roots: Vec<String> = moved["roots"].as_array().unwrap().iter().map(|r| r.as_str().unwrap().replace("{tmp}", &t)).collect();
+        let got = serde_json::to_string_pretty(&pcgames::quiver_games_in(roots).iter().map(game).collect::<Vec<_>>()).unwrap().replace(&t, "{tmp}");
+        assert_eq!(got, serde_json::to_string_pretty(&moved["games"]).unwrap(), "quiver moved");
+    }
 
     let list: Value = serde_json::from_str(&fill(&fx["custom"]["list"].to_string())).unwrap();
     same("custom", &pcgames::custom_games(Some(&list)), &fx["custom"]["games"]);

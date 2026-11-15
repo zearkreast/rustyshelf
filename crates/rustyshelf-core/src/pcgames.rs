@@ -1018,21 +1018,43 @@ fn quiver_loose(apps_dir: &str, listed: &[String], names: &HashMap<String, Named
 
 /// The apps Quiver Launcher installed (recomps, ports): Quiver 3, portable or installed, and Quiver 4.
 pub fn quiver_games(chosen: &str) -> Vec<PcGame> {
+    quiver_games_in(quiver_roots(chosen))
+}
+
+/// The apps of these Quiver folders.
+pub fn quiver_games_in(mut roots: Vec<String>) -> Vec<PcGame> {
+    // moved from Quiver 3 to Quiver 4, both folders are read (Settings on the old one, Quiver 4 in AppData using the same
+    // Apps folder): every root's own list first, Quiver 4's ahead of Quiver 3's, then the apps folders' loose apps with
+    // the names from every list, so an app only Quiver 4 knows keeps Quiver 4's name
+    roots.sort_by_key(|r| !has(r, "installs.json"));
     let (mut out, mut seen) = (Vec::new(), HashSet::new());
-    for root in quiver_roots(chosen) {
-        let v4 = has(&root, "installs.json");
-        let mut list = if v4 { quiver4(&root) } else { quiver3(&root) };
-        let listed: Vec<String> = list.iter().map(|g| g.exe.clone()).collect();
-        list.extend(quiver_loose(&quiver_apps_dir(&root), &listed, &quiver_names(&root), v4));
+    let mut names: HashMap<String, Named> = HashMap::new();
+    let mut lists = Vec::new();
+    for root in &roots {
+        lists.push(if has(root, "installs.json") { quiver4(root) } else { quiver3(root) });
+        for (k, v) in quiver_names(root) {
+            names.entry(k).or_insert(v);
+        }
+    }
+    let mut add = |g: QuiverApp, out: &mut Vec<PcGame>| {
+        let id = format!("quiver-{}", slug(if g.key.is_empty() { &g.title } else { &g.key }));
+        let exe = g.exe.to_lowercase();
+        if seen.contains(&id) || seen.contains(&exe) {
+            return;
+        }
+        seen.insert(id.clone());
+        seen.insert(exe);
+        out.push(PcGame { id, source: "quiver", title: g.title, exe: g.exe, icon: g.icon, tags: g.tags, ..PcGame::default() });
+    };
+    for list in lists {
         for g in list {
-            let id = format!("quiver-{}", slug(if g.key.is_empty() { &g.title } else { &g.key }));
-            let exe = g.exe.to_lowercase();
-            if seen.contains(&id) || seen.contains(&exe) {
-                continue;
-            }
-            seen.insert(id.clone());
-            seen.insert(exe);
-            out.push(PcGame { id, source: "quiver", title: g.title, exe: g.exe, icon: g.icon, tags: g.tags, ..PcGame::default() });
+            add(g, &mut out);
+        }
+    }
+    for root in &roots {
+        let listed: Vec<String> = out.iter().map(|g| g.exe.clone()).collect();
+        for g in quiver_loose(&quiver_apps_dir(root), &listed, &names, has(root, "installs.json")) {
+            add(g, &mut out);
         }
     }
     out
