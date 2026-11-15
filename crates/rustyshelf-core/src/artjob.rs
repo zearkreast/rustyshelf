@@ -83,19 +83,33 @@ impl Remote {
     /// Every version the sources have of a part of this game.
     pub fn cands(&mut self, g: &GameArt, part: &str, region: &str, ask: Ask, now: f64) -> Vec<Cand> {
         let mut out = self.listed(g, part, region, ask.wiki, now);
-        if let (Some(sg), true, "front") = (&self.sg, ask.posters, part) {
-            let names = covers::lookup_names(&g.title);
-            for p in sg.posters(&crate::steamgrid::Game { appid: "", title: &g.title, names: &names }) {
-                let label = ["SteamGridDB", p.style_name(), &if p.author.is_empty() { String::new() } else { format!("by {}", p.author) }].into_iter().filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" · ");
-                let hd = p.w.max(p.h) >= 900;
-                out.push(Cand { url: p.url, ext: p.ext.into(), source: "steamgriddb".into(), kind_of: "grid".into(), edition: "original".into(), kind: if hd { "hd" } else { "clean" }.into(), w: Some(p.w), h: Some(p.h), rank: p.rank as f64, label, ..Cand::default() });
-            }
+        out.extend(slow_cands(self.sg.as_ref(), self.ss.as_ref(), g, part, ask));
+        out
+    }
+
+    /// The versions in the lists kept on this computer (LaunchBox, libretro, GameTDB) and the Super Mario Wiki's.
+    pub fn quick(&mut self, g: &GameArt, part: &str, region: &str, ask: Ask, now: f64) -> Vec<Cand> {
+        self.listed(g, part, region, ask.wiki, now)
+    }
+
+    /// The sources that answer over the web with the user's own key or account (SteamGridDB, ScreenScraper), taken
+    /// out to be asked apart from the quick lists.
+    pub fn take_slow(&mut self) -> Slow {
+        Slow { sg: self.sg.take(), ss: self.ss.take() }
+    }
+
+    /// The sources that could add versions of this part but aren't set up: "LaunchBox" (its art database not
+    /// downloaded yet, for a console it has), "ScreenScraper", and "SteamGridDB" for the front.
+    pub fn missing(&self, part: &str) -> Vec<&'static str> {
+        let mut out = Vec::new();
+        if self.index.is_none() && covers::launchbox_platform(&self.sys).is_some() {
+            out.push("LaunchBox");
         }
-        if let Some(ss) = &self.ss {
-            let file = g.file.to_string_lossy();
-            for c in ss.candidates(&g.sys, &crate::screenscraper::Rom { file: &file, title: &g.title, size_bytes: 0 }, part, ask.ss_cache_only, true) {
-                out.push(Cand { url: c.url, ext: c.ext, cut: c.cut.map(String::from), src: c.src, source: "screenscraper".into(), kind_of: c.kind, region: c.region.into(), edition: "original".into(), kind: "scan".into(), label: c.label, ..Cand::default() });
-            }
+        if self.ss.is_none() {
+            out.push("ScreenScraper");
+        }
+        if part == "front" && self.sg.is_none() {
+            out.push("SteamGridDB");
         }
         out
     }
@@ -114,6 +128,37 @@ impl Remote {
         };
         studio::candidates(&g.sys, &g.title, &g.file, part, &from)
     }
+}
+
+/// SteamGridDB and ScreenScraper, asked apart from the quick lists (`Remote::take_slow`).
+pub struct Slow {
+    sg: Option<crate::steamgrid::SteamGrid>,
+    ss: Option<crate::screenscraper::ScreenScraper>,
+}
+
+impl Slow {
+    pub fn cands(&self, g: &GameArt, part: &str, ask: Ask) -> Vec<Cand> {
+        slow_cands(self.sg.as_ref(), self.ss.as_ref(), g, part, ask)
+    }
+}
+
+fn slow_cands(sg: Option<&crate::steamgrid::SteamGrid>, ss: Option<&crate::screenscraper::ScreenScraper>, g: &GameArt, part: &str, ask: Ask) -> Vec<Cand> {
+    let mut out = Vec::new();
+    if let (Some(sg), true, "front") = (sg, ask.posters, part) {
+        let names = covers::lookup_names(&g.title);
+        for p in sg.posters(&crate::steamgrid::Game { appid: "", title: &g.title, names: &names }) {
+            let label = ["SteamGridDB", p.style_name(), &if p.author.is_empty() { String::new() } else { format!("by {}", p.author) }].into_iter().filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" · ");
+            let hd = p.w.max(p.h) >= 900;
+            out.push(Cand { url: p.url, ext: p.ext.into(), source: "steamgriddb".into(), kind_of: "grid".into(), edition: "original".into(), kind: if hd { "hd" } else { "clean" }.into(), w: Some(p.w), h: Some(p.h), rank: p.rank as f64, label, ..Cand::default() });
+        }
+    }
+    if let Some(ss) = ss {
+        let file = g.file.to_string_lossy();
+        for c in ss.candidates(&g.sys, &crate::screenscraper::Rom { file: &file, title: &g.title, size_bytes: 0 }, part, ask.ss_cache_only, true) {
+            out.push(Cand { url: c.url, ext: c.ext, cut: c.cut.map(String::from), src: c.src, source: "screenscraper".into(), kind_of: c.kind, region: c.region.into(), edition: "original".into(), kind: "scan".into(), label: c.label, ..Cand::default() });
+        }
+    }
+    out
 }
 
 impl Studio {
@@ -570,5 +615,17 @@ mod tests {
         assert_eq!(summary(0, 4, 0, 0, 0, 0, false), "Nothing needed changing");
         assert_eq!(summary(0, 4, 4, 0, 0, 0, false), "Nothing changed · 4 not found");
         assert!(summary(1, 1, 0, 0, 0, 0, true).starts_with("Couldn't reach"));
+    }
+
+    #[test]
+    fn the_sources_not_set_up_are_named_for_their_part() {
+        let tmp = tempfile::tempdir().unwrap();
+        let remote = Remote::new(tmp.path(), "ps2");
+        assert_eq!(remote.missing("front"), ["LaunchBox", "ScreenScraper", "SteamGridDB"]);
+        assert_eq!(remote.missing("back"), ["LaunchBox", "ScreenScraper"]);
+        // a console LaunchBox has no platform for asks for no download
+        assert!(!Remote::new(tmp.path(), "no-such-console").missing("front").contains(&"LaunchBox"));
+        assert!(crate::i18n::tr("tr", "3 so far · still looking…").starts_with("Şimdilik 3"));
+        assert!(crate::i18n::tr("fr", "LaunchBox art: Starting the download…").ends_with("Début du téléchargement…"));
     }
 }

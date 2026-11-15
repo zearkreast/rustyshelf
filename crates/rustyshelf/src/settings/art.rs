@@ -11,6 +11,8 @@ use std::sync::atomic::Ordering;
 
 use super::*;
 
+/// how long the Art Studio waits for SteamGridDB and ScreenScraper before showing the versions it has
+const LATE_WAIT: std::time::Duration = std::time::Duration::from_millis(1200);
 /// a version is downloaded for its preview once it has been highlighted this long (seconds)
 const DWELL: f32 = 0.6;
 /// the preview is shown this tall at most (pixels)
@@ -30,7 +32,16 @@ pub(super) struct ArtPick {
     part: &'static str,
     /// the versions shown, the best first
     list: Vec<Cand>,
-    listing: Option<Mutex<Receiver<Vec<Cand>>>>,
+    /// the lists as they come: the quick ones, then with the slow sources' versions (false: the last)
+    listing: Option<Mutex<Receiver<(Vec<Cand>, bool)>>>,
+    /// a slow source is still answering (the versions so far are shown)
+    pending: bool,
+    /// the sources not set up that could add versions of this part
+    missing: Vec<&'static str>,
+    /// LaunchBox's art database being downloaded: how far it is, and how it ends
+    lb_get: Option<(std::sync::Arc<Mutex<String>>, Mutex<Receiver<Result<(), String>>>)>,
+    /// the accounts as they were when one of them was opened from here, to look again on coming back
+    acct_at: Option<String>,
     /// a picture being put in use (or the last one put back), and the lock to keep when it has worked
     placing: Option<(Option<String>, Mutex<Receiver<Placed>>)>,
     /// the highlighted version, since when, and its picture: asked for, decoded, shown
@@ -193,23 +204,82 @@ impl Settings {
         self.art_game().is_some()
     }
 
-    /// Opens a part's versions: the lists kept on this computer are read off the frame.
+    /// Opens a part's versions: the lists are read off the frame.
     fn open_art_part(&mut self, part: &'static str) {
         let Some(g) = self.art_game() else { return };
+        self.art_pick = ArtPick { game: Some(g), part, last_set: self.art_pick.last_set.take(), restyles: std::mem::take(&mut self.art_pick.restyles), stale: std::mem::take(&mut self.art_pick.stale), ..Default::default() };
+        self.list_art_part();
+        self.go(Screen::ArtPart);
+    }
+
+    /// Looks for the part's versions again. The lists kept on this computer answer first; SteamGridDB and
+    /// ScreenScraper join if they answer within LATE_WAIT, else their versions are added when they come.
+    fn list_art_part(&mut self) {
+        let Some(g) = self.art_game() else { return };
+        let part = self.art_pick.part;
         let (data, style) = (paths::data_dir(&self.app_root), studio::style_for(&self.cfg, &g.sys));
         let (tx, rx) = channel();
         let game = g.clone();
+        let mut remote = Remote::new(&data, &g.sys);
+        self.art_pick.missing = remote.missing(part);
         std::thread::spawn(move || {
-            let region = style["region"].as_str().unwrap_or("usa");
-            let remote = Remote::new(&data, &game.sys).cands(&game, part, region, Ask { wiki: true, posters: true, ss_cache_only: false }, now_ms());
-            let list = Studio::new(&data).list_for(&game, part, remote, now_ms());
-            // the best for the console's style first
-            let shown: Vec<Cand> = studio::shown(&list).cloned().collect();
-            let ctx = Ctx { style: &style, game_region: &game.region, sharp: None };
-            let _ = tx.send(studio::rank_list(&shown, &studio::look_for(&style, part), &ctx).into_iter().cloned().collect());
+            let (ask, region) = (Ask { wiki: true, posters: true, ss_cache_only: false }, style["region"].as_str().unwrap_or("usa").to_string());
+            let slow = remote.take_slow();
+            let (stx, srx) = channel();
+            let late = game.clone();
+            std::thread::spawn(move || {
+                let _ = stx.send(slow.cands(&late, part, ask));
+            });
+            let quick = remote.quick(&game, part, &region, ask, now_ms());
+            let ranked = |remote: Vec<Cand>| -> Vec<Cand> {
+                let list = Studio::new(&data).list_for(&game, part, remote, now_ms());
+                // the best for the console's style first
+                let shown: Vec<Cand> = studio::shown(&list).cloned().collect();
+                let ctx = Ctx { style: &style, game_region: &game.region, sharp: None };
+                studio::rank_list(&shown, &studio::look_for(&style, part), &ctx).into_iter().cloned().collect()
+            };
+            let slow = match srx.recv_timeout(LATE_WAIT) {
+                Ok(slow) => slow,
+                Err(_) => {
+                    if tx.send((ranked(quick.clone()), true)).is_err() {
+                        return;
+                    }
+                    srx.recv().unwrap_or_default()
+                }
+            };
+            let _ = tx.send((ranked(quick.into_iter().chain(slow).collect()), false));
         });
-        self.art_pick = ArtPick { game: Some(g), part, listing: Some(Mutex::new(rx)), last_set: self.art_pick.last_set.take(), restyles: std::mem::take(&mut self.art_pick.restyles), stale: std::mem::take(&mut self.art_pick.stale), ..Default::default() };
-        self.go(Screen::ArtPart);
+        (self.art_pick.listing, self.art_pick.pending) = (Some(Mutex::new(rx)), false);
+        self.redraw = true;
+    }
+
+    /// The accounts the Art Studio's sources use, as one string, to tell whether one changed.
+    fn art_accounts(&self) -> String {
+        ["steamgriddb", "ssUser", "ssPass", "ssDevId", "ssDevPass"].map(|k| self.api_key(k)).join("\u{1}")
+    }
+
+    /// Accounts & services, opened from a source's row: on coming back, the part is looked through again if an
+    /// account changed.
+    fn art_account(&mut self) {
+        self.art_pick.acct_at = Some(self.art_accounts());
+        self.go(Screen::Accounts);
+    }
+
+    /// LaunchBox's art database, downloaded and read from its row; then the part is looked through again.
+    fn get_launchbox(&mut self) {
+        if self.art_pick.lb_get.is_some() {
+            return;
+        }
+        let cache = paths::data_dir(&self.app_root).join("boxart-cache");
+        let (tx, rx) = channel();
+        let stage = std::sync::Arc::new(Mutex::new("Starting the download…".to_string()));
+        let at = stage.clone();
+        std::thread::spawn(move || {
+            let _ = std::fs::create_dir_all(&cache);
+            let _ = tx.send(rustyshelf_core::boxart::launchbox_index(&cache, &mut |s| *at.lock().unwrap() = s.to_string()).map(|_| ()));
+        });
+        self.art_pick.lb_get = Some((stage, Mutex::new(rx)));
+        self.say("LaunchBox art: downloading…".into());
     }
 
     /// Opens the chosen game's complete sets: the four parts' lists are read off the frame.
@@ -387,8 +457,44 @@ impl Settings {
             self.redraw = true;
         }
         let on_page = self.stack.last().is_some_and(|p| p.0 == Screen::ArtPart);
-        if let Some(list) = self.art_pick.listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
-            (self.art_pick.listing, self.art_pick.list, self.redraw) = (None, list, true);
+        if let Some((list, more)) = self.art_pick.listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+            // the cursor stays on the version it was on
+            let lit = self.stack.last().filter(|_| on_page).and_then(|p| self.art_pick.list.get(p.1)).map(|c| c.key.clone());
+            (self.art_pick.list, self.art_pick.pending, self.redraw) = (list, more, true);
+            if !more {
+                self.art_pick.listing = None;
+            }
+            if let (Some(key), Some(top)) = (lit, self.stack.last_mut()) {
+                if let Some(i) = self.art_pick.list.iter().position(|c| c.key == key) {
+                    top.1 = i;
+                }
+            }
+        }
+        if on_page {
+            if let Some(was) = self.art_pick.acct_at.take() {
+                if was != self.art_accounts() {
+                    self.list_art_part();
+                }
+            }
+        }
+        if let Some((stage, rx)) = &self.art_pick.lb_get {
+            let said = format!("LaunchBox art: {}", stage.lock().unwrap());
+            let ended = rx.lock().unwrap().try_recv().ok();
+            if self.note != said && ended.is_none() {
+                self.say(said);
+            }
+            if let Some(ended) = ended {
+                self.art_pick.lb_get = None;
+                match ended {
+                    Ok(()) => {
+                        self.say("LaunchBox art is ready: looking for versions again".into());
+                        if on_page {
+                            self.list_art_part();
+                        }
+                    }
+                    Err(why) => self.say(format!("LaunchBox art didn't download: {why}")),
+                }
+            }
         }
         if let Some(done) = self.art_pick.placing.as_ref().and_then(|p| p.1.lock().unwrap().try_recv().ok()) {
             let (key, _) = self.art_pick.placing.take().expect("a picture being placed");
@@ -526,16 +632,49 @@ impl Settings {
                 }
             })
             .collect();
+        let n = rows.len();
         let lead = if pick.placing.is_some() {
             "Putting it in place…".to_string()
+        } else if pick.pending {
+            if n == 0 { "Still looking…".to_string() } else { format!("{n} so far · still looking…") }
         } else if pick.listing.is_some() {
             "Looking through the box art lists…".into()
+        } else if rows.is_empty() && !pick.missing.is_empty() {
+            "No source set up here has this part for this game. Each source below can add versions.".into()
         } else if rows.is_empty() {
             "No source has this part for this game. The box art lists come with the first box art download (Settings → Box art).".into()
         } else {
-            format!("{} to choose from, the best for this console's style first.", rows.len())
+            format!("{n} to choose from, the best for this console's style first.")
         };
-        if pick.listing.is_none() {
+        for src in &pick.missing {
+            rows.push(match *src {
+                "LaunchBox" => Row {
+                    label: "Get LaunchBox art".into(),
+                    value: if pick.lb_get.is_some() { "Downloading…".into() } else { "About 110 MB".into() },
+                    hint: "Fronts, backs, full boxes and discs for most consoles, from LaunchBox's free database. A one-time download of about 110 MB; then this game's versions show here.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.get_launchbox())),
+                    step: None,
+                },
+                "ScreenScraper" => Row {
+                    label: "Connect ScreenScraper".into(),
+                    value: "Free account".into(),
+                    hint: "Fronts, backs, spines, discs and full boxes for most consoles. Sign in with your free ScreenScraper account in Accounts, then you're back here.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.art_account())),
+                    step: None,
+                },
+                _ => Row {
+                    label: "Add SteamGridDB".into(),
+                    value: "Free key".into(),
+                    hint: "Front covers made by fans, many in HD. Add a free SteamGridDB key in Accounts, then you're back here.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.art_account())),
+                    step: None,
+                },
+            });
+        }
+        if n == 0 && pick.listing.is_none() && !pick.missing.contains(&"LaunchBox") {
+            rows.push(Row { label: "Try again".into(), hint: "Look for versions again.".into(), press: Some(Box::new(|s: &mut Settings| s.list_art_part())), ..Row::default() });
+        }
+        if pick.listing.is_none() || pick.pending {
             let what = match pick.part {
                 "back" => "back cover",
                 "spine" => "spine",
