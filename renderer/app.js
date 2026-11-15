@@ -27,10 +27,11 @@ const STYLE={
   pc:{id:"pc",rc:0.02,re:0.16,hue:207,ratio:.667,depth:.07,edge:0,caseColor:"#1b1f27",caseSide:"#11141a",spineInk:"#dfe8f3",band:null,spineBand:{bg:"#11141a",fg:"#8fb4d9",label:"PC"},tint:["#1d4a6e","#0a121c"],glow:"#8fc3ff"},
   // (beta.4) Custom: PC ports, recomps and games added by hand (Quiver's too); the PC case in a warm tint
   custom:{id:"custom",rc:0.02,re:0.16,hue:28,ratio:.667,depth:.07,edge:0,caseColor:"#211b17",caseSide:"#15110e",spineInk:"#f3e6da",band:null,spineBand:{bg:"#15110e",fg:"#e0a878",label:"PC"},tint:["#6e3f1d","#1c120a"],glow:"#ffbf8a"},
+  ports:{id:"ports",rc:0.02,re:0.16,hue:200,ratio:.667,depth:.07,edge:0,caseColor:"#16202a",caseSide:"#0e151c",spineInk:"#dbe9f5",band:null,spineBand:{bg:"#0e151c",fg:"#7fc4f0",label:"PORT"},tint:["#1d4b6e","#0a141c"],glow:"#8acbff"},
   home:{id:"home",rc:0.04,re:0.22,hue:268,ratio:.71,depth:.09,edge:.025,caseColor:"#1b1d27",caseSide:"#101218",spineInk:"#e8e8f0",band:{bg:"#1b1d27",fg:"#c9cfe0",label:"HOME"},spineBand:{bg:"#2a2d3a",fg:"#c9cfe0",label:"HOME"},tint:["#3b2f6e","#0a0b16"],glow:"#c9b8ff"},
   media:{id:"media",rc:0.03,re:0.18,hue:285,ratio:.71,depth:.06,edge:.02,caseColor:"#1a1c24",caseSide:"#0e0f14",spineInk:"#e8e8f0",band:{bg:"#1a1c24",fg:"#9aa3b8",label:"APP"},spineBand:{bg:"#2a2d38",fg:"#c8cede",label:"APP"},tint:["#2a3550","#0a0d16"],glow:"#b9a6ff"}
 };
-const WORDMARKS={home:["Home","Continue & favorites"],gc:["GameCube","Home console"],wii:["Wii","Motion console"],wiiu:["Wii U","Home console"],sw:["Switch","Hybrid console"],sw2:["Switch 2","Hybrid console"],psp:["PSP","Handheld"],ps3:["PS3","Home console"],ps4:["PS4","Home console"],ps5:["PS5","Home console"],x360:["Xbox 360","Home console"],xboxone:["Xbox One","Standalone games"],n3ds:["3DS","Handheld"],ps2:["PS2","Home console"],pc:["PC","Steam, Epic & more"],custom:["Custom","PC ports & recomps"],media:["Media","Streaming"]};
+const WORDMARKS={home:["Home","Continue & favorites"],gc:["GameCube","Home console"],wii:["Wii","Motion console"],wiiu:["Wii U","Home console"],sw:["Switch","Hybrid console"],sw2:["Switch 2","Hybrid console"],psp:["PSP","Handheld"],ps3:["PS3","Home console"],ps4:["PS4","Home console"],ps5:["PS5","Home console"],x360:["Xbox 360","Home console"],xboxone:["Xbox One","Standalone games"],n3ds:["3DS","Handheld"],ps2:["PS2","Home console"],pc:["PC","Steam, Epic & more"],custom:["Custom","Games you added"],ports:["Ports & Recomps","Native PC versions"],media:["Media","Streaming"]};
 STYLE.xsx=STYLE.xboxone;STYLE.xone=STYLE.xboxone;
 STYLE.all=STYLE.home;WORDMARKS.all=["All Games","Whole library"];
 if(window.BS_SYSTEMS_EXTRA){Object.assign(STYLE,BS_SYSTEMS_EXTRA.style||{});Object.assign(WORDMARKS,BS_SYSTEMS_EXTRA.wordmarks||{})} // extra shelves (renderer/systems-extra.js)
@@ -50,7 +51,7 @@ let shelves=[],sysIdx=0,sel=0,flipped=false,spin=0,mode="browse",inputMode="kbd"
 let slots=[],bw=240,bh=340,bd=24,OS=1,themes={},cfgInfo=null;
 const cur=()=>shelves[sysIdx];
 const st=()=>STYLE[(cur()||{}).id]||STYLE.media; // no shelves yet (empty library): the neutral look, never a TypeError
-const isPcGame=g=>!!(g&&(g.kind==="steam"||(shelfFor(g)&&(shelfFor(g).id==="pc"||shelfFor(g).id==="custom"))));
+const isPcGame=g=>!!(g&&(g.kind==="steam"||(shelfFor(g)&&["pc","custom","ports"].includes(shelfFor(g).id))));
 const shelfFor=g=>(g&&g._shelf!=null&&allShelves[g._shelf])||cur();
 // (RustyShelf, discussion 15) Settings → PC games → Console box color: a PC game in its console box takes the colour
 // chosen for that console, else the one for every PC game, else the console's own; the case's sides a shade darker
@@ -60,7 +61,7 @@ function boxTint(g,base){const pc=cfgInfo&&cfgInfo.config&&cfgInfo.config.pc;if(
   return c?{...base,caseColor:c,caseSide:darker(c,.72)}:base}
 const stOf=g=>{
   const sh=shelfFor(g)||{};
-  const base=(g&&g.artFrom==='console'&&g.boxPlat&&STYLE[g.boxPlat])||STYLE[sh.id]||STYLE.media;
+  const base=(g&&g.artFrom==='console'&&g.boxPlat&&STYLE[g.boxPlat])||(g&&g.portOf&&sh.id==="ports"&&STYLE[g.portOf])||STYLE[sh.id]||STYLE.media; /* (a port on Ports & Recomps: its console's case) */
   if(isPcGame(g)){
     return boxTint(g,{...base,edge:0,spineBand:STYLE.pc.spineBand});
   }
@@ -1011,6 +1012,7 @@ function descFor(g){
   if(g.kind==="setup")return `No games found for ${s.name} yet. Opens its page in Settings, where you can pick the folder your games are in.`;
   if(g.kind==="emulator")return `Opens ${s.emulatorName} on its own so you can change controllers, graphics and other settings. Close it to come back here.`;
   if(g.kind==="app")return `Opens ${g.title}. Close it to come back to the shelf.`;
+  if(g.kind==="steam"&&g.platform==="ports"&&g.source==="custom")return "Added by you, on Ports & Recomps. RustyShelf starts its program directly.";
   if(g.kind==="steam"&&g.platform&&g.source==="custom")return g.platform==="pc"?"Added by you, on the PC shelf. RustyShelf starts its program directly.":`Added by you, on the ${s.name} shelf. RustyShelf starts its program directly${s.emulatorName?`, not through ${s.emulatorName}`:""}.`; // (supalii)
   if(g.kind==="steam")return PC_HOW[g.source]||"Starts through Steam, so updates, cloud saves and the Steam overlay work as usual.";
   return g.kind==="rom"?"":`Opens ${g.title}.`;
@@ -1457,7 +1459,7 @@ async function cpChoose(){if(!cp||cp.busy)return;const it=cp.items[cp.i],g=cp.g,
    where that comes from (your pick, the store's box art, Steam's art, or a made-up case), the console Art Studio's view
    for PC games. A (a click) opens that game's cover picker; when it closes, the gallery comes back */
 let galleryBack=false;
-const pcShelfGames=()=>allShelves.filter(s=>s.id==="pc"||s.id==="custom").flatMap(s=>(s._base||s.items||[]).filter(g=>g.kind==="steam").map(g=>({g,sh:s})));
+const pcShelfGames=()=>allShelves.filter(s=>s.id==="pc"||s.id==="custom"||s.id==="ports").flatMap(s=>(s._base||s.items||[]).filter(g=>g.kind==="steam").map(g=>({g,sh:s})));
 const artFromText=g=>g.artFrom==="yours"?"Your pick":g.artFrom==="console"?"Its console box":g.artFrom==="store"?(g.source==="epic"?"Epic's box art":"The store's box art"):g.artFrom==="steam"?"Steam's art":"Made-up case";
 function pcArtCount(){const L=pcShelfGames();return {total:L.length,made:L.filter(x=>!x.g.artFrom).length}}
 function pcGallery(){

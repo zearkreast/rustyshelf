@@ -32,7 +32,7 @@ pub enum ShelfKind {
 
 #[derive(Debug, Clone)]
 pub struct Shelf {
-    /// the console's id, "pc", "custom" or "media"
+    /// the console's id, "pc", "custom", "ports" or "media"
     pub id: String,
     pub name: String,
     pub kind: ShelfKind,
@@ -309,11 +309,15 @@ impl Library {
         pc.extend(stores.into_iter().map(|g| art.pc_game(g)));
         // a game added by hand can sit on the PC shelf or on a console's, beside its ROMs: it's still started as its
         // own program. A console that's switched off sends its games back to Custom
-        let (mut custom, mut back, mut moved): (Vec<Game>, Vec<Game>, HashMap<String, Vec<Game>>) = Default::default();
+        let (mut custom, mut ports, mut back) = (Vec::new(), Vec::new(), Vec::new());
+        let mut moved: HashMap<String, Vec<Game>> = HashMap::new();
         for g in mine {
-            let shelf = g.shelf.clone();
+            let (shelf, port) = (g.shelf.clone(), g.port);
             let game = art.pc_game(g);
             match shelf.as_deref() {
+                // Ports & Recomps: a program set there, and Quiver's ports and recompilations
+                Some("ports") => ports.push(game),
+                None if port => ports.push(game),
                 None => custom.push(game),
                 Some("pc") => pc.push(game),
                 Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(game),
@@ -329,7 +333,7 @@ impl Library {
                 None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) }, from: Vec::new() }),
             }
         }
-        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom)] {
+        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom), ("ports", "Ports & Recomps", ports)] {
             if !games.is_empty() {
                 games.sort_by(|a, b| compare_plain(&a.title, &b.title));
                 shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games, from: Vec::new() });
@@ -635,7 +639,8 @@ mod tests {
             "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false, "custom": [
                 { "title": "On Custom", "exe": at("tools/a.exe") }, { "title": "On PC", "exe": at("tools/b.exe"), "shelf": "pc" },
                 { "title": "On SNES", "exe": at("tools/c.exe"), "platform": "snes" }, { "title": "Console Off", "exe": at("tools/d.exe"), "shelf": "gc" },
-                { "title": "Ported", "exe": at("tools/a.exe"), "shelf": "xboxone" }, { "title": "No Emulator", "exe": format!(" {} ", at("tools/b.exe")), "shelf": "nes" } ] },
+                { "title": "Ported", "exe": at("tools/a.exe"), "shelf": "xboxone" }, { "title": "No Emulator", "exe": format!(" {} ", at("tools/b.exe")), "shelf": "nes" },
+                { "title": "A Recomp", "exe": at("tools/c.exe"), "shelf": "ports", "portOf": "n64" } ] },
             "systems": { "snes": { "romDirs": [at("snes")] }, "gc": { "enabled": false } },
             "games": { "custom-on-pc": { "title": "Renamed" } },
             "apps": { "stremio": { "enabled": true, "path": at("tools/a.exe") }, "nuvio": { "enabled": false, "path": at("tools/b.exe") } },
@@ -645,6 +650,6 @@ mod tests {
         let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
-        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("media", vec!["Stremio"])]);
+        assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("ports", vec!["A Recomp"]), ("media", vec!["Stremio"])]);
     }
 }

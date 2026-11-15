@@ -774,7 +774,7 @@ async function buildLibrary() {
     // (its size: its folder as measured in the background, until then what Epic says it installed (a game can download
     // more itself, MTG Arena does); Steam's games bring their own)
     const sizeBytes = g.installed === false ? 0 : (SIZED_SRC.has(g.source) && g.dir ? dirsize.get(g.dir) : 0) || g.installSize || 0;
-    return { kind: 'steam', source: g.source, id: g.id, title: g.title, ...(MINE_SRC.has(g.source) && g.exe ? { exe: g.exe, ...(g.args ? { args: g.args } : {}) } : {}), ...(g.shelf ? { platform: g.shelf } : {}), ...(g.installed === false ? { installed: false } : {}), ...(sizeBytes ? { sizeBytes } : {}), ...(sid ? { info: steamart.gameInfo(sid) } : {}), ...(cPlat ? { boxPlat: cPlat } : {}), artFrom: (cPlat || box) ? 'console' : chosen ? 'yours' : auto ? 'store' : fCover ? 'folder' : l.front ? 'steam' : '', art: { front: fileUrl(front), hero: fileUrl(l.hero), icon: g.icon || undefined, ...boxParts((box || (chosen && cPlat)) && g.id) } }; };
+    return { kind: 'steam', source: g.source, id: g.id, title: g.title, ...(MINE_SRC.has(g.source) && g.exe ? { exe: g.exe, ...(g.args ? { args: g.args } : {}) } : {}), ...(g.shelf ? { platform: g.shelf } : {}), ...(g.portOf ? { portOf: g.portOf } : {}), ...(g.installed === false ? { installed: false } : {}), ...(sizeBytes ? { sizeBytes } : {}), ...(sid ? { info: steamart.gameInfo(sid) } : {}), ...(cPlat ? { boxPlat: cPlat } : {}), artFrom: (cPlat || box) ? 'console' : chosen ? 'yours' : auto ? 'store' : fCover ? 'folder' : l.front ? 'steam' : '', art: { front: fileUrl(front), hero: fileUrl(l.hero), icon: g.icon || undefined, ...boxParts((box || (chosen && cPlat)) && g.id) } }; };
   pcAutoCovers([...epic, ...mine]);
   // (beta.10) a game added by hand can be moved to the PC shelf (Settings → Custom games → the game → Shelf); (supalii's
   // fork) or to a console's shelf, beside its ROMs: it's still started as its own program, not through the emulator. A
@@ -785,12 +785,15 @@ async function buildLibrary() {
     if (sh) { sh.games.push(...games); continue; }
     const sc = cfg.systems[def.id], emu = (sc && sc.emulator) || (def.retro && cfg.retroarch ? cfg.retroarch : '');
     shelves.push({ id: def.id, kind: 'console', name: def.name, emulatorName: emuShown(def, emu), hasEmulator: !!emu && paths.isFile(emuPath(emu)), emulator: emu, emulatorIcon: emu ? fileUrl(await iconQuick(emu)) : null, gameArgs: sc.gameArgs, bootOnLaunch: sc.bootOnLaunch !== false, useIpl: def.id === 'gc' && !!sc.useIpl, insertAnim: sc.insertAnim !== false, games }); }
-  const toPc = mine.filter(g => g.shelf === 'pc'), onCustom = mine.filter(g => !g.shelf);
+  // (RustyShelf) Ports & Recomps: a program set there, and Quiver's ports and recompilations (unless moved elsewhere)
+  const isPort = g => g.shelf === 'ports' || (!g.shelf && g.port);
+  const toPc = mine.filter(g => g.shelf === 'pc'), onPorts = mine.filter(isPort), onCustom = mine.filter(g => !g.shelf && !isPort(g));
   onCustom.push(...back); // (a program whose console's shelf is switched off; the line above stays self-contained: android-app/ci/issues-test.js runs it on its own)
   if (epic.length || toPc.length) pcShelf = pcShelf.concat([...epic, ...toPc].map(pcGame)).sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' }));
   pcShelf.forEach(g => { if (!g.source && g.artFrom == null) { const chosen = pccovers.cover(g.id), box = !chosen && boxOn && pccovers.consoleCover(g.id), cPlat = (box || chosen) ? pccovers.consolePlat(g.id) : null; if (cPlat && !g.boxPlat) g.boxPlat = cPlat; g.artFrom = g.art && g.art.front ? (cPlat ? 'console' : chosen ? 'yours' : box ? 'console' : 'steam') : ''; } }); // (Steam's own games)
   if (pcShelf.length) shelves.push({ id: 'pc', kind: 'steam', name: 'PC', games: pcShelf });
   if (onCustom.length) shelves.push({ id: 'custom', kind: 'steam', name: 'Custom', games: onCustom.map(pcGame).sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' })) });
+  if (onPorts.length) shelves.push({ id: 'ports', kind: 'steam', name: 'Ports & Recomps', games: onPorts.map(pcGame).sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' })) });
   if (boxOn) pcConsoleBoxes(shelves.flatMap(x => x.games || []).filter(g => g.kind === 'steam')); // (RustyShelf) the console boxes not made yet, in the background
   const apps = [];
   for (const a of APPS) { const c = cfg.apps[a.id]; if (!c || !c.enabled || !c.path) continue; apps.push({ kind: 'app', id: 'app-' + a.id, appId: a.id, title: a.name, path: c.path, art: { icon: fileUrl(await iconQuick(c.path)) } }); }

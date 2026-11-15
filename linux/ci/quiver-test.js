@@ -71,6 +71,11 @@ try {
   check('Quiver 4: an app in a console group folder (Ports\\N64) is read from installs.json, with the catalog\'s name and art', g4g.some(x => x.title === 'Zelda 64: Recompiled' && /Zelda64Recompiled\.exe$/.test(x.exe) && x.icon === 'https://example.com/z64.jpg'), JSON.stringify(g4g));
   check('Quiver 4: an app its installs.json doesn\'t show yet, inside a group folder, gets the catalog\'s name, not a folder\'s', t4g.includes('Star Fox 64 (Starship)') && t4g.includes('ares'), t4g);
   check('Quiver 4: the group folders themselves (Ports, N64, Emulators) are never taken for apps, nothing twice', !t4g.some(t => /^(Ports|N64|Emulators)$/.test(t)) && g4g.length === 3, t4g);
+  // (RustyShelf) Ports & Recomps: an app under Ports\<console>, listed or not, is a port of that console; one whose catalog
+  // tags say decomp / recomp is a port too; an emulator isn't
+  const pz = g4g.find(x => x.title === 'Zelda 64: Recompiled'), ps = g4g.find(x => x.title === 'Star Fox 64 (Starship)'), pa = g4g.find(x => x.title === 'ares');
+  check('Ports & Recomps: Quiver 4 apps under Ports\\N64 are ports of the N64, listed or not; an emulator isn\'t', pz && pz.port && pz.portOf === 'n64' && ps && ps.port && ps.portOf === 'n64' && pa && !pa.port, JSON.stringify(g4g.map(x => [x.title, x.port, x.portOf])));
+  check('Ports & Recomps: a Quiver 3 app its list tags as a decomp is a port', !!(by('Star Fox 64') && by('Star Fox 64').port) && !by('Mystery Port').port, JSON.stringify(gb.map(x => [x.title, x.port])));
   // (issue 16, a fourth time) moved from Quiver 3 to Quiver 4: Settings still points at the old Quiver 3 folder (read first),
   // and Quiver 4 (in AppData) keeps using that folder's Apps. An app installed with Quiver 4 isn't in Quiver 3's apps.json,
   // so the Quiver 3 pass took it from the folder under its folder's name, and Quiver 4's entry for it (the proper name)

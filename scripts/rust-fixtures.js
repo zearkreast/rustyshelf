@@ -253,7 +253,7 @@ const PC = {
     + regKey(HYP_KEY + '\\again', [['GameBiz', 'REG_SZ', 'HK4E_GLOBAL'], ['GameInstallPath', 'REG_SZ', '{root}/hoyo/GI']]),
   xboxAnswer: 'Made.Alpha|Made.Alpha_abc123\r\n\r\nTS-END\r\n',
   quiver: ['q3', 'q4', 'q3/Apps', ''],
-  custom: [{ id: 'c1', title: ' My Tool ', exe: '{root}/custom/tool.exe', args: '-a "b c"', shelf: 'pc' }, { title: 'Gone', exe: '{root}/custom/gone.exe' }, { exe: '{root}/custom/Some-Game_v2.exe', shelf: 'snes' },
+  custom: [{ id: 'c1', title: ' My Tool ', exe: '{root}/custom/tool.exe', args: '-a "b c"', shelf: 'pc' }, { id: 'p1', title: 'Zeta Recomp', exe: '{root}/custom/tool.exe', shelf: 'ports', portOf: 'gc' }, { title: 'Gone', exe: '{root}/custom/gone.exe' }, { exe: '{root}/custom/Some-Game_v2.exe', shelf: 'snes' },
     { exe: '{root}/custom/x.exe', shelf: 'nope', args: 5 }, { shellApp: 'Made.Up_8abcdefgh12345!App', title: 'Store Thing' }, { shellApp: 'bad' }, null, 'x', { exe: '', shellApp: 'Made.Up_8abcdefgh12345!App2' }, { exe: '{root}/custom/tool.exe', title: 'my tool' }],
   folder: { gamesDir: 'pcf/games', ownDir: 'pcf/own', programs: { Chosen: 'two.exe', 'Deep One': 'nope.exe' }, skip: ['pcf/games/Skipped', ''] },
   publishers: ['CN=Made & Up', 'CN=Example Corp, O=Example, C=US', ''],
@@ -271,7 +271,7 @@ async function pcFixtures() {
   for (const f of PC.exec) fs.chmodSync(path.join(root, f), 0o755);
   const env = { ...process.env }; delete process.env.APPDATA; delete process.env.LOCALAPPDATA; // (Quiver's usual places: none here)
   const game = g => ({ id: g.id, source: g.source, title: g.title, exe: g.exe || '', args: g.args || '', uri: g.uri || '', shellApp: g.shellApp || '', dir: g.dir || '', icon: g.icon || '', tags: g.tags || [],
-    shelf: g.shelf || null, native: !!g.native, programs: (g.programs || []).map(p => [p.rel, p.native]) });
+    shelf: g.shelf || null, native: !!g.native, programs: (g.programs || []).map(p => [p.rel, p.native]), port: !!(g.port || g.shelf === 'ports'), portOf: g.portOf || '' });
   const unroot = o => JSON.parse(JSON.stringify(o).split(R).join('{root}'));
   const asWindows = async fn => { const d = Object.getOwnPropertyDescriptor(process, 'platform'); Object.defineProperty(process, 'platform', { value: 'win32' }); try { return await fn(); } finally { Object.defineProperty(process, 'platform', d); } };
   const out = { files: PC.files, exec: PC.exec };
@@ -329,7 +329,7 @@ const SETTINGS = [
   J({ setupDone: 'yes', retroarch: '  C:\\RA\\retroarch.exe  ',
     systems: { gc: { gameArgs: '-b -e "{rom}"', romDirs: 'nope', enabled: false, extra: 1 }, wii: null, snes: { romDirs: ['/roms/snes'], emulator: 5 }, madeup: { a: 1 } },
     steam: { enabled: true, path: 5, hideTools: 'x' },
-    pc: { epic: 'no', quiver: false, custom: [{ exe: ' C:\\a.exe ', title: '  A  ', id: '', args: 7, shelf: 'nope', platform: 'snes', src: 'playnite', runner: '' }, { exe: '' }, 'x', null, { exe: '/b', shelf: 'pc', platform: 'gc' }],
+    pc: { epic: 'no', quiver: false, custom: [{ exe: ' C:\\a.exe ', title: '  A  ', id: '', args: 7, shelf: 'nope', platform: 'snes', src: 'playnite', runner: '' }, { exe: 'C:\\p.exe', shelf: 'ports', portOf: 'n64' }, { exe: 'C:\\q.exe', portOf: 'nope' }, { exe: '' }, 'x', null, { exe: '/b', shelf: 'pc', platform: 'gc' }],
       pnDirs: { steam: ['/a', 5, '/b'], '12345678901234567890123': 'x' }, gamesDir: ' /games ', run: { 'pc-a': { runner: ' proton ', prefix: 'relative', env: { GOOD: 'v', '1BAD': 'v', NUM: 5 } }, 'pc-b': { prefix: '/abs' }, 'pc-c': 3 },
       programs: { A: 'bin/a.exe', B: '/abs.exe', C: '../x.exe', D: '', E: 'ok\\..\\x', 7: 'seven.exe' }, boxColor: '#12abCD', boxColors: { ps5: '#000000', nope: '#111111', ps4: 'red' }, quiverPath: null, consoleBox: 'yes', gog: 0 },
     games: { 'gc:/g/a.iso': { emulator: '  /e/dolphin  ', title: ' A   b\t c ', window: 'borderless', install: 'gone', artName: '', status: 'finished', other: 1 }, x: 'str', y: {}, 5: { title: 'five' } },

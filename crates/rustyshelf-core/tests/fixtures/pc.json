@@ -366,7 +366,9 @@
    "tags": [],
    "shelf": null,
    "native": false,
-   "programs": []
+   "programs": [],
+   "port": false,
+   "portOf": ""
   },
   {
    "id": "epic-77",
@@ -381,7 +383,9 @@
    "tags": [],
    "shelf": null,
    "native": false,
-   "programs": []
+   "programs": [],
+   "port": false,
+   "portOf": ""
   },
   {
    "id": "epic-eclair",
@@ -396,7 +400,9 @@
    "tags": [],
    "shelf": null,
    "native": false,
-   "programs": []
+   "programs": [],
+   "port": false,
+   "portOf": ""
   },
   {
    "id": "epic-clair-co",
@@ -411,7 +417,9 @@
    "tags": [],
    "shelf": null,
    "native": false,
-   "programs": []
+   "programs": [],
+   "port": false,
+   "portOf": ""
   },
   {
    "id": "epic-zeta",
@@ -426,7 +434,9 @@
    "tags": [],
    "shelf": null,
    "native": false,
-   "programs": []
+   "programs": [],
+   "port": false,
+   "portOf": ""
   }
  ],
  "ea": {
@@ -452,7 +462,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "ea-x-y",
@@ -467,7 +479,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "ea-five",
@@ -482,7 +496,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    }
   ]
  },
@@ -564,7 +580,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "gog-1003",
@@ -579,7 +597,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "gog-1004",
@@ -594,7 +614,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    }
   ]
  },
@@ -614,7 +636,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "hoyo-hkrpg-cn",
@@ -629,7 +653,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    }
   ]
  },
@@ -667,7 +693,9 @@
       "tags": [],
       "shelf": null,
       "native": false,
-      "programs": []
+      "programs": [],
+      "port": false,
+      "portOf": ""
      }
     ],
     "again": [
@@ -684,7 +712,9 @@
       "tags": [],
       "shelf": null,
       "native": false,
-      "programs": []
+      "programs": [],
+      "port": false,
+      "portOf": ""
      }
     ]
    },
@@ -704,7 +734,9 @@
       "tags": [],
       "shelf": null,
       "native": false,
-      "programs": []
+      "programs": [],
+      "port": false,
+      "portOf": ""
      },
      {
       "id": "xbox-made-beta",
@@ -719,7 +751,9 @@
       "tags": [],
       "shelf": null,
       "native": false,
-      "programs": []
+      "programs": [],
+      "port": false,
+      "portOf": ""
      }
     ],
     "again": [
@@ -736,7 +770,9 @@
       "tags": [],
       "shelf": null,
       "native": false,
-      "programs": []
+      "programs": [],
+      "port": false,
+      "portOf": ""
      },
      {
       "id": "xbox-made-beta",
@@ -751,7 +787,9 @@
       "tags": [],
       "shelf": null,
       "native": false,
-      "programs": []
+      "programs": [],
+      "port": false,
+      "portOf": ""
      }
     ]
    }
@@ -777,7 +815,9 @@
      ],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-by-path",
@@ -792,7 +832,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-projonly",
@@ -807,7 +849,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-loose-one-game",
@@ -822,7 +866,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-starship-v1-0-2",
@@ -837,7 +883,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     }
    ]
   },
@@ -857,7 +905,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-github-own-alpha",
@@ -872,7 +922,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": true,
+     "portOf": "n64"
     },
     {
      "id": "quiver-github-own-beta",
@@ -890,7 +942,9 @@
      ],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-emu1",
@@ -905,7 +959,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-delta",
@@ -920,7 +976,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-gamma-loose",
@@ -935,7 +993,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": true,
+     "portOf": "gc"
     },
     {
      "id": "quiver-standalone",
@@ -950,7 +1010,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     }
    ]
   },
@@ -973,7 +1035,9 @@
      ],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-by-path",
@@ -988,7 +1052,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-projonly",
@@ -1003,7 +1069,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-loose-one-game",
@@ -1018,7 +1086,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     },
     {
      "id": "quiver-starship-v1-0-2",
@@ -1033,7 +1103,9 @@
      "tags": [],
      "shelf": null,
      "native": false,
-     "programs": []
+     "programs": [],
+     "port": false,
+     "portOf": ""
     }
    ]
   },
@@ -1072,7 +1144,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "quiver-madeup-zetarun",
@@ -1087,7 +1161,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    }
   ]
  },
@@ -1099,6 +1175,13 @@
     "exe": "{root}/custom/tool.exe",
     "args": "-a \"b c\"",
     "shelf": "pc"
+   },
+   {
+    "id": "p1",
+    "title": "Zeta Recomp",
+    "exe": "{root}/custom/tool.exe",
+    "shelf": "ports",
+    "portOf": "gc"
    },
    {
     "title": "Gone",
@@ -1145,7 +1228,26 @@
     "tags": [],
     "shelf": "pc",
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
+   },
+   {
+    "id": "custom-p1",
+    "source": "custom",
+    "title": "Zeta Recomp",
+    "exe": "{root}/custom/tool.exe",
+    "args": "",
+    "uri": "",
+    "shellApp": "",
+    "dir": "",
+    "icon": "",
+    "tags": [],
+    "shelf": "ports",
+    "native": false,
+    "programs": [],
+    "port": true,
+    "portOf": "gc"
    },
    {
     "id": "custom-some-game-v2-exe",
@@ -1160,7 +1262,9 @@
     "tags": [],
     "shelf": "snes",
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "custom-x-exe",
@@ -1175,7 +1279,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "custom-store-thing",
@@ -1190,7 +1296,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "custom-made-up-8abcdefgh12345-app2",
@@ -1205,7 +1313,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "custom-my-tool",
@@ -1220,7 +1330,9 @@
     "tags": [],
     "shelf": null,
     "native": false,
-    "programs": []
+    "programs": [],
+    "port": false,
+    "portOf": ""
    }
   ]
  },
@@ -1258,7 +1370,9 @@
       "two.exe",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-deep-one",
@@ -1278,7 +1392,9 @@
       "a/b/deep.exe",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-half-life",
@@ -1298,7 +1414,9 @@
       "hl.exe",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-half-life-5348a530",
@@ -1318,7 +1436,9 @@
       "hl.exe",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-hollow-knight",
@@ -1338,7 +1458,9 @@
       "mine.exe",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-native-game",
@@ -1370,7 +1492,9 @@
       "run.bat",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-de-stadt-0b354e70",
@@ -1390,7 +1514,9 @@
       "o.exe",
       false
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    },
    {
     "id": "pc-sub-elf",
@@ -1410,7 +1536,9 @@
       "bin/sub_elf",
       true
      ]
-    ]
+    ],
+    "port": false,
+    "portOf": ""
    }
   ]
  },

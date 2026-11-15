@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const ON_SHELF = new Set(['pc', ...require('./systems').CONSOLES.map(c => c.id)]); // (the shelves a game added by hand can sit on besides Custom)
+const ON_SHELF = new Set(['pc', 'ports', ...require('./systems').CONSOLES.map(c => c.id)]); // (the shelves a game added by hand can sit on besides Custom)
 let log = () => {}, dataDir = '';
 const isFile = p => { try { return fs.statSync(p).isFile(); } catch { return false; } };
 const isDir = p => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
@@ -334,7 +334,8 @@ function quiver4(root) {
     if (!exe || !/\.exe$/i.test(exe)) continue;
     const it = byId.get(String(id)) || {}, ov = it.overrides || {}, ce = cat[String(id)] || {}; // (issue 16: the catalog's name, as Quiver shows it)
     const title = String(ov.name || (it.custom && it.custom.name) || (it.local && it.local.name) || ce.name || it.slug || ce.slug || i.folder || path.basename(path.dirname(exe))).trim();
-    out.push({ key: String(id), title, exe, icon: typeof ov.cover === 'string' && /^https:\/\//.test(ov.cover) ? ov.cover : catIcon(ce), tags: Array.isArray(ce.tags) ? ce.tags.map(String).slice(0, 20) : [] });
+    const tags = Array.isArray(ce.tags) ? ce.tags.map(String).slice(0, 20) : [];
+    out.push({ key: String(id), title, exe, icon: typeof ov.cover === 'string' && /^https:\/\//.test(ov.cover) ? ov.cover : catIcon(ce), tags, ...portOfQuiver(grp, tags) });
   }
   return out;
 }
@@ -397,10 +398,27 @@ function quiverLoose(appsDir, listed, names, grouped) {
     if (inside.some(x => x.startsWith(pre))) continue;
     const exe = mainExe(dir); if (!exe) continue;
     const hit = names && (names.get(qKey(e.name)) || names.get(qBare(e.name))); // (the id stays the folder's: a game already on the shelf keeps its settings)
-    out.push({ key: e.name, title: hit ? hit.title : e.name.replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim() || titleFromExe(exe), exe, icon: hit ? hit.icon : '', tags: hit ? hit.tags : [] });
+    const grp = path.relative(appsDir, path.dirname(dir)).split(/[\\/]+/).filter(Boolean);
+    out.push({ key: e.name, title: hit ? hit.title : e.name.replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim() || titleFromExe(exe), exe, icon: hit ? hit.icon : '', tags: hit ? hit.tags : [], ...portOfQuiver(grp, hit ? hit.tags : []) });
   }
   return out;
 }
+// ---------- ports and recompilations: the Ports & Recomps shelf ----------
+// A Quiver app is one when Quiver 4 keeps it under Ports\<console> or its catalog tags say so; the console it was ported
+// from is found by that folder's name (N64, GameCube, PS1 …), so its case can look like that console's
+const CONSOLE_IDS = new Set(require('./systems').CONSOLES.map(c => c.id));
+let consoleNames = null;
+function consoleOfName(name) {
+  if (!consoleNames) { consoleNames = new Map(); const k = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const c of require('./systems').CONSOLES) for (const n of [c.id, c.name, ...(c.romFolderNames || [])]) if (k(n) && !consoleNames.has(k(n))) consoleNames.set(k(n), c.id); }
+  return consoleNames.get(String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '')) || '';
+}
+const PORT_TAG = /\b(port|ports|recomp|recompilation|decomp|decompilation)\b/i;
+function portOfQuiver(group, tags) {
+  if (group.length && /^ports$/i.test(group[0])) return { port: true, portOf: consoleOfName(group[1]) };
+  return (tags || []).some(t => PORT_TAG.test(t)) ? { port: true, portOf: '' } : {};
+}
+
 function quiverGames(chosen) {
   const out = [], seen = new Set();
   // (RustyShelf, issue 16) moved from Quiver 3 to Quiver 4, both folders are read (Settings on the old one, Quiver 4 in
@@ -439,7 +457,7 @@ async function customGames(list) {
 function customFrom(list) {
   return list
     .map(c => { const app = !(typeof c.exe === 'string' && c.exe) && isShellApp(c.shellApp), exe = app ? '' : c.exe;
-      return { id: 'custom-' + slug(c.id || c.title || path.basename(exe || c.shellApp)), source: 'custom', title: String(c.title || path.basename(exe, '.exe') || 'Game').trim().slice(0, 120), exe, ...(app ? { shellApp: c.shellApp } : {}), args: typeof c.args === 'string' ? c.args.slice(0, 1000) : '', ...(ON_SHELF.has(c.shelf) ? { shelf: c.shelf } : {}) }; }); // (beta.10: shelf 'pc' = shown on the PC shelf instead of Custom; supalii: or a console's)
+      return { id: 'custom-' + slug(c.id || c.title || path.basename(exe || c.shellApp)), source: 'custom', title: String(c.title || path.basename(exe, '.exe') || 'Game').trim().slice(0, 120), exe, ...(app ? { shellApp: c.shellApp } : {}), args: typeof c.args === 'string' ? c.args.slice(0, 1000) : '', ...(ON_SHELF.has(c.shelf) ? { shelf: c.shelf } : {}), ...(c.portOf && CONSOLE_IDS.has(c.portOf) ? { portOf: c.portOf } : {}) }; }); // (beta.10: shelf 'pc' = shown on the PC shelf instead of Custom; supalii: or a console's)
 }
 // a title from a program's name: "SoH-Ship-of-Harkinian.exe" → "SoH Ship of Harkinian"
 const titleFromExe = exe => path.basename(String(exe || ''), path.extname(String(exe || ''))).replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Game';

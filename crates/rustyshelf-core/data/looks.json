@@ -401,6 +401,29 @@
    ],
    "glow": "#ffbf8a"
   },
+  "ports": {
+   "id": "ports",
+   "rc": 0.02,
+   "re": 0.16,
+   "hue": 200,
+   "ratio": 0.667,
+   "depth": 0.07,
+   "edge": 0,
+   "caseColor": "#16202a",
+   "caseSide": "#0e151c",
+   "spineInk": "#dbe9f5",
+   "band": null,
+   "spineBand": {
+    "bg": "#0e151c",
+    "fg": "#7fc4f0",
+    "label": "PORT"
+   },
+   "tint": [
+    "#1d4b6e",
+    "#0a141c"
+   ],
+   "glow": "#8acbff"
+  },
   "home": {
    "id": "home",
    "rc": 0.04,
@@ -1354,7 +1377,11 @@
   ],
   "custom": [
    "Custom",
-   "PC ports & recomps"
+   "Games you added"
+  ],
+  "ports": [
+   "Ports & Recomps",
+   "Native PC versions"
   ],
   "media": [
    "Media",

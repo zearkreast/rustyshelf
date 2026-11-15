@@ -291,8 +291,8 @@ fn scales(v: Option<&Value>, max_entries: usize, max_key: usize) -> Value {
 
 fn sanitize_pc(pc: &mut Map<String, Value>) {
     static ENV_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[A-Za-z_][A-Za-z0-9_]{0,80}$").unwrap());
-    // which shelf a game added by hand sits on: Custom (none), PC, or a console's
-    let shelf_of = |c: &Value| [c.get("shelf"), c.get("platform")].into_iter().filter_map(js::str_of).find(|x| *x == "pc" || systems().console(x).is_some()).map(String::from);
+    // which shelf a game added by hand sits on: Custom (none), PC, Ports & Recomps, or a console's
+    let shelf_of = |c: &Value| [c.get("shelf"), c.get("platform")].into_iter().filter_map(js::str_of).find(|x| *x == "pc" || *x == "ports" || systems().console(x).is_some()).map(String::from);
     let custom: Vec<Value> = pc
         .get("custom")
         .and_then(Value::as_array)
@@ -315,6 +315,9 @@ fn sanitize_pc(pc: &mut Map<String, Value>) {
             }
             if let Some(shelf) = shelf_of(c) {
                 o.insert("shelf".into(), json!(shelf));
+            }
+            if let Some(from) = js::str_of(c.get("portOf")).filter(|x| systems().console(x).is_some()) {
+                o.insert("portOf".into(), json!(from));
             }
             Value::Object(o)
         })

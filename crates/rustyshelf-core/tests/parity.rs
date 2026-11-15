@@ -213,7 +213,7 @@ fn pc_games_match_the_js_lists() {
     }
     let game = |g: &PcGame| {
         serde_json::json!({ "id": g.id, "source": g.source, "title": g.title, "exe": g.exe, "args": g.args, "uri": g.uri, "shellApp": g.shell_app, "dir": g.dir,
-            "icon": g.icon, "tags": g.tags, "shelf": g.shelf, "native": g.native, "programs": g.programs })
+            "icon": g.icon, "tags": g.tags, "shelf": g.shelf, "native": g.native, "programs": g.programs, "port": g.port, "portOf": g.port_of })
     };
     let same = |what: &str, got: &[PcGame], want: &Value| {
         let got = serde_json::to_string_pretty(&got.iter().map(game).collect::<Vec<_>>()).unwrap().replace(&r, "{root}");

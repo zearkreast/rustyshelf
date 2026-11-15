@@ -36,8 +36,11 @@ pub struct PcGame {
     /// a picture's https address (Quiver's)
     pub icon: String,
     pub tags: Vec<String>,
-    /// the shelf a game added by hand sits on instead of Custom: "pc" or a console's id
+    /// the shelf a game added by hand sits on instead of Custom: "pc", "ports" or a console's id
     pub shelf: Option<String>,
+    /// a port or recompilation (the Ports & Recomps shelf), and the console it's a port of when that's known
+    pub port: bool,
+    pub port_of: String,
     /// Details → Installation, set by hand
     pub installed: Option<bool>,
     /// a PC games folder's game: made for this system (not a Windows program run through Wine)
@@ -668,6 +671,30 @@ struct QuiverApp {
     exe: String,
     icon: String,
     tags: Vec<String>,
+    port: (bool, String),
+}
+
+/// A console's id from a name Quiver's folders use for it ("N64", "GameCube", "PS1" …).
+fn console_of_name(name: &str) -> String {
+    let k = |s: &str| s.to_lowercase().chars().filter(char::is_ascii_alphanumeric).collect::<String>();
+    let want = k(name);
+    if want.is_empty() {
+        return String::new();
+    }
+    systems()
+        .consoles
+        .iter()
+        .find(|c| std::iter::once(c.id.as_str()).chain(std::iter::once(c.name.as_str())).chain(c.rom_folder_names.iter().map(String::as_str)).any(|n| k(n) == want))
+        .map_or(String::new(), |c| c.id.clone())
+}
+
+/// A Quiver app is a port when Quiver 4 keeps it under Ports\<console>, or its catalog tags say port / recomp / decomp.
+fn port_of_quiver(group: &[&str], tags: &[String]) -> (bool, String) {
+    static TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\b(port|ports|recomp|recompilation|decomp|decompilation)\b").unwrap());
+    if group.first().is_some_and(|g| g.eq_ignore_ascii_case("ports")) {
+        return (true, group.get(1).map_or(String::new(), |c| console_of_name(c)));
+    }
+    (tags.iter().any(|t| TAG.is_match(t)), String::new())
 }
 
 fn quiver_std() -> Vec<String> {
@@ -757,7 +784,8 @@ fn quiver3(root: &str) -> Vec<QuiverApp> {
             Some(t) => js::string(Some(t)),
             None => folder.to_string(),
         };
-        out.push(QuiverApp { key, title: js::trim(&title).to_string(), exe, icon: https(a.get("appIconUrl")), tags: strings(a.get("tags")) });
+        let tags = strings(a.get("tags"));
+        out.push(QuiverApp { key, title: js::trim(&title).to_string(), exe, icon: https(a.get("appIconUrl")), port: port_of_quiver(&[], &tags), tags });
     }
     out
 }
@@ -857,13 +885,8 @@ fn quiver4(root: &str) -> Vec<QuiverApp> {
         ]);
         let title = named.map_or_else(|| js::basename(&js::dirname(&exe)), |t| js::string(Some(t)));
         let cover = https(ov.and_then(|o| o.get("cover")));
-        out.push(QuiverApp {
-            key: id,
-            title: js::trim(&title).to_string(),
-            exe,
-            icon: if cover.is_empty() { cat_icon(ce) } else { cover },
-            tags: tags20(ce.and_then(|c| c.get("tags"))),
-        });
+        let tags = tags20(ce.and_then(|c| c.get("tags")));
+        out.push(QuiverApp { key: id, title: js::trim(&title).to_string(), exe, icon: if cover.is_empty() { cat_icon(ce) } else { cover }, port: port_of_quiver(&grp, &tags), tags });
     }
     out
 }
@@ -1011,7 +1034,10 @@ fn quiver_loose(apps_dir: &str, listed: &[String], names: &HashMap<String, Named
             None => Some(spaces(&MARKS.replace_all(&name, " "))).filter(|t| !t.is_empty()).unwrap_or_else(|| title_from_exe(&exe)),
         };
         // the id stays the folder's: a game already on the shelf keeps its settings
-        out.push(QuiverApp { key: name, title, exe, icon: hit.map_or(String::new(), |h| h.icon.clone()), tags: hit.map_or(Vec::new(), |h| h.tags.clone()) });
+        let tags = hit.map_or(Vec::new(), |h| h.tags.clone());
+        let rel = Path::new(&dir).parent().and_then(|p| p.strip_prefix(resolve(Path::new(apps_dir))).ok()).map(|p| p.iter().map(|x| x.to_string_lossy().into_owned()).collect::<Vec<_>>()).unwrap_or_default();
+        let grp: Vec<&str> = rel.iter().map(String::as_str).collect();
+        out.push(QuiverApp { key: name, title, exe, icon: hit.map_or(String::new(), |h| h.icon.clone()), port: port_of_quiver(&grp, &tags), tags });
     }
     out
 }
@@ -1044,7 +1070,7 @@ pub fn quiver_games_in(mut roots: Vec<String>) -> Vec<PcGame> {
         }
         seen.insert(id.clone());
         seen.insert(exe);
-        out.push(PcGame { id, source: "quiver", title: g.title, exe: g.exe, icon: g.icon, tags: g.tags, ..PcGame::default() });
+        out.push(PcGame { id, source: "quiver", title: g.title, exe: g.exe, icon: g.icon, tags: g.tags, port: g.port.0, port_of: g.port.1, ..PcGame::default() });
     };
     for list in lists {
         for g in list {
@@ -1060,7 +1086,7 @@ pub fn quiver_games_in(mut roots: Vec<String>) -> Vec<PcGame> {
     out
 }
 
-// ---------- games added by hand (pc.custom in the settings: [{ id, title, exe, args, shelf }]) ----------
+// ---------- games added by hand (pc.custom in the settings: [{ id, title, exe, args, shelf, portOf }]) ----------
 
 const CUSTOM_MAX: usize = 2000;
 
@@ -1110,7 +1136,8 @@ pub fn custom_from(list: &[&Value]) -> Vec<PcGame> {
                 Some(t) => js::string(Some(t)),
                 None => Some(js::basename(exe)).map(|n| n.strip_suffix(".exe").filter(|s| !s.is_empty()).map(String::from).unwrap_or(n)).filter(|n| !n.is_empty()).unwrap_or_else(|| "Game".into()),
             };
-            let shelf = js::str_of(c.get("shelf")).filter(|s| *s == "pc" || systems().console(s).is_some());
+            let shelf = js::str_of(c.get("shelf")).filter(|s| *s == "pc" || *s == "ports" || systems().console(s).is_some());
+            let port_of = js::str_of(c.get("portOf")).filter(|s| systems().console(s).is_some()).unwrap_or("");
             PcGame {
                 id: format!("custom-{}", slug(&named)),
                 source: "custom",
@@ -1119,6 +1146,8 @@ pub fn custom_from(list: &[&Value]) -> Vec<PcGame> {
                 shell_app: app.to_string(),
                 args: js::slice(js::str_of(c.get("args")).unwrap_or(""), 1000).to_string(),
                 shelf: shelf.map(String::from),
+                port: shelf == Some("ports"),
+                port_of: port_of.to_string(),
                 ..PcGame::default()
             }
         })

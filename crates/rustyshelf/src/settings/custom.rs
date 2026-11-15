@@ -74,6 +74,7 @@ impl Settings {
             let place = match shelf {
                 "" => short(text("exe")),
                 "pc" => "PC shelf".to_string(),
+                "ports" => "Ports & Recomps".to_string(),
                 id => format!("{} shelf", systems().console(id).map_or(id, |c| c.name.as_str())),
             };
             let program = if text("exe").is_empty() && !text("shellApp").is_empty() { format!("Microsoft Store app: {}", text("shellApp")) } else { format!("Program: {}", text("exe")) };
@@ -87,14 +88,14 @@ impl Settings {
         }
         Page {
             title: "Custom games".into(),
-            lead: "Recomps, PC ports and any other program. Each goes on the Custom shelf, or on PC or a console's shelf if you choose its Platform. Quiver Launcher's games stay on Custom.".into(),
+            lead: "Recomps, PC ports and any other program. Each goes on the Custom shelf, or on Ports & Recomps, PC or a console's shelf if you choose its Platform. Quiver Launcher's ports and recomps go on Ports & Recomps, its other games on Custom.".into(),
             rows,
         }
     }
 
     pub(super) fn custom_game_page(&self, i: usize) -> Page {
         let (title, args, shelf) = (self.custom_field(i, "title"), self.custom_field(i, "args"), self.custom_field(i, "shelf"));
-        let mut shelves: Vec<(String, String)> = vec![("custom".into(), "Custom".into()), ("pc".into(), "PC".into())];
+        let mut shelves: Vec<(String, String)> = vec![("custom".into(), "Custom".into()), ("ports".into(), "Ports & Recomps".into()), ("pc".into(), "PC".into())];
         shelves.extend(systems().consoles.iter().map(|c| (c.id.clone(), c.name.clone())));
         let on = shelves.iter().position(|x| x.0 == shelf).unwrap_or(0);
         let name = shelves[on].1.clone();
@@ -107,8 +108,18 @@ impl Settings {
         let (t2, a2) = (title.clone(), args.clone());
         const NAME: &str = "The name shown on its shelf.";
         const ARGS: &str = "Passed to the program when it starts, for example -dx12. Put quotes around anything with spaces.";
-        const PLACE: &str = "Which shelf it sits on: Custom, PC (with your Steam and store games) or a console's, beside its games. RustyShelf starts the program itself either way.";
-        let rows = vec![
+        const PLACE: &str = "Which shelf it sits on: Custom, Ports & Recomps (native PC versions of console games), PC (with your Steam and store games) or a console's, beside its games. RustyShelf starts the program itself either way.";
+        let port_of = self.custom_field(i, "portOf");
+        let mut froms: Vec<(String, String)> = vec![(String::new(), "Not a port".into())];
+        froms.extend(systems().consoles.iter().map(|c| (c.id.clone(), c.name.clone())));
+        let at = froms.iter().position(|x| x.0 == port_of).unwrap_or(0);
+        let from_name = froms[at].1.clone();
+        let turn_from = move |s: &mut Settings, d: i32| {
+            let n = (at as i32 + d).rem_euclid(froms.len() as i32) as usize;
+            s.set_custom_field(i, "portOf", Some(froms[n].0.clone()).filter(|id| !id.is_empty()).map(Value::from));
+        };
+        let turn_from2 = turn_from.clone();
+        let mut rows = vec![
             Row {
                 label: "Game name".into(),
                 value: title.clone(),
@@ -128,6 +139,17 @@ impl Settings {
                 step: None,
             },
             Row { label: "Platform".into(), value: name, hint: PLACE.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn2)) },
+        ];
+        if shelf == "ports" {
+            rows.push(Row {
+                label: "Port of".into(),
+                value: from_name,
+                hint: "The console this program is a port or recompilation of.".into(),
+                press: Some(Box::new(move |s: &mut Settings| turn_from(s, 1))),
+                step: Some(Box::new(turn_from2)),
+            });
+        }
+        rows.extend([
             Row {
                 label: "Remove game".into(),
                 hint: "Takes it off its shelf. Nothing is deleted.".into(),
@@ -145,7 +167,7 @@ impl Settings {
                 })),
                 ..Row::default()
             },
-        ];
+        ]);
         let exe = self.custom_field(i, "exe");
         Page { title: if title.is_empty() { "Game".into() } else { title }, lead: format!("Program: {exe}"), rows }
     }

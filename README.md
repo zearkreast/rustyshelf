@@ -395,6 +395,10 @@ the Home menu and the quit combo working like in any other game.
 
 ### Windows **[fork]**
 
+- **Ports & Recomps.** PC ports and recompilations get a shelf of their own. Quiver Launcher's apps under its Ports
+  folders (or tagged as a port, recomp or decomp) go there by themselves; a program you added goes there when you choose
+  Ports & Recomps as its Platform (Settings → Custom games → the game), and *Port of* names the console it came from,
+  whose case it then sits in.
 - **HoYoPlay.** Settings → PC games → *Show installed HoYoPlay games* adds Genshin Impact, Honkai: Star Rail, Zenless Zone
   Zero and Honkai Impact 3rd (and their China versions) to the PC shelf. They're found through HoYoPlay's own registry
   entries and started from their own folders.
@@ -583,8 +587,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Puts the other stores' games on the PC shelf too: the Epic Games Launcher's, GOG Galaxy's, Ubisoft Connect's, the EA
   app's, Xbox / Game Pass and HoYoPlay's (on Windows), and every game in the PC games folder. Epic's, Ubisoft's and EA's
   start through their store, an Xbox game as the Windows app it is, the others by their own program.
-- Shows the apps Quiver Launcher installed and the programs you added by hand on the Custom shelf, or on the PC shelf or
-  a console's shelf when you moved them there, and starts them in their own folder (with Windows' administrator prompt
+- Shows the apps Quiver Launcher installed and the programs you added by hand on the Custom shelf, Quiver's ports and
+  recompilations on the Ports & Recomps shelf, or on the PC shelf or a console's shelf when you moved them there, and starts them in their own folder (with Windows' administrator prompt
   for a program that asks for it).
 - Gives a PC game the cover you chose in the Electron app, else its console box when Settings → PC games → Console box
   art is on, else the store's cover, a picture in the game's own folder, or the cover of the Steam game with the same
