@@ -3,7 +3,7 @@
 //! keys, moving along the shelf at different speeds. The same steps here must ask for the same voices.
 
 use rustyshelf_core::cues::Sound;
-use rustyshelf_core::synth::{Filter, Voice};
+use rustyshelf_core::synth::{Filter, Voice, Wave};
 use serde_json::{json, Map, Value};
 
 /// A voice as the fixture writes one: its kind and the settings it gives.
@@ -150,7 +150,7 @@ fn timing() {
 #[ignore]
 fn listen() {
     let dir = std::path::PathBuf::from(std::env::var("CUES_OUT").unwrap());
-    for voice in ["aero", "melody", "musicbox"] {
+    for voice in ["aero", "melody", "musicbox", "disc", "handheld", "living"] {
         let mut sound = Sound::default();
         sound.set_theme(voice);
         for name in ["tick", "shelf", "open", "back", "go", "error", "boot"] {
@@ -159,4 +159,27 @@ fn listen() {
             std::fs::write(dir.join(format!("{voice}-{name}.wav")), out.wav()).unwrap();
         }
     }
+}
+
+#[test]
+fn the_newer_voices_play_every_cue_in_their_own_sound() {
+    for (voice, wave) in [("disc", Wave::Sine), ("handheld", Wave::Square), ("living", Wave::Triangle)] {
+        let mut sound = Sound::default();
+        sound.set_theme(voice);
+        sound.steady();
+        assert_eq!((sound.theme().id, sound.theme().tone.wave), (voice, wave));
+        for name in ["tick", "shelf", "open", "back", "go", "flip", "error", "toast", "unlock", "hold", "boot", "museum"] {
+            let cue = sound.cue(name, 1, 5000.0);
+            assert!(!cue.voices.is_empty(), "{voice} {name}");
+            let out = rustyshelf_core::synth::render(&cue.voices, &sound.theme().tone, cue.level, 22_050, 0.7, 3);
+            assert!(out.left.iter().any(|s| s.abs() > 1e-4), "{voice} {name} is silent");
+        }
+    }
+    // Disc-era's own bells, Handheld's pulse blips
+    let mut disc = Sound::default();
+    disc.set_theme("disc");
+    assert!(disc.cue("open", 1, 0.0).voices.iter().all(|v| matches!(v, Voice::Fm(_))));
+    let mut hh = Sound::default();
+    hh.set_theme("handheld");
+    assert!(hh.cue("go", 1, 0.0).voices.iter().all(|v| matches!(v, Voice::Hit(h) if h.wave == Some(Wave::Square))));
 }

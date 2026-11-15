@@ -4,7 +4,7 @@
 use rustyshelf_core::synth::{render, Air, Filter, Fm, Hit, Pad, Partial, Swell, Tone, Voice};
 use serde_json::Value;
 
-const AERO: Tone = Tone { partials: &[(1.0, 1.0, 1.0), (2.0, 0.12, 0.5), (3.01, 0.04, 0.35)], decay: 0.32, bright: 9000.0, noise: 0.06, thump: 1.0, verb: 0.7, attack: 0.012, breath: 0.5 };
+const AERO: Tone = Tone { wave: rustyshelf_core::synth::Wave::Sine, partials: &[(1.0, 1.0, 1.0), (2.0, 0.12, 0.5), (3.01, 0.04, 0.35)], decay: 0.32, bright: 9000.0, noise: 0.06, thump: 1.0, verb: 0.7, attack: 0.012, breath: 0.5 };
 
 fn voice(kind: &str, o: &Value) -> Voice {
     let f = |k: &str| o.get(k).and_then(Value::as_f64).map(|x| x as f32);
@@ -25,6 +25,11 @@ fn voice(kind: &str, o: &Value) -> Voice {
                 bright: f("bright"),
                 thump: f("thump"),
                 partials,
+                wave: match o.get("wave").and_then(Value::as_str) {
+                    Some("square") => Some(rustyshelf_core::synth::Wave::Square),
+                    Some("triangle") => Some(rustyshelf_core::synth::Wave::Triangle),
+                    _ => None,
+                },
                 attack: f("attack"),
                 noise: f("noise"),
                 glide: f("glide"),

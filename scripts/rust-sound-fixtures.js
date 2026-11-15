@@ -24,6 +24,8 @@ const CASES = [
   { name: 'a plain struck tone', mode: 'exact', secs: .4, voices: [['hit', { freq: 2637.02, dur: .05, vol: .22, noise: 0, verb: 0, breath: 0, attack: .004 }]] },
   { name: 'a bell with a thump, to one side', mode: 'exact', secs: 1.2, voices: [['hit', { freq: 880, dur: .55, vol: .26, at: 34 * Q, attack: .002, verb: 0, pan: .3, partials: BELL, noise: 0, breath: 0, thump: 1.5 }]] },
   { name: 'a low thump with its octave below', mode: 'exact', secs: 1, voices: [['hit', { freq: 146.83, dur: .45, vol: .22, attack: .003, sub: 1, bright: 420, verb: 0, noise: 0, breath: 0 }]] },
+  { name: 'a square blip', mode: 'shape', secs: .4, voices: [['hit', { freq: 1318.51, dur: .06, vol: .3, wave: 'square', partials: [[1, 1, 1]], bright: 3800, thump: .94, verb: 0, noise: 0, breath: 0, attack: .002 }]] },
+  { name: 'a triangle with partials', mode: 'shape', secs: .8, voices: [['hit', { freq: 587.33, dur: .3, vol: .3, wave: 'triangle', partials: [[1, 1, 1], [2, .22, .6], [3, .06, .4]], bright: 2600, thump: 1.04, verb: 0, noise: 0, breath: 0, attack: .008 }]] },
   { name: 'a gliding tone', mode: 'exact', secs: .8, voices: [['hit', { freq: 660, dur: .3, vol: .4, glide: 330, verb: 0, noise: 0, breath: 0, pan: -.4 }]] },
   { name: 'an FM bell with a twin', mode: 'exact', secs: 1.4, voices: [['fm', { freq: 1318.5, dur: .9, vol: .22, ratio: 3.5, index: 2.2, pan: .18, verb: 0, detune: 4 }]] },
   { name: 'an FM key', mode: 'exact', secs: 1, voices: [['fm', { freq: 440, at: 17 * Q, dur: .6, vol: .3, ratio: 1, index: 3, floor: .15, verb: 0, pan: -.15 }]] },

@@ -116,6 +116,33 @@ fn swell_env(t: f32, attack: f32, fall: f32, tau: f32, peak: f32) -> f32 {
     }
 }
 
+/// The shape a struck note's first partial has: WebAudio's oscillator types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Wave {
+    #[default]
+    Sine,
+    Square,
+    Triangle,
+}
+
+impl Wave {
+    /// The wave's harmonics up to `top` (1 the fundamental) and their levels, evened out so the wave peaks at 1 as
+    /// WebAudio's band-limited tables do.
+    fn harmonics(self, top: usize) -> Vec<(f32, f32)> {
+        let odd = (1..=top.max(1)).step_by(2);
+        let h: Vec<(f32, f32)> = match self {
+            Wave::Sine => return vec![(1.0, 1.0)],
+            Wave::Square => odd.map(|k| (k as f32, 4.0 / (PI * k as f32))).collect(),
+            Wave::Triangle => odd.map(|k| (k as f32, 8.0 / (PI * PI * (k * k) as f32) * if (k / 2) % 2 == 0 { 1.0 } else { -1.0 })).collect(),
+        };
+        let peak = (0..512).map(|i| {
+            let x = i as f32 / 512.0 * 2.0 * PI;
+            h.iter().map(|(k, a)| (k * x).sin() * a).sum::<f32>().abs()
+        }).fold(0.0f32, f32::max);
+        h.into_iter().map(|(k, a)| (k, a / peak.max(1e-6))).collect()
+    }
+}
+
 /// A struck note.
 #[derive(Debug, Clone, Default)]
 pub struct Hit {
@@ -129,6 +156,8 @@ pub struct Hit {
     /// how far above the note its pitch starts, falling to it at once: the "thump" of something struck
     pub thump: Option<f32>,
     pub partials: Option<&'static [Partial]>,
+    /// the first partial's shape (the voice's own when unset)
+    pub wave: Option<Wave>,
     pub attack: Option<f32>,
     pub noise: Option<f32>,
     /// a pitch it slides to
@@ -241,6 +270,7 @@ setters!(Swell: at, dur, vol, attack, verb);
 #[derive(Debug, Clone, Copy)]
 pub struct Tone {
     pub partials: &'static [Partial],
+    pub wave: Wave,
     pub decay: f32,
     pub bright: f32,
     pub noise: f32,
@@ -312,8 +342,10 @@ impl Mix {
         let longest = parts.iter().map(|p| dur * p.2 + 0.25).fold(if sub > 0.0 { dur + 0.3 } else { 0.0 }, f32::max);
         let n = (longest * rate).ceil() as usize;
         let mut tones = vec![0.0f32; n];
-        for (ratio, amp, part) in parts {
+        for (i, (ratio, amp, part)) in parts.iter().enumerate() {
             let f = freq * ratio;
+            let wave = if i == 0 { o.wave.unwrap_or(t.wave) } else { Wave::Sine };
+            let shape = wave.harmonics((rate / 2.0 / (f * thump.max(1.0))).floor() as usize);
             // above hearing on the highest notes
             if f * thump.max(1.0) > 18_000.0 {
                 continue;
@@ -327,7 +359,8 @@ impl Mix {
                 if let Some((to, by)) = glide.filter(|_| time > 0.018) {
                     hz = slide(f, to, time - 0.018, by - 0.018);
                 }
-                *out += phase.sin() * swell_env(time, attack, attack, tau, vol * amp);
+                let v = if wave == Wave::Sine { phase.sin() } else { shape.iter().map(|(k, a)| (k * phase).sin() * a).sum() };
+                *out += v * swell_env(time, attack, attack, tau, vol * amp);
                 phase = (phase + 2.0 * PI * hz / rate) % (2.0 * PI);
             }
         }

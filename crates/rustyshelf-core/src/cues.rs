@@ -2,9 +2,10 @@
 // cue set of Boxshelf's renderer/sound.js and the built-in songs of its renderer/songs.js, as RustyShelf has them.
 //! What the interface plays, and when: every cue as the voices it's made of. Pitches are steps of one pentatonic
 //! scale per voice, so any two cues played together agree; each shelf plays in its own key. Three voices: Aero
-//! (soft and airy), Melody (a felt piano playing a song one note per move) and Music box (warm steel tines).
+//! (soft and airy), Melody (a felt piano playing a song one note per move), Music box (warm steel tines), and three
+//! made in a style (nothing taken from any console): Disc-era, Handheld and Living room.
 
-use crate::synth::{Air, Filter, Fm, Hit, Pad, Partial, Swell, Tone, Voice};
+use crate::synth::{Air, Filter, Fm, Hit, Pad, Partial, Swell, Tone, Voice, Wave};
 
 /// A voice of the interface.
 pub struct Theme {
@@ -15,11 +16,11 @@ pub struct Theme {
 
 const PENTATONIC: [i32; 5] = [0, 2, 4, 7, 9];
 
-pub static THEMES: [Theme; 3] = [
+pub static THEMES: [Theme; 6] = [
     // almost-pure high tones with a breath of air under them, soft attacks instead of clicks, a long quiet room
     Theme {
         id: "aero",
-        tone: Tone { partials: &[(1.0, 1.0, 1.0), (2.0, 0.12, 0.5), (3.01, 0.04, 0.35)], decay: 0.32, bright: 9000.0, noise: 0.06, thump: 1.0, verb: 0.7, attack: 0.012, breath: 0.5 },
+        tone: Tone { wave: Wave::Sine, partials: &[(1.0, 1.0, 1.0), (2.0, 0.12, 0.5), (3.01, 0.04, 0.35)], decay: 0.32, bright: 9000.0, noise: 0.06, thump: 1.0, verb: 0.7, attack: 0.012, breath: 0.5 },
         // D6
         root: 1174.66,
     },
@@ -27,6 +28,7 @@ pub static THEMES: [Theme; 3] = [
     Theme {
         id: "melody",
         tone: Tone {
+            wave: Wave::Sine,
             partials: &[(1.0, 1.0, 1.0), (2.002, 0.42, 0.62), (3.006, 0.15, 0.42), (4.012, 0.07, 0.3), (5.02, 0.035, 0.22), (6.03, 0.015, 0.18)],
             decay: 0.9,
             bright: 3400.0,
@@ -42,9 +44,30 @@ pub static THEMES: [Theme; 3] = [
     // small steel tines plucked by a comb: a pure tone, a quiet octave and a faint shimmer that makes it metal
     Theme {
         id: "musicbox",
-        tone: Tone { partials: &[(1.0, 1.0, 1.0), (2.0, 0.16, 0.5), (3.0, 0.04, 0.3), (5.4, 0.05, 0.16), (8.93, 0.015, 0.1)], decay: 0.75, bright: 5200.0, noise: 0.04, thump: 1.0, verb: 0.55, attack: 0.002, breath: 0.0 },
+        tone: Tone { wave: Wave::Sine, partials: &[(1.0, 1.0, 1.0), (2.0, 0.16, 0.5), (3.0, 0.04, 0.3), (5.4, 0.05, 0.16), (8.93, 0.015, 0.1)], decay: 0.75, bright: 5200.0, noise: 0.04, thump: 1.0, verb: 0.55, attack: 0.002, breath: 0.0 },
         // G5
         root: 783.99,
+    },
+    // glassy FM bells over a soft pad and a big shiny room, the late-90s disc console feel
+    Theme {
+        id: "disc",
+        tone: Tone { wave: Wave::Sine, partials: &[(1.0, 1.0, 1.0), (2.76, 0.16, 0.45), (5.4, 0.05, 0.25)], decay: 0.5, bright: 7200.0, noise: 0.02, thump: 1.0, verb: 0.8, attack: 0.005, breath: 0.2 },
+        // A5
+        root: 880.0,
+    },
+    // small and chirpy: a pulse wave with quick blips and almost no room
+    Theme {
+        id: "handheld",
+        tone: Tone { wave: Wave::Square, partials: &[(1.0, 1.0, 1.0)], decay: 0.07, bright: 4200.0, noise: 0.0, thump: 1.0, verb: 0.06, attack: 0.002, breath: 0.0 },
+        // E6
+        root: 1318.51,
+    },
+    // warm and round: a soft triangle with a little body under it
+    Theme {
+        id: "living",
+        tone: Tone { wave: Wave::Triangle, partials: &[(1.0, 1.0, 1.0), (2.0, 0.22, 0.6), (3.0, 0.06, 0.4)], decay: 0.32, bright: 2600.0, noise: 0.015, thump: 1.04, verb: 0.45, attack: 0.008, breath: 0.15 },
+        // D5
+        root: 587.33,
     },
 ];
 
@@ -1068,6 +1091,179 @@ impl Sound {
         true
     }
 
+    // ---------- Disc-era, Handheld, Living room ----------
+
+    /// Disc-era's glassy FM bell: a sine bent by a sine, bright at the strike.
+    fn bell_note(&self, n: i32) -> Fm {
+        fm(self.d(n)).dur(0.5).vol(0.2).ratio(3.5).index(1.4).floor(0.1).verb(0.6).attack(0.003)
+    }
+
+    fn disc_era(&mut self, name: &str, dir: i32, now: f64) -> bool {
+        match name {
+            "tick" => {
+                let n = self.walk(dir, now);
+                let pan = (self.random() - 0.5) * 0.25;
+                self.put(self.bell_note(2 + n).dur(0.2).vol(0.22).index(1.0).pan(pan).verb(0.45));
+            }
+            "shelf" => {
+                if self.shelf_quick(dir, now) {
+                    return true;
+                }
+                self.put(air(Filter::Bandpass, true).dur(0.45).vol(0.12).freq(700.0).sweep_to(5200.0).q(0.5).verb(0.8).attack(0.1));
+                self.put(self.bell_note(0).at(0.03).dur(0.6).vol(0.16).pan(-0.25));
+                self.put(self.bell_note(4).at(0.13).dur(0.8).vol(0.14).pan(0.25));
+            }
+            "open" => {
+                self.put(self.bell_note(2).dur(0.4).vol(0.2));
+                self.put(self.bell_note(4).at(0.06).dur(0.7).vol(0.17).pan(0.2).detune(4.0));
+            }
+            "back" => {
+                self.put(self.bell_note(4).dur(0.3).vol(0.18));
+                self.put(self.bell_note(1).at(0.07).dur(0.55).vol(0.16).pan(-0.2).index(0.8));
+            }
+            "go" => {
+                for (i, n) in [0, 2, 4, 7].into_iter().enumerate() {
+                    self.put(self.bell_note(n).at(i as f32 * 0.08).dur(1.1).vol(0.17).pan((i as f32 - 1.5) * 0.2).detune(3.0));
+                }
+                let freqs = vec![self.deg(0, -2), self.deg(2, -2), self.deg(4, -2)];
+                self.put(Pad { freqs, ..Pad::default() }.dur(2.0).vol(0.22).from(250.0).to(2600.0).open(0.9).attack(0.5).hold(1.0));
+            }
+            "flip" => {
+                self.put(air(Filter::Bandpass, true).dur(0.26).vol(0.2).freq(2800.0).sweep_to(600.0).q(0.6).verb(0.5));
+                self.put(self.bell_note(-2).at(0.1).dur(0.3).vol(0.12));
+            }
+            "error" => {
+                self.put(fm(self.d(-6)).dur(0.35).vol(0.24).ratio(1.41).index(2.5).floor(0.3).verb(0.35));
+                self.put(fm(self.d(-7)).at(0.15).dur(0.45).vol(0.2).ratio(1.41).index(2.2).floor(0.3).verb(0.35));
+            }
+            "toast" => {
+                self.put(self.bell_note(7).dur(0.6).vol(0.15).pan(0.4).verb(0.7));
+                self.put(self.bell_note(9).at(0.07).dur(0.8).vol(0.12).pan(0.4).verb(0.75));
+            }
+            "unlock" => {
+                for (i, n) in [0, 2, 4, 7, 9].into_iter().enumerate() {
+                    self.put(self.bell_note(n).at(i as f32 * 0.07).dur(0.9).vol(0.15).pan((i as f32 - 2.0) * 0.18).verb(0.7));
+                }
+                self.put(self.bell_note(12).at(0.4).dur(1.6).vol(0.13).verb(0.85).detune(4.0));
+            }
+            "hold" => self.put(self.bell_note(9).dur(0.12).vol(0.08).verb(0.3)),
+            _ => return false,
+        }
+        true
+    }
+
+    /// Handheld's blip: a pulse wave, short, with next to no room.
+    fn chirp(&self, n: i32) -> Hit {
+        const ONE: &[Partial] = &[(1.0, 1.0, 1.0)];
+        Hit { partials: Some(ONE), wave: Some(Wave::Square), ..hit(self.d(n)) }.dur(0.06).vol(0.2).bright(3800.0).verb(0.05).thump(0.94).noise(0.0).breath(0.0).attack(0.002).duck(0.1)
+    }
+
+    fn handheld(&mut self, name: &str, dir: i32, now: f64) -> bool {
+        match name {
+            "tick" => {
+                let n = self.walk(dir, now);
+                let pan = (self.random() - 0.5) * 0.2;
+                self.put(self.chirp(2 + n).dur(0.035).vol(0.3).pan(pan));
+            }
+            "shelf" => {
+                if self.shelf_quick(dir, now) {
+                    return true;
+                }
+                self.put(self.chirp(0).dur(0.05));
+                self.put(self.chirp(2).at(0.05).dur(0.05));
+                self.put(self.chirp(4).at(0.1).dur(0.08));
+            }
+            "open" => {
+                self.put(self.chirp(2).dur(0.05));
+                self.put(self.chirp(5).at(0.055).dur(0.09));
+            }
+            "back" => {
+                self.put(self.chirp(5).dur(0.05));
+                self.put(self.chirp(2).at(0.055).dur(0.09).bright(3000.0));
+            }
+            "go" => {
+                for (i, n) in [0, 2, 4, 5, 7].into_iter().enumerate() {
+                    self.put(self.chirp(n).at(i as f32 * 0.055).dur(0.07).vol(0.18));
+                }
+                self.put(self.chirp(10).at(0.3).dur(0.3).vol(0.17));
+            }
+            "flip" => self.put(self.chirp(3).dur(0.04).glide(self.d(0)).glide_time(0.04)),
+            "error" => {
+                self.put(self.chirp(-5).dur(0.12).vol(0.22).bright(1800.0));
+                self.put(self.chirp(-6).at(0.13).dur(0.16).vol(0.22).bright(1600.0));
+            }
+            "toast" => {
+                self.put(self.chirp(7).dur(0.05));
+                self.put(self.chirp(9).at(0.06).dur(0.1));
+            }
+            "unlock" => {
+                for (i, n) in [0, 2, 4, 7, 9, 12].into_iter().enumerate() {
+                    self.put(self.chirp(n).at(i as f32 * 0.05).dur(0.06).vol(0.16));
+                }
+                self.put(self.chirp(14).at(0.32).dur(0.35).vol(0.15));
+            }
+            "hold" => self.put(self.chirp(9).dur(0.025).vol(0.1)),
+            _ => return false,
+        }
+        true
+    }
+
+    /// Living room's warm round note.
+    fn round(&self, n: i32) -> Hit {
+        hit(self.d(n)).dur(0.3).vol(0.3).attack(0.008)
+    }
+
+    fn living_room(&mut self, name: &str, dir: i32, now: f64) -> bool {
+        match name {
+            "tick" => {
+                let n = self.walk(dir, now);
+                let pan = (self.random() - 0.5) * 0.2;
+                self.put(self.round(2 + n).dur(0.11).vol(0.26).pan(pan).verb(0.3).duck(0.12));
+            }
+            "shelf" => {
+                if self.shelf_quick(dir, now) {
+                    return true;
+                }
+                self.put(air(Filter::Bandpass, true).dur(0.3).vol(0.1).freq(500.0).sweep_to(1800.0).q(0.6).verb(0.5));
+                self.put(self.round(0).at(0.03).dur(0.4).vol(0.24).pan(-0.2).under(0.3));
+                self.put(self.round(4).at(0.12).dur(0.5).vol(0.22).pan(0.2));
+            }
+            "open" => {
+                self.put(self.round(2).dur(0.28).vol(0.28));
+                self.put(self.round(4).at(0.07).dur(0.45).vol(0.24).pan(0.15));
+            }
+            "back" => {
+                self.put(self.round(3).dur(0.22).vol(0.26));
+                self.put(self.round(0).at(0.07).dur(0.4).vol(0.22).pan(-0.15).bright(1800.0));
+            }
+            "go" => {
+                for (i, n) in [0, 2, 4].into_iter().enumerate() {
+                    let i = i as f32;
+                    self.put(self.round(n).at(i * 0.1).dur(0.7 + i * 0.15).vol(0.26).pan((i - 1.0) * 0.2).under(0.3));
+                }
+                self.swell(&[0, 2, 4], -1, 1.4, 0.16, 0.15, 0.35);
+            }
+            "flip" => {
+                self.put(air(Filter::Bandpass, true).dur(0.2).vol(0.14).freq(1400.0).sweep_to(450.0).q(0.7).verb(0.3));
+                self.put(self.round(-2).at(0.1).dur(0.16).vol(0.2));
+            }
+            "error" => {
+                self.put(self.round(-6).dur(0.3).vol(0.3).bright(1200.0).under(0.4));
+                self.put(self.round(-7).at(0.14).dur(0.4).vol(0.26).bright(1000.0));
+            }
+            "toast" => self.put(self.round(5).dur(0.35).vol(0.22).verb(0.55).pan(0.35)),
+            "unlock" => {
+                for (i, n) in [0, 2, 4, 7].into_iter().enumerate() {
+                    self.put(self.round(n).at(i as f32 * 0.09).dur(0.6).vol(0.22).verb(0.6).pan((i as f32 - 1.5) * 0.2));
+                }
+                self.put(self.round(9).at(0.4).dur(1.2).vol(0.18).verb(0.7));
+            }
+            "hold" => self.put(self.round(7).dur(0.05).vol(0.14)),
+            _ => return false,
+        }
+        true
+    }
+
     /// A cue's voices at `now` (ms, any clock that only goes forward): the scrolling cues change with how fast they
     /// come. `dir`: which way a move went (-1 back, 1 on), for "tick" and "shelf". No voices for a name that's no
     /// cue, or a note the Melody voice lets pass.
@@ -1076,6 +1272,9 @@ impl Sound {
         let own = match self.theme.id {
             "melody" => self.melody(name, now) || self.aero(name, dir, now),
             "musicbox" => self.music_box(name, dir, now),
+            "disc" => self.disc_era(name, dir, now) || self.aero(name, dir, now),
+            "handheld" => self.handheld(name, dir, now),
+            "living" => self.living_room(name, dir, now) || self.aero(name, dir, now),
             _ => self.aero(name, dir, now),
         };
         if !own {

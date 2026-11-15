@@ -1648,7 +1648,7 @@ impl Settings {
                 Page { title: "Display".into(), lead: String::new(), rows }
             }
             Screen::Sound => {
-                const VOICES: [(&str, &str); 3] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box")];
+                const VOICES: [(&str, &str); 6] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box"), ("disc", "Disc-era"), ("handheld", "Handheld"), ("living", "Living room")];
                 const TRACKS: [(&str, &str); 5] = [("drift", "Drift"), ("night", "Night"), ("glow", "Glow"), ("own", "Your music"), ("off", "Off")];
                 const BOOTS: [(&str, &str); 5] = [("chime", "Chime"), ("crystal", "Crystal"), ("pulse", "Pulse"), ("horizon", "Horizon"), ("keys", "Keys")];
                 let prefs = self.sound();
@@ -1694,7 +1694,7 @@ impl Settings {
                         Row {
                             label: "Voice".into(),
                             value: voice_name,
-                            hint: "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright.".into(),
+                            hint: "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright. Disc-era: glassy bells in a big room. Handheld: small chirpy blips. Living room: warm and round.".into(),
                             press: Some(voice_press),
                             step: Some(voice_step),
                         },
