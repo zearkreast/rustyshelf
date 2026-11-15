@@ -2061,13 +2061,15 @@ pub fn input(
     if s.picking.is_some() || playing.title.is_some() {
         return;
     }
+    let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight, KeyCode::SuperLeft, KeyCode::SuperRight]);
+    let shift = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
     if s.editing.is_some() {
-        s.type_text(&typed, &pads);
+        s.type_text(&typed, &pads, ctrl, shift);
         return;
     }
 
     // Find a game takes what's typed as the title
-    let typing = s.stack.last().is_some_and(|p| p.0 == Screen::Find) && s.find_type(&typed);
+    let typing = s.stack.last().is_some_and(|p| p.0 == Screen::Find) && s.find_type(&typed, ctrl, shift);
     let page = s.page();
     let n = page.rows.len();
     let now = time.elapsed_secs();

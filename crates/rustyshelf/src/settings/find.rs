@@ -88,7 +88,7 @@ impl Settings {
 
     /// The keys typed this frame go into the title; true when one did, so the page doesn't take it as its own
     /// (Space for choosing, Backspace for going back).
-    pub(super) fn find_type(&mut self, typed: &[KeyboardInput]) -> bool {
+    pub(super) fn find_type(&mut self, typed: &[KeyboardInput], ctrl: bool, shift: bool) -> bool {
         let mut title = self.finding.typed.clone();
         let mut took = false;
         for k in typed.iter().filter(|k| k.state == ButtonState::Pressed) {
@@ -98,6 +98,12 @@ impl Settings {
                     took = true;
                 }
                 Key::Enter | Key::Escape | Key::Backspace | Key::Tab => {}
+                _ if super::text::is_paste(k, ctrl, shift) => {
+                    let text = crate::osk::clipboard().unwrap_or_default();
+                    took |= !text.is_empty();
+                    title.push_str(&text);
+                }
+                _ if ctrl => {}
                 _ => {
                     let letters: String = k.text.iter().flat_map(|t| t.chars()).filter(|c| !c.is_control()).collect();
                     took |= !letters.is_empty();

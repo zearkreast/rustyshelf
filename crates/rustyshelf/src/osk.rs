@@ -5,13 +5,15 @@
 const SMALL: [&str; 4] = ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm-.⌫"];
 const CAPITALS: [&str; 4] = ["1234567890", "QWERTYUIOP", "ASDFGHJKL\"", "ZXCVBNM_:⌫"];
 const SIGNS: [&str; 4] = ["!@#$%^&*()", "\\/:;_=+{}~", "[]<>|?,`'\"", "€£¥§°·…-.⌫"];
-const ACTIONS: [&str; 6] = ["Shift", "#+=", "Space", "Clear", "Cancel", "Done"];
+const ACTIONS: [&str; 7] = ["Shift", "#+=", "Space", "Paste", "Clear", "Cancel", "Done"];
 
 /// What pressing a key does.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Hit {
     Type(char),
     Back,
+    /// what's on the clipboard
+    Paste,
     Clear,
     Cancel,
     Done,
@@ -53,6 +55,7 @@ pub fn press(layer: usize, at: (usize, usize)) -> Vec<Hit> {
     match key.as_str() {
         "⌫" => vec![Hit::Back],
         "Space" => vec![Hit::Type(' ')],
+        "Paste" => vec![Hit::Paste],
         "Clear" => vec![Hit::Clear],
         "Cancel" => vec![Hit::Cancel],
         "Done" => vec![Hit::Done],
@@ -66,6 +69,14 @@ pub fn press(layer: usize, at: (usize, usize)) -> Vec<Hit> {
             hits
         }
     }
+}
+
+/// Text from the clipboard as it goes into a one-line setting: its lines joined, nothing that can't be typed. None
+/// when there's no text on it.
+pub fn clipboard() -> Option<String> {
+    let text = arboard::Clipboard::new().ok()?.get_text().ok()?;
+    let line: String = text.split(['\r', '\n']).map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ").chars().filter(|c| !c.is_control()).collect();
+    Some(line).filter(|l| !l.is_empty())
 }
 
 /// What was typed as it's kept: trimmed, and the quotes off a path pasted in quotes.
@@ -88,11 +99,11 @@ mod tests {
         assert_eq!(step(0, (0, 9), 1, 0), (0, 0));
         assert_eq!(step(0, (0, 0), -1, 0), (0, 9));
         assert_eq!(step(0, (0, 3), 0, -1), (0, 3));
-        // ten keys over six actions and back
-        assert_eq!(step(0, (3, 9), 0, 1), (4, 5));
-        assert_eq!(step(0, (3, 4), 0, 1), (4, 2));
-        assert_eq!(step(0, (4, 2), 0, -1), (3, 4));
-        assert_eq!(step(0, (4, 5), 0, 1), (4, 5));
+        // ten keys over seven actions and back
+        assert_eq!(step(0, (3, 9), 0, 1), (4, 6));
+        assert_eq!(step(0, (3, 4), 0, 1), (4, 3));
+        assert_eq!(step(0, (4, 3), 0, -1), (3, 5));
+        assert_eq!(step(0, (4, 6), 0, 1), (4, 6));
         assert_eq!(press(0, (1, 0)), vec![Hit::Type('q')]);
         assert_eq!(press(1, (1, 0)), vec![Hit::Type('Q'), Hit::Layer(0)]);
         assert_eq!(press(2, (1, 0)), vec![Hit::Type('\\')]);
@@ -101,7 +112,8 @@ mod tests {
         assert_eq!(press(1, (4, 0)), vec![Hit::Layer(0)]);
         assert_eq!(press(2, (4, 1)), vec![Hit::Layer(0)]);
         assert_eq!(press(0, (4, 2)), vec![Hit::Type(' ')]);
-        assert_eq!(press(0, (4, 5)), vec![Hit::Done]);
+        assert_eq!(press(0, (4, 3)), vec![Hit::Paste]);
+        assert_eq!(press(0, (4, 6)), vec![Hit::Done]);
     }
 
     #[test]

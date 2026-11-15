@@ -23,6 +23,11 @@ pub(super) struct Editing {
     stick: (i32, i32),
 }
 
+/// Ctrl+V (⌘V), or Shift+Insert.
+pub(super) fn is_paste(k: &KeyboardInput, ctrl: bool, shift: bool) -> bool {
+    (ctrl && matches!(&k.logical_key, Key::Character(c) if c.eq_ignore_ascii_case("v"))) || (ctrl && k.key_code == KeyCode::KeyV) || (shift && k.logical_key == Key::Insert)
+}
+
 impl Settings {
     /// Opens the text of a setting for typing; `done` gets what was typed when it's kept.
     pub(super) fn edit(&mut self, label: &str, hint: &str, value: String, done: Done) {
@@ -32,7 +37,8 @@ impl Settings {
     }
 
     /// The keys typed this frame and the pad's presses go to the text being typed.
-    pub(super) fn type_text(&mut self, typed: &[KeyboardInput], pads: &Query<&Gamepad>) {
+    /// `ctrl`: Ctrl (or ⌘) is held, so Ctrl+V and Shift+Insert paste.
+    pub(super) fn type_text(&mut self, typed: &[KeyboardInput], pads: &Query<&Gamepad>, ctrl: bool, shift: bool) {
         let Some(mut e) = self.editing.take() else { return };
         let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
         let (mut keep, mut touched) = (None, false);
@@ -49,6 +55,9 @@ impl Settings {
                 Key::ArrowRight => steps.push((1, 0)),
                 Key::ArrowUp => steps.push((0, -1)),
                 Key::ArrowDown => steps.push((0, 1)),
+                _ if is_paste(k, ctrl, shift) => e.value.push_str(&osk::clipboard().unwrap_or_default()),
+                // Ctrl with another key is a shortcut, not a letter
+                _ if ctrl => {}
                 _ => e.value.extend(k.text.iter().flat_map(|t| t.chars()).filter(|c| !c.is_control())),
             }
         }
@@ -92,6 +101,7 @@ impl Settings {
                 Hit::Back => {
                     e.value.pop();
                 }
+                Hit::Paste => e.value.push_str(&osk::clipboard().unwrap_or_default()),
                 Hit::Clear => e.value.clear(),
                 Hit::Cancel => keep = Some(false),
                 Hit::Done => keep = Some(true),

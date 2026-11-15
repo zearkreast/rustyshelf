@@ -1180,7 +1180,9 @@ const L0=[["1","2","3","4","5","6","7","8","9","0"],["q","w","e","r","t","y","u"
 const L1=[["1","2","3","4","5","6","7","8","9","0"],["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L","\""],["Z","X","C","V","B","N","M","_",":","⌫"]];
 const L2=[["!","@","#","$","%","^","&","*","(",")"],["\\","/",":",";","_","=","+","{","}","~"],["[","]","<",">","|","?",",","`","'","\""],["€","£","¥","§","°","·","…","-",".","⌫"]];
 let oskMode="search",oskSig="";
-function keysNow(){if(oskMode==="search")return [...L0,["Space","Clear","Done"]];return [...[L0,L1,L2][oskLayer],["Shift","#+=","Space","Clear","Cancel","Done"]]}
+// (Paste: a key copied on the PC or phone goes in with the controller too) keep in sync with crates/rustyshelf/src/osk.rs
+function keysNow(){const P=api.clipboardText?["Paste"]:[];if(oskMode==="search")return [...L0,["Space",...P,"Clear","Done"]];return [...[L0,L1,L2][oskLayer],["Shift","#+=","Space",...P,"Clear","Cancel","Done"]]}
+async function oskPaste(){let t="";try{t=String(await api.clipboardText()||"").trim()}catch{}if(!t){toast("Nothing to paste: copy it first");return}for(const ch of t)typeChar(ch);render()}
 function openOsk(mode){oskMode=mode||"search";oskLayer=0;E.osk.classList.add("on");focus="osk";const n=keysNow().flat().length;if(oskI>=n)oskI=0;oskSig=""}
 function closeOsk(){E.osk.classList.remove("on");if(focus==="osk")focus=edit?"page":"search"}
 function renderOsk(){if(!E.osk.classList.contains("on"))return;const K=keysNow(),sig=oskMode+oskLayer+(device==="pad")+swapAB()+padStyle();
@@ -1188,7 +1190,7 @@ function renderOsk(){if(!E.osk.classList.contains("on"))return;const K=keysNow()
     E.osk.innerHTML=K.map(row=>`<div class="bss-krow">${row.map(k=>{const j=i++,cls=k==="Space"?"wide":k.length>1&&k!=="⌫"?"mid":"";return `<div class="bss-key ${cls} ${k==="Done"?"go":""} ${(k==="Shift"&&oskLayer===1)||(k==="#+="&&oskLayer===2)?"lit":""}" data-j="${j}">${esc(k)}</div>`}).join("")}</div>`).join("");
     E.osk.querySelectorAll(".bss-key").forEach(k=>k.onclick=e=>{e.stopPropagation();oskI=+k.dataset.j;focus="osk";pressKey(keysNow().flat()[oskI]);render()})}
   E.osk.querySelectorAll(".bss-key").forEach(k=>k.classList.toggle("cur",focus==="osk"&&+k.dataset.j===oskI))}
-function pressKey(k){if(k==="⌫")backspace();else if(k==="Space")typeChar(" ");else if(k==="Clear"){if(edit){edit.value="";paintEdit()}else{query="";runSearch()}}
+function pressKey(k){if(k==="⌫")backspace();else if(k==="Space")typeChar(" ");else if(k==="Paste")oskPaste();else if(k==="Clear"){if(edit){edit.value="";paintEdit()}else{query="";runSearch()}}
   else if(k==="Done")oskDone();else if(k==="Cancel")cancelEdit();else if(k==="Shift"){oskLayer=oskLayer===1?0:1}else if(k==="#+="){oskLayer=oskLayer===2?0:2}
   else{typeChar(k);if(oskLayer===1)oskLayer=0}}
 function oskDone(){if(edit){commitEdit();return}closeOsk();focus=results&&results.length?"page":"search";rowI=0}
