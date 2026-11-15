@@ -474,6 +474,20 @@ pub fn sanitize(cfg: &mut Value) {
             })
             .collect();
         ui.insert("collections".into(), Value::Array(collections));
+        // Add to…: { "<shelf id>": [game ids] }, empty lists dropped; native only, so kept only when it's there
+        let adds: serde_json::Map<String, Value> = ui
+            .get("shelfAdds")
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+            .take(100)
+            .filter(|(k, v)| v.is_array() && (1..=24).contains(&k.len()) && k.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_' || b == b'-'))
+            .map(|(k, v)| (k.clone(), Value::Array(strings(Some(v), 1024, 2000))))
+            .filter(|(_, v)| v.as_array().is_some_and(|a| !a.is_empty()))
+            .collect();
+        if ui.contains_key("shelfAdds") {
+            ui.insert("shelfAdds".into(), Value::Object(adds));
+        }
         // Looks (Settings → Display → Looks): named sets of look settings, plain values only
         let looks: Vec<Value> = ui
             .get("looks")

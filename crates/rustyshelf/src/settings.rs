@@ -620,7 +620,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections" | "shelfAdds"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -2100,7 +2100,7 @@ impl Settings {
                         })),
                         ..Row::default()
                     },
-                    open("Collections", String::new(), "This game on shelves of your own", Screen::GameCollections),
+                    open("Add to…", String::new(), "This game on shelves of your own, or on another console's shelf too", Screen::GameCollections),
                 ];
                 // (beta.14) its Status: the Playing and Finished shelves, and shelves that fill themselves, follow it
                 {
@@ -2624,7 +2624,7 @@ pub fn input(
     }
     // Find a game's choice: the shelf goes to it, on its own console's shelf
     if let (Some((shelf, id)), LibraryState::Ready(l)) = (s.go_to.take(), &lib.0) {
-        match l.shelves.iter().position(|sh| sh.id == shelf && sh.from.is_empty()) {
+        match l.shelves.iter().position(|sh| sh.id == shelf && !matches!(sh.kind, rustyshelf_core::library::ShelfKind::Mixed)) {
             Some(i) => {
                 let at = l.shelves[i].games.iter().position(|g| g.id == id);
                 if at.is_none() {

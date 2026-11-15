@@ -367,7 +367,7 @@ pub fn run(
         return;
     }
     phone.play = None;
-    let place = l.shelves.iter().position(|s| s.id == shelf && s.from.is_empty()).and_then(|i| Some((i, l.shelves[i].games.iter().position(|g| g.id == id)?)));
+    let place = l.shelves.iter().position(|s| s.id == shelf && !matches!(s.kind, ShelfKind::Mixed)).and_then(|i| Some((i, l.shelves[i].games.iter().position(|g| g.id == id)?)));
     let Some((i, at)) = place else {
         (toast.text, toast.until) = (format!("{} isn't on the shelf right now", if title.is_empty() { "That game" } else { &title }), now + 6.0);
         return;

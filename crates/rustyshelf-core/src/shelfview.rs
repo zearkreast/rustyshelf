@@ -347,6 +347,49 @@ pub fn group_of(g: &Game, sort: &str, history: &History, now_ms: u64) -> Option<
     })
 }
 
+/// The games added to other shelves (Add to…, `ui.shelfAdds { "<shelf id>": [game ids] }`), among each one's own
+/// by title, `from` naming each game's own shelf so it still starts as it does there. PC and Custom are made
+/// when only added games would fill them. A game whose own shelf is in `left_out` (Kid mode's) isn't added anywhere.
+pub fn add_into(shelves: &mut Vec<Shelf>, ui: Option<&Value>, left_out: &[String]) {
+    let Some(adds) = ui.and_then(|u| u.get("shelfAdds")).and_then(Value::as_object).filter(|a| !a.is_empty()) else { return };
+    let mut own: HashMap<&str, (&Game, &str)> = HashMap::new();
+    for s in shelves.iter().filter(|s| !matches!(s.kind, ShelfKind::Mixed)) {
+        for g in s.games.iter().filter(|g| !matches!(g.source, Source::Tile(_) | Source::App { .. })) {
+            own.entry(g.id.as_str()).or_insert((g, s.id.as_str()));
+        }
+    }
+    let mut plan: Vec<(String, Vec<(Game, String)>)> = Vec::new();
+    for (to, ids) in adds {
+        let mine: HashSet<&str> = shelves.iter().find(|s| s.id == *to).map(|s| s.games.iter().map(|g| g.id.as_str()).collect()).unwrap_or_default();
+        let mut add: Vec<(Game, String)> = Vec::new();
+        for id in ids.as_array().into_iter().flatten().filter_map(Value::as_str) {
+            let Some((g, from)) = own.get(id) else { continue };
+            if *from == to || mine.contains(id) || left_out.iter().any(|k| k == from) || add.iter().any(|(a, _)| a.id == id) {
+                continue;
+            }
+            add.push(((*g).clone(), from.to_string()));
+        }
+        if !add.is_empty() && (shelves.iter().any(|s| s.id == *to && !matches!(s.kind, ShelfKind::Mixed)) || to == "pc" || to == "custom") {
+            plan.push((to.clone(), add));
+        }
+    }
+    for (to, mut add) in plan {
+        if !shelves.iter().any(|s| s.id == to) {
+            let name = if to == "pc" { "PC" } else { "Custom" };
+            shelves.push(Shelf { id: to.clone(), name: name.into(), kind: ShelfKind::Pc, games: Vec::new(), from: Vec::new() });
+        }
+        let Some(shelf) = shelves.iter_mut().find(|s| s.id == to) else { continue };
+        add.sort_by(|a, b| crate::collate::compare(&a.0.title, &b.0.title));
+        let mut from: Vec<Option<String>> = vec![None; shelf.games.len()];
+        for (g, origin) in add {
+            let at = (0..from.len()).find(|i| from[*i].is_none() && crate::collate::compare(&shelf.games[*i].title, &g.title) == Ordering::Greater).unwrap_or(from.len());
+            shelf.games.insert(at, g);
+            from.insert(at, Some(origin));
+        }
+        shelf.from = from.into_iter().map(|f| f.unwrap_or_else(|| to.clone())).collect();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -370,6 +413,26 @@ mod tests {
         let ids: Vec<(&str, Vec<&str>)> = mixed.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.id.as_str()).collect())).collect();
         // the ones added by hand first, then the rest by title; hidden games and lookalike genres aren't on it
         assert_eq!(ids, [("col-t", vec!["b", "a", "c", "e"])]);
+    }
+
+    #[test]
+    fn a_game_added_to_another_shelf() {
+        let shelf = |id: &str, games: Vec<Game>| Shelf { id: id.into(), name: id.into(), kind: ShelfKind::Pc, games, from: Vec::new() };
+        let plain = |id: &str, title: &str| game(id, title, None, None, None);
+        let mut shelves = vec![shelf("gc", vec![plain("a", "Alpha"), plain("m", "Mu")]), shelf("snes", vec![plain("b", "Beta"), plain("z", "Zeta")]), shelf("kid", vec![plain("k", "Kappa")])];
+        let ui = serde_json::json!({ "shelfAdds": { "gc": ["z", "b", "a", "gone", "k", "z"], "custom": ["m"], "nope": ["a"] } });
+        add_into(&mut shelves, Some(&ui), &["kid".to_string()]);
+        let shown: Vec<(&str, Vec<&str>, Vec<&str>)> = shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.id.as_str()).collect(), s.from.iter().map(String::as_str).collect())).collect();
+        assert_eq!(
+            shown,
+            [
+                // among its own by title; its own games, ones from a shelf kids don't see and twice-added ones aren't
+                ("gc", vec!["a", "b", "m", "z"], vec!["gc", "snes", "gc", "snes"]),
+                ("snes", vec!["b", "z"], vec![]),
+                ("kid", vec!["k"], vec![]),
+                ("custom", vec!["m"], vec!["gc"]),
+            ]
+        );
     }
 
     #[test]

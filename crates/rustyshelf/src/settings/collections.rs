@@ -62,7 +62,7 @@ impl Settings {
         let Some(c) = &self.chosen else { return Page { title: "Collections".into(), lead: String::new(), rows: Vec::new() } };
         let (game, title) = (c.game.id.clone(), c.game.title.clone());
         let mut rows = Vec::new();
-        for col in self.collections() {
+        for col in self.collections().into_iter().filter(|c| c.get("rule").is_none()) {
             let (Some(id), Some(name)) = (col["id"].as_str().map(String::from), col["name"].as_str().map(String::from)) else { continue };
             let on = col["ids"].as_array().is_some_and(|ids| ids.iter().any(|i| *i == game));
             let flip = {
@@ -84,18 +84,57 @@ impl Settings {
             rows.push(Row { label: name, value: on_off(on), hint: format!("On: {title} is on this shelf."), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip2(s))) });
         }
         const NEW: &str = "A name for a new shelf of your own. Enter makes it, with this game on it.";
-        let (game, title2) = (game.clone(), title.clone());
+        let (game2, title2) = (game.clone(), title.clone());
         rows.push(Row {
             label: "New collection".into(),
             value: "Couch co-op, Racing, Finished…".into(),
             hint: NEW.into(),
             press: Some(Box::new(move |s: &mut Settings| {
-                let (game, title) = (game.clone(), title2.clone());
+                let (game, title) = (game2.clone(), title2.clone());
                 s.edit("New collection", NEW, String::new(), Box::new(move |s: &mut Settings, name: String| s.collect(&name, &game, &title)));
             })),
             step: None,
         });
-        Page { title: "Collections".into(), lead: format!("Shelves of your own, right after Home. {title} can be on as many as you like."), rows }
+        if !super::kid::kid_mode_on(self.cfg.get("ui")) {
+            let adds = self.cfg.get("ui").and_then(|u| u.get("shelfAdds")).cloned().unwrap_or(Value::Null);
+            let targets = self.console_shelves.iter().cloned().chain([("pc".to_string(), "PC".to_string()), ("custom".to_string(), "Custom".to_string())]);
+            for (to, name) in targets {
+                if to == c.console {
+                    rows.push(Row { label: format!("{name} · its own"), value: on_off(true), hint: format!("{name} is its own shelf: it always shows there"), ..Row::default() });
+                    continue;
+                }
+                let on = adds.get(&to).and_then(Value::as_array).is_some_and(|l| l.iter().any(|i| *i == game));
+                let flip = {
+                    let (game, title, to, name) = (game.clone(), title.clone(), to.clone(), name.clone());
+                    move |s: &mut Settings| s.add_to(&to, &name, &game, &title)
+                };
+                let flip2 = flip.clone();
+                rows.push(Row { label: name.clone(), value: on_off(on), hint: format!("On: {title} shows on the {name} shelf too, and still starts as it does on its own"), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip2(s))) });
+            }
+        }
+        Page { title: "Add to…".into(), lead: format!("Shelves of your own, right after Home, and other consoles' shelves. {title} can be on as many as you like."), rows }
+    }
+
+    /// Add to…: the game shown on another console's shelf, PC or Custom (`ui.shelfAdds`), or taken off it.
+    fn add_to(&mut self, to: &str, name: &str, game: &str, title: &str) {
+        let mut list = self.list(&["ui", "shelfAdds", to]);
+        let on = !list.iter().any(|g| g == game);
+        if on {
+            if list.len() >= 2000 {
+                return self.say(format!("{name} can't take more games"));
+            }
+            list.push(game.to_string());
+        } else {
+            list.retain(|g| g != game);
+        }
+        let mut adds = self.cfg.get("ui").and_then(|u| u.get("shelfAdds")).and_then(Value::as_object).cloned().unwrap_or_default();
+        if list.is_empty() {
+            adds.remove(to);
+        } else {
+            adds.insert(to.to_string(), json!(list));
+        }
+        self.set(&["ui", "shelfAdds"], Value::Object(adds));
+        self.say(if on { format!("{title} added to {name}") } else { format!("{title} taken off {name}") });
     }
 
     /// Settings → Collections: the automatic shelves, then each of yours (its name, Enter renames it; what fills it;

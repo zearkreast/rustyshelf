@@ -335,8 +335,10 @@ pub fn update(
         }
         LibraryState::Ready(l) => {
             let shelf = &l.shelves[cursor.shelf.min(l.shelves.len() - 1)];
-            // the shelf's own cases are counted among its cases, not among its games
-            let (cases, n) = (shelf.games.len(), shelf.games.iter().filter(|g| !matches!(g.source, Source::Tile(_))).count());
+            // the shelf's own cases are counted among its cases, not among its games, and so are games added to it
+            let mixed = matches!(shelf.kind, rustyshelf_core::library::ShelfKind::Mixed);
+            let own = |i: usize| mixed || shelf.from.get(i).is_none_or(|f| *f == shelf.id);
+            let (cases, n) = (shelf.games.len(), shelf.games.iter().enumerate().filter(|(i, g)| !matches!(g.source, Source::Tile(_)) && own(*i)).count());
             let pc = matches!(shelf.kind, rustyshelf_core::library::ShelfKind::Pc);
             let what = if shelf.id == "media" { if n == 1 { "app" } else { "apps" } } else if pc { "installed" } else if n == 1 { "game" } else { "games" };
             count = format!("{n} {what}").to_uppercase();

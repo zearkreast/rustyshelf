@@ -38,9 +38,14 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
     let mut lib = base.clone();
     let ui = base.config.raw().get("ui");
     let hidden: Vec<&str> = ui.and_then(|u| u.get("hidden")).and_then(|h| h.as_array()).map(|h| h.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
+    let kid = crate::settings::kid_hidden(ui);
+    rustyshelf_core::shelfview::add_into(&mut lib.shelves, ui, &kid);
     for shelf in lib.shelves.iter_mut() {
-        let all = shelf.games.len();
+        let all = if shelf.from.is_empty() { shelf.games.len() } else { shelf.from.iter().filter(|f| **f == shelf.id).count() };
         let order = arrange(&shelf.id, &shelf.games, &view, history);
+        if !shelf.from.is_empty() {
+            shelf.from = order.iter().map(|i| shelf.from[*i].clone()).collect();
+        }
         shelf.games = order.into_iter().map(|i| shelf.games[i].clone()).collect();
         // the shelf's own cases among its games (app.js prepare()): Surprise me, Add games and the emulator's in
         // front, the Custom shelf's Add games last
@@ -61,13 +66,18 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
                 front.push(tile(format!("emu-{}", shelf.id), format!("Open {}", crate::settings::emulator_of(shelf)), Tile::Emulator));
             }
         }
+        if !shelf.from.is_empty() {
+            shelf.from.splice(0..0, vec![shelf.id.clone(); front.len()]);
+        }
         shelf.games.splice(0..0, front);
         if shelf.id == "custom" {
             shelf.games.push(tile("setup-custom".into(), "Add games".into(), Tile::AddCustom));
+            if !shelf.from.is_empty() {
+                shelf.from.push(shelf.id.clone());
+            }
         }
     }
     // Kid mode: only the shelves ticked for kids
-    let kid = crate::settings::kid_hidden(ui);
     lib.shelves.retain(|s| !kid.contains(&s.id));
     // a console's shelf with nothing to show (its games all hidden) isn't shown
     lib.shelves.retain(|s| !s.games.is_empty());

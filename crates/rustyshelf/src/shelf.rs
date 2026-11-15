@@ -829,8 +829,8 @@ pub fn build_shelf(
     let plain = |m: &mut Assets<StandardMaterial>, c: Color| m.add(StandardMaterial { base_color: c, unlit: true, alpha_mode: if c.alpha() < 1.0 { AlphaMode::Blend } else { AlphaMode::Opaque }, ..default() });
     let mut cases: HashMap<String, [Handle<StandardMaterial>; 2]> = HashMap::new();
     for (i, g) in shelf.games.iter().enumerate() {
-        // on Home, All or a collection each game keeps its own shelf's case
-        let own = shelf.from.get(i).and_then(|id| library.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+        // on Home, All or a collection each game keeps its own shelf's case; one added to another shelf takes that one's
+        let own = shelf.from.get(i).filter(|_| matches!(shelf.kind, rustyshelf_core::library::ShelfKind::Mixed)).and_then(|id| library.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
         let look = looks::look_for(&own.id, g);
         let shape = look.on_shelf(&own.id);
         let (w, d) = (look.ratio, shape.depth);
