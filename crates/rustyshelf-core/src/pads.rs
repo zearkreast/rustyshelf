@@ -72,7 +72,7 @@ pub struct PadInfo {
 /// 054c Product: 0ce6)"): its maker and model first, then the words in its name.
 pub fn pad_info(id: &str) -> PadInfo {
     static IDS: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)vendor:?\s*([0-9a-f]{4})[^0-9a-f]+product:?\s*([0-9a-f]{4})"));
-    static NINTENDO: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)switch|nintendo|joy-?con|pro controller|pokken"));
+    static NINTENDO: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)switch|nintendo|nsw\b|joy-?con|pro controller|pokken"));
     static PS: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)dualsense|dualshock|playstation|ps[345]\b|^wireless controller"));
     let ids = IDS.captures(id).map(|m| (m[1].to_lowercase(), m[2].to_lowercase()));
     // makers of pads for every console (Hori, PDP, PowerA, 8BitDo…): what the name says

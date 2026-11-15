@@ -63,7 +63,7 @@ public class XI {
   [DllImport("kernel32.dll", EntryPoint="CreateFileW", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateFile(string n, uint acc, uint share, IntPtr sa, uint disp, uint flags, IntPtr t);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool ReadFile(IntPtr h, byte[] buf, int n, out int got, IntPtr ov);
   [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
-  class NPad { public string path; public IntPtr h; public int pid; public bool ps, bt, seen, full; public int at; public int btn; public byte lt, rt; public short lx, ly, rx, ry; }
+  class NPad { public string path; public IntPtr h; public int pid; public bool ps, bt, seen, full, din; public int at; public int btn; public byte lt, rt; public short lx, ly, rx, ry; }
   static readonly object nLock = new object(); static System.Collections.Generic.List<NPad> nPads = new System.Collections.Generic.List<NPad>();
   static System.Threading.Thread nScan; static uint nPacket;
   // only while a game or app runs: on the shelf Chromium reads these pads itself (Home included), so the helper keeps out
@@ -91,20 +91,20 @@ public class XI {
         IntPtr buf = Marshal.AllocHGlobal(req); string path = null;
         try { Marshal.WriteInt32(buf, IntPtr.Size == 8 ? 8 : 6); if (SetupDiGetDeviceInterfaceDetail(set, ref dd, buf, req, out req, IntPtr.Zero)) path = Marshal.PtrToStringUni(new IntPtr(buf.ToInt64() + 4)); } finally { Marshal.FreeHGlobal(buf); }
         // Nintendo and Sony only (a Bluetooth pad's path spells the maker "vid&0002057e", a USB one's "vid_057e": both)
-        if (path == null) continue; string lp = path.ToLowerInvariant(); bool sony = lp.IndexOf("vid_054c") >= 0 || lp.IndexOf("vid&0002054c") >= 0; if (lp.IndexOf("vid_057e") < 0 && lp.IndexOf("vid&0002057e") < 0 && !sony) continue;
+        if (path == null) continue; string lp = path.ToLowerInvariant(); bool sony = lp.IndexOf("vid_054c") >= 0 || lp.IndexOf("vid&0002054c") >= 0; bool din = lp.IndexOf("vid_20d6&pid_a713") >= 0; /* (fork) PowerA NSW wired controller, plain DirectInput HID */ if (lp.IndexOf("vid_057e") < 0 && lp.IndexOf("vid&0002057e") < 0 && !sony && !din) continue;
         bool have = false; lock (nLock) { foreach (NPad q in nPads) if (q.path == lp) have = true; } if (have) continue;
         IntPtr h = CreateFile(path, 0x80000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero); // GENERIC_READ, shared read+write, OPEN_EXISTING
         if (h == IntPtr.Zero || h == new IntPtr(-1)) continue;
         HIDA a = new HIDA(); a.Size = Marshal.SizeOf(typeof(HIDA));
         // Joy-Con L / R (2006 / 2007), Pro Controller (2009), the charging grip (200E); DualShock 4 (05C4 / 09CC), DualSense
         // (0CE6), DualSense Edge (0DF2)
-        bool ok = HidD_GetAttributes(h, ref a) && (sony ? (a.Pid == 0x05C4 || a.Pid == 0x09CC || a.Pid == 0x0CE6 || a.Pid == 0x0DF2) : (a.Pid == 0x2006 || a.Pid == 0x2007 || a.Pid == 0x2009 || a.Pid == 0x200E));
+        bool ok = HidD_GetAttributes(h, ref a) && (sony ? (a.Pid == 0x05C4 || a.Pid == 0x09CC || a.Pid == 0x0CE6 || a.Pid == 0x0DF2) : (din ? (a.Vid == 0x20D6 && a.Pid == 0xA713) : (a.Pid == 0x2006 || a.Pid == 0x2007 || a.Pid == 0x2009 || a.Pid == 0x200E)));
         if (!ok) { CloseHandle(h); continue; }
-        NPad np = new NPad(); np.path = lp; np.h = h; np.pid = a.Pid; np.ps = sony; np.bt = lp.IndexOf("00001124-0000-1000-8000-00805f9b34fb") >= 0; lock (nLock) nPads.Add(np); // bt: paired over Bluetooth (its HID service)
+        NPad np = new NPad(); np.path = lp; np.h = h; np.pid = a.Pid; np.ps = sony; np.din = din; np.bt = lp.IndexOf("00001124-0000-1000-8000-00805f9b34fb") >= 0; lock (nLock) nPads.Add(np); // bt: paired over Bluetooth (its HID service)
         System.Threading.Thread t = new System.Threading.Thread(NRead); t.IsBackground = true; t.Start(np); } }
     finally { SetupDiDestroyDeviceInfoList(set); } }
   static void NRead(object o) { NPad p = (NPad)o; byte[] r = new byte[1024]; int got;
-    try { while (ReadFile(p.h, r, r.Length, out got, IntPtr.Zero)) { if (got > 0) { if (p.ps) PParse(p, r, got); else NParse(p, r, got); } } } catch { }
+    try { while (ReadFile(p.h, r, r.Length, out got, IntPtr.Zero)) { if (got > 0) { if (p.ps) PParse(p, r, got); else if (p.din) DParse(p, r, got); else NParse(p, r, got); } } } catch { }
     lock (nLock) nPads.Remove(p); CloseHandle(p.h); } // unplugged / out of range: the scan picks it up again when it's back
   static short NAxis(int v, int mid, int dead, int mul) { int d = v - mid; if (d > -dead && d < dead) return 0; d *= mul; return (short)(d > 32767 ? 32767 : (d < -32767 ? -32767 : d)); }
   static void NParse(NPad p, byte[] r, int n) {
@@ -131,6 +131,21 @@ public class XI {
     // the pointer drifted / the wheel scrolled on its own, and the Home menu jumped down a row as it opened
     if (p.pid == 0x2006) { rx = ry = 0; } else if (p.pid == 0x2007) { lx = ly = 0; }
     lock (nLock) { p.btn = m; p.lt = lt; p.rt = rt; p.lx = lx; p.ly = ly; p.rx = rx; p.ry = ry; p.seen = true; p.full = full; p.at = Environment.TickCount; } }
+  // PowerA NSW wired controller (20D6:A713): a plain HID pad. Its report has no report id, so Windows puts a 0 in
+  // front: [0] buttons low, buttons high, hat, LX, LY, RX, RY. Bits as Chromium numbers them: Y B A X L R ZL ZR - + LS RS
+  // Home Capture. Mapped by position like the other Nintendo pads (B, the bottom one = 0x1000, A = 0x2000, Y = 0x4000,
+  // X = 0x8000), - / + = Back / Start, Home = Guide, ZL / ZR = the triggers. Its reports may only come on a change, so it
+  // counts as a simple pad (its last state stands, see Hid).
+  static void DParse(NPad p, byte[] r, int n) {
+    int o = (n >= 8 && r[0] == 0) ? 1 : 0; if (n < o + 7) return;
+    int bt = r[o] | (r[o + 1] << 8), hat = r[o + 2], m = 0; byte lt = 0, rt = 0;
+    if ((bt & 0x0001) != 0) m |= 0x4000; if ((bt & 0x0002) != 0) m |= 0x1000; if ((bt & 0x0004) != 0) m |= 0x2000; if ((bt & 0x0008) != 0) m |= 0x8000;
+    if ((bt & 0x0010) != 0) m |= 0x0100; if ((bt & 0x0020) != 0) m |= 0x0200; if ((bt & 0x0040) != 0) lt = 255; if ((bt & 0x0080) != 0) rt = 255;
+    if ((bt & 0x0100) != 0) m |= 0x0020; if ((bt & 0x0200) != 0) m |= 0x0010; if ((bt & 0x0400) != 0) m |= 0x0040; if ((bt & 0x0800) != 0) m |= 0x0080;
+    if ((bt & 0x1000) != 0) m |= 0x0400;
+    if (hat == 7 || hat == 0 || hat == 1) m |= 0x0001; if (hat >= 1 && hat <= 3) m |= 0x0008; if (hat >= 3 && hat <= 5) m |= 0x0002; if (hat >= 5 && hat <= 7) m |= 0x0004;
+    short lx = NAxis(r[o + 3], 128, 14, 256), ly = NAxis(128, r[o + 4], 14, 256), rx = NAxis(r[o + 5], 128, 14, 256), ry = NAxis(128, r[o + 6], 14, 256);
+    lock (nLock) { p.btn = m; p.lt = lt; p.rt = rt; p.lx = lx; p.ly = ly; p.rx = rx; p.ry = ry; p.seen = true; p.full = false; p.at = Environment.TickCount; } }
   // PlayStation pads' input reports: o = where the sticks start, b0 / b1 / b2 = the button bytes, then the triggers.
   //   USB 0x01: DualSense sticks 1-4, triggers 5-6, buttons 8-10; DualShock 4 sticks 1-4, buttons 5-7, triggers 8-9
   //   Bluetooth 0x01 (the pad's own mode before anything set it up): sticks 1-4, buttons 5-7, triggers 8-9 (both pads)

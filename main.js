@@ -424,6 +424,7 @@ function coverForQuit() {
         // always-on-top here too, or file pickers and browser windows open behind RustyShelf until the next launch
         if (!alive() || !launcher.isRunning()) { clearQuitCover(); if (alive() && !launcher.isRunning()) { try { win.setAlwaysOnTop(false); } catch {} } return; }
         if (Date.now() - started > 11000) { // still running well past the force-close: give the game the screen back, controller included
+          if (goneCover) goneGaveUp = true; /* the game window had vanished: don't cover again for the same vanish */
           clearQuitCover(); log('Quit: the game is still running, returning to it'); pendingPower = null; quitAt = 0; /* its exit later isn't "N ms after Quit" */
           win.setAlwaysOnTop(false); padwatch.cover(false); stepAside(); if (!padwatch.isRunning() && lastPadOpts) watchPad(lastPadOpts); padwatch.front(); setTimeout(() => { if (launcher.isRunning()) padwatch.front(); }, 1500); return; /* the helper may have just restarted */
         }
@@ -472,12 +473,14 @@ function taskbarShow(why) {
 // (beta.6) the game's window closed while the emulator is still running (quit from the emulator's own menu, or Esc): the
 // black cover goes up at once, like a Quit from the Home menu; a window that comes back (the emulator only rebuilt it)
 // gets the screen back
-let goneCover = false;
+let goneCover = false, goneGaveUp = false; // goneGaveUp: covered once for a vanished window, timed out, gave the screen back
 function onGameWindow(back) {
   if (!back) {
     if (!launcher.isRunning() || quitCover || coverTimer || homemenu.isOpen()) return;
+    if (goneGaveUp) return; // without this the cover went up again every ~11 s for as long as the emulator ran
     log('Game window closed, the emulator still running: covering the screen until it exits'); coverForQuit(); goneCover = true; seamless.windowGone(); return; /* (beta.12: a watched game's end is looked for at once) */
   }
+  goneGaveUp = false;
   if (!goneCover || !quitCover || !launcher.isRunning()) return;
   log('Game window back: stepping aside again'); clearQuitCover(); quitAt = 0;
   try { win.setAlwaysOnTop(false); } catch {} padwatch.cover(false); stepAside(); padwatch.front();
@@ -598,7 +601,7 @@ function watchPad(opts) {
       keepUp: () => launcher.isRunning() && !quitCover }); // (beta.10: a helper that dies mid-game is started again, not during a Quit)
 }
 function onExit(info) {
-  linuxpad.end(); try { presence.clear(); } catch {} try { windowmode.stop(); } catch {} // (beta.9: the Linux pad watcher only runs during a game)
+  goneGaveUp = false; linuxpad.end(); try { presence.clear(); } catch {} try { windowmode.stop(); } catch {} // (beta.9: the Linux pad watcher only runs during a game)
   markEvent('game exited'); clearQuitCover(); wiimote.resume(); // (the Wii remote back to the shelf, after Dolphin had it)
   // (1.82) a game's emulator that closed by itself within 5 s (a missing BIOS, keys or firmware, bad launch options) wasn't a
   // play: the shelf says which emulator closed instead of quietly coming back, and the history isn't touched

@@ -3704,7 +3704,7 @@ const PAD_MODELS={"054c":{"05c4":"DualShock 4","09cc":"DualShock 4","0ba0":"Dual
 const PAD_STYLE={"054c":"ps","057e":"nintendo","045e":"xbox","28de":"xbox"}; // (beta.10: 8BitDo pads go by their name, Xbox by default: most are used in X-input mode; in Switch mode they report as Nintendo's own pad)
 function padInfo(id){id=String(id||"");const m=/vendor:?\s*([0-9a-f]{4})[^0-9a-f]+product:?\s*([0-9a-f]{4})/i.exec(id),v=m&&m[1].toLowerCase(),p=m&&m[2].toLowerCase();
   // makers of pads for every console (Hori, PDP, PowerA, 8BitDo…): what the name says
-  const style=/switch|nintendo|joy-?con|pro controller|pokken/i.test(id)?"nintendo":/dualsense|dualshock|playstation|ps[345]\b|^wireless controller/i.test(id)?"ps":"xbox";
+  const style=/switch|nintendo|nsw\b|joy-?con|pro controller|pokken/i.test(id)?"nintendo":/dualsense|dualshock|playstation|ps[345]\b|^wireless controller/i.test(id)?"ps":"xbox";
   if(v&&PAD_MODELS[v])return {style:PAD_STYLE[v]||style,name:PAD_MODELS[v][p]||PAD_MODELS[v]["*"],vendor:v,product:p,virtual:false};
   const virtual=/xinput/i.test(id)&&!v;
   return {style,name:virtual?"Xbox-style controller (XInput)":style==="ps"?"PlayStation controller":style==="nintendo"?"Nintendo controller":/xbox/i.test(id)?"Xbox controller":"Controller",vendor:v||"",product:p||"",virtual}}
@@ -3995,8 +3995,23 @@ function poll(t){
 // (beta.10) padActAt: the last time a pad changed or had a button held (poll stays on every frame for ~3 s after). The state
 // is a number now and the list is read in place: no array or string made per read
 const padUse=new Map();let padIdx=-1,padActAt=-1e9;
+// (fork) Switch-style wired pads that Chromium reads without a standard mapping (PowerA "NSW wired controller",
+// 20d6:a713, DirectInput): Y B A X = 0 1 2 3, L R ZL ZR = 4-7, - + = 8 9, stick clicks 10 11, Home 12, Capture 13,
+// D-pad on axis 9 as a hat (-1 up, then clockwise in steps of 2/7; ~3.29 at rest), right stick on axes 2 and 5.
+// Rebuilt here in the standard layout (bottom B = 0, right A = 1, left Y = 2, top X = 3, D-pad 12-15, Home 16), so every
+// screen reads it like any other pad; "Match my controller" then makes A confirm, as on a Switch.
+const DIN_SW=/20d6[^0-9a-f]+a713|nsw wired controller/i,dinCache=new Map();
+function dinStd(p){if(!p||p.mapping==="standard"||!DIN_SW.test(p.id)||!p.buttons||p.buttons.length<14)return p;
+  let o=dinCache.get(p.index);if(!o||o.id!==p.id){o={id:p.id,index:p.index,connected:true,mapping:"standard",axes:[0,0,0,0],buttons:new Array(18),vibrationActuator:p.vibrationActuator||null,timestamp:0,
+    dpad:[0,1,2,3].map(()=>({pressed:false,touched:false,value:0}))};dinCache.set(p.index,o);if(dinCache.size>8)dinCache.clear()}
+  const b=p.buttons,ax=p.axes||[],B=o.buttons,h=+ax[9];
+  B[0]=b[1];B[1]=b[2];B[2]=b[0];B[3]=b[3];for(let i=4;i<12;i++)B[i]=b[i];B[16]=b[12];B[17]=b[13];
+  let up=false,rt=false,dn=false,lf=false;
+  if(h>=-1.05&&h<=1.05){const k=Math.round((h+1)*3.5)&7;up=k===7||k<=1;rt=k>=1&&k<=3;dn=k>=3&&k<=5;lf=k>=5&&k<=7}
+  [up,dn,lf,rt].forEach((on,i)=>{const d=o.dpad[i];d.pressed=d.touched=on;d.value=on?1:0;B[12+i]=d});
+  o.axes[0]=+ax[0]||0;o.axes[1]=+ax[1]||0;o.axes[2]=+ax[2]||0;o.axes[3]=+ax[5]||0;o.connected=p.connected;o.timestamp=p.timestamp;return o}
 function activePad(){const L=safe(()=>navigator.getGamepads()),n=L?L.length:0,now=performance.now();let best=null,bt=-1,cur=null;
-  for(let j=0;j<=n;j++){const p=j<n?L[j]:wmPad;if(!p||!p.connected||(p!==wmPad&&WM_RAW.test(p.id)))continue;
+  for(let j=0;j<=n;j++){const p=j<n?dinStd(L[j]):wmPad;if(!p||!p.connected||(p!==wmPad&&WM_RAW.test(p.id)))continue;
     let h=0;const b=p.buttons,ax=p.axes;for(let i=0;i<b.length;i++){const on=!!(b[i]&&b[i].pressed);if(on)padActAt=now;h=(Math.imul(h,31)+(on?1:2))|0}
     if(ax){const std=p.mapping==="standard";for(let i=0;i<ax.length;i++){const a=ax[i],q=Math.abs(a)<.3?0:Math.round(a*4);if(q&&std&&i<4)padActAt=now;h=(Math.imul(h,31)+q+9)|0}} // (a stick held over: in use; other axes can rest at -1)
     let o=padUse.get(p.index);if(!o||o.id!==p.id){o={id:p.id,sig:h,at:0};padUse.set(p.index,o)}else if(o.sig!==h){o.sig=h;o.at=now;padActAt=now;if(window.BS_METER)BS_METER.input()}
