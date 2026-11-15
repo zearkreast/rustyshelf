@@ -123,7 +123,9 @@ impl Settings {
             let libretro = if part == "front" { boxart::libretro_names(&cache, &game.sys) } else { None };
             let tdb = if gametdb::has(&game.sys) && part != "disc" { gametdb::index(&cache, &game.sys) } else { None };
             let region = style["region"].as_str().unwrap_or("usa");
-            let from = Sources { launchbox: shard, libretro: libretro.as_ref(), gametdb: tdb.as_ref(), disc_id: covers::disc_id(&game.file), region };
+            let names = covers::lookup_names(&game.title);
+            let wiki = |part: &str| rustyshelf_core::wikiart::find(&cache, &game.sys, &names, part, "usa", now_ms(), &rustyshelf_core::wikiart::ask);
+            let from = Sources { launchbox: shard, libretro: libretro.as_ref(), gametdb: tdb.as_ref(), disc_id: covers::disc_id(&game.file), region, wiki: Some(&wiki) };
             let list = Studio::new(&data).list_for(&game, part, studio::candidates(&game.sys, &game.title, &game.file, part, &from), now_ms());
             // the best for the console's style first
             let shown: Vec<Cand> = studio::shown(&list).cloned().collect();

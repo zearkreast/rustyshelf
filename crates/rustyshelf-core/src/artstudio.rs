@@ -247,7 +247,10 @@ pub fn lr_cand(sys: &str, name: &str, base: &str) -> Cand {
     }
 }
 
-/// What the candidates are made from: each source as it's kept on this computer. Nothing is asked of the web.
+/// a part ("front" or "back") → the wiki's best box for it
+pub type WikiFind<'a> = dyn Fn(&str) -> Option<crate::wikiart::Found> + 'a;
+
+/// What the candidates are made from: each source as it's kept on this computer; only `wiki` may ask the web.
 #[derive(Default)]
 pub struct Sources<'a> {
     /// the console's part of the LaunchBox index
@@ -260,6 +263,8 @@ pub struct Sources<'a> {
     pub disc_id: Option<String>,
     /// the box art region chosen
     pub region: &'a str,
+    /// the Super Mario Wiki's best box for a part (Switch 2)
+    pub wiki: Option<&'a WikiFind<'a>>,
 }
 
 /// For one part of one game, every version the sources have, in the sources' own order.
@@ -350,6 +355,12 @@ pub fn candidates(sys: &str, title: &str, file: &Path, part: &str, from: &Source
                 c.label = label(&[if part == "back" { "From GameTDB's full cover" } else { "Cut from full cover" }, word]);
             }
             out.push(c);
+        }
+    }
+    if let (Some(wiki), true, "front" | "back") = (from.wiki, crate::wikiart::has(sys), part) {
+        if let Some(w) = wiki(part) {
+            let name = w.name.rsplit_once('.').filter(|(_, e)| !e.is_empty() && e.chars().all(|c| c.is_ascii_alphabetic())).map_or(w.name.as_str(), |(n, _)| n);
+            out.push(Cand { label: label(&["Super Mario Wiki", name]), url: w.url, ext: format!(".{}", w.ext), source: "mariowiki".into(), kind_of: if part == "back" { "Box - Back" } else { "Box - Front" }.into(), edition: "original".into(), kind: "scan".into(), ..Cand::default() });
         }
     }
     // the same address twice (two fallback types): once

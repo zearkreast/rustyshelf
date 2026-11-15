@@ -584,7 +584,7 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
 // TODO: still Electron-only: the Art Studio's styles, sharper scans over low-res pictures, spines cut from
-// LaunchBox's full box wraps, the Super Mario Wiki, SteamGridDB posters and drawn cartridges
+// LaunchBox's full box wraps, SteamGridDB posters and drawn cartridges
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
     let Run { art, app_root, cache_dir, kinds, region } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
@@ -658,6 +658,14 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                     }
                 }
                 let stopped = || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir);
+                // nothing from the databases: the Super Mario Wiki's official box scans (Switch 2)
+                if !ok && old.is_none() && matches!(key, "front" | "back") && crate::wikiart::has(id) && !stopped() {
+                    let lower = region.to_lowercase();
+                    let wiki_region = if lower.contains("eur") { "eur" } else if lower.contains("jpn") || lower.contains("japan") { "jpn" } else { "usa" };
+                    if let Some(w) = crate::wikiart::find(cache_dir, id, &covers::lookup_names(&game.title), key, wiki_region, now() as f64, &crate::wikiart::ask) {
+                        ok = matches!(fetch_into(&w.url, &dir, &base, suffix, &format!(".{}", w.ext), None, false), Fetched::Placed);
+                    }
+                }
                 // GameCube / Wii spines: GameTDB has a full cover scan for nearly every disc, by its game id
                 if !ok && old.is_none() && key == "spine" && matches!(id, "gc" | "wii") && !stopped() {
                     ok = gametdb_spine(id, &game.file, &dir, &base, cache_dir, region);

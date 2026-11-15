@@ -2231,7 +2231,7 @@ fn art_studio_ranks_and_lists_as_the_js_does() {
     for a in f["candidates"].as_array().unwrap() {
         let sys = a["sys"].as_str().unwrap();
         let shard = rustyshelf_core::covers::launchbox_platform(sys).and_then(shard);
-        let from = Sources { launchbox: shard.as_ref(), libretro: (sys == "gc").then_some(&libretro), gametdb: None, disc_id: a["discId"].as_str().map(String::from), region: a["region"].as_str().unwrap() };
+        let from = Sources { launchbox: shard.as_ref(), libretro: (sys == "gc").then_some(&libretro), gametdb: None, disc_id: a["discId"].as_str().map(String::from), region: a["region"].as_str().unwrap(), wiki: None };
         for part in studio::PARTS {
             let got: Vec<Value> = studio::candidates(sys, a["game"]["title"].as_str().unwrap(), Path::new(a["game"]["file"].as_str().unwrap()), part, &from).iter().map(Cand::to_json).collect();
             let want = a["parts"][part].as_array().unwrap();
@@ -2279,7 +2279,7 @@ fn art_studio_lists_and_places_pictures_as_the_js_does() {
     let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: file.clone(), region: "USA".into(), dir: roms.join("covers"), base: "Zeta Run (USA)".into(), current: [Some(roms.join("covers/Zeta Run (USA).png")), None, None, None] };
     let rel = |p: &Path| p.to_string_lossy().replace(&dir, "<tmp>");
     let list = |g: &GameArt, part: &str| {
-        let from = Sources { launchbox: Some(&shard), libretro: Some(&libretro), gametdb: None, disc_id: rustyshelf_core::covers::disc_id(&g.file), region: "usa" };
+        let from = Sources { launchbox: Some(&shard), libretro: Some(&libretro), gametdb: None, disc_id: rustyshelf_core::covers::disc_id(&g.file), region: "usa", wiki: None };
         st.list_for(g, part, studio::candidates(&g.sys, &g.title, &g.file, part, &from), now)
     };
     // (a picture on this computer is keyed by where it is: named here by its file instead)
@@ -2363,4 +2363,42 @@ fn art_studio_lists_and_places_pictures_as_the_js_does() {
     assert_eq!(st.own(&mut g, "back", &text, false, now + 105.0).unwrap_err(), "That file isn't a PNG, JPEG or WebP picture.");
     assert_eq!(st.own(&mut g, "back", &tmp.path().join("gone.png"), false, now + 106.0).unwrap_err(), "That file can't be opened.");
     assert!(g.current[1].is_none());
+}
+
+#[test]
+fn wikiart_matches_electron() {
+    use rustyshelf_core::wikiart;
+    let fx = fixture("wikiart.json");
+    let dir = tempfile::tempdir().unwrap();
+    let now = 1_800_000_000_000.0;
+    let answers: serde_json::Map<String, Value> = fx["answers"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), serde_json::json!([now - v[0].as_f64().unwrap() * 86_400_000.0, v[1]]))).collect();
+    wikiart::keep(dir.path(), &answers).unwrap();
+    let no_web = |w: &str| -> Result<Value, String> { panic!("asked the web for {w}") };
+    for c in fx["finds"].as_array().unwrap() {
+        let names: Vec<String> = c["names"].as_array().unwrap().iter().map(|n| n.as_str().unwrap().to_string()).collect();
+        let found = wikiart::find(dir.path(), c["sys"].as_str().unwrap(), &names, c["part"].as_str().unwrap(), c["region"].as_str().unwrap(), now, &no_web);
+        let got = found.map_or(Value::Null, |f| serde_json::json!({ "url": f.url, "name": f.name, "ext": f.ext }));
+        assert_eq!(got, c["found"], "{c}");
+    }
+    for r in fx["regions"].as_array().unwrap() {
+        let got: Vec<i32> = ["usa", "eur", "jpn", ""].iter().map(|w| wikiart::region_score(r[0].as_str().unwrap(), w)).collect();
+        assert_eq!(serde_json::json!(got), r[1], "{r}");
+    }
+    let old = serde_json::json!({ "zeta run": [now - 8.0 * 86_400_000.0, []] });
+    wikiart::keep(dir.path(), old.as_object().unwrap()).unwrap();
+    let asked = std::cell::Cell::new(0);
+    let web = |_: &str| -> Result<Value, String> {
+        asked.set(asked.get() + 1);
+        Ok(serde_json::json!({ "query": { "pages": { "1": { "title": "File:Zeta Run box NA.png", "imageinfo": [{ "url": "https://mario.wiki.gallery/images/z.png", "mime": "image/png", "width": 600, "height": 900 }] } } } }))
+    };
+    let found = wikiart::find(dir.path(), "sw2", &["Zeta Run".into()], "front", "usa", now, &web).unwrap();
+    assert_eq!((found.ext.as_str(), asked.get()), ("png", 1));
+    wikiart::find(dir.path(), "sw2", &["Zeta Run".into()], "front", "usa", now + 1000.0, &web).unwrap();
+    assert_eq!(asked.get(), 1, "a week's answer is kept");
+    let wiki = |part: &str| wikiart::find(dir.path(), "sw2", &["Zeta Run".into()], part, "usa", now, &no_web);
+    let from = rustyshelf_core::artstudio::Sources { wiki: Some(&wiki), region: "usa", ..Default::default() };
+    let got: Vec<Value> = rustyshelf_core::artstudio::candidates("sw2", "Zeta Run", Path::new("/roms/Zeta Run.nsp"), "front", &from).iter().map(rustyshelf_core::artstudio::Cand::to_json).collect();
+    assert_eq!(got.len(), 1);
+    assert_eq!((&got[0]["source"], &got[0]["label"], &got[0]["type"], &got[0]["ext"]), (&serde_json::json!("mariowiki"), &serde_json::json!("Super Mario Wiki · Zeta Run box NA"), &serde_json::json!("Box - Front"), &serde_json::json!(".png")));
+    assert!(rustyshelf_core::artstudio::candidates("switch", "Zeta Run", Path::new("/roms/Zeta Run.nsp"), "front", &from).is_empty());
 }

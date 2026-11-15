@@ -296,6 +296,7 @@ is downloaded.
 | Descriptions, release dates and ratings in Details | LaunchBox |
 | Manuals | GamesDatabase.org (PDFs, turned into pages in the background), Internet Archive |
 | GameCube and Wii spines LaunchBox lacks | Cut from GameTDB's full cover scans, found by the disc ID in the game file |
+| Switch 2 fronts and backs no database has yet | The Super Mario Wiki's box scans |
 | Digital-only titles | Fan-made box fronts, or the Steam poster |
 
 Backs prefer English-only scans (UK / Australia) over the trilingual North American ones; tick *Replace existing backs*
@@ -464,6 +465,7 @@ folders next to your games.
 | Service | When | What it sends |
 |---|---|---|
 | libretro thumbnails, LaunchBox Games Database, GameTDB | Art look-ups (automatic only if you turned that on) | Game titles; GameCube & Wii disc IDs |
+| Super Mario Wiki | Switch 2 art look-ups the databases have nothing for | Game titles |
 | Internet Archive, GamesDatabase.org | Manual look-ups (automatic only if you turned that on) | Game titles |
 | Steam store | PC shelf art for games Steam has no cover for | Steam app IDs |
 | raw.githubusercontent.com | Xbox 360 shelf: Xenia's compatibility list, weekly | Nothing |
@@ -567,7 +569,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Downloads box art for console games missing a front, a back or a spine, unless box art downloads are off: fronts
   from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
   downloaded and built once), and where those have none a spine (GameCube, Wii) or a spine and a back (Switch,
-  3DS) cut from GameTDB's full cover scan. Each game is looked at once a week at most; a picture that's there is
+  3DS) cut from GameTDB's full cover scan, or a Switch 2 front or back from the Super Mario Wiki. Each game is looked at once a week at most; a picture that's there is
   never replaced.
 - With your own SteamGridDB key (Settings → Accounts, with a check of the key) and box art downloads on, gives PC
   games, ports and recomps that have no cover at all SteamGridDB's best poster, as the Electron app does (their
@@ -691,7 +693,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   freely with the arrows or a stick, tipped, flipped to its other side and brought nearer or further; M reads
   its manual, Enter plays it, Escape puts it back. The case doesn't open yet.
 - Has the Art Studio's picker (Details → Box art): for a console game's front, back, spine and disc, every
-  version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps), the picture in use
+  version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps) and, on Switch 2, the
+  Super Mario Wiki's box, the picture in use
   and the ones replaced before it, the best for the console's style first by the Electron app's own points
   (authentic, HD, a region, special edition), each shown beside the list as it's highlighted. Enter puts one in
   use: the old picture goes to `replaced` beside it, never deleted, a spine or a back is cut from a full wrap
@@ -797,7 +800,8 @@ narrow it down.
 ## Credits
 
 **Box art and metadata:** [libretro thumbnails](https://thumbnails.libretro.com),
-[LaunchBox Games Database](https://gamesdb.launchbox-app.com), [GameTDB](https://www.gametdb.com).
+[LaunchBox Games Database](https://gamesdb.launchbox-app.com), [GameTDB](https://www.gametdb.com),
+[Super Mario Wiki](https://www.mariowiki.com).
 **Manuals:** [Internet Archive](https://archive.org) collections and [GamesDatabase.org](https://www.gamesdatabase.org).
 Box art and manuals are © their publishers.
 **Fonts:** SIL Open Font License (see `renderer\fonts\LICENSES`; the Rust app's copies and their licences are in `crates\rustyshelf-core\assets\fonts`).

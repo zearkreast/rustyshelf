@@ -1,0 +1,355 @@
+{
+ "answers": {
+  "zeta run nintendo switch 2 edition": [
+   1,
+   [
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition NA box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_NA_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition Box EUR.png",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_Box_EUR.png",
+     "mime": "image/png",
+     "w": 900,
+     "h": 1450
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition JP box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_JP_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 700,
+     "h": 1200
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition NA back.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_NA_back.jpg",
+     "mime": "image/jpeg",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition EUR back.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_EUR_back.jpg",
+     "mime": "image/jpeg",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition box art prerelease.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_box_art_prerelease.jpg",
+     "mime": "image/jpeg",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition 2 box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_2_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition Extra box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_Extra_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition + Omega Park box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_%2B_Omega_Park_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 820,
+     "h": 1310
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition wide box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_wide_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 1300,
+     "h": 800
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition tiny box.jpg",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_tiny_box.jpg",
+     "mime": "image/jpeg",
+     "w": 100,
+     "h": 200
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition logo box.png",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_logo_box.png",
+     "mime": "image/png",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition KR box art.webp",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_KR_box_art.webp",
+     "mime": "",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition box art.gif",
+     "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_box_art.gif",
+     "mime": "image/gif",
+     "w": 800,
+     "h": 1300
+    },
+    {
+     "name": "Zeta Run Nintendo Switch 2 Edition AU box art.jpg",
+     "url": "https://elsewhere.example/a.jpg",
+     "mime": "image/jpeg",
+     "w": 900,
+     "h": 1500
+    }
+   ]
+  ],
+  "tau racers": [
+   2,
+   [
+    {
+     "name": "Tau Racers Box.jpg",
+     "url": "https://mario.wiki.gallery/images/Tau_Racers_Box.jpg",
+     "mime": "image/jpeg",
+     "w": 600,
+     "h": 1000
+    },
+    {
+     "name": "Tau Racers Switch 2 box art.jpg",
+     "url": "https://mario.wiki.gallery/images/Tau_Racers_Switch_2_box_art.jpg",
+     "mime": "image/jpeg",
+     "w": 600,
+     "h": 1000
+    },
+    {
+     "name": "Tau Racers back.jpg",
+     "url": "https://mario.wiki.gallery/images/Tau_Racers_back.jpg",
+     "mime": "image/jpeg",
+     "w": 600,
+     "h": 1000
+    }
+   ]
+  ],
+  "phi rho": [
+   0,
+   []
+  ]
+ },
+ "finds": [
+  {
+   "sys": "sw2",
+   "names": [
+    "Zeta Run: Nintendo Switch 2 Edition",
+    "Zeta Run"
+   ],
+   "part": "front",
+   "region": "usa",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_NA_box_art.jpg",
+    "name": "Zeta Run Nintendo Switch 2 Edition NA box art.jpg",
+    "ext": "jpg"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Zeta Run: Nintendo Switch 2 Edition"
+   ],
+   "part": "front",
+   "region": "eur",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_Box_EUR.png",
+    "name": "Zeta Run Nintendo Switch 2 Edition Box EUR.png",
+    "ext": "png"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Zeta Run: Nintendo Switch 2 Edition"
+   ],
+   "part": "front",
+   "region": "jpn",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_JP_box_art.jpg",
+    "name": "Zeta Run Nintendo Switch 2 Edition JP box art.jpg",
+    "ext": "jpg"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Zeta Run: Nintendo Switch 2 Edition"
+   ],
+   "part": "back",
+   "region": "usa",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_NA_back.jpg",
+    "name": "Zeta Run Nintendo Switch 2 Edition NA back.jpg",
+    "ext": "jpg"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Zeta Run: Nintendo Switch 2 Edition"
+   ],
+   "part": "back",
+   "region": "eur",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Zeta_Run_Nintendo_Switch_2_Edition_EUR_back.jpg",
+    "name": "Zeta Run Nintendo Switch 2 Edition EUR back.jpg",
+    "ext": "jpg"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Zeta Run: Nintendo Switch 2 Edition"
+   ],
+   "part": "spine",
+   "region": "usa",
+   "found": null
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Tau Racers"
+   ],
+   "part": "front",
+   "region": "usa",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Tau_Racers_Box.jpg",
+    "name": "Tau Racers Box.jpg",
+    "ext": "jpg"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Tau Racers"
+   ],
+   "part": "back",
+   "region": "",
+   "found": {
+    "url": "https://mario.wiki.gallery/images/Tau_Racers_back.jpg",
+    "name": "Tau Racers back.jpg",
+    "ext": "jpg"
+   }
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Phi Rho"
+   ],
+   "part": "front",
+   "region": "usa",
+   "found": null
+  },
+  {
+   "sys": "sw2",
+   "names": [
+    "Phi"
+   ],
+   "part": "front",
+   "region": "usa",
+   "found": null
+  },
+  {
+   "sys": "switch",
+   "names": [
+    "Tau Racers"
+   ],
+   "part": "front",
+   "region": "usa",
+   "found": null
+  },
+  {
+   "sys": "sw2",
+   "names": [],
+   "part": "front",
+   "region": "usa",
+   "found": null
+  }
+ ],
+ "regions": [
+  [
+   "Zeta NA box",
+   [
+    3,
+    2,
+    2,
+    3
+   ]
+  ],
+  [
+   "Zeta US box",
+   [
+    3,
+    2,
+    2,
+    3
+   ]
+  ],
+  [
+   "Zeta Box EUR",
+   [
+    2,
+    3,
+    1,
+    2
+   ]
+  ],
+  [
+   "Zeta AUS box",
+   [
+    2,
+    3,
+    1,
+    2
+   ]
+  ],
+  [
+   "Zeta JP box",
+   [
+    0,
+    0,
+    3,
+    0
+   ]
+  ],
+  [
+   "Zeta box",
+   [
+    1,
+    1,
+    0,
+    1
+   ]
+  ],
+  [
+   "Zeta North America box",
+   [
+    3,
+    2,
+    2,
+    3
+   ]
+  ],
+  [
+   "Zeta na eur box",
+   [
+    3,
+    3,
+    2,
+    3
+   ]
+  ]
+ ]
+}

@@ -1540,6 +1540,31 @@ async function artstudioFixtures() {
   covers._setIndex(undefined); fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }
+async function wikiartFixtures() {
+  const W = require('../main/wikiart'), { norm } = require('../main/lbindex'), out = {};
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-fix-wiki-'));
+  const G = 'https://mario.wiki.gallery/images/', f = (name, w, h, more = {}) => ({ name, url: G + encodeURIComponent(name.replace(/ /g, '_')), mime: /\.png$/i.test(name) ? 'image/png' : 'image/jpeg', w, h, ...more });
+  const zeta = [f('Zeta Run Nintendo Switch 2 Edition NA box art.jpg', 800, 1300), f('Zeta Run Nintendo Switch 2 Edition Box EUR.png', 900, 1450), f('Zeta Run Nintendo Switch 2 Edition JP box art.jpg', 700, 1200),
+    f('Zeta Run Nintendo Switch 2 Edition NA back.jpg', 800, 1300), f('Zeta Run Nintendo Switch 2 Edition EUR back.jpg', 800, 1300), f('Zeta Run Nintendo Switch 2 Edition box art prerelease.jpg', 800, 1300),
+    f('Zeta Run Nintendo Switch 2 Edition 2 box art.jpg', 800, 1300), f('Zeta Run Nintendo Switch 2 Edition Extra box art.jpg', 800, 1300), f('Zeta Run Nintendo Switch 2 Edition + Omega Park box art.jpg', 820, 1310),
+    f('Zeta Run Nintendo Switch 2 Edition wide box art.jpg', 1300, 800), f('Zeta Run Nintendo Switch 2 Edition tiny box.jpg', 100, 200), f('Zeta Run Nintendo Switch 2 Edition logo box.png', 800, 1300),
+    f('Zeta Run Nintendo Switch 2 Edition KR box art.webp', 800, 1300, { mime: '' }), f('Zeta Run Nintendo Switch 2 Edition box art.gif', 800, 1300, { mime: 'image/gif' }),
+    { name: 'Zeta Run Nintendo Switch 2 Edition AU box art.jpg', url: 'https://elsewhere.example/a.jpg', mime: 'image/jpeg', w: 900, h: 1500 }];
+  const tau = [f('Tau Racers Box.jpg', 600, 1000), f('Tau Racers Switch 2 box art.jpg', 600, 1000), f('Tau Racers back.jpg', 600, 1000)];
+  const now = Date.now();
+  const answers = { [norm('Zeta Run: Nintendo Switch 2 Edition')]: [now - 864e5, zeta], [norm('Tau Racers')]: [now - 2 * 864e5, tau], [norm('Phi Rho')]: [now, []] };
+  fs.writeFileSync(path.join(tmp, 'wikiart.json'), JSON.stringify({ v: 2, q: answers }));
+  W.init({ dir: tmp, log() {}, norm });
+  out.answers = Object.fromEntries(Object.entries(answers).map(([k, [at, l]]) => [k, [Math.round((now - at) / 864e5), l]]));
+  out.finds = [];
+  const asks = [['sw2', ['Zeta Run: Nintendo Switch 2 Edition', 'Zeta Run'], 'front', 'usa'], ['sw2', ['Zeta Run: Nintendo Switch 2 Edition'], 'front', 'eur'], ['sw2', ['Zeta Run: Nintendo Switch 2 Edition'], 'front', 'jpn'],
+    ['sw2', ['Zeta Run: Nintendo Switch 2 Edition'], 'back', 'usa'], ['sw2', ['Zeta Run: Nintendo Switch 2 Edition'], 'back', 'eur'], ['sw2', ['Zeta Run: Nintendo Switch 2 Edition'], 'spine', 'usa'],
+    ['sw2', ['Tau Racers'], 'front', 'usa'], ['sw2', ['Tau Racers'], 'back', ''], ['sw2', ['Phi Rho'], 'front', 'usa'], ['sw2', ['Phi'], 'front', 'usa'], ['switch', ['Tau Racers'], 'front', 'usa'], ['sw2', [], 'front', 'usa']];
+  for (const [sys, names, part, region] of asks) out.finds.push({ sys, names, part, region, found: await W.find(sys, names, part, region) });
+  out.regions = ['Zeta NA box', 'Zeta US box', 'Zeta Box EUR', 'Zeta AUS box', 'Zeta JP box', 'Zeta box', 'Zeta North America box', 'Zeta na eur box'].map(n => [n, ['usa', 'eur', 'jpn', ''].map(r => W._t.regionScore(n, r))]);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1554,6 +1579,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'pcach.json'), JSON.stringify(await pcachFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'pads.json'), JSON.stringify(padsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'manualcoll.json'), JSON.stringify(await manualcollFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'wikiart.json'), JSON.stringify(await wikiartFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'artstudio.json'), JSON.stringify(await artstudioFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');

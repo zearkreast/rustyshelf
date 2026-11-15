@@ -74,5 +74,6 @@ pub mod updates;
 pub mod usermusic;
 pub mod vdf;
 pub mod vita3k;
+pub mod wikiart;
 pub mod windowmode;
 pub mod x360;
