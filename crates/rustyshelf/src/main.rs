@@ -1,6 +1,8 @@
 //! RustyShelf, the native app: the games of every console from the Electron app's settings, on a 3D shelf.
 // Bevy systems take their data as arguments, and queries are types
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
+// (a release build on Windows opens no console window beside the app)
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod boot;
 mod cheevos;

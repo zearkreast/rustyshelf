@@ -1,0 +1,74 @@
+# An alpha of the native Rust app (crates/rustyshelf): built for Windows, published as a GitHub prerelease
+# vA.B.C-alpha.N, never as the latest release (that stays the Electron app's). Called by build-release-check.yml for a
+# "For alpha" commit.
+name: Alpha
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      tag:
+        type: string
+        required: true
+      notes:
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows exe (native app)
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - name: Rust toolchain
+        shell: bash
+        run: rustup update stable --no-self-update && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: alpha-windows-${{ hashFiles('Cargo.lock') }}
+          restore-keys: alpha-windows-
+      - name: Build
+        shell: bash
+        run: cargo build --release --locked -p rustyshelf
+      - name: Name it for the release
+        shell: bash
+        run: |
+          mkdir out
+          cp target/release/rustyshelf.exe "out/RustyShelf-native-${{ inputs.version }}-windows.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha-windows
+          path: out/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish the prerelease
+    needs: windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Create the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
+          TAG: ${{ inputs.tag }}
+          VERSION: ${{ inputs.version }}
+          TARGET: ${{ github.sha }}
+        run: |
+          printf '%s\n' "$NOTES" > notes.md
+          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$TARGET" --title "RustyShelf native $VERSION (alpha)" --notes-file notes.md --prerelease --latest=false

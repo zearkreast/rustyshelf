@@ -18,3 +18,7 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+[profile.release]
+# (no debug symbols in what ships)
+strip = true
