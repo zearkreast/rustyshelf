@@ -235,6 +235,8 @@ pub enum Art {
     /// a museum row's name plate, and its section labels
     Plaque { name: String, lines: Vec<String> },
     Tabs { labels: Vec<(String, u32)>, tall: u32 },
+    /// an arcade cabinet's marquee
+    Marquee { title: String },
 }
 
 impl Art {
@@ -252,6 +254,7 @@ impl Art {
             Art::Spine { look, title, label, width, height, edge } => PathBuf::from(format!("drawn:{}|s|{title}|{label}|{width}x{height}|{edge}", look.id)),
             Art::Plaque { name, lines } => PathBuf::from(format!("drawn:plaque|{name}|{}", lines.join("|"))),
             Art::Tabs { labels, tall } => PathBuf::from(format!("drawn:tabs|{tall}|{}", labels.iter().map(|(l, w)| format!("{l}:{w}")).collect::<Vec<_>>().join("|"))),
+            Art::Marquee { title } => PathBuf::from(format!("drawn:marquee|{title}")),
         }
     }
 
@@ -275,6 +278,7 @@ impl Art {
             Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
             Art::Plaque { name, lines } => drawn(rustyshelf_core::drawn::plaque(name, lines)),
             Art::Tabs { labels, tall } => drawn(rustyshelf_core::drawn::tabs(labels, *tall)),
+            Art::Marquee { title } => drawn(rustyshelf_core::drawn::marquee(title)),
         }
     }
 }

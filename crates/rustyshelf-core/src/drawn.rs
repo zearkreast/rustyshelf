@@ -885,6 +885,24 @@ pub fn museum_card(card: &Card) -> Picture {
     picture(c)
 }
 
+/// An arcade cabinet's marquee, 512 × 128: the game's title in warm light on the dark glass.
+pub fn marquee(title: &str) -> Picture {
+    let (w, h) = (512.0, 128.0);
+    let mut c = Canvas { pix: Pixmap::new(512, 128).expect("a marquee's size"), clip: None, t: Transform::identity() };
+    c.rect(0.0, 0.0, w, h, &solid(rgba(0x10, 0x10, 0x18, 1.0)));
+    let face = Face::Lexend(2);
+    let mut shown: Vec<char> = title.chars().collect();
+    while text_width(face, &shown.iter().collect::<String>(), 42.0) > w - 24.0 && shown.len() > 4 {
+        shown.truncate(shown.len() - 2);
+    }
+    let mut line: String = shown.iter().collect();
+    if line.chars().count() != title.chars().count() {
+        line.push('…');
+    }
+    c.text(face, &line, 42.0, w / 2.0, h / 2.0 + below_middle(face, 42.0), 0.5, &solid(rgba(0xff, 0xd9, 0xa8, 1.0)));
+    picture(c)
+}
+
 /// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).
 fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
     let r = (((12.0 * sigma * sigma / 3.0 + 1.0).sqrt() - 1.0) / 2.0).round().max(1.0) as usize;

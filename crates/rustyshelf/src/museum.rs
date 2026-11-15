@@ -156,6 +156,16 @@ pub struct Museum {
     frame_wall: usize,
     frame_k: f32,
     frame_mat: Handle<StandardMaterial>,
+    /// a game played from the museum, to come back to once it ends
+    back_to: Option<BackTo>,
+}
+
+/// Where to come back to after a game played from the museum: where you stood in the arcade, if you were walking;
+/// when it was started, and whether it has been seen running.
+struct BackTo {
+    walk: Option<(f32, f32, f32)>,
+    at: f32,
+    started: bool,
 }
 
 impl Museum {
@@ -627,6 +637,16 @@ pub fn run(
     let m = &mut *museum;
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
     if !m.open {
+        let mut reopen = false;
+        if let Some(b) = m.back_to.as_mut() {
+            if others.playing.title.is_some() {
+                b.started = true;
+            } else if b.started {
+                reopen = true;
+            } else if now - b.at > 20.0 {
+                m.back_to = None;
+            }
+        }
         let free = !settings.open && !settings.keys_taken && others.playing.title.is_none() && !others.inspect.on && !others.reader.is_open();
         let select = pads.iter().any(|p| p.pressed(GamepadButton::Select));
         if free && pad(GamepadButton::Select) {
@@ -638,7 +658,7 @@ pub fn run(
                 settings.select_tapped = free && now - t < HOLD;
             }
         }
-        if free && (keys.just_pressed(KeyCode::KeyM) || held) {
+        if free && (keys.just_pressed(KeyCode::KeyM) || held || reopen) {
             m.select_since = None;
             m.open = true;
             m.grouping = l.config.raw().get("ui").and_then(|u| u.get("museumStyle")).and_then(|x| x.get("grouping")).and_then(|g| g.as_str()).unwrap_or("classic").to_string();
@@ -678,6 +698,17 @@ pub fn run(
             }
             spawn_text(&mut commands, m.camera, mona);
             (m.pull, m.moved_at, m.shown_front) = (0.0, now, None);
+            // back from a game started in the arcade: where you stood
+            let walked = m.back_to.take().and_then(|b| b.walk);
+            let cap = ui.and_then(|u| u.get("arcadeCap")).and_then(|c| c.as_f64());
+            if let Some(((x, z, ry), mut w)) = walked.zip(crate::arcade::Walk::start(l, cap)) {
+                for (e, _) in things.iter().filter(|(_, hud)| !hud) {
+                    commands.entity(e).despawn();
+                }
+                (w.x, w.z, w.ry) = (x, z, ry);
+                crate::arcade::build(&mut commands, &w, l, meshes, materials, covers, loader, || (MuseumThing, layer()));
+                (m.walk, m.intro, m.wide) = (Some(w), None, false);
+            }
             if m.intro.is_some() {
                 let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
                 let (eye, look) = m.overview(aspect);
@@ -849,6 +880,7 @@ pub fn run(
         let r = &m.rows[m.row];
         (cursor.shelf, cursor.game, cursor.land) = (r.shelf, r.games[m.col], false);
         settings.play = true;
+        m.back_to = Some(BackTo { walk: None, at: now, started: false });
         return close(&mut commands, m, &things, &mut camera, &mut others.shelf_camera, &mut sounds);
     }
     // the chosen case's cover, once it has stood still a moment
@@ -1132,6 +1164,7 @@ fn walk_on(
         if let Some(k) = w.nearest() {
             (cursor.shelf, cursor.game, cursor.land) = (w.shelf, w.cabinets[k].0, false);
             settings_play(commands);
+            m.back_to = Some(BackTo { walk: Some((w.x, w.z, w.ry)), at: time.elapsed_secs(), started: false });
             m.walk = None;
             return close(commands, m, things, camera, shelf_camera, sounds);
         }

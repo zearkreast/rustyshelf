@@ -83,10 +83,13 @@
       const inner = r.w - 2 * CLEAR, n = r.gameIds.length;
       const cols = Math.max(1, Math.min(Math.ceil(n / 2), Math.floor(inner / (CABINET.w + .55)))); // cabinets per row that fit
       const rows = Math.ceil(n / cols), along = inner / cols;
+      // rows step toward the door with an aisle in front of each, closer together only when that many wouldn't fit,
+      // and an aisle kept along the door wall
+      const step = rows > 1 ? Math.min(CABINET.d + 1.2, (r.d - 2 * CLEAR - 1.2) / (rows - 1)) : 0;
       for (let i = 0; i < n; i++) {
-        const row = Math.floor(i / cols), k = i % cols, rowN = Math.min(cols, n - row * cols);
+        const row = Math.floor(i / cols), k = i % cols;
         const sx = r.x - inner / 2 + along * (k + .5) + (row % 2 ? along / 2 : 0);
-        const sz = zBack + (row % 2 ? (r.z < 0 ? CABINET.d + .35 : -CABINET.d - .35) : 0) * Math.floor(row / 2); // (rows step toward the door)
+        const sz = zBack + (r.z < 0 ? step : -step) * row;
         slots.push({ x: +sx.toFixed(3), z: +sz.toFixed(3), ry: backRy, kind: kindOf });
       }
       r.slots = slots;

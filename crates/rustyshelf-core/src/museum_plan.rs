@@ -441,12 +441,15 @@ pub fn plan_arcade(entries: &[Entry], cap: Option<f64>) -> Arcade {
         let n = r.game_ids.len();
         let cols = n.div_ceil(2).min((inner / (CABINET.0 + 0.55)).floor() as usize).max(1);
         let along = inner / cols as f64;
+        let rows = n.div_ceil(cols);
+        // rows step toward the door with an aisle in front of each, closer together only when that many wouldn't
+        // fit, and an aisle kept along the door wall
+        let step = if rows > 1 { (CABINET.1 + 1.2).min((r.d - 2.0 * CLEAR - 1.2) / (rows - 1) as f64) } else { 0.0 };
         r.slots = (0..n)
             .map(|i| {
                 let (row, k) = (i / cols, i % cols);
                 let sx = r.x - inner / 2.0 + along * (k as f64 + 0.5) + if row % 2 == 1 { along / 2.0 } else { 0.0 };
-                let step = if row % 2 == 1 { if north { CABINET.1 + 0.35 } else { -CABINET.1 - 0.35 } } else { 0.0 };
-                let sz = z_back + step * (row / 2) as f64;
+                let sz = z_back + if north { step } else { -step } * row as f64;
                 Slot { x: fixed(sx, 3), z: fixed(sz, 3), ry: back_ry, kind: r.cabinet }
             })
             .collect();

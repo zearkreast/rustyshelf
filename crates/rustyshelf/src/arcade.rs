@@ -103,7 +103,9 @@ impl Walk {
             .filter_map(|(i, (_, at, _))| {
                 let (dx, dz) = (at.x - self.x, at.y - self.z);
                 let d = dx.hypot(dz);
-                (d <= REACH && (dx * fx + dz * fz) / d.max(0.001) >= 0.45).then_some((i, d))
+                // and from its screen's side: a room's cabinets all face its door, on the corridor (z = 0)
+                let front = dz * at.y.signum() > 0.0;
+                (d <= REACH && front && (dx * fx + dz * fz) / d.max(0.001) >= 0.45).then_some((i, d))
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(i, _)| i)
@@ -167,16 +169,16 @@ pub fn build(
     for r in &p.rooms {
         lamp(commands, r.x as f32, r.z as f32, 1_400_000.0);
     }
-    // the cabinets: a body, its screen (the game's cover) on the side it faces with, a marquee in its room's colour
+    // the cabinets: a body, its screen (the game's cover) on the side it faces with, a marquee with its title
     let s = &lib.shelves[w.shelf];
     let body_mesh = meshes.add(Cuboid::new(CABINET.0 as f32, 1.72, CABINET.1 as f32));
     let screen_mesh = meshes.add(Rectangle::new(0.62, 0.5));
     let marquee_mesh = meshes.add(Cuboid::new(0.8, 0.26, 0.16));
-    for (gi, at, room) in &w.cabinets {
+    for (gi, at, _) in &w.cabinets {
         let g = &s.games[*gi];
         let slot = p.rooms.iter().flat_map(|r| r.game_ids.iter().zip(&r.slots)).find(|(id, _)| **id == g.id).map(|(_, sl)| sl.ry as f32).unwrap_or(0.0);
-        let hue = (rustyshelf_core::drawn::hash(room) % 360) as f32;
-        let marquee = materials.add(StandardMaterial { base_color: Color::hsl(hue, 0.75, 0.62), emissive: LinearRgba::from(Color::hsl(hue, 0.75, 0.4)) * 3.0, ..default() });
+        let marquee = materials.add(StandardMaterial { base_color: Color::WHITE, unlit: true, ..default() });
+        covers.want(crate::loading::Art::Marquee { title: g.title.clone() }, (marquee.clone(), 0.0), loader, materials);
         let screen = materials.add(StandardMaterial { base_color: Color::WHITE, unlit: true, ..default() });
         let look = rustyshelf_core::looks::look_for(&s.id, g);
         covers.want(cover_of(g, &s.id, &look).0, (screen.clone(), 0.62 / 0.5), loader, materials);
