@@ -327,21 +327,25 @@ pub fn umu_needs_runtime() -> bool {
     }
 }
 
+/// The wineserver that ends what's left in a prefix, and the prefix it's told.
+pub fn wineserver(runner: &Runner, prefix: &Path) -> Option<(PathBuf, PathBuf)> {
+    let ws = if runner.proton { runner.path.join("files/bin/wineserver") } else { runner.path.parent()?.join("wineserver") };
+    let pfx = if runner.proton && prefix.join("pfx").is_dir() { prefix.join("pfx") } else { prefix.to_path_buf() };
+    is_exec(&ws).then_some((ws, pfx))
+}
+
 /// Ends whatever is left in a prefix (wineserver) once its game has closed or been forced.
 pub fn end_prefix(runner: &Runner, prefix: &Path) {
-    let ws = if runner.proton { runner.path.join("files/bin/wineserver") } else { runner.path.parent().map(|d| d.join("wineserver")).unwrap_or_default() };
-    let pfx = if runner.proton && prefix.join("pfx").is_dir() { prefix.join("pfx") } else { prefix.to_path_buf() };
-    if is_exec(&ws) {
-        if let Ok(mut c) = Command::new(&ws).arg("-k").env("WINEPREFIX", pfx).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
-            std::thread::spawn(move || {
-                let end = Instant::now() + Duration::from_secs(10);
-                while Instant::now() < end && matches!(c.try_wait(), Ok(None)) {
-                    std::thread::sleep(Duration::from_millis(100));
-                }
-                let _ = c.kill();
-                let _ = c.wait();
-            });
-        }
+    let Some((ws, pfx)) = wineserver(runner, prefix) else { return };
+    if let Ok(mut c) = Command::new(&ws).arg("-k").env("WINEPREFIX", pfx).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+        std::thread::spawn(move || {
+            let end = Instant::now() + Duration::from_secs(10);
+            while Instant::now() < end && matches!(c.try_wait(), Ok(None)) {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            let _ = c.kill();
+            let _ = c.wait();
+        });
     }
 }
 

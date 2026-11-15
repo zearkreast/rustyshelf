@@ -171,9 +171,23 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
     let pc = cfg.raw().get("pc");
     let (get, on) = (|k: &str| pc.and_then(|p| p.get(k)), |k: &str| pcgames::wanted(pc, k));
     let mut stores = Vec::new();
-    // TODO: on Linux the Electron app lists the games the Epic account owns (main/linuxpc.js)
     if on("epic") && cfg!(windows) {
         stores.extend(pcgames::epic_games(&pcgames::epic_dir()));
+    }
+    // (Linux) every game the Epic account owns: the ones not installed are greyed, and play through Wine / Proton once
+    // installed
+    if on("epic") && cfg!(target_os = "linux") {
+        stores.extend(crate::linuxpc::epic_owned(data).into_iter().map(|g| PcGame {
+            id: g.id,
+            source: "epic",
+            title: g.title,
+            exe: g.exe,
+            dir: g.dir,
+            installed: (!g.installed).then_some(false),
+            app_name: g.app_name,
+            cover_url: g.cover_url,
+            ..PcGame::default()
+        }));
     }
     // Details → Installation: an Epic game set by hand to installed / not installed
     for g in stores.iter_mut() {
@@ -419,6 +433,9 @@ pub fn upkeep(lib: &Library) -> bool {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
         crate::provenance::first_look(&art, &data_dir.join("art-cand"), now);
     }
+    if cfg!(target_os = "linux") {
+        changed |= epic_upkeep(lib, &data_dir);
+    }
     changed |= auto_covers(lib, &data_dir);
     changed |= auto_manuals(lib, &data_dir);
     changed | convert_pdf_manuals(lib)
@@ -501,6 +518,44 @@ fn auto_manuals(lib: &Library, data_dir: &Path) -> bool {
         changed |= spreads::split_manual(&g.dir, &g.base, spreads::Split::default()).is_ok_and(|pages| pages > 0);
     }
     changed
+}
+
+/// (Linux) The Epic library asked for again when it's over 6 hours old, and Epic's box art for the games without a
+/// cover yet, three at a time. True when either brought something.
+fn epic_upkeep(lib: &Library, data_dir: &Path) -> bool {
+    let pc = lib.config.raw().get("pc");
+    if !pcgames::wanted(pc, "epic") {
+        return false;
+    }
+    let mut changed = false;
+    if crate::linuxpc::epic_account(data_dir).is_some() && crate::linuxpc::library_age(data_dir).is_none_or(|a| a > 6 * 3_600_000) {
+        if let Some(bin) = crate::linuxpc::legendary_bin(js::str_of(pc.and_then(|p| p.get("legendaryPath"))).unwrap_or(""), &lib.app_root) {
+            changed |= crate::linuxpc::epic_library(&bin, data_dir).is_ok();
+        }
+    }
+    let want: Vec<(String, String)> = lib
+        .shelves
+        .iter()
+        .flat_map(|s| &s.games)
+        .filter_map(|g| match &g.source {
+            Source::Pc(pc) if pc.source == "epic" && !pc.cover_url.is_empty() && pccovers::auto_cover(data_dir, &pc.id).is_none() => Some((pc.id.clone(), pc.cover_url.clone())),
+            _ => None,
+        })
+        .collect();
+    let got = std::sync::atomic::AtomicUsize::new(0);
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    std::thread::scope(|s| {
+        for _ in 0..3.min(want.len()) {
+            s.spawn(|| {
+                while let Some((id, url)) = want.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) {
+                    if pccovers::fetch_auto(data_dir, id, url).is_some() {
+                        got.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            });
+        }
+    });
+    changed || got.into_inner() > 0
 }
 
 /// Box art for the console games missing a front, a back or a spine, unless box art downloads are off. Each game is

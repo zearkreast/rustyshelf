@@ -13,9 +13,6 @@ use crate::loading::{Base, Refresh};
 /// Seconds after the start before the first sync, as the Electron app waits.
 const FIRST_SYNC: f32 = 20.0;
 
-/// A RomM game was downloaded to be played: the shelf shows it as on this device.
-pub static DOWNLOADED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 #[derive(Resource, Default)]
 pub struct Sync {
     started: bool,
@@ -35,7 +32,7 @@ pub fn run(time: Res<Time>, base: Res<Base>, mut sync: ResMut<Sync>, mut refresh
         Some(Err(std::sync::mpsc::TryRecvError::Disconnected)) => sync.running = None,
         _ => {}
     }
-    sync.pending |= DOWNLOADED.swap(false, std::sync::atomic::Ordering::Relaxed);
+    sync.pending |= crate::loading::READ_AGAIN.swap(false, std::sync::atomic::Ordering::Relaxed);
     if sync.pending && crate::loading::read_again(&mut refresh, &lib.app_root) {
         sync.pending = false;
     }

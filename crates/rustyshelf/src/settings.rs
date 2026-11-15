@@ -35,6 +35,7 @@ pub use kid::kid_hidden;
 mod manuals;
 mod moving;
 mod mstudio;
+mod linuxpc;
 mod phone;
 mod romm;
 pub mod setup;
@@ -99,6 +100,9 @@ enum Screen {
     Trophies,
     Phone,
     Romm,
+    /// (Linux) the Epic account's games, and the downloads
+    EpicLibrary,
+    EpicDownloads,
     /// the room the PC games take, by drive
     Storage,
     /// which drives a search looks through as well as the usual places (Windows)
@@ -270,6 +274,7 @@ pub struct Settings {
     pub reload_songs: bool,
     pub reload_music: bool,
     romm: romm::RommUi,
+    epic: linuxpc::EpicUi,
 }
 
 /// Settings → Sounds.
@@ -352,6 +357,7 @@ impl Default for Settings {
             reload_songs: false,
             reload_music: false,
             romm: Default::default(),
+            epic: Default::default(),
         }
     }
 }
@@ -1417,6 +1423,9 @@ impl Settings {
                     toggle("Console box art", &["pc", "consoleBox"], false, "A PC game in the box of its console release, where there is one"),
                     open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
                 ];
+                if cfg!(target_os = "linux") {
+                    rows.extend(self.linux_pc_rows());
+                }
                 for a in &systems().apps {
                     let (id, id2) = (a.id.clone(), a.id.clone());
                     let there = !self.text(&["apps", &a.id, "path"]).is_empty();
@@ -1975,6 +1984,8 @@ impl Settings {
             Screen::Accounts => self.accounts_page(),
             Screen::Phone => self.phone_page(),
             Screen::Romm => self.romm_page(),
+            Screen::EpicLibrary => self.epic_library_page(),
+            Screen::EpicDownloads => self.epic_downloads_page(),
             Screen::Storage => self.storage_page(),
             Screen::Art => self.art_page(),
             Screen::ArtPart => self.art_part_page(),
@@ -2284,6 +2295,7 @@ pub fn input(
     s.poll_ra();
     s.poll_igdb();
     s.poll_romm();
+    s.poll_epic();
     s.poll_moves();
     s.poll_update();
     s.poll_adding();

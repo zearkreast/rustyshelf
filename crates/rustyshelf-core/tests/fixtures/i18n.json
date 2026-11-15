@@ -1167,6 +1167,150 @@
     "Entrée Jouer · Espace Le prendre"
    ],
    [
+    "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright. Disc-era: glassy bells in a big room. Handheld: small chirpy blips. Living room: warm and round.",
+    "Aero : doux, pur et aérien ; l'étagère de chaque console joue dans sa propre tonalité. Melody : un piano doux ; chaque mouvement joue la note suivante d'une chanson. Boîte à musique : de petites lames d'acier, chaudes et brillantes. Ère du disque : des cloches cristallines dans une grande salle. Portable : de petits bips pétillants. Salon : chaud et rond."
+   ],
+   [
+    "Best one found",
+    "Le meilleur trouvé"
+   ],
+   [
+    "Or choose legendary",
+    "Ou choisir legendary"
+   ],
+   [
+    "Epic sign-in code",
+    "Code de connexion Epic"
+   ],
+   [
+    "Nothing downloading",
+    "Aucun téléchargement"
+   ],
+   [
+    "Asks Epic for the library again.",
+    "Redemande la bibliothèque à Epic."
+   ],
+   [
+    "No downloads",
+    "Aucun téléchargement"
+   ],
+   [
+    "Getting the game ready with Epic…",
+    "Préparation du jeu avec Epic…"
+   ],
+   [
+    "Windows games Zeta Run run through this. Proton Omega Quest suits most games: it brings DXVK and VKD3D. Continue & favorites",
+    "Windows games Zeta Run run through this. Proton Omega Quest suits most games: it brings DXVK and VKD3D. Continue & favorites"
+   ],
+   [
+    "Omega Quest found · Proton runs through umu-run",
+    "Omega Quest trouvés · Proton passe par umu-run"
+   ],
+   [
+    "Continue & favorites found · umu-run not found: Proton runs through its own script",
+    "Reprendre et favoris trouvés · umu-run introuvable : Proton passe par son propre script"
+   ],
+   [
+    "Signed in to Epic Games as ",
+    "Signed in to Epic Games as "
+   ],
+   [
+    "Couldn't uninstall Zeta Run",
+    "Impossible de désinstaller Zeta Run"
+   ],
+   [
+    "Best one found · Omega Quest",
+    "Le meilleur trouvé · Omega Quest"
+   ],
+   [
+    "Signed in as Continue & favorites · Sign out",
+    "Connecté en tant que Reprendre et favoris · Se déconnecter"
+   ],
+   [
+    "Uninstall ",
+    "Désinstaller "
+   ],
+   [
+    "Uninstalling Zeta Run…",
+    "Désinstallation de Zeta Run…"
+   ],
+   [
+    "Downloads it into Omega Quest. It joins the PC shelf when it's done.",
+    "Le télécharge dans Omega Quest. Il rejoint l'étagère PC une fois terminé."
+   ],
+   [
+    "Update · Continue & favorites",
+    "Mise à jour · Reprendre et favoris"
+   ],
+   [
+    "Move up ",
+    "Move up "
+   ],
+   [
+    "Remove Zeta Run",
+    "Retirer Zeta Run"
+   ],
+   [
+    "Updating Omega Quest · Continue & favorites",
+    "Mise à jour de Omega Quest · Reprendre et favoris"
+   ],
+   [
+    "Installing Continue & favorites · ",
+    "Installing Continue & favorites · "
+   ],
+   [
+    " in the list · Zeta Run",
+    " in the list · Zeta Run"
+   ],
+   [
+    "Zeta Run in the list",
+    "Zeta Run dans la liste"
+   ],
+   [
+    "An update for Omega Quest is waiting: Settings → PC games → Epic library updates it.",
+    "Une mise à jour de Omega Quest attend : Paramètres → Jeux PC → Bibliothèque Epic la fait."
+   ],
+   [
+    "Continue & favorites isn't installed yet: Settings → PC games → Epic library installs it.",
+    "Reprendre et favoris n'est pas encore installé : Paramètres → Jeux PC → Bibliothèque Epic l'installe."
+   ],
+   [
+    " is already in the downloads",
+    " is already in the downloads"
+   ],
+   [
+    "Zeta Run will start after Omega Quest",
+    "Zeta Run commencera après Omega Quest"
+   ],
+   [
+    "Omega Quest is installed: it's on the PC shelf",
+    "Omega Quest est installé : il est sur l'étagère PC"
+   ],
+   [
+    "Continue & favorites is up to date",
+    "Reprendre et favoris est à jour"
+   ],
+   [
+    " uninstalled",
+    " uninstalled"
+   ],
+   [
+    "Paused · Zeta Run%",
+    "En pause · Zeta Run %"
+   ],
+   [
+    "Stopped · Omega Quest%",
+    "Arrêté · Omega Quest %"
+   ],
+   [
+    "Failed · Continue & favorites",
+    "Échec · Reprendre et favoris"
+   ],
+   [
+    "Can't use  for games: Zeta Run",
+    "Can't use  for games: Zeta Run"
+   ],
+   [
     "IGDB: Couldn't reach Twitch: Zeta Run",
     "IGDB : Twitch injoignable : Zeta Run"
    ],
@@ -3522,6 +3666,146 @@
    [
     "Enter  Play  ·  Space  Pick it up",
     "Enter Oyna · Boşluk Eline al"
+   ],
+   [
+    "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright. Disc-era: glassy bells in a big room. Handheld: small chirpy blips. Living room: warm and round.",
+    "Aero: yumuşak, saf ve havadar; her konsolun rafı kendi tonunda çalar. Melody: yumuşak bir piyano; her hareket bir şarkının sonraki notasını çalar. Müzik kutusu: küçük çelik dişler, sıcak ve parlak. Disk dönemi: büyük bir odada cam gibi çanlar. El konsolu: küçük, cıvıl cıvıl bipler. Oturma odası: sıcak ve yuvarlak."
+   ],
+   [
+    "Your home folder",
+    "Ev klasörün"
+   ],
+   [
+    "Sign in with Epic's own page, in your browser: when it shows a line of text with authorizationCode, copy all of it and paste it here. RustyShelf keeps only legendary's sign-in; your password never reaches it.",
+    "Tarayıcında Epic'in kendi sayfasıyla giriş yap: authorizationCode içeren bir metin satırı gösterdiğinde hepsini kopyala ve buraya yapıştır. RustyShelf yalnızca legendary'nin oturumunu tutar; parolan ona hiç ulaşmaz."
+   ],
+   [
+    "Installing",
+    "Kuruluyor"
+   ],
+   [
+    "Asks Epic for the library again.",
+    "Kütüphaneyi Epic'ten yeniden ister."
+   ],
+   [
+    "Moves it ahead of the downloads before it.",
+    "Onu önündeki indirmelerin önüne alır."
+   ],
+   [
+    "Each Windows game gets a Wine prefix of its own (its own little Windows: saves, settings), a folder named after the game, in this folder. Empty: RustyShelf's own Prefixes folder.",
+    "Her Windows oyunu bu klasörde kendi Wine prefix'ini alır (kendi küçük Windows'u: kayıtlar, ayarlar), oyunun adını taşıyan bir klasör. Boş: RustyShelf'in kendi Prefixes klasörü."
+   ],
+   [
+    "Windows games Zeta Run run through this. Proton Omega Quest suits most games: it brings DXVK and VKD3D. Continue & favorites",
+    "Windows games Zeta Run run through this. Proton Omega Quest suits most games: it brings DXVK and VKD3D. Continue & favorites"
+   ],
+   [
+    "Omega Quest found · Proton runs through umu-run",
+    "Omega Quest bulundu · Proton umu-run ile çalışır"
+   ],
+   [
+    "Continue & favorites found · umu-run not found: Proton runs through its own script",
+    "Devam et ve favoriler bulundu · umu-run bulunamadı: Proton kendi betiğiyle çalışır"
+   ],
+   [
+    "Signed in to Epic Games as ",
+    "Signed in to Epic Games as "
+   ],
+   [
+    "Couldn't uninstall Zeta Run",
+    "Zeta Run kaldırılamadı"
+   ],
+   [
+    "Best one found · Omega Quest",
+    "Bulunan en iyisi · Omega Quest"
+   ],
+   [
+    "Signed in as Continue & favorites · Sign out",
+    "Devam et ve favoriler olarak giriş yapıldı · Çıkış yap"
+   ],
+   [
+    "Uninstall ",
+    "Kaldır "
+   ],
+   [
+    "Uninstalling Zeta Run…",
+    "Zeta Run kaldırılıyor…"
+   ],
+   [
+    "Downloads it into Omega Quest. It joins the PC shelf when it's done.",
+    "Omega Quest içine indirir. Bitince PC rafına katılır."
+   ],
+   [
+    "Update · Continue & favorites",
+    "Güncelleme · Devam et ve favoriler"
+   ],
+   [
+    "Move up ",
+    "Yukarı taşı "
+   ],
+   [
+    "Remove Zeta Run",
+    "Zeta Run çıkar"
+   ],
+   [
+    "Updating Omega Quest · Continue & favorites",
+    "Omega Quest güncelleniyor · Devam et ve favoriler"
+   ],
+   [
+    "Installing Continue & favorites · ",
+    "Installing Continue & favorites · "
+   ],
+   [
+    " in the list · Zeta Run",
+    " in the list · Zeta Run"
+   ],
+   [
+    "Zeta Run in the list",
+    "Listede Zeta Run"
+   ],
+   [
+    "An update for Omega Quest is waiting: Settings → PC games → Epic library updates it.",
+    "Omega Quest için bir güncelleme bekliyor: Ayarlar → PC oyunları → Epic kütüphanesi onu günceller."
+   ],
+   [
+    "Continue & favorites isn't installed yet: Settings → PC games → Epic library installs it.",
+    "Devam et ve favoriler henüz kurulu değil: Ayarlar → PC oyunları → Epic kütüphanesi onu kurar."
+   ],
+   [
+    " is already in the downloads",
+    " is already in the downloads"
+   ],
+   [
+    "Zeta Run will start after Omega Quest",
+    "Zeta Run, Omega Quest bittikten sonra başlayacak"
+   ],
+   [
+    "Omega Quest is installed: it's on the PC shelf",
+    "Omega Quest kuruldu: PC rafında"
+   ],
+   [
+    "Continue & favorites is up to date",
+    "Devam et ve favoriler güncel"
+   ],
+   [
+    " uninstalled",
+    " uninstalled"
+   ],
+   [
+    "Paused · Zeta Run%",
+    "Duraklatıldı · %Zeta Run"
+   ],
+   [
+    "Stopped · Omega Quest%",
+    "Durduruldu · %Omega Quest"
+   ],
+   [
+    "Failed · Continue & favorites",
+    "Başarısız · Devam et ve favoriler"
+   ],
+   [
+    "Can't use  for games: Zeta Run",
+    "Can't use  for games: Zeta Run"
    ],
    [
     "IGDB: Couldn't reach Twitch: Zeta Run",

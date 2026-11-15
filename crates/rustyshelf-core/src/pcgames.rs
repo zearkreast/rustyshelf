@@ -48,6 +48,10 @@ pub struct PcGame {
     /// a PC games folder's game: every program it could start with (its path inside the folder, whether it's made
     /// for this system), the best first
     pub programs: Vec<(String, bool)>,
+    /// (Linux) an Epic game's app name, legendary's name for it
+    pub app_name: String,
+    /// (Linux) Epic's box art for it
+    pub cover_url: String,
 }
 
 fn read_json(f: &Path) -> Option<Value> {

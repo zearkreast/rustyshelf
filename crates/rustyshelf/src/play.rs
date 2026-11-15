@@ -474,8 +474,33 @@ pub fn navigate(
             }
         },
         // a PC game's launch is counted, its time isn't
-        (_, Source::Pc(pc)) => match launch::launch_pc(pc) {
-            Ok(Some(child)) => {
+        (_, Source::Pc(pc)) if launch::is_linux_pc(pc) => {
+            let (tx, rx) = channel();
+            let (game, cfg, root) = ((**pc).clone(), l.config.clone(), l.app_root.clone());
+            std::thread::spawn(move || {
+                let started = launch::launch_pc_with(&game, &cfg, &root).and_then(|(child, notice)| {
+                    if let Some(n) = notice {
+                        info!("{n}");
+                    }
+                    child.map(|c| (c, String::new(), None)).ok_or_else(|| LaunchError::Refused(format!("{} didn't start.", game.title)))
+                });
+                let _ = tx.send(started);
+            });
+            if pc.source == "epic" {
+                toast.text = "Getting the game ready with Epic…".into();
+                toast.until = now + 6.0;
+            }
+            playing.title = Some(g.title.clone());
+            playing.id = g.id.clone();
+            playing.combo = combo;
+            playing.starting = Some(Mutex::new(rx));
+        }
+        (_, Source::Pc(pc)) => match launch::launch_pc_with(pc, &l.config, &l.app_root) {
+            Ok((Some(child), notice)) => {
+                if let Some(n) = notice {
+                    toast.text = n;
+                    toast.until = now + 8.0;
+                }
                 plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
                 (playing.shown, playing.tell) = (Some((g.title.clone(), if own.id == "pc" { "PC".to_string() } else { own.name.clone() }, image_of(g))), true);
@@ -486,13 +511,13 @@ pub fn navigate(
                 }
                 playing.running(child);
             }
-            Ok(None) if l.config.seamless() => {
+            Ok((None, _)) if l.config.seamless() => {
                 let spec = Spec { kind: pc.source.to_string(), appid: String::new(), dir: pc.dir.clone(), exe: pc.exe.clone(), title: g.title.clone() };
                 playing.watching(&g.title, &g.id, combo, spec, crate::hud::store_name(pc.source));
                 playing.shown = Some((g.title.clone(), crate::hud::store_name(pc.source).into(), image_of(g)));
             }
             // its store starts it and looks after it
-            Ok(None) => {
+            Ok((None, _)) => {
                 plays.0.touch(&g.id);
                 toast.text = format!("{} is starting in {}.", g.title, crate::hud::store_name(pc.source));
                 toast.until = now + 5.0;
@@ -651,7 +676,7 @@ pub fn watch_game(
         Some(Ok(Ok((child, exe, still)))) => {
             info!("Launched {title}");
             if playing.romm.take().is_some() {
-                crate::romm::DOWNLOADED.store(true, std::sync::atomic::Ordering::Relaxed);
+                crate::loading::READ_AGAIN.store(true, std::sync::atomic::Ordering::Relaxed);
             }
             if let Some(list) = still {
                 settings.set_pending(list);
@@ -663,7 +688,10 @@ pub fn watch_game(
             playing.starting = None;
             playing.running(child);
             playing.rocket = launch::is_rocket(&exe).then(std::time::SystemTime::now);
-            playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now, alone: playing.rocket.is_some() });
+            // (a Linux PC game started through Wine or Proton has no emulator)
+            if !exe.is_empty() {
+                playing.emulator = Some(Emulator { console: playing.console.clone(), exe, at: now, alone: playing.rocket.is_some() });
+            }
         }
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");

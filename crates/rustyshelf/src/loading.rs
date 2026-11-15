@@ -141,6 +141,10 @@ pub fn recheck_folders(time: Res<Time>, mut next: Local<f32>, base: Res<Base>, m
     refresh.0 = Some(Mutex::new(rx));
 }
 
+/// Something outside the shelf changed what's on it (a RomM game downloaded, an Epic install finished): it's read
+/// again behind the shelf.
+pub static READ_AGAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// Reads the library again behind the shelf; false while it's already being read.
 pub fn read_again(refresh: &mut Refresh, root: &std::path::Path) -> bool {
     if refresh.0.is_some() {

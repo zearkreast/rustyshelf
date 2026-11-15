@@ -601,11 +601,6 @@ pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
     if g.installed == Some(false) {
         return refuse(format!("{} isn't installed. Install it first.", g.title));
     }
-    // TODO: on Linux the Electron app runs Epic's games, the PC games folder's and Windows programs through Wine /
-    // Proton (main/linuxpc.js)
-    if cfg!(target_os = "linux") && (g.source == "epic" || (g.source == "folder" && !g.native) || g.exe.to_lowercase().ends_with(".exe")) {
-        return refuse(format!("{} is a Windows game: this version can't start those on Linux yet.", g.title));
-    }
     if STORE_LINK.is_match(&g.uri) {
         return open_external(&g.uri).map(|()| None);
     }
@@ -631,6 +626,90 @@ pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
         return refuse(format!("{} isn't at {} any more. {fix}", g.title, g.exe));
     }
     start_program(&g.exe, build_args(&g.args, ""), &g.title).map(Some)
+}
+
+/// A PC game as `launch_pc` starts it, and on Linux an Epic game, a PC games folder's game or a Windows program
+/// through legendary, Wine or Proton. The text is something to tell the player (an update waiting, Proton's runtime
+/// still downloading).
+pub fn launch_pc_with(g: &PcGame, cfg: &Config, app_root: &Path) -> Result<(Option<Child>, Option<String>), LaunchError> {
+    if is_linux_pc(g) {
+        return launch_linux_pc(g, cfg, app_root).map(|(c, n)| (Some(c), n));
+    }
+    if cfg!(target_os = "linux") && g.source == "epic" {
+        return refuse(format!("{} isn't installed yet: Settings → PC games → Epic library installs it.", g.title));
+    }
+    launch_pc(g).map(|c| (c, None))
+}
+
+/// (Linux) A game RustyShelf starts itself through legendary, Wine or Proton: asking Epic can take a while, so it's
+/// started off the shelf's thread.
+pub fn is_linux_pc(g: &PcGame) -> bool {
+    cfg!(target_os = "linux") && g.installed != Some(false) && (g.source == "epic" || g.source == "folder" || crate::linuxpc::is_windows_program(&g.exe))
+}
+
+/// (Linux) An Epic game (legendary gives its program and Epic's sign-in arguments), one in the PC games folder, or a
+/// Windows program added by hand. A Linux program runs as it is, with the game data folder as its home; a Windows one
+/// in a Wine prefix named after the game. Its output goes to data/logs/last-pc-game.log, and what's left in its prefix
+/// is ended once it closes.
+fn launch_linux_pc(g: &PcGame, cfg: &Config, app_root: &Path) -> Result<(Child, Option<String>), LaunchError> {
+    use crate::linuxpc as lp;
+    let pc = cfg.raw().get("pc");
+    let text = |k: &str| crate::js::text(pc.and_then(|p| p.get(k)));
+    let data_dir = crate::paths::data_dir(app_root);
+    let mut notice = None;
+    let (exe, args, cwd, env, store, game_id) = if g.source == "epic" {
+        let bin = lp::legendary_bin(&text("legendaryPath"), app_root).ok_or_else(|| LaunchError::Refused("Epic games need legendary: Settings → PC games → Get legendary.".into()))?;
+        let info = lp::epic_launch_info(&bin, &data_dir, &g.app_name).map_err(LaunchError::Refused)?;
+        if info.outdated {
+            notice = Some(format!("An update for {} is waiting: Settings → PC games → Epic library updates it.", g.title));
+        }
+        let id = lp::is_windows_program(&info.exe.to_string_lossy()).then(|| lp::umu_id(&data_dir, "egs", &g.app_name)).flatten();
+        (info.exe, info.args, info.cwd, info.env, "egs", id)
+    } else {
+        if !is_file(Path::new(&g.exe)) {
+            let fix = if g.source == "folder" { "Check its folder in the PC games folder." } else { "Remove it in Settings → Custom games and add it again." };
+            return refuse(format!("{} isn't at {} any more. {fix}", g.title, g.exe));
+        }
+        let exe = PathBuf::from(&g.exe);
+        let cwd = exe.parent().map(Path::to_path_buf).unwrap_or_default();
+        (exe, if g.source == "folder" { Vec::new() } else { build_args(&g.args, "") }, cwd, Vec::new(), "none", None)
+    };
+    // the game's own way of running (pc.run, by id: its runner, prefix and variables), over what the PC games settings say
+    let own = pc.and_then(|p| p.get("run")).and_then(|r| r.get(&g.id));
+    let own_text = |k: &str| crate::js::text(own.and_then(|o| o.get(k)));
+    let own_env: Vec<(String, String)> = own.and_then(|o| o.get("env")).and_then(serde_json::Value::as_object).map(|e| e.iter().map(|(k, v)| (k.clone(), crate::js::string(Some(v)))).collect()).unwrap_or_default();
+    let mut ends = None;
+    let (cmd, args, cwd, env) = if !lp::is_windows_program(&exe.to_string_lossy()) {
+        (exe.clone(), args, cwd, clean_env(Some([lp::game_home(&text("homeDir")), own_env, env].concat())))
+    } else {
+        let list = lp::runners(app_root);
+        let wanted = [own_text("runner"), text("runner")].into_iter().find(|r| !r.is_empty()).unwrap_or_default();
+        let runner = lp::pick_runner(&wanted, &list);
+        // named after the game's own title, not a name given in Details → Rename: renaming keeps its saves
+        let prefix = Some(own_text("prefix")).filter(|p| !p.is_empty()).map_or_else(|| lp::prefix_for(&g.title, &text("prefixDir"), app_root), PathBuf::from);
+        if runner.as_ref().is_some_and(|r| r.proton) && lp::umu_needs_runtime() {
+            notice = Some("First start with Proton: its runtime is downloading (about 700 MB), so the game takes a minute or two to appear.".into());
+        }
+        let c = lp::windows_command(lp::WinProgram { exe: &exe, args, cwd: Some(&cwd), runner: runner.as_ref(), prefix: &prefix, env: [lp::proton_env(&g.title, app_root), own_env, env].concat(), game_id, store: Some(store) }).map_err(LaunchError::Refused)?;
+        ends = runner.and_then(|r| lp::wineserver(&r, &prefix));
+        (c.cmd, c.args, c.cwd, c.env)
+    };
+    let log = data_dir.join("logs");
+    let _ = std::fs::create_dir_all(&log);
+    let out = std::fs::File::create(log.join("last-pc-game.log")).ok();
+    // a shell around the game ends what's left in its prefix once it closes; the whole group is closed together
+    let mut c = Command::new("/bin/sh");
+    let script = r#"prog=$1; ws=$2; pfx=$3; shift 3; "$prog" "$@"; s=$?; [ -n "$ws" ] && WINEPREFIX="$pfx" "$ws" -k; exit $s"#;
+    let (ws, pfx) = ends.map_or((String::new(), String::new()), |(w, p)| (w.to_string_lossy().into_owned(), p.to_string_lossy().into_owned()));
+    c.arg("-c").arg(script).arg("rustyshelf").arg(&cmd).arg(ws).arg(pfx).args(&args).current_dir(&cwd).env_clear().envs(env).stdin(Stdio::null());
+    match out.as_ref().and_then(|f| Some((f.try_clone().ok()?, f.try_clone().ok()?))) {
+        Some((a, b)) => c.stdout(a).stderr(b),
+        None => c.stdout(Stdio::null()).stderr(Stdio::null()),
+    };
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut c, 0);
+    let child = c.spawn().map_err(|e| LaunchError::Refused(format!("{} didn't start: {e}", g.title)))?;
+    Ok((child, notice))
 }
 
 /// Starts a program that isn't an emulator in its own folder; one that asks for administrator rights through
@@ -828,6 +907,29 @@ mod tests {
         assert_eq!(refused(PcGame { installed: Some(false), title: "Zeta".into(), ..g.clone() }), "Zeta isn't installed. Install it first.");
         assert_eq!(refused(PcGame { source: "gog", exe: "/nope/zeta".into(), title: "Zeta".into(), ..g.clone() }), "Zeta isn't at /nope/zeta any more. Check it in GOG Galaxy.");
         assert_eq!(refused(PcGame { shell_app: "not an app".into(), ..g }), "Couldn't start that Xbox game.");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn starts_a_linux_pc_game() {
+        use std::os::unix::fs::PermissionsExt;
+        let s = Setup::new();
+        let root = s.dir.path();
+        let exe = root.join("Games/Native/run.sh");
+        std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        std::fs::write(&exe, "#!/bin/sh\necho \"in $PWD home $HOME\"\n").unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let home = root.join("GameHome");
+        let cfg = Config::parse(&serde_json::json!({ "pc": { "homeDir": home } }).to_string()).unwrap();
+        let g = PcGame { id: "folder-native".into(), source: "folder", title: "Native".into(), exe: exe.to_string_lossy().into_owned(), native: true, ..PcGame::default() };
+        assert!(is_linux_pc(&g));
+        let (child, notice) = launch_pc_with(&g, &cfg, root).unwrap();
+        assert!(child.unwrap().wait().unwrap().success() && notice.is_none());
+        let log = std::fs::read_to_string(crate::paths::data_dir(root).join("logs/last-pc-game.log")).unwrap();
+        assert_eq!(log.trim(), format!("in {} home {}", exe.parent().unwrap().display(), home.display()));
+        let gone = PcGame { installed: Some(false), source: "epic", ..g };
+        assert!(!is_linux_pc(&gone));
+        assert_eq!(launch_pc_with(&gone, &cfg, root).unwrap_err().to_string(), "Native isn't installed yet: Settings → PC games → Epic library installs it.");
     }
 
     #[test]
