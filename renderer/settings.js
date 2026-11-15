@@ -137,7 +137,7 @@ addEventListener("bs-padstyle",()=>{try{oskSig="";if(device==="pad"&&typeof rend
 function comboOpts(){const st=padStyle(),N=st==="ps"?{lb:"L1",rb:"R1",start:"Options",back:"Share",b:"Circle"}:st==="nintendo"?{lb:"L",rb:"R",start:"Plus",back:"Minus",b:"A"}:{lb:"LB",rb:"RB",start:"Start",back:"Back",b:"B"};
   return [["l3+r3","L3 + R3"],["lb+rb+start",`${N.lb} + ${N.rb} + ${N.start}`],["back+b",`${N.back} + ${N.b}`],["start+back",`${N.start} + ${N.back}`]]}
 // Accounts & services (1.71): one row per service, A opens its own small page (sub kind "svc") with its fields, Test and the sign-up link
-const SVC_N={ra:"RetroAchievements",fanart:"fanart.tv",steamgriddb:"SteamGridDB",screenscraper:"ScreenScraper",romm:"RomM"},ART_SVC=["fanart","steamgriddb","screenscraper"];
+const SVC_N={ra:"RetroAchievements",steamweb:"Steam achievements",fanart:"fanart.tv",steamgriddb:"SteamGridDB",screenscraper:"ScreenScraper",romm:"RomM"},ART_SVC=["fanart","steamgriddb","screenscraper"];
 const svcSet=s=>s==="ra"?!!(gp("ra.user")&&gp("ra.key")):s==="screenscraper"?!!((gp("keys.ssUser")||gp("keys.ssDevId"))&&(gp("keys.ssPass")||gp("keys.ssDevPass"))):!!gp("keys."+s);
 function svcState(s){const st=status[s]||{};if(!svcSet(s))return {state:"none"};return st.state&&st.state!=="none"?st:{state:"unknown"}} // set up but never checked: main says "none" (Not checked yet)
 function acctDot(){const L=["ra",...ART_SVC].map(svcState).filter(x=>x.state!=="none"&&x.state!=="unknown");if(!L.length)return null;return L.some(x=>x.state==="fail")?"warn":"ok"}
@@ -412,6 +412,7 @@ function build(){
     H("RetroAchievements"),
     svcRow("ra","Achievements on each game's details, and a summary after you play. Opens your account, its key, and the sign-in inside each emulator.","retroachievements achievements trophies account"),
     H("Art sources"),
+    svcRow("steamweb","Your Steam games' achievements in Trophies, next to RetroAchievements, with how many players have each one.","steam achievements trophies web api key"),
     svcRow("fanart","Official disc art and logos for the museum's movie shelves.","api key movies fanart"),
     svcRow("steamgriddb","Community-made posters, offered in Art Studio next to the real box scans.","api key steamgriddb steam grid posters art studio"),
     svcRow("screenscraper","Box fronts, backs, full wraps (for spines) and disc / cartridge art by region, offered in Art Studio.","screenscraper screen scraper account art studio box back spine disc"),
@@ -499,6 +500,10 @@ function svcPage0(id){const n=SVC_N[id]||id,P=(lead,rows)=>({g:"Library",id:"acc
     X("Key","keys.fanart","Your personal fanart.tv API key. Stored encrypted.",{secret:true,ph:"Not set",fan:true,keys:"api key movies fanart"}),
     test("Test the key","Checks the key."),
     A("Get a key","Open site","Opens fanart.tv's page for a free personal key.",()=>openLink("https://fanart.tv/get-an-api-key/"),{keys:"fanart"})]);
+  if(id==="steamweb")return P("Your Steam achievements in the Trophies screen (quick menu → Trophies), with each one's share of Steam players. Uses the account signed in to Steam on this PC. Optional.",[
+    X("Key","keys.steamweb","Your Steam Web API key (32 letters and digits). Stored encrypted.",{secret:true,ph:"Not set",fan:true,keys:"api key steam web achievements trophies"}),
+    test("Test the key","Checks the key with the account signed in to Steam here."),
+    A("Get a free key","Open site","Sign in on Steam's page, type localhost as the domain name, agree, Register, then paste the key above. If Trophies says your game details are private: Steam → Profile → Privacy → Game details → Public.",()=>openLink("https://steamcommunity.com/dev/apikey"),{keys:"steam web api key"})]);
   if(id==="steamgriddb")return P("Community-made posters for your games, offered in Art Studio next to the real box scans (Pick exact on the Front; the HD shelf style may use them), and, with automatic box art on, a poster for PC games, ports and recomps that have no cover (their titles are sent to SteamGridDB). Optional.",[
     X("Key","keys.steamgriddb","Your SteamGridDB API key. Stored encrypted.",{secret:true,ph:"Not set",fan:true,keys:"api key steamgriddb steam grid posters"}),
     test("Test the key","Checks the key."),

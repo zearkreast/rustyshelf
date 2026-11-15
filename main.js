@@ -2425,7 +2425,24 @@ let lastLaunch = null;
 handle('ra:progress', ({ systemId, title, force }) => ra.progress(systemId, title, !!force));
 handle('ra:shelf', ({ systemId, titles }) => ra.shelfProgress(systemId, titles || []));
 handle('ra:profile', () => ra.profile());
-handle('ra:trophies', ({ force } = {}) => ra.trophies(!!force)); // (fork) the Trophies screen
+// the Trophies screen: RetroAchievements and Steam (main/steamach.js) side by side; either one alone is enough
+const steamach = require('./main/steamach');
+const trDate = s => s ? String(s).replace('T', ' ').slice(0, 19) : '';
+handle('ra:trophies', async ({ force } = {}) => {
+  const want = { ra: ra.enabled(), steam: steamach.enabled() }; if (!want.ra && !want.steam) return null;
+  const errs = [];
+  const [r, s] = await Promise.all([
+    want.ra ? ra.trophies(!!force).catch(e => { errs.push(e.message); log('Trophies: RetroAchievements', e.message); return null; }) : null,
+    want.steam ? steamach.trophies(!!force).catch(e => { errs.push(e.message); log('Trophies: Steam', e.message); return null; }) : null]);
+  if (!r && !s) throw new Error(errs[0] || 'Neither RetroAchievements nor Steam answered.');
+  const games = [...(r ? r.games.map(g => ({ ...g, src: 'ra' })) : []), ...(s ? s.games : [])].map(g => ({ ...g, last: trDate(g.last) })).sort((a, b) => b.last.localeCompare(a.last));
+  const recent = [...(r ? r.recent.map(a => ({ ...a, src: 'ra' })) : []), ...(s ? s.recent : [])].map(a => ({ ...a, date: trDate(a.date) })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80);
+  const tot = k => games.filter(g => k.includes(g.award)).length;
+  return { user: r && r.user || s && s.user || '', pic: r && r.pic || s && s.pic || null, points: r ? r.points : 0, softcore: r ? r.softcore : 0, games, recent,
+    sources: { ra: !!r, steam: !!s, steamUser: s ? s.user : '' }, warn: errs.length ? errs[0] : '',
+    totals: { games: games.length, unlocked: games.reduce((n, g) => n + g.earned, 0), mastered: tot(['mastered', 'completed']), beaten: tot(['beaten-hardcore', 'beaten-softcore']),
+      avg: games.length ? Math.round(games.reduce((n, g) => n + g.pct, 0) / games.length) : 0 } };
+});
 handle('ra:enabled', () => ({ enabled: ra.enabled(), systems: Object.keys(ra.CONSOLE_ID) }));
 handle('models:find', ({ systemId, name, site }) => modelfind.start(systemId, name, site, r => { if (alive()) win.webContents.send('models:installed', r); }));
 handle('history:get', () => loadHistory());
@@ -3075,10 +3092,10 @@ async function makeReport() {
 }
 
 // ---------- account / API status (Settings → Accounts & services) ----------
-const API_SERVICES = ['ra', 'fanart', 'steamgriddb', 'screenscraper'];
+const API_SERVICES = ['ra', 'fanart', 'steamgriddb', 'screenscraper', 'steamweb']; // steamweb: Steam achievements for Trophies
 let apiStat = null; const apiStatFile = () => path.join(app.getPath('userData'), 'api-status.json');
 function apiStatusLoad() { if (apiStat) return apiStat; apiStat = {}; try { const j = JSON.parse(fs.readFileSync(apiStatFile(), 'utf8')); if (isPlain(j)) for (const s of API_SERVICES) if (isPlain(j[s])) apiStat[s] = j[s]; } catch {} return apiStat; }
-function apiConfigured(s) { return s === 'ra' ? !!(cfg.ra && cfg.ra.user && cfg.ra.key) : s === 'fanart' || s === 'steamgriddb' ? !!(cfg.keys && cfg.keys[s]) : s === 'screenscraper' ? require('./main/screenscraper').configured() : false; }
+function apiConfigured(s) { return s === 'ra' ? !!(cfg.ra && cfg.ra.user && cfg.ra.key) : s === 'fanart' || s === 'steamgriddb' || s === 'steamweb' ? !!(cfg.keys && cfg.keys[s]) : s === 'screenscraper' ? require('./main/screenscraper').configured() : false; }
 // what the screen shows: the last result, or 'none' while there's no account / key (a stale ok must not show for a removed key)
 function apiStatusView() { const st = apiStatusLoad(), out = {}; for (const s of API_SERVICES) out[s] = apiConfigured(s) ? (st[s] || { state: 'none', at: 0, msg: 'Not checked yet' }) : { state: 'none', at: 0, msg: 'Not set up' }; return out; }
 function apiStatusSave() { writeAtomic(apiStatFile(), JSON.stringify(apiStat)).catch(e => log('api status save', e.message)); } // (both services re-tested at once used to share one .tmp)
@@ -3097,8 +3114,8 @@ function testApi(s) {
       const r = await require('./main/screenscraper').test();
       res = r.ok ? { state: 'ok', at: Date.now(), msg: 'Working', ...(r.left != null ? { left: r.left } : {}) } : { state: 'fail', at: Date.now(), msg: scrubText(String(r.error || 'not accepted')).slice(0, 300) };
     } else {
-      const r = s === 'steamgriddb' ? await require('./main/steamgrid').test(cfg.keys.steamgriddb) : await fanartTest(cfg.keys.fanart);
-      res = r.ok ? { state: 'ok', at: Date.now(), msg: 'Key works' } : { state: 'fail', at: Date.now(), msg: scrubText(String(r.error || 'not accepted')).slice(0, 300) };
+      const r = s === 'steamgriddb' ? await require('./main/steamgrid').test(cfg.keys.steamgriddb) : s === 'steamweb' ? await steamach.test(cfg.keys.steamweb) : await fanartTest(cfg.keys.fanart);
+      res = r.ok ? { state: 'ok', at: Date.now(), msg: r.user ? 'Key works · ' + r.user : 'Key works' } : { state: 'fail', at: Date.now(), msg: scrubText(String(r.error || 'not accepted')).slice(0, 300) };
     }
     apiStatusLoad()[s] = res; apiStatusSave();
     return res;
@@ -3182,6 +3199,7 @@ function startUp() {
   // Switch 2: builds come and go (forks get swapped often); a shelf build that's gone points at the newest one there is
   { const e = cfg.systems.sw2 && cfg.systems.sw2.emulator; if (e && !paths.isFile(emuPath(e))) nx2.builds(sw2Roots()).then(l => { const b = l.sort((a, c) => c.date - a.date)[0]; if (b && cfg.systems.sw2 && !paths.isFile(emuPath(cfg.systems.sw2.emulator))) { log('Switch 2: shelf build gone, now', b.label); applyCfg({ ...cfg, systems: { ...cfg.systems, sw2: { ...cfg.systems.sw2, emulator: b.exe } } }); } }).catch(() => {}); }
   if (cfg.ra && cfg.ra.key) { try { const raw = JSON.parse(fs.readFileSync(config.file(), 'utf8')); if (raw && raw.ra && raw.ra.key) persistCfg(cfg); } catch {} } // an older plain-text key: encrypt it now
+  steamach.init({ dataDir: app.getPath('userData'), log, key: () => (cfg && cfg.keys && cfg.keys.steamweb) || '', steamPath: () => { const p = steamRoot(steamMain || (cfg && cfg.steam && cfg.steam.path) || ''); return p || ''; } });
   covers.init(app.getPath('userData'), log); covers.setArtName(g => artNameOf(g.id)); // (RustyShelf issue #2: Details → Art match)
   romm.init({ dataDir: app.getPath('userData'), log: (...a) => log(...a) }); rommApply(); // (upstream beta.12) RomM: its saved library and covers live in the data folder (after the settings are read: it needs cfg)
   require('./main/steamgrid').init({ dataDir: app.getPath('userData'), log, key: () => (cfg && cfg.keys && cfg.keys.steamgriddb) || '' }); require('./main/screenscraper').init({ dataDir: app.getPath('userData'), log, creds: () => { const k = (cfg && cfg.keys) || {}; return { user: k.ssUser || '', pass: k.ssPass || '', devId: k.ssDevId || '', devPass: k.ssDevPass || '' }; } }); initArtStudio(); initManualStudio(); // (SteamGridDB: the Art Studio's optional poster source)

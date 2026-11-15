@@ -92,7 +92,7 @@ const DEFAULTS: &str = r#"{
   "apps": null,
   "ra": { "user": "", "key": "", "enabled": true },
   "romm": { "server": "", "skipTls": false, "cloud": true },
-  "keys": { "fanart": "", "steamgriddb": "", "ssUser": "", "ssPass": "", "ssDevId": "", "ssDevPass": "", "rommToken": "", "rommTokenServer": "" },
+  "keys": { "fanart": "", "steamgriddb": "", "ssUser": "", "ssPass": "", "ssDevId": "", "ssDevPass": "", "rommToken": "", "rommTokenServer": "", "steamweb": "" },
   "art": { "styles": {}, "locks": {} },
   "ui": { "sound": true, "startFullscreen": true, "buttons": "auto", "performance": "auto", "quitCombo": true, "quitComboKeys": "l3+r3", "soundTheme": "aero", "volume": 0.7,
     "language": "en", "discordPresence": false, "discordAppId": "", "ambient": false, "ambientLevel": 0.02, "music": "off", "musicLevel": 0.4, "rumble": true, "soundRev": 4,

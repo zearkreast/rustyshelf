@@ -2318,11 +2318,11 @@ const tro={open:false,data:null,tab:"games",items:[],sel:0,busy:false};
 const TRO_TABS=[["games","Games"],["recent","Recent unlocks"],["mastered","Mastered"]];
 const troAward=a=>a==="mastered"?"Mastered":a==="completed"?"Completed":a==="beaten-hardcore"?"Beaten":a==="beaten-softcore"?"Beaten (softcore)":"";
 async function openTrophies(force){
-  if(!RA.on){if(window.Setup)Setup.open({page:"ra"});return}
+  if(!d){if(!RA.on&&window.Setup)Setup.open({page:"ra"});else toast("RetroAchievements didn't answer");return} // neither account set up: RetroAchievements' sign-in (Steam's key is under Accounts & services)
   if(!api.raTrophies||tro.busy||(!tro.open&&((mode!=="browse"&&mode!=="details")||qm.open||sysBusy())))return;
   let d=force?null:tro.data;
   if(!d){tro.busy=true;if(!tro.open)toast("Loading your trophies…");try{d=await api.raTrophies(!!force)}catch(e){toast(e&&e.message||"RetroAchievements didn't answer");return}finally{tro.busy=false}}
-  if(!d){toast("RetroAchievements didn't answer");return}
+  if(d.warn)toast(d.warn); // one of the two didn't answer: the other one's list still opens
   tro.data=d;
   if(tro.open){troHead();troList();troSelect();toast("Trophies updated");return} // Y: reloaded in place
   if((mode!=="browse"&&mode!=="details")||qm.open)return; // something else opened while it loaded
@@ -2331,7 +2331,7 @@ async function openTrophies(force){
 }
 function troHead(){const d=tro.data,t=d.totals||{},ic=$("troIcon");if(d.pic){ic.src=d.pic;ic.hidden=false}else ic.hidden=true;
   $("troTitle").textContent=d.user||"RetroAchievements";
-  $("troSub").textContent=`${(d.points||0).toLocaleString()} points`+(d.softcore?` · ${d.softcore.toLocaleString()} softcore`:"");
+  const src=d.sources||{ra:true};$("troSub").textContent=[src.ra?`${(d.points||0).toLocaleString()} RetroAchievements points`+(d.softcore?` · ${d.softcore.toLocaleString()} softcore`:""):"",src.steam?"Steam"+(src.steamUser?" · "+src.steamUser:""):""].filter(Boolean).join("  ·  ");
   const st=$("troStats");st.innerHTML="";
   [[t.unlocked,"Unlocked"],[t.games,"Games"],[t.mastered,"Mastered"],[t.beaten,"Beaten"],[(t.avg||0)+"%","Average"]].forEach(([v,l])=>{
     const s=document.createElement("div");s.className="troph-stat";const b=document.createElement("b");b.textContent=typeof v==="number"?v.toLocaleString():String(v==null?0:v);
@@ -2339,8 +2339,8 @@ function troHead(){const d=tro.data,t=d.totals||{},ic=$("troIcon");if(d.pic){ic.
 function troHints(){const pad=showPad(),h=$("troHints");h.innerHTML="";
   [[pad?["L1","R1"]:["Q","E"],"Games · Recent · Mastered",()=>troTab(tro.tab==="mastered"?-2:1)],[pad?["dpad"]:["↑","↓"],"Browse",null],[pad?["tri"]:["R"],"Reload",()=>openTrophies(true)],[pad?["o"]:["Esc"],"Close",()=>closeTrophies()]].forEach(([keys,label,act])=>{
     const b=document.createElement("button");b.type="button";b.className="hint";b.innerHTML=keys.map(k=>pad?glyph(k):`<span class="g">${k}</span>`).join("");b.append(document.createTextNode(label));if(act)b.addEventListener("click",act);else b.tabIndex=-1;h.append(b)})}
-function troRow(img,title,sub,meta,right,cls){
-  const row=document.createElement("div");row.className="ach"+(cls?" "+cls:"");const im=new Image();im.alt="";im.loading="lazy";if(img)im.src=img;
+function troRow(img,title,sub,meta,right,cls,alt){
+  const row=document.createElement("div");row.className="ach"+(cls?" "+cls:"");const im=new Image();im.alt="";im.loading="lazy";im.onerror=()=>{if(alt&&im.src!==alt){im.src=alt;alt=null}else im.style.visibility="hidden"};if(img)im.src=img; // a missing picture: the game's icon, else a plain tile (not the broken-image mark)
   const main=document.createElement("div");main.className="ach-main";const b=document.createElement("b");b.textContent=title;const s=document.createElement("span");s.textContent=sub;main.append(b,s);
   if(meta)main.append(meta);const p=document.createElement("div");p.className="ach-pts";if(right instanceof Node)p.append(right);else p.textContent=right;row.append(im,main,p);return {row,main,p}}
 function troList(){
@@ -2353,7 +2353,7 @@ function troList(){
   tro.items.forEach((x,i)=>{let r;
     if(f==="recent"){const meta=document.createElement("div");meta.className="ach-meta";meta.textContent=(x.date?x.date.slice(0,10):"")+(x.hardcore?" · hardcore":"");
       if(x.rarity!=null){const rr=document.createElement("span");rr.className=x.rarity<=10?"troph-rare":"";rr.textContent=` · ${x.rarity}% of players`;meta.append(rr)}
-      r=troRow(x.badge,x.title,x.game+(x.desc?" · "+x.desc:""),meta,x.points+" pts","")}
+      r=troRow(x.badge,x.title,x.game+(x.desc?" · "+x.desc:""),meta,x.src==="steam"?"Steam":x.points+" pts","",x.fallback)}
     else{const meta=document.createElement("div");meta.className="ach-meta";meta.textContent=`${x.earned} / ${x.total}`+(x.last?` · ${String(x.last).slice(0,10)}`:"");
       const bar=document.createElement("div");bar.className="troph-gbar";const bi=document.createElement("i");bi.style.width=x.pct+"%";bar.append(bi);
       const aw=troAward(x.award);r=troRow(x.icon,x.title,x.console,meta,aw?aw+"\n"+x.pct+"%":x.pct+"%",aw?"troph-done":"");r.main.append(bar);if(aw){r.p.classList.add("troph-award");r.p.style.whiteSpace="pre-line"}}
@@ -2363,7 +2363,7 @@ function troTab(d){const i=TRO_TABS.findIndex(t=>t[0]===tro.tab);const n=Math.ma
 function troSelect(){const rows=$("troList").children;[...rows].forEach((r,i)=>r.classList.toggle("sel",i===tro.sel));const r=rows[tro.sel];if(r)r.scrollIntoView({block:"nearest"})}
 function troMove(d){if(!tro.items.length)return;const cols=Math.max(1,(getComputedStyle($("troList")).gridTemplateColumns||"").split(" ").filter(Boolean).length);tro.sel=Math.max(0,Math.min(tro.items.length-1,tro.sel+d*cols));troSelect();play_("tick")}
 function troSide(d){if(!tro.items.length)return;tro.sel=Math.max(0,Math.min(tro.items.length-1,tro.sel+d));troSelect();play_("tick")}
-function closeTrophies(){if(!tro.open)return;tro.open=false;const el=$("troph");el.classList.remove("on");el.setAttribute("aria-hidden","true");mode=$("details").getAttribute("aria-hidden")==="false"?"details":"browse";renderHints();sfx.back()}
+function closeTrophies(){if(!tro.open)return;tro.open=false;tro.data=null; /* asked again next time (main keeps its own 10-minute cache): a key added in Settings meanwhile shows up */const el=$("troph");el.classList.remove("on");el.setAttribute("aria-hidden","true");mode=$("details").getAttribute("aria-hidden")==="false"?"details":"browse";renderHints();sfx.back()}
 api.onModelInstalled&&api.onModelInstalled(async r=>{toast(`Installed ${r.file} as the ${r.name} console model`);await reloadThemes();if(mode==="browse"&&INSERT_3D)testModel(r.sysId);if(musAdd.wait&&musAdd.wait===r.sysId){musAdd.wait="";musAfterModel(r.sysId)}}); // (beta.11) asked for from the museum: back there with Fit on shelf // (Test shows the start-up animation, which is off: the museum shows the model)
 // a note about new manuals waits for the shelf if it arrives during a game or a panel (it used to be dropped)
 let pendingNote="";
@@ -2589,7 +2589,7 @@ function qsRows(){const ui=qsUi(),r=qsAch(),g=qsGame(),out=[];
   out.push({id:"cz3d",icon:QS_I.cube,lbl:"3D & logos",val:qsCzVal,go:1});
   out.push({id:"sort",icon:QS_I.sort,lbl:"Sort & filter",val:()=>qsName(SORTS,sortBy)+(filterBy!=="all"?" · "+filterName(filterBy):""),lines:()=>[{k:"sort",l:"Sort by",opts:SORTS,cur:sortBy},{k:"filter",l:"Show",opts:filterList(),cur:filterBy}]});
   out.push({id:"ach",icon:QS_I.trophy,lbl:"Trophies",val:()=>!RA.on?"Not connected":r&&r.total?`${r.earned} / ${r.total}`+(RA.profile?` · ${RA.profile.points.toLocaleString()} pts`:""):RA.profile?`${RA.profile.points.toLocaleString()} points`:"",
-    lines:()=>!RA.on?[{k:"note",note:"Sign in once and RustyShelf tracks every unlock."},{k:"go",opts:[["rasetup","Connect RetroAchievements ›"]],big:1}]:[{k:"achinfo",info:1},{k:"go",opts:[...(r&&r.total?[["achg","See this game's achievements ›"]]:[]),...(api.raTrophies?[["trophies","All my trophies ›"]]:[])],big:1}].filter(x=>!x.opts||x.opts.length)});
+    lines:()=>!RA.on?[{k:"note",note:"Sign in once and RustyShelf tracks every unlock."},{k:"go",opts:[["rasetup","Connect RetroAchievements ›"],...(api.raTrophies?[["trophies","All my trophies ›"]]:[])],big:1}]:[{k:"achinfo",info:1},{k:"go",opts:[...(r&&r.total?[["achg","See this game's achievements ›"]]:[]),...(api.raTrophies?[["trophies","All my trophies ›"]]:[])],big:1}].filter(x=>!x.opts||x.opts.length)});
   out.push({id:"mus",icon:QS_I.museum,lbl:"Museum",val:()=>"Walk your collection",go:1});
   if(ANDROID)qsAndroidOrder(out,ui); // (0.3.2) the Thor's order: Museum, Art Studio, Trophies first; then the looks, sounds and sorting
   // (beta.10) while box art downloads in the background: the controller's way to its Pause / Resume and Cancel (the card in

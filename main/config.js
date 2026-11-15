@@ -59,7 +59,7 @@ function defaults() {
     // (upstream beta.12) RomM (main/romm.js): the server's address, its HTTPS check skipped for a home server's own certificate,
     // and whether games not on this device show (with a cloud badge). Its sign-in token is keys.rommToken (kept by main)
     romm: { server: '', skipTls: false, cloud: true },
-    keys: { fanart: '', steamgriddb: '', ssUser: '', ssPass: '', ssDevId: '', ssDevPass: '', rommToken: '', rommTokenServer: '' }, // Settings → Accounts & services: personal API keys, kept encrypted on disk (steamgriddb: Art Studio posters; ss*: the ScreenScraper sign-in, 1.71)
+    keys: { fanart: '', steamgriddb: '', ssUser: '', ssPass: '', ssDevId: '', ssDevPass: '', rommToken: '', rommTokenServer: '', steamweb: '' }, // steamweb: a Steam Web API key, Steam achievements in Trophies; // Settings → Accounts & services: personal API keys, kept encrypted on disk (steamgriddb: Art Studio posters; ss*: the ScreenScraper sign-in, 1.71)
     // Art Studio: styles = per console shelf style (a console without one follows defaultArtStyle(ui), i.e. the old Box art
     // region / Prefer HD settings, so nothing changes until a style is chosen); locks = per game parts auto-fetch never touches
     art: { styles: {}, locks: {} },
