@@ -79,6 +79,33 @@ impl Settings {
         })
     }
 
+    /// The row of a console's page that says which version of a box its games get.
+    pub(super) fn art_style_row(&self, console: &str) -> Row {
+        // (a style's preset and, for a region's, the region)
+        const STYLES: [(&str, &str, &str); 6] = [("authentic", "", "Authentic: your copy's own box"), ("hd", "", "HD: the sharpest picture"), ("region", "usa", "USA boxes"), ("region", "eur", "European boxes"), ("region", "jpn", "Japanese boxes"), ("special", "", "Special editions")];
+        let now = studio::style_for(&self.cfg, console);
+        let at = STYLES.iter().position(|s| now["preset"] == s.0 && (s.1.is_empty() || now["region"] == s.1));
+        let id = console.to_string();
+        let turn = move |s: &mut Settings, d: i32| {
+            let (preset, region, _) = STYLES[(at.map_or(0, |a| a as i32 + d)).rem_euclid(STYLES.len() as i32) as usize];
+            let mut style = studio::style_for(&s.cfg, &id);
+            style["preset"] = json!(preset);
+            if !region.is_empty() {
+                style["region"] = json!(region);
+            }
+            let base = rustyshelf_core::settings::default_art_style(s.cfg.get("ui"));
+            s.set(&["art", "styles", &id], rustyshelf_core::settings::clean_art_style(&style, &base));
+        };
+        let again = turn.clone();
+        Row {
+            label: "Box art style".into(),
+            value: at.map_or("Set in the Electron app", |a| STYLES[a].2).into(),
+            hint: "Which version of a box the Art Studio puts first for this console's games (Details → Box art). The automatic art check still takes the first picture it finds.".into(),
+            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+            step: Some(Box::new(again)),
+        }
+    }
+
     pub(super) fn can_pick_art(&self) -> bool {
         self.art_game().is_some()
     }

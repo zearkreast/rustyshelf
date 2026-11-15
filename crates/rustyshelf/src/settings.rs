@@ -868,6 +868,7 @@ impl Settings {
                 if id != "wiiu" {
                     rows.push(self.manual_pref_row(id));
                 }
+                rows.push(self.art_style_row(id));
                 Page { title: c.name.clone(), lead: self.status(c), rows }
             }
             Screen::Emulator(id) => {
