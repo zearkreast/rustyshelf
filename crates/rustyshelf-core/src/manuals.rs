@@ -866,7 +866,10 @@ pub fn download(web: &dyn Web, id: &str, dir: &Path, base: &str, progress: &(dyn
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         let pdf = dir.join(format!("{base}-manual.pdf"));
         return match web.file(url, &pdf) {
-            Ok(true) => Ok(Got::Pdf(pdf)),
+            Ok(true) => Ok(match pdf_to_pages(&pdf, dir, base) {
+                Ok(n) if n > 0 => Got::Pages(n),
+                _ => Got::Pdf(pdf),
+            }),
             _ => Err("download failed".into()),
         };
     }
@@ -875,6 +878,41 @@ pub fn download(web: &dyn Web, id: &str, dir: &Path, base: &str, progress: &(dyn
         shrink_pages(dir, base);
     }
     Ok(Got::Pages(n))
+}
+
+/// the most pages a PDF is drawn into (renderer/pdf-pages.js): a longer one is kept beside its pages
+pub const PDF_MAX_PAGES: usize = 80;
+
+/// A PDF manual drawn into `<base>-manual-NN.jpg` pages beside it (the pages it had before give way), 1600 pixels
+/// across as the Electron app draws them. The PDF goes once all of it is in pages. Returns the page count.
+pub fn pdf_to_pages(pdf: &Path, dir: &Path, base: &str) -> Result<usize, String> {
+    let bytes = fs::read(pdf).map_err(|e| e.to_string())?;
+    let pages = crate::pdfpages::pages(&bytes, 1600, PDF_MAX_PAGES, false)?;
+    if pages.is_empty() {
+        return Ok(0);
+    }
+    let pre = format!("{base}-manual-").to_lowercase();
+    for e in fs::read_dir(dir).into_iter().flatten().flatten() {
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        if name.starts_with(&pre) && [".jpg", ".jpeg", ".png", ".webp"].iter().any(|x| name.ends_with(x)) {
+            let _ = fs::remove_file(e.path());
+        }
+    }
+    let mut made = Vec::new();
+    for (i, page) in pages.iter().enumerate() {
+        let f = dir.join(format!("{base}-manual-{:02}.jpg", i + 1));
+        if let Err(e) = fs::write(&f, page) {
+            for m in &made {
+                let _ = fs::remove_file(m);
+            }
+            return Err(e.to_string());
+        }
+        made.push(f);
+    }
+    if pages.len() < PDF_MAX_PAGES {
+        let _ = fs::remove_file(pdf);
+    }
+    Ok(pages.len())
 }
 
 // ---------- the automatic pick ----------

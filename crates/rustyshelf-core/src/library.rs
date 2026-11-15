@@ -321,7 +321,21 @@ pub fn upkeep(lib: &Library) -> bool {
         crate::provenance::first_look(&art, &data_dir.join("art-cand"), now);
     }
     changed |= auto_covers(lib, &data_dir);
-    changed | auto_manuals(lib, &data_dir)
+    changed |= auto_manuals(lib, &data_dir);
+    changed | convert_pdf_manuals(lib)
+}
+
+/// Every game whose manual is still a PDF (just downloaded, or left over from before) gets its pages.
+fn convert_pdf_manuals(lib: &Library) -> bool {
+    let mut changed = false;
+    for shelf in lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })) {
+        for g in shelf.games.iter().filter(|g| g.art.manual.is_empty()) {
+            let Some(pdf) = &g.art.manual_pdf else { continue };
+            let Some(dir) = pdf.parent() else { continue };
+            changed |= crate::manuals::pdf_to_pages(pdf, dir, &crate::art::art_base(&g.file)).is_ok_and(|n| n > 0);
+        }
+    }
+    changed
 }
 
 /// Manuals, when fetching them is switched on. First the scan collections on the Internet Archive, for every

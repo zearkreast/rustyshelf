@@ -50,6 +50,7 @@ pub mod pcach;
 pub mod pccovers;
 pub mod pcfolder;
 pub mod pcgames;
+pub mod pdfpages;
 pub mod pkg;
 pub mod presence;
 pub mod provenance;

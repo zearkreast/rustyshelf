@@ -1432,10 +1432,12 @@ async function manualcollFixtures() {
     const sys = [{ def: CONSOLES.find(c => c.id === 'gc'), cfg: { romDirs: [roms], enabled: true } }];
     out.games = there(require('../main/scanner').scanSystem(sys[0].def, sys[0].cfg).map(g => ({ title: g.title, file: g.file, region: g.region || '', titleId: g.titleId || null })));
     const before = asked.length, report = [];
-    out.done = await C.run(sys, { report, locked: (id, f) => /Locked Game/.test(f) });
+    // (a PDF renderer, as both apps have one: the made-up site has no PDF to draw)
+    const renderPdf = async () => [];
+    out.done = await C.run(sys, { report, renderPdf, locked: (id, f) => /Locked Game/.test(f) });
     const memo = () => there(Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(path.join(data, 'manual-collections.json'), 'utf8'))).map(([k, v]) => { const { at, altTried, render, ...rest } = v; return [k, rest]; })));
     out.report = report.sort((a, b) => (a.title < b.title ? -1 : 1)); out.memo = memo(); out.tree = tree(covers); out.asked = asked.length - before;
-    const again = asked.length; out.doneAgain = await C.run(sys, { report: [], locked: (id, f) => /Locked Game/.test(f) }); out.askedAgain = asked.length - again;
+    const again = asked.length; out.doneAgain = await C.run(sys, { report: [], renderPdf, locked: (id, f) => /Locked Game/.test(f) }); out.askedAgain = asked.length - again;
     out.recent = C.recent(30).map(r => { const { at, ...rest } = r; return rest; }).sort((a, b) => (a.title < b.title ? -1 : 1));
     out.forgot = [C.forget(key('Phi (USA)')), C.forget('gc|nothing')]; out.memoAfter = memo();
     // "wrong manual": the copy goes aside and is never brought again; the next best takes its place

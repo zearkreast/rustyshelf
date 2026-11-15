@@ -659,8 +659,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   as the Electron app does, and opens its page; nothing is downloaded or installed, and it doesn't ask by
   itself at start yet, since the releases are still the Electron app's.
 - Reads a game's manual (Details → Read the manual) when its pages are beside its box art, where the Electron
-  app keeps them: the cover on its own, then the pages in pairs like an open booklet, ← → to turn. A manual
-  kept as a PDF opens in the PC's own PDF reader.
+  app keeps them: the cover on its own, then the pages in pairs like an open booklet, ← → to turn. A PDF manual
+  is drawn into pages by the Electron app's rule (1600 pixels across, 80 pages at most, the PDF removed once all
+  of it is in pages), with hayro, a PDF renderer written in Rust; one kept as a PDF opens in the PC's own PDF reader.
 - Finds manuals as the Electron app does: Details → Find a manual lists what archive.org and GamesDatabase.org
   have for the game (matched and scored by the Electron app's own rules: the right game, the right sequel, the
   right console, a manual and not a guide), and the one picked is saved as pages beside the box art. With
@@ -671,9 +672,9 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   (the same matching of a game to a collection's file, the same `data\manual-collections.json`): the sharpest
   manuals there are, also over a manual that's there unless that one is complete and much sharper, the old
   pages moved to `.manual-originals` beside them. A manual scanned open (two pages a picture) is cut into single
-  pages, the front cover first. A PDF manual stays a PDF here, so a collection's manual that has no page scans
-  (Microsoft's digital Xbox 360 manuals) and a small scan's sharper copy on GamesDatabase are left to the
-  Electron app. Details has the Manual Studio's two switches for a manual that's there: Keep this manual (no
+  pages, the front cover first. A collection's manual that has no page scans (Microsoft's digital Xbox 360
+  manuals) is drawn from its PDF, and a small scan gives way to GamesDatabase's copy when that one, drawn 2600
+  pixels across, really holds more detail. Details has the Manual Studio's two switches for a manual that's there: Keep this manual (no
   automatic pass changes it) and Wrong manual (the pages are another game's: they go to `.manual-originals`,
   that copy is never brought again, and the next best takes its place, a collection's first). A console's page
   says which manuals its games get (the best English one, or a language or region), in the Electron app's

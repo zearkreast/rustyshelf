@@ -6,8 +6,7 @@
 //! `.manual-originals/<game>/<time>` beside them, never deleted or overwritten.
 //!
 //! A collection's manual is a PDF with its page scans beside it; the scans are what's downloaded here. A
-//! manual that only exists as a PDF (Microsoft's digital Xbox 360 manuals, and a small scan's sharper copy on
-//! GamesDatabase) needs the Electron app, which draws PDFs into pages.
+//! manual that only exists as a PDF (Microsoft's digital Xbox 360 manuals) is drawn into pages.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -97,6 +96,12 @@ const MAX_GAMES: usize = 80;
 /// is a small one
 const MIN_READABLE: u32 = 560;
 const MUCH_SHARPER: u32 = 2;
+const LOW_RES: u32 = 700;
+/// GamesDatabase's copy of a small scan: drawn this wide, kept only with at least PDF_DETAIL bytes a page and
+/// GDB_GAIN times the collection's bytes a scan (a PDF is drawn at any size: its bytes tell its detail)
+const GDB_RENDER: u32 = 2600;
+const PDF_DETAIL: f64 = 150_000.0;
+const GDB_GAIN: f64 = 3.0;
 /// more scans than this is more than any manual has
 const MAX_SCANS: usize = 240;
 
@@ -470,8 +475,27 @@ pub fn scan_pages(web: &dyn Web, col: &Collection, ix: &Index, e: &Entry) -> Res
 
 /// Downloads a collection's manual into `stage` as `<base>-manual-NN.jpg`. Returns the page count.
 pub fn fetch_to(web: &dyn Web, col: &Collection, ix: &Index, e: &Entry, stage: &Path, base: &str, cancelled: &(dyn Fn() -> bool + Sync)) -> Result<usize, String> {
+    // digital manuals (and scans without page images): the PDF itself, drawn into pages
     if col.digital || !e.jp2 {
-        return Err("no PDF renderer".into());
+        let pdf = stage.join(format!("{base}.pdf"));
+        let enc = js::encode_uri_component;
+        let url = format!("https://archive.org/download/{}/{}", enc(col.id), e.name.split('/').map(enc).collect::<Vec<_>>().join("/"));
+        if !web.file(&url, &pdf).unwrap_or(false) {
+            return Err("PDF download failed".into());
+        }
+        if cancelled() {
+            return Err("stopped".into());
+        }
+        let pages = std::fs::read(&pdf).map_err(|e| e.to_string()).and_then(|b| crate::pdfpages::pages(&b, 1600, crate::manuals::PDF_MAX_PAGES, false));
+        let _ = std::fs::remove_file(&pdf);
+        let pages = pages?;
+        for (i, page) in pages.iter().enumerate() {
+            std::fs::write(stage.join(format!("{base}-manual-{:02}.jpg", i + 1)), page).map_err(|e| e.to_string())?;
+        }
+        if pages.is_empty() {
+            return Err("the PDF could not be turned into pages".into());
+        }
+        return Ok(pages.len());
     }
     let urls = scan_pages(web, col, ix, e)?;
     if urls.is_empty() {
@@ -597,6 +621,52 @@ pub struct Hit<'a> {
     pub e: &'a Entry,
 }
 
+/// A few collection scans are small: GamesDatabase keeps one PDF a game for the same console, usually scanned far
+/// larger. Its pages, in a folder of their own, when they really hold more detail: (folder, its address, scans).
+fn sharper_pdf(web: &dyn Web, g: &Game, base: &str, coll_count: usize, coll_bytes_per_scan: f64, cancelled: &(dyn Fn() -> bool + Sync)) -> Option<(PathBuf, String, usize)> {
+    static BRAND: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)^(disney'?s?|disney[- ]pixar|pixar|nickelodeon|nick|mtv|cartoon network|dreamworks|marvel)\s+"));
+    let t = clean(&g.title).title;
+    let mut bare = t.clone();
+    for _ in 0..2 {
+        bare = BRAND.replace(&bare, "").into_owned();
+    }
+    let tries: Vec<&str> = if bare == t { vec![t.as_str()] } else { vec![t.as_str(), bare.as_str()] };
+    let hit = tries.iter().find_map(|x| manuals::search_games_database(web, &g.sys, x))?;
+    let url = hit.id.strip_prefix("gdb:")?.to_string();
+    let tag: String = <sha1::Sha1 as sha1::Digest>::digest(format!("{}|{url}", g.key()).as_bytes()).iter().take(6).map(|b| format!("{b:02x}")).collect();
+    let stage = std::env::temp_dir().join(format!("rustyshelf-manual-gdb-{}-{tag}", std::process::id()));
+    let _ = fs::remove_dir_all(&stage);
+    fs::create_dir_all(&stage).ok()?;
+    let kept = (|| -> Option<usize> {
+        let pdf = stage.join(format!("{base}.pdf"));
+        if !web.file(&url, &pdf).unwrap_or(false) || cancelled() {
+            return None;
+        }
+        let bytes = fs::read(&pdf).ok()?;
+        let pages = crate::pdfpages::pages(&bytes, GDB_RENDER, manuals::PDF_MAX_PAGES, false).unwrap_or_default();
+        let _ = fs::remove_file(&pdf);
+        for (i, page) in pages.iter().enumerate() {
+            fs::write(stage.join(format!("{base}-manual-{:02}.jpg", i + 1)), page).ok()?;
+        }
+        let per = bytes.len() as f64 / pages.len().max(1) as f64;
+        let worse = pages.is_empty() || per < PDF_DETAIL || (coll_bytes_per_scan > 0.0 && per < coll_bytes_per_scan * GDB_GAIN);
+        if worse {
+            return None;
+        }
+        spreads::split_manual(&stage, base, Split { scan: true, min_w: 0, discard: true }).ok()?;
+        // pages after cutting spreads, like the collection's count
+        let count = inspect(&stage, base).count;
+        (count as f64 >= f64::max(2.0, coll_count as f64 * 0.6)).then_some(pages.len())
+    })();
+    match kept {
+        Some(n) => Some((stage, url, n)),
+        None => {
+            let _ = fs::remove_dir_all(&stage);
+            None
+        }
+    }
+}
+
 /// Downloads a game's manual from a collection and puts it in place of the one there, unless that one is
 /// complete and much sharper (and `force` isn't set). True when the game's manual changed.
 pub fn one(web: &dyn Web, g: &Game, hit: &Hit, memo: &mut Memo, now: f64, force: bool, cancelled: &(dyn Fn() -> bool + Sync)) -> Result<bool, String> {
@@ -610,16 +680,39 @@ pub fn one(web: &dyn Web, g: &Game, hit: &Hit, memo: &mut Memo, now: f64, force:
     let _ = fs::remove_dir_all(&stage);
     fs::create_dir_all(&stage).map_err(|e| e.to_string())?;
     let stopped = || if cancelled() { Err("stopped".to_string()) } else { Ok(()) };
+    let mut stage = stage;
     let done = (|| -> Result<bool, String> {
-        fetch_to(web, hit.col, hit.ix, hit.e, &stage, &g.base, cancelled)?;
+        let mut n = fetch_to(web, hit.col, hit.ix, hit.e, &stage, &g.base, cancelled)?;
         // (a digital manual's screens stay whole)
         if !hit.e.digital {
             spreads::split_manual(&stage, &g.base, Split { scan: !hit.col.digital, min_w: 0, discard: true })?;
         }
         manuals::shrink_pages(&stage, &g.base);
         stopped()?;
-        let neu = inspect(&stage, &g.base);
-        let src = format!("{}/{}", hit.col.id, hit.e.name);
+        let mut neu = inspect(&stage, &g.base);
+        let mut src = format!("{}/{}", hit.col.id, hit.e.name);
+        let mut alt_tried = false;
+        // a small scan: GamesDatabase may have a sharper one for the same console
+        if !hit.col.digital && neu.width < LOW_RES {
+            let per_scan = if hit.e.size > 0 && n > 0 { hit.e.size as f64 / n as f64 } else { 0.0 };
+            let alt = sharper_pdf(web, g, &g.base, neu.count, per_scan, cancelled);
+            alt_tried = true;
+            stopped()?;
+            if alt.is_none() && ours && js::number(seen.get("w")) >= f64::from(neu.width) {
+                let mut kept = seen.as_object().cloned().unwrap_or_default();
+                kept.insert("altTried".into(), json!(true));
+                kept.insert("at".into(), js::num(now));
+                memo.seen.insert(key.clone(), Value::Object(kept));
+                return Ok(false);
+            }
+            if let Some((alt_stage, url, alt_n)) = alt {
+                let _ = fs::remove_dir_all(&stage);
+                (stage, n) = (alt_stage, alt_n);
+                neu = inspect(&stage, &g.base);
+                src = format!("gdb/{url}");
+            }
+        }
+        let _ = n;
         if neu.width < MIN_READABLE && !ours && old.count > 0 {
             return Err(format!("the collection copy is too blurry to read ({}px)", neu.width));
         }
@@ -666,8 +759,11 @@ pub fn one(web: &dyn Web, g: &Game, hit: &Hit, memo: &mut Memo, now: f64, force:
         let number = |v: Option<&Value>| Some(js::number(v)).filter(|n| !n.is_nan()).unwrap_or(0.0);
         let before = if ours { number(seen.get("oldW")) } else { f64::from(old.width) };
         let had = if ours { js::truthy(seen.get("oldW")) } else { old.count > 0 };
-        // (altTried stays off: a small scan's sharper PDF is the Electron app's to look for)
-        memo.seen.insert(key.clone(), json!({ "v": VERSION, "at": js::num(now), "src": src, "altTried": false, "w": neu.width, "oldW": if had { js::num(before) } else { json!(0) }, "pages": pages.len(), "title": g.title, "system": g.system }));
+        let mut entry = json!({ "v": VERSION, "at": js::num(now), "src": src, "altTried": alt_tried, "w": neu.width, "oldW": if had { js::num(before) } else { json!(0) }, "pages": pages.len(), "title": g.title, "system": g.system });
+        if src.starts_with("gdb/") {
+            entry["render"] = json!(GDB_RENDER);
+        }
+        memo.seen.insert(key.clone(), entry);
         Ok(true)
     })();
     let _ = fs::remove_dir_all(&stage);
@@ -769,7 +865,7 @@ pub fn run(web: &dyn Web, data_dir: &Path, games: &[Game], stores: &Stores, now:
         let (key, had) = (g.key(), inspect(&g.dir, &g.base).count > 0);
         let ours = memo.seen.get(&key).is_some_and(|s| js::truthy(s.get("src"))) && had;
         match one(web, g, &Hit { col, ix, e }, &mut memo, now(), false, cancelled) {
-            Ok(true) if !ours => changes.push(Change { title: g.title.clone(), upgraded: had }),
+            Ok(true) if !ours || memo.seen.get(&key).and_then(|s| s["src"].as_str()).is_some_and(|s| s.starts_with("gdb/")) => changes.push(Change { title: g.title.clone(), upgraded: had }),
             Ok(_) => {}
             Err(why) => {
                 let seen = memo.seen.get(&key).cloned().unwrap_or(json!({}));
