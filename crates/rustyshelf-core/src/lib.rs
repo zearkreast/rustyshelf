@@ -41,6 +41,7 @@ pub mod music;
 pub mod n3ds;
 pub mod net;
 pub mod nx2;
+pub mod pads;
 pub mod paths;
 pub mod pcach;
 pub mod pccovers;

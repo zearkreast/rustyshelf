@@ -69,7 +69,8 @@ impl Settings {
             e.key = osk::step(e.layer, e.key, *dx, *dy);
         }
         let mut hits = Vec::new();
-        if pad(GamepadButton::South) {
+        let (confirm, back) = self.confirm();
+        if pad(confirm) {
             hits = osk::press(e.layer, e.key);
         }
         if pad(GamepadButton::West) {
@@ -81,7 +82,7 @@ impl Settings {
         if pad(GamepadButton::Start) {
             hits.push(Hit::Done);
         }
-        if pad(GamepadButton::East) {
+        if pad(back) {
             hits.push(Hit::Cancel);
         }
         touched |= !steps.is_empty() || !hits.is_empty();
@@ -113,7 +114,8 @@ impl Settings {
 }
 
 impl Editing {
-    pub(super) fn draw(&self, commands: &mut Commands, face: &Handle<Font>) {
+    /// `caps`: the pad's buttons that end the typing, cancel it, take a letter back and type a space.
+    pub(super) fn draw(&self, commands: &mut Commands, face: &Handle<Font>, caps: [&str; 4]) {
         let font = |size: f32| TextFont::from_font_size(FontSize::VMin(size)).with_font(face.clone());
         let rows = osk::rows(self.layer);
         commands
@@ -149,7 +151,7 @@ impl Editing {
                 p.spawn(Node { flex_grow: 1.0, ..default() });
                 p.spawn((
                     Node { margin: UiRect::top(vmin(1.5)), ..default() },
-                    Text::new("Type on the keyboard, or pick keys with the pad      Enter · Start  Done      Esc · B  Cancel      X  ⌫      Y  Space"),
+                    Text::new(format!("Type on the keyboard, or pick keys with the pad      Enter · {}  Done      Esc · {}  Cancel      {}  ⌫      {}  Space", caps[0], caps[1], caps[2], caps[3])),
                     font(1.8),
                     TextColor(DIM),
                 ));

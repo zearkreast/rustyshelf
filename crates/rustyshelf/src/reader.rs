@@ -98,6 +98,7 @@ pub enum Part {
     Left,
     Right,
     Count,
+    Keys,
 }
 
 pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::Face>) {
@@ -120,7 +121,7 @@ pub fn setup(mut commands: Commands, lexend: Res<Lexend>, face: Res<crate::hud::
             (Node { column_gap: px(2), justify_content: JustifyContent::Center, ..default() }, children![page(Part::Left), page(Part::Right)]),
             (Part::Count, Node { margin: UiRect::top(vh(3)), ..default() }, Text::default(), lexend.font(500, 15.0), TextColor(Color::srgba(1.0, 1.0, 1.0, 0.8))),
             // (Lexend has no arrows: the keys are set in the font with more)
-            (Node { margin: UiRect::top(px(10)), ..default() }, Text::new("◀ ▶  Turn the page      Home  Cover      Esc · B  Back"), TextFont::from_font_size(bevy::text::FontSize::Px(12.0)).with_font(face.0.clone()), TextColor(Color::srgb(0.588, 0.596, 0.627))),
+            (Part::Keys, Node { margin: UiRect::top(px(10)), ..default() }, Text::default(), TextFont::from_font_size(bevy::text::FontSize::Px(12.0)).with_font(face.0.clone()), TextColor(Color::srgb(0.588, 0.596, 0.627))),
         ],
     ));
 }
@@ -155,7 +156,7 @@ pub fn run(
             (reader.at, reader.fresh) = (0, true);
             sounds.play("page", -1);
         }
-        if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(GamepadButton::East) {
+        if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1) {
             (reader.open, reader.fresh) = (false, true);
             sounds.play("back", 1);
         }
@@ -197,6 +198,11 @@ pub fn run(
             Part::Count => {
                 if let Some(mut text) = text {
                     text.0 = reader.count();
+                }
+            }
+            Part::Keys => {
+                if let Some(mut text) = text {
+                    text.0 = format!("◀ ▶  Turn the page      Home  Cover      Esc · {}  Back", settings.cap("o"));
                 }
             }
             Part::Left | Part::Right => {

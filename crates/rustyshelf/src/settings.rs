@@ -12,6 +12,7 @@ use bevy::text::FontSize;
 use rustyshelf_core::config::Config;
 use rustyshelf_core::detect::{Detected, Detector};
 use rustyshelf_core::history::Played;
+use rustyshelf_core::homemenu::Glyphs;
 use rustyshelf_core::library::ShelfKind;
 use rustyshelf_core::scanner::{Game, Source};
 use rustyshelf_core::shelfview::{self, SORTS};
@@ -177,6 +178,8 @@ pub struct Settings {
     wanted: Option<Screen>,
     /// the Home menu or the manual reader is up: the keys and the pads are its own
     pub keys_taken: bool,
+    /// the prompts of the controller in use
+    pub pad_auto: Glyphs,
     /// a manual to be opened in the reader: its pages
     pub manual: Option<Vec<PathBuf>>,
     /// the phone companion, and its pairing code as it was last drawn: what it says, and its picture
@@ -257,6 +260,7 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             keys_taken: false,
+            pad_auto: Glyphs::Xbox,
             manual: None,
             phone: None,
             qr: None,
@@ -368,17 +372,36 @@ impl Settings {
         self.wanted = Some(Screen::Console(id.to_string()));
     }
 
-    /// The Home menu: whether it's on, whether it's the centred card, whether the right face button confirms,
-    /// and whose letters the buttons carry.
-    pub fn home_menu(&self) -> (bool, bool, bool, rustyshelf_core::homemenu::Glyphs) {
-        use rustyshelf_core::homemenu::Glyphs;
-        let glyphs = match self.text(&["ui", "buttons"]).as_str() {
+    /// Whose letters the buttons carry on screen: the ones chosen, else those of the controller in use.
+    pub fn glyphs(&self) -> Glyphs {
+        match self.text(&["ui", "buttons"]).as_str() {
             "ps" => Glyphs::Ps,
             "nintendo" => Glyphs::Nintendo,
-            _ => Glyphs::Xbox,
-        };
+            "xbox" => Glyphs::Xbox,
+            _ => self.pad_auto,
+        }
+    }
+
+    /// Whether the right face button confirms and the bottom one goes back: chosen, else as a Switch pad has it.
+    pub fn swap(&self) -> bool {
         let confirm = self.text(&["ui", "confirmButton"]);
-        (self.flag(&["ui", "homeMenu"], true), self.text(&["ui", "homeLayout"]) == "center", confirm == "b" || (confirm != "a" && glyphs == Glyphs::Nintendo), glyphs)
+        confirm == "b" || (confirm != "a" && self.glyphs() == Glyphs::Nintendo)
+    }
+
+    /// The pad's button that confirms, and the one that goes back.
+    pub fn confirm(&self) -> (GamepadButton, GamepadButton) {
+        if self.swap() { (GamepadButton::East, GamepadButton::South) } else { (GamepadButton::South, GamepadButton::East) }
+    }
+
+    /// A button of the hint bars as the controller in use prints it (`pads::cap`'s keys).
+    pub fn cap(&self, key: &'static str) -> &'static str {
+        rustyshelf_core::pads::cap(key, self.glyphs(), self.swap())
+    }
+
+    /// The Home menu: whether it's on, whether it's the centred card, whether the right face button confirms,
+    /// and whose letters the buttons carry.
+    pub fn home_menu(&self) -> (bool, bool, bool, Glyphs) {
+        (self.flag(&["ui", "homeMenu"], true), self.text(&["ui", "homeLayout"]) == "center", self.swap(), self.glyphs())
     }
 
     /// The games taken off their shelves, by id.
@@ -1234,6 +1257,29 @@ impl Settings {
                     rows: vec![
                         toggle("Quit combo", &["ui", "quitCombo"], true, "Held on the pad, it closes the game and brings the shelf back"),
                         Row { label: "Buttons".into(), value: COMBOS[at].1.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)), ..Row::default() },
+                        {
+                            const STYLES: [(&str, &str); 4] = [("auto", "Match my controller"), ("xbox", "Xbox (A B X Y)"), ("ps", "PlayStation (shapes)"), ("nintendo", "Nintendo (B A Y X)")];
+                            let at = STYLES.iter().position(|x| x.0 == self.text(&["ui", "buttons"])).unwrap_or(0);
+                            let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "buttons"], json!(STYLES[(at as i32 + d).rem_euclid(4) as usize].0));
+                            Row { label: "Button prompts".into(), value: STYLES[at].1.into(), hint: "Changes the buttons shown on screen.".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) }
+                        },
+                        {
+                            let (bottom, right) = match self.glyphs() {
+                                Glyphs::Ps => ("Cross", "Circle"),
+                                Glyphs::Nintendo => ("B", "A"),
+                                Glyphs::Xbox => ("A", "B"),
+                            };
+                            let names = [("auto", "Match my controller".to_string()), ("a", format!("{bottom} (bottom)")), ("b", format!("{right} (right)"))];
+                            let at = names.iter().position(|x| x.0 == self.text(&["ui", "confirmButton"])).unwrap_or(0);
+                            let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "confirmButton"], json!(["auto", "a", "b"][(at as i32 + d).rem_euclid(3) as usize]));
+                            Row {
+                                label: "Confirm button".into(),
+                                value: names[at].1.clone(),
+                                hint: "Which button selects. Match my controller: A on the right with a Switch pad, as on a Switch; the bottom button with Xbox and PlayStation pads.".into(),
+                                press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+                                step: Some(Box::new(turn)),
+                            }
+                        },
                         toggle("Home menu", &["ui", "homeMenu"], true, "Guide (or View held) over a running game pauses it and brings up Resume, Save and Load state, Screenshot, Power and Quit to shelf; on the shelf, Home or P opens it"),
                         {
                             let center = self.text(&["ui", "homeLayout"]) == "center";
@@ -1605,6 +1651,7 @@ pub fn input(
     adapter: Option<Res<bevy::render::renderer::RenderAdapterInfo>>,
 ) {
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
+    let (confirm, back) = s.confirm();
     // read every frame: a key that opened a text mustn't be typed into it a frame later
     let typed: Vec<_> = typed.read().cloned().collect();
     if s.gpu_vendor.is_none() {
@@ -1780,11 +1827,11 @@ pub fn input(
             step(&mut s, side);
         }
     } else if typing {
-    } else if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South) {
+    } else if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(confirm) {
         if let Some(press) = page.rows.get(at).and_then(|r| r.press.as_ref()) {
             press(&mut s);
         }
-    } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(GamepadButton::East) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) || pad(GamepadButton::Select))) {
+    } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) || pad(GamepadButton::Select))) {
         s.back();
     }
 
@@ -1856,7 +1903,7 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         return;
     }
     if let Some(e) = &s.editing {
-        e.draw(&mut commands, &face.0);
+        e.draw(&mut commands, &face.0, [s.cap("☰"), s.cap("o"), s.cap("sq"), s.cap("tri")]);
         return;
     }
     let page = s.page();
@@ -1873,7 +1920,9 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
     let first = if n <= WINDOW { 0 } else { at.saturating_sub(WINDOW / 2).min(n - WINDOW) };
     let font = |size: f32| TextFont::from_font_size(FontSize::VMin(size)).with_font(face.0.clone());
     let hint = if s.note.is_empty() { page.rows.get(at).map(|r| r.hint.clone()).unwrap_or_default() } else { s.note.clone() };
-    let keys = if s.wizard { "▲ ▼  Move      ◀ ▶  Change      Enter · A  Choose      Esc · B  Back" } else { "▲ ▼  Move      ◀ ▶  Change      Enter · A  Choose      Esc · B  Back      F1 · Start  Close" };
+    let style = (s.glyphs(), s.swap());
+    let (ok, back) = (rustyshelf_core::pads::button_word(true, style.0, style.1), rustyshelf_core::pads::button_word(false, style.0, style.1));
+    let keys = format!("▲ ▼  Move      ◀ ▶  Change      Enter · {ok}  Choose      Esc · {back}  Back{}", if s.wizard { String::new() } else { format!("      F1 · {}  Close", s.cap("☰")) });
     commands
         .spawn((
             SettingsUi,

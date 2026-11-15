@@ -1285,6 +1285,41 @@ async function pcachFixtures() {
   fs.rmSync(tmp, { recursive: true, force: true });
   return out;
 }
+// Controllers: what a pad is and the prompts it gets (the pad parts of renderer/app.js, run on their own) and the
+// real controllers among Windows' devices (main/padsense.js).
+function padsFixtures() {
+  const src = fs.readFileSync(path.join(ROOT, 'renderer', 'app.js'), 'utf8');
+  const cut = (from, to) => { const a = src.indexOf(from), b = src.indexOf(to, a + from.length); if (a < 0 || b < 0) throw new Error('renderer/app.js no longer has: ' + from); return src.slice(a, b); };
+  const line = from => cut(from, '\n');
+  const code = ['let STYLE="xbox";const PADMAP={swap:false},glyphStyle=()=>STYLE,window={};', line('const XB_MAP='), line('const PS_WORD='), line('const NT_MAP='), line('function btnWord(which)'), line('function padWord(k)'),
+    cut('const PAD_MODELS=', 'window.BS_padInfo=padInfo;'), 'const padSee={list:[],ver:0};', line('function padSeeReal()'), line('function padStyleOf(id)'), line('function padSeeName(id)'), line('function padName_(id)'),
+    'return {XB_MAP,PS_WORD,NT_MAP,btnWord,padWord,padInfo,padSee,padStyleOf,padName_,set:(s,w)=>{STYLE=s;PADMAP.swap=w}};'].join('\n');
+  const A = new Function(code)(), padsense = require('../main/padsense'), out = {};
+  const ids = ['DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)', 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)', 'Wireless Controller (Vendor: 054c Product: ffff)',
+    'Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)', 'Joy-Con (L) (Vendor: 057e Product: 2006)', 'Xbox 360 Controller (XInput STANDARD GAMEPAD)', 'xinput', 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)',
+    '8BitDo Pro 2 (Vendor: 2dc8 Product: 6003)', '8BitDo Pro Controller for Switch (Vendor: 2dc8 Product: 6003)', 'HORI Pad for Nintendo Switch (Vendor: 0f0d Product: 00c1)', 'Some PS4 pad (Vendor: 0f0d Product: 0001)',
+    'Wireless Controller', 'My wireless controller', 'Steam Deck (Vendor: 28de Product: 1205)', 'Steam pad (Vendor: 28DE Product: 9999)', 'Generic USB Joystick (Vendor: 0079 Product: 0006)', 'Xbox pad of some kind', '',
+    'Odd (vendor 054C then product 0CE6)', 'XInput pad (Vendor: 1234 Product: 5678)', 'Pokken Tournament pad'];
+  const lists = [[], [{ vendor: '054c', product: '0ce6', style: 'ps' }], [{ vendor: '054c', product: '0ce6', style: 'ps' }, { vendor: '054c', product: '09cc', style: 'ps' }],
+    [{ vendor: '054c', product: '0ce6', style: 'ps' }, { vendor: '045e', product: '0b13', style: 'xbox' }], [{ vendor: '057e', product: '2009', style: 'nintendo' }], [{ vendor: '057e', product: '2009', style: 'nintendo' }, { vendor: '054c', product: '0ce6', style: 'ps' }],
+    [{ vendor: '2dc8', product: '6003', style: 'xbox' }], [{ vendor: '0f0d', product: '0001', style: 'ps' }]];
+  out.info = ids.map(id => [id, A.padInfo(id)]);
+  out.styles = lists.map(list => { A.padSee.list = list; return { list, pads: ids.map(id => [A.padStyleOf(id), A.padName_(id)]) }; });
+  out.ids = ids;
+  const KEYS = ['x', 'o', 'sq', 'tri', 'L1', 'R1', 'L2', 'R2', 'L3', 'R3', '☰', '⧉', 'other'], SHAPE = { x: '✕', o: '○', sq: '□', tri: '△' };
+  out.words = ['xbox', 'ps', 'nintendo'].flatMap(style => [false, true].map(swap => { A.set(style, swap);
+    return { style, swap, caps: KEYS.map(k => [k, style === 'xbox' ? A.XB_MAP[k] || k : style === 'nintendo' ? A.NT_MAP[k] || k : SHAPE[k] || A.PS_WORD[k] || k]), ok: A.btnWord('ok'), back: A.btnWord('back'), pad: ['L1', 'R1', 'L3', 'menu', 'guide', 'other'].map(k => [k, A.padWord(k)]) }; }));
+  const devices = [
+    ['USB\\VID_054C&PID_0CE6\\5&1&0&1|USB|USB Composite Device', 'HID\\VID_054C&PID_0CE6&MI_03\\7&1|HIDClass|HID-compliant game controller', 'USB\\VID_054C&PID_0E45\\A1|USB|PULSE headset', 'HID\\VID_054C&PID_0E45&MI_03\\8&2|HIDClass|HID-compliant consumer control device'],
+    ['USB\\VID_045E&PID_0B12\\3032|XboxComposite|Xbox Gaming Device', 'USB\\VID_045E&PID_07A5\\6&1|USB|Microsoft mouse receiver', 'HID\\VID_045E&PID_0745\\7|Mouse|HID-compliant mouse', 'USB\\VID_045E&PID_02FF\\9|USB|Xbox compatible controller'],
+    ['ROOT\\SYSTEM\\0001|System|Nefarius Virtual Gamepad Emulation Bus', 'USB\\VID_045E&PID_028E\\01|XnaComposite|Xbox 360 Controller for Windows', 'BTHENUM\\{00001124-0000-1000-8000-00805f9b34fb}_VID&0002054c_PID&09cc\\8&1|HIDClass|Wireless Controller', 'HID\\{00001124}_VID&0002054C_PID&09CC&Col01\\9|HIDClass|Bluetooth HID gamepad'],
+    ['USB\\VID_045E&PID_028E\\01|XnaComposite|Xbox 360 Controller for Windows'],
+    ['BTHENUM\\x_VID&0002057e_PID&2009\\1|HIDClass|Pro Controller', 'BTHENUM\\x_VID&0002057e_PID&0306\\2|HIDClass|Nintendo RVL-CNT-01 game controller', 'USB\\VID_057E&PID_0330\\3|HIDClass|Wii remote controller', 'USB\\VID_28DE&PID_11FF\\4|HIDClass|Steam virtual gamepad', 'USB\\VID_28DE&PID_1205\\5|HIDClass|Steam Deck controller', 'USB\\VID_2DC8&PID_6003\\6|HIDClass|8BitDo game controller'],
+    ['', 'nothing|at|all', 'USB\\VID_054C|USB|no product']];
+  out.devices = devices.map(l => { const text = l.join('\r\n'); return { text, pads: padsense.parse(text) }; });
+  out.devices.push({ text: devices[2].join('\n') + '\n', pads: padsense.parse(devices[2].join('\n') + '\n') });
+  return out;
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1297,6 +1332,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'manuals.json'), JSON.stringify(await manualsFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'companion.json'), JSON.stringify(await companionFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'pcach.json'), JSON.stringify(await pcachFixtures()) + '\n');
+  fs.writeFileSync(path.join(OUT, 'pads.json'), JSON.stringify(padsFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');

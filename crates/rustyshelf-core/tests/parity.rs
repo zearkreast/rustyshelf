@@ -1868,3 +1868,43 @@ fn steam_achievements_and_storage_match_the_js() {
         assert_eq!(storage::mount_of(m[0].as_str().unwrap(), Some(m[1].as_str().unwrap_or(""))), m[2].as_str().unwrap(), "{}", m[0]);
     }
 }
+
+#[test]
+fn controllers_are_told_apart_as_in_the_js() {
+    use rustyshelf_core::pads::{self, Glyphs, Real};
+    let f = fixture("pads.json");
+    let style = |s: &Value| match s.as_str().unwrap() {
+        "ps" => Glyphs::Ps,
+        "nintendo" => Glyphs::Nintendo,
+        "xbox" => Glyphs::Xbox,
+        other => panic!("{other}"),
+    };
+    let real = |list: &Value| -> Vec<Real> { list.as_array().unwrap().iter().map(|r| Real { vendor: r["vendor"].as_str().unwrap().into(), product: r["product"].as_str().unwrap().into(), style: style(&r["style"]) }).collect() };
+    for i in f["info"].as_array().unwrap() {
+        let (id, want) = (i[0].as_str().unwrap(), &i[1]);
+        let got = pads::pad_info(id);
+        assert_eq!((got.style, got.name.as_str(), got.vendor.as_str(), got.product.as_str(), got.wrapped), (style(&want["style"]), want["name"].as_str().unwrap(), want["vendor"].as_str().unwrap(), want["product"].as_str().unwrap(), want["virtual"].as_bool().unwrap()), "{id}");
+    }
+    let ids: Vec<&str> = f["ids"].as_array().unwrap().iter().map(|i| i.as_str().unwrap()).collect();
+    for s in f["styles"].as_array().unwrap() {
+        let list = real(&s["list"]);
+        for (id, want) in ids.iter().zip(s["pads"].as_array().unwrap()) {
+            assert_eq!((pads::style_of(id, &list), pads::pad_name(id, &list)), (style(&want[0]), want[1].as_str().unwrap().to_string()), "{id} with {}", s["list"]);
+        }
+    }
+    for w in f["words"].as_array().unwrap() {
+        let (st, swap) = (style(&w["style"]), w["swap"].as_bool().unwrap());
+        for c in w["caps"].as_array().unwrap() {
+            assert_eq!(pads::cap(c[0].as_str().unwrap(), st, false), c[1].as_str().unwrap(), "{} on {st:?}", c[0]);
+        }
+        assert_eq!((pads::button_word(true, st, swap), pads::button_word(false, st, swap)), (w["ok"].as_str().unwrap(), w["back"].as_str().unwrap()), "{st:?} {swap}");
+        for p in w["pad"].as_array().unwrap() {
+            assert_eq!(pads::pad_word(p[0].as_str().unwrap(), st), p[1].as_str().unwrap());
+        }
+        // with the right button confirming, the button that confirms is drawn as that one
+        assert_eq!((pads::cap("x", st, true), pads::cap("o", st, true), pads::cap("tri", st, true)), (pads::cap("o", st, false), pads::cap("x", st, false), pads::cap("tri", st, false)));
+    }
+    for d in f["devices"].as_array().unwrap() {
+        assert_eq!(pads::parse(d["text"].as_str().unwrap()), real(&d["pads"]), "{}", d["text"]);
+    }
+}

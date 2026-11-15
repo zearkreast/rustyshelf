@@ -248,7 +248,7 @@ pub fn navigate(
         *held = padwatch::Held::default();
         // back on the starting screen before a store's game showed up: no longer waited for
         if let Some(w) = playing.watched.as_ref().filter(|w| w.waiting) {
-            if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pads.iter().any(|p| p.just_pressed(GamepadButton::East)) {
+            if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pads.iter().any(|p| p.just_pressed(settings.confirm().1)) {
                 let _ = w.close.send(CLOSE_WAIT_MS);
             }
         }
@@ -361,7 +361,7 @@ pub fn navigate(
         toast.until = now + 3.0;
     }
 
-    let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(GamepadButton::South);
+    let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(settings.confirm().0);
     // the left stick's click: a tap rolls the Surprise me case, a hold opens Find a game
     let (stick_down, stick_up) = (pad(GamepadButton::LeftThumb), pads.iter().any(|p| p.just_released(GamepadButton::LeftThumb)));
     if stick_down {

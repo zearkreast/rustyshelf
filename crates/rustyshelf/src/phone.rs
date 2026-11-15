@@ -26,6 +26,8 @@ const TAP: f32 = 0.09;
 const HOLD: f32 = 1.3;
 /// how long a game asked for from the phone is waited for while something else is up (seconds)
 const PLAY_WAIT: f32 = 20.0;
+/// the remote's name as a controller
+pub const REMOTE: &str = "RustyShelf phone remote";
 /// the buttons the Home menu takes
 const MENU_BUTTONS: [&str; 8] = ["up", "down", "left", "right", "a", "b", "start", "home"];
 
@@ -291,7 +293,7 @@ pub fn run(
                 }
                 let Some(pad_button) = button(b) else { continue };
                 if phone.pad.is_none() {
-                    phone.pad = Some(commands.spawn((Gamepad::default(), Name::new("RustyShelf phone remote"))).id());
+                    phone.pad = Some(commands.spawn((Gamepad::default(), Name::new(REMOTE))).id());
                 }
                 if down {
                     match phone.held.get_mut(b) {

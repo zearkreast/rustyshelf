@@ -2,9 +2,12 @@
 // shelf's top bar, title and hint bar in Boxshelf's renderer/index.html, style.css and app.js, as RustyShelf has them.
 //! What's written over the shelf: the console's name, the consoles' tabs, the clock, the chosen game and the keys.
 
+use std::sync::mpsc::{channel, Receiver};
+use std::sync::Mutex;
+
 use bevy::prelude::*;
 use bevy::text::{FontSize, LetterSpacing};
-use rustyshelf_core::looks;
+use rustyshelf_core::{looks, pads};
 use rustyshelf_core::scanner::{Game, Source, Tile};
 
 use crate::loading::{to_image, LibraryRes, LibraryState};
@@ -91,6 +94,12 @@ impl Lexend {
 #[derive(Resource, Default)]
 pub struct Prompts {
     pub pad: bool,
+    /// the controller last pressed
+    in_use: Option<Entity>,
+    /// the controllers there were when the real ones plugged in were last asked for, those, and an answer on its way
+    pads: usize,
+    real: Vec<pads::Real>,
+    asking: Option<Mutex<Receiver<Vec<pads::Real>>>>,
 }
 
 // the default font has no ◀ ▶ or ·
@@ -252,16 +261,17 @@ const KEYS: [(&[&str], &str); 11] = [
     (&["S"], "Settings"),
     (&["Esc"], "Exit"),
 ];
+/// (the pad's buttons by `pads::cap`'s keys)
 const PAD_KEYS: [(&[&str], &str); 9] = [
-    (&["LB", "RB"], "Letter"),
-    (&["LT", "RT"], "System"),
-    (&["Y"], "Flip · hold ♥"),
-    (&["X"], "Details"),
-    (&["A"], "Play"),
-    (&["LS"], "Shuffle · hold Find"),
-    (&["View"], "Settings"),
-    (&["Menu"], "Sort"),
-    (&["B"], "Back"),
+    (&["L1", "R1"], "Letter"),
+    (&["L2", "R2"], "System"),
+    (&["tri"], "Flip · hold ♥"),
+    (&["sq"], "Details"),
+    (&["x"], "Play"),
+    (&["L3"], "Shuffle · hold Find"),
+    (&["⧉"], "Settings"),
+    (&["☰"], "Sort"),
+    (&["o"], "Back"),
 ];
 
 /// The date and the time as the Electron app's clock writes them in English: "Sat, Nov 14" and "5:16 PM" (or
@@ -296,7 +306,7 @@ pub fn update(
         LibraryState::Failed(e) => note = format!("Your settings couldn't be read ({e})."),
         LibraryState::Ready(l) if l.shelves.is_empty() => {
             title = "Nothing on the shelf yet".into();
-            under = vec![format!("Connect your emulators and game folders in Settings ({})", if prompts.pad { "View" } else { "S" })];
+            under = vec![format!("Connect your emulators and game folders in Settings ({})", if prompts.pad { settings.cap("⧉") } else { "S" })];
         }
         LibraryState::Ready(l) => {
             let shelf = &l.shelves[cursor.shelf.min(l.shelves.len() - 1)];
@@ -308,13 +318,13 @@ pub fn update(
             tag = looks::wordmark(&shelf.id).map_or(String::new(), |w| w.1.to_uppercase());
             match shelf.games.get(cursor.game) {
                 Some(g) => {
-                    let ok = if prompts.pad { "A" } else { "Enter" };
+                    let ok = if prompts.pad { pads::button_word(true, settings.glyphs(), settings.swap()) } else { "Enter" };
                     // the Surprise me case shows the game it landed on
                     let picked = surprise.on(&shelf.id).filter(|_| g.source == Source::Tile(Tile::Surprise)).and_then(|i| shelf.games.get(i));
                     title = picked.map_or(&g.title, |p| &p.title).clone();
                     counter = format!("{} / {cases}", cursor.game + 1);
                     under = match picked {
-                        Some(p) => [format!("Surprise pick · {}", shelf.name)].into_iter().chain(meta(p, &shelf.name, ok).into_iter().take(2)).chain([format!("{} rolls again", if prompts.pad { "LS" } else { "R" })]).collect(),
+                        Some(p) => [format!("Surprise pick · {}", shelf.name)].into_iter().chain(meta(p, &shelf.name, ok).into_iter().take(2)).chain([format!("{} rolls again", if prompts.pad { pads::pad_word("L3", settings.glyphs()) } else { "R" })]).collect(),
                         None => meta(g, &shelf.name, ok),
                     };
                     // on Home, All or a collection: the shelf it's from first
@@ -328,7 +338,7 @@ pub fn update(
                 }
                 None => {
                     title = "No games match this filter".into();
-                    under = vec![format!("{} to change the filter", if prompts.pad { "Press Menu" } else { "Press G" })];
+                    under = vec![format!("Press {} to change the filter", if prompts.pad { pads::pad_word("menu", settings.glyphs()) } else { "G" })];
                 }
             }
         }
@@ -475,35 +485,74 @@ pub fn top(
 }
 
 /// The keys' bar: it follows what was pressed last, the keyboard's keys or the pad's.
+/// A controller's id as a browser writes one, for `pads::pad_info`: its name, then its maker and model. A pad
+/// Windows shows as an Xbox 360 one (what Steam Input and DS4Windows make of any pad), or without a maker, is
+/// an XInput pad there.
+fn pad_id(pad: &Gamepad, name: Option<&Name>) -> String {
+    let name = name.map_or("", Name::as_str);
+    match (pad.vendor_id(), pad.product_id()) {
+        (Some(v), Some(p)) if (v, p) != (0x045e, 0x028e) => format!("{name} (Vendor: {v:04x} Product: {p:04x})"),
+        _ if cfg!(windows) => format!("{name} (XInput)"),
+        _ => name.to_string(),
+    }
+}
+
 pub fn hints(
     mut commands: Commands,
     lib: Res<LibraryRes>,
-    settings: Res<crate::settings::Settings>,
+    mut settings: ResMut<crate::settings::Settings>,
     lexend: Res<Lexend>,
     face: Res<Face>,
     keys: Res<ButtonInput<KeyCode>>,
-    pads: Query<&Gamepad>,
+    gamepads: Query<(Entity, &Gamepad, Option<&Name>)>,
     mut prompts: ResMut<Prompts>,
     mut bar: Query<(Entity, &mut Visibility), With<Hints>>,
-    mut shown: Local<Option<bool>>,
+    mut shown: Local<Option<(bool, pads::Glyphs, bool)>>,
 ) {
+    // the phone's remote isn't a controller of its own: the prompts stay those of the pad there is
+    let own = |name: Option<&Name>| name.is_none_or(|n| n.as_str() != crate::phone::REMOTE);
+    let used = gamepads.iter().find(|(_, p, _)| p.get_just_pressed().next().is_some());
     if keys.get_just_pressed().next().is_some() {
         prompts.pad = false;
-    } else if pads.iter().any(|p| p.get_just_pressed().next().is_some()) {
+    } else if let Some((pad, _, name)) = used {
         prompts.pad = true;
+        if own(name) {
+            prompts.in_use = Some(pad);
+        }
+    }
+    // the real controllers plugged in, asked for again whenever one comes or goes
+    let count = gamepads.iter().count();
+    if count != prompts.pads && prompts.asking.is_none() {
+        prompts.pads = count;
+        let (tx, rx) = channel();
+        prompts.asking = Some(Mutex::new(rx));
+        std::thread::spawn(move || {
+            let _ = tx.send(pads::list());
+        });
+    }
+    if let Some(real) = prompts.asking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+        (prompts.asking, prompts.real) = (None, real);
+    }
+    // (before any press, the first controller there is)
+    if let Some((_, pad, name)) = prompts.in_use.and_then(|e| gamepads.get(e).ok()).or_else(|| gamepads.iter().find(|(_, _, n)| own(*n))) {
+        let style = pads::style_of(&pad_id(pad, name), &prompts.real);
+        if settings.pad_auto != style {
+            settings.pad_auto = style;
+        }
     }
     let Ok((bar, mut seen)) = bar.single_mut() else { return };
     let any = matches!(&lib.0, LibraryState::Ready(l) if !l.shelves.is_empty());
     seen.set_if_neq(if settings.open || !any { Visibility::Hidden } else { Visibility::Inherited });
-    if *shown == Some(prompts.pad) {
+    let now = (prompts.pad, settings.glyphs(), settings.swap());
+    if *shown == Some(now) {
         return;
     }
-    *shown = Some(prompts.pad);
-    let list: &[(&[&str], &str)] = if prompts.pad { &PAD_KEYS } else { &KEYS };
+    *shown = Some(now);
+    let list: Vec<(Vec<&str>, &str)> = if prompts.pad { PAD_KEYS.iter().map(|(caps, label)| (caps.iter().map(|c| settings.cap(c)).collect(), *label)).collect() } else { KEYS.iter().map(|(caps, label)| (caps.to_vec(), *label)).collect() };
     // the arrows and the heart aren't in Lexend
     let font = |text: &str, weight: u32, size: f32| if text.is_ascii() { lexend.font(weight, size) } else { TextFont::from_font_size(FontSize::Px(size)).with_font(face.0.clone()) };
     commands.entity(bar).despawn_related::<Children>().with_children(|b| {
-        for (caps, label) in list {
+        for (caps, label) in &list {
             b.spawn(Node { padding: UiRect::axes(px(10), px(5)), column_gap: px(7), align_items: AlignItems::Center, ..default() }).with_children(|hint| {
                 hint.spawn(Node { column_gap: px(3), ..default() }).with_children(|row| {
                     for cap in caps.iter() {

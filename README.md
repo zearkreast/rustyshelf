@@ -670,6 +670,12 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   held. On the shelf, Home or P (or Guide) opens it with the Home shelf, Settings and Power. Unlike the Electron
   app's, it's drawn in RustyShelf's own window in front of the paused game, not over the game's picture, so a
   saved state is confirmed by the emulator's own message.
+- Shows the buttons of the controller in hand (Settings → Controller → Button prompts and Confirm button, as in
+  the Electron app): Xbox letters, PlayStation shapes or a Switch pad's letters on the hint bar, in Settings and
+  in the Home menu, by the pad's maker and model, then its name. With a Switch pad (or when chosen) the right
+  face button confirms and the bottom one goes back, on every screen. A pad Windows shows as an Xbox 360 one is
+  asked about as the Electron app asks: the real controllers plugged in (USB or Bluetooth) say whether a
+  PlayStation or Switch pad is behind Steam Input or DS4Windows.
 - Has the phone companion (Settings → Phone companion): the same page on the phone, served by the same rules as
   the Electron app's server (home-network addresses only, PIN pairing with its lockouts, tokens kept as hashes,
   pictures under random ids) and with the same `data\companion.json`, so a phone paired with one app stays paired
