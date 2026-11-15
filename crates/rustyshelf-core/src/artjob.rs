@@ -548,6 +548,22 @@ mod tests {
     }
 
     #[test]
+    fn a_cartridge_is_drawn_from_the_front_cover() {
+        let tmp = tempfile::tempdir().unwrap();
+        let front = tmp.path().join("Zeta Run.png");
+        image::RgbImage::from_fn(300, 480, |x, y| image::Rgb([(x % 256) as u8, (y % 256) as u8, 90])).save(&front).unwrap();
+        let g = |sys: &str| GameArt { sys: sys.into(), title: "Zeta Run".into(), file: tmp.path().join("Zeta Run.nsp"), region: String::new(), dir: tmp.path().into(), base: "Zeta Run".into(), current: [Some(front.clone()), None, None, None] };
+        let st = Studio::new(&tmp.path().join("data"));
+        let list = st.list_for(&g("sw"), "disc", Vec::new(), 1.0);
+        let made: Vec<&Cand> = list.iter().filter(|c| c.source == "made").collect();
+        assert_eq!((made.len(), made[0].label.as_str(), made[0].key.len()), (1, "Cartridge made from the cover", 16));
+        let file = st.fetch_cand(made[0], "sw", 1.0).unwrap().unwrap();
+        assert!(boxart::size_of(&file).is_some_and(|(w, h)| h == 1000 && w < h));
+        assert!(st.list_for(&g("gc"), "disc", Vec::new(), 1.0).iter().all(|c| c.source != "made"));
+        assert!(st.list_for(&g("sw"), "front", Vec::new(), 1.0).iter().all(|c| c.source != "made"));
+    }
+
+    #[test]
     fn a_restyle_says_what_it_did() {
         assert_eq!(summary(3, 5, 1, 0, 2, 1, false), "3 pictures changed · 1 not found · 2 connection errors · 1 locked game skipped");
         assert_eq!(summary(0, 0, 0, 0, 0, 0, false), "Nothing to change");

@@ -579,6 +579,22 @@ fn is_low(file: &Path, part: &str) -> bool {
     size_of(file).is_some_and(|z| z.0.max(z.1) < min)
 }
 
+/// Consoles whose disc part is a cartridge that can be drawn from the front cover (main/covers.js CART_SYS: keep in
+/// sync).
+pub const CART_SYS: [&str; 3] = ["sw", "sw2", "n3ds"];
+
+/// A Switch or 3DS cartridge drawn from the game's front cover, as a PNG.
+pub fn make_cart(front: &Path, console: &str) -> Option<Vec<u8>> {
+    if !CART_SYS.contains(&console) {
+        return None;
+    }
+    let img = image::ImageReader::open(front).ok()?.with_guessed_format().ok()?.decode().ok()?;
+    let cart = rustyshelf_imgtools::cart::make_cart(&img, console);
+    let mut out = std::io::Cursor::new(Vec::new());
+    cart.write_to(&mut out, image::ImageFormat::Png).ok()?;
+    Some(out.into_inner()).filter(|b| b.len() > 2000)
+}
+
 /// Puts a part cut from a full cover in its place, unless it's too small to be one or no sharper than `replacing`.
 fn place_cut(bytes: &[u8], dir: &Path, base: &str, suffix: &str, replacing: Option<&Path>) -> bool {
     if bytes.len() <= 1500 || fs::create_dir_all(dir).is_err() {
@@ -657,7 +673,7 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
-// TODO: still Electron-only: the Art Studio's styles, SteamGridDB posters and drawn cartridges
+// TODO: still Electron-only: SteamGridDB posters for a front no source has
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
     let Run { art, app_root, cache_dir, kinds, region, hd, explicit, cfg } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
@@ -782,6 +798,16 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 if let (false, true, "spine" | "back", Some(map), false) = (ok, old.is_none() || upgrade, key, &tdb, stopped()) {
                     let full_cover = wrap.get_or_insert_with(|| gametdb_wrap(map, id, &game.title, cache_dir, reg, cancel));
                     ok = full_cover.as_ref().and_then(|f| cut_wrap(f, id, key)).is_some_and(|cut| place_cut(&cut, &dir, &base, suffix, against));
+                }
+                // a Switch / 3DS game no source has a cartridge photo of: one drawn from its front cover
+                if !ok && old.is_none() && key == "disc" && CART_SYS.contains(&id) && !stopped() {
+                    if let Some(png) = art_file(&dir, &base, "").and_then(|front| make_cart(&front, id)) {
+                        let tmp = dir.join(format!("{base}{suffix}.incoming.png"));
+                        ok = fs::write(&tmp, png).is_ok() && place_art(&dir, &base, suffix, &tmp, ".png").is_ok();
+                        if !ok {
+                            let _ = fs::remove_file(&tmp);
+                        }
+                    }
                 }
                 let mut rep = rep.lock().unwrap();
                 match (ok, key) {

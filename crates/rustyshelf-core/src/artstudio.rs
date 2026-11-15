@@ -142,6 +142,8 @@ pub struct Cand {
     pub dup: Option<String>,
     /// SteamGridDB's own order
     pub rank: f64,
+    /// drawn by RustyShelf from this picture (a cartridge from the front cover)
+    pub made: Option<PathBuf>,
 }
 
 impl Cand {
@@ -651,6 +653,22 @@ impl Studio {
             (c.cached, c.in_use) = (info.is_some(), false);
             list.push(c);
         }
+        // a Switch / 3DS cartridge drawn from the game's own front cover: always offered, ranked last (its address names
+        // the cover and its date: a new cover makes a new one)
+        if let (Some(front), "disc", true) = (g.current[0].as_ref().filter(|f| f.is_file()), part, crate::boxart::CART_SYS.contains(&g.sys.as_str())) {
+            if let Ok(meta) = std::fs::metadata(front) {
+                let at = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0.0, |d| (d.as_secs_f64() * 1000.0).round());
+                let abs = std::path::absolute(front).unwrap_or_else(|_| front.clone()).to_string_lossy().to_lowercase();
+                let url = format!("made:cart:{}", &sha(&format!("{abs}|{}|{}", meta.len(), js::num(at)))[..24]);
+                let mut c = Cand { key: format!("r{}", &sha(&url)[..15]), url, made: Some(front.clone()), ext: ".png".into(), source: "made".into(), kind_of: "cart".into(), edition: "original".into(), kind: "clean".into(), label: "Cartridge made from the cover".into(), ..Cand::default() };
+                let info = file_info(&self.cache_path(&c));
+                if let Some((bytes, w, h)) = info {
+                    (c.bytes, c.w, c.h) = (bytes, w, h);
+                }
+                c.cached = info.is_some();
+                list.push(c);
+            }
+        }
         let mut dirs = vec![g.dir.clone()];
         dirs.extend(cur.and_then(|c| c.parent()).map(Path::to_path_buf).filter(|d| *d != g.dir));
         for d in dirs {
@@ -682,6 +700,12 @@ impl Studio {
             return Ok(Some(dest));
         }
         std::fs::create_dir_all(&self.cand_dir).map_err(|e| e.to_string())?;
+        if let Some(front) = &c.made {
+            let Some(png) = crate::boxart::make_cart(front, sys) else { return Ok(None) };
+            let part = PathBuf::from(format!("{}.part", dest.display()));
+            std::fs::write(&part, png).and_then(|()| std::fs::rename(&part, &dest)).map_err(|e| e.to_string())?;
+            return Ok(Some(dest));
+        }
         let get = |to: &Path| -> Result<bool, String> {
             // (ScreenScraper's addresses are signed with the account as they're fetched)
             if crate::screenscraper::is_media(&c.url) {
