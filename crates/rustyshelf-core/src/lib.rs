@@ -74,6 +74,7 @@ pub mod seal;
 pub mod settings;
 pub mod shelfview;
 pub mod sfo;
+pub mod soundpacks;
 pub mod spreads;
 pub mod steam;
 pub mod steamach;

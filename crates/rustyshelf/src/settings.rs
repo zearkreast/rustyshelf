@@ -120,6 +120,8 @@ enum Screen {
     Kid,
     /// Settings → Sounds → Sound per console
     SoundConsoles,
+    /// Settings → Sounds → Custom sounds
+    SoundPacks,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -183,6 +185,8 @@ enum Pick {
     Rocket,
     /// a folder with a folder of games per console (RetroBat's roms)
     RomFoldersIn,
+    /// your own sounds: a folder, a sound file or a ZIP of them
+    SoundPack,
 }
 
 #[derive(Resource)]
@@ -252,6 +256,8 @@ pub struct Settings {
     genres: Vec<(String, usize)>,
     /// the console shelves there are, by id and name (Sound per console)
     console_shelves: Vec<(String, String)>,
+    /// your own sounds, read when a sound page opens
+    packs: Vec<rustyshelf_core::soundpacks::Pack>,
     storage: storage::Storage,
     art_pick: art::ArtPick,
     finding: find::Finding,
@@ -348,6 +354,7 @@ impl Default for Settings {
             every_console: false,
             genres: Vec::new(),
             console_shelves: Vec::new(),
+            packs: Vec::new(),
             storage: Default::default(),
             art_pick: Default::default(),
             kid_open: false,
@@ -438,6 +445,11 @@ impl Settings {
             built_in_songs: self.flag(&["ui", "builtInSongs"], true),
             by_shelf: self.cfg["ui"]["soundByShelf"].as_object().map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str().filter(|v| !v.is_empty())?.to_string()))).collect()).unwrap_or_default(),
         }
+    }
+
+    /// The sounds there are to choose from: the built-in voices, then your custom sounds; by id and name.
+    fn sound_list(&self) -> Vec<(String, String)> {
+        VOICES.iter().map(|(id, name)| (id.to_string(), name.to_string())).chain(self.packs.iter().map(|p| (p.sound_id(), p.name.clone()))).collect()
     }
 
     /// A PC game's window mode (Details → Window): "", "borderless" or "windowed".
@@ -618,6 +630,9 @@ impl Settings {
     fn go(&mut self, screen: Screen) {
         if let Screen::EmuSetup(id) = &screen {
             self.load_setup(id);
+        }
+        if matches!(screen, Screen::Sound | Screen::SoundConsoles | Screen::SoundPacks) {
+            self.packs = rustyshelf_core::soundpacks::list(&self.app_root);
         }
         if screen == Screen::Storage {
             self.load_storage(false);
@@ -910,6 +925,16 @@ impl Settings {
                     self.set(&["retroarch"], json!(retroarch));
                 }
                 self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", if set == 1 { "" } else { "s" }) });
+            }
+            Pick::SoundPack => {
+                match rustyshelf_core::soundpacks::import_from(&self.app_root, &[path.to_path_buf()], None) {
+                    Ok(pack) => {
+                        let left = if pack.unsupported.is_empty() { String::new() } else { format!(" · {} file{} couldn't be used", pack.unsupported.len(), if pack.unsupported.len() == 1 { "" } else { "s" }) };
+                        self.say(format!("Added \"{}\" to the sound list{left}", pack.name));
+                    }
+                    Err(why) => self.say(why),
+                }
+                (self.packs, self.sound_changed) = (rustyshelf_core::soundpacks::list(&self.app_root), true);
             }
             Pick::RomFoldersIn => {
                 let found = Detector::new(&self.app_root).rom_folders_in(&p);
@@ -1689,7 +1714,16 @@ impl Settings {
                 };
                 let (volume, volume_step) = level(&["ui", "volume"], prefs.volume);
                 let (boot_volume, boot_volume_step) = level(&["ui", "bootVolume"], prefs.boot_volume);
-                let (voice_name, voice_press, voice_step) = pick(&["ui", "soundTheme"], &VOICES, voice);
+                let sounds = self.sound_list();
+                let main = sounds.iter().position(|(id, _)| *id == prefs.voice).or_else(|| sounds.iter().position(|(id, _)| id == voice)).unwrap_or(0);
+                let voice_name = sounds[main].1.clone();
+                let turn_voice = move |s: &mut Settings, d: i32| {
+                    let list = s.sound_list();
+                    let next = list[(main as i32 + d).rem_euclid(list.len() as i32) as usize].0.clone();
+                    s.set(&["ui", "soundTheme"], json!(next));
+                };
+                let turn_voice2 = turn_voice;
+                let (voice_press, voice_step): (Press, Step) = (Box::new(move |s: &mut Settings| turn_voice(s, 1)), Box::new(turn_voice2));
                 let (boot_name, boot_press, boot_step) = pick(&["ui", "bootSound"], &BOOTS, &prefs.boot);
                 let playing = rustyshelf_core::music::track(&prefs.music).map_or(if prefs.music == "own" { "own" } else { "off" }, |t| t.id);
                 let (music_name, music_press, music_step) = pick(&["ui", "music"], &TRACKS, playing);
@@ -1719,6 +1753,7 @@ impl Settings {
                             step: Some(voice_step),
                         },
                         open("Sound per console", if prefs.by_shelf.is_empty() { String::new() } else { format!("{} with their own", prefs.by_shelf.len()) }, "Give a console its own sound; the rest use the one above.", Screen::SoundConsoles),
+                        open("Custom sounds", if self.packs.is_empty() { String::new() } else { self.packs.len().to_string() }, "Add sound files from a game (a folder, a file or a ZIP): they join the sound list.", Screen::SoundPacks),
                 ];
                 if voice == "melody" {
                     rows.push(toggle("Include the built-in songs", &["ui", "builtInSongs"], true, "With Melody, RustyShelf's own songs play along with any MIDI files in your Songs folder."));
@@ -1755,14 +1790,16 @@ impl Settings {
                 let rows = list
                     .into_iter()
                     .map(|(id, name)| {
-                        let now = prefs.by_shelf.get(&id).map(|v| rustyshelf_core::cues::theme(v).id);
-                        let at = now.and_then(|v| VOICES.iter().position(|x| x.0 == v)).map_or(0, |i| i + 1);
+                        let sounds = self.sound_list();
+                        let at = prefs.by_shelf.get(&id).and_then(|v| sounds.iter().position(|x| x.0 == *v).or_else(|| sounds.iter().position(|x| x.0 == rustyshelf_core::cues::theme(v).id))).map_or(0, |i| i + 1);
+                        let shown = if at == 0 { "Same as everywhere".to_string() } else { sounds[at - 1].1.clone() };
                         let turn = move |s: &mut Settings, d: i32| {
-                            let next = (at as i32 + d).rem_euclid(VOICES.len() as i32 + 1) as usize;
+                            let list = s.sound_list();
+                            let next = (at as i32 + d).rem_euclid(list.len() as i32 + 1) as usize;
                             let mut map = s.cfg["ui"]["soundByShelf"].as_object().cloned().unwrap_or_default();
                             match next {
                                 0 => map.remove(&id),
-                                n => map.insert(id.clone(), json!(VOICES[n - 1].0)),
+                                n => map.insert(id.clone(), json!(list[n - 1].0)),
                             };
                             s.set(&["ui", "soundByShelf"], Value::Object(map));
                             s.cues.push(("open", 1));
@@ -1770,7 +1807,7 @@ impl Settings {
                         let turn2 = turn.clone();
                         Row {
                             label: name.clone(),
-                            value: if at == 0 { "Same as everywhere".into() } else { VOICES[at - 1].1.into() },
+                            value: shown,
                             hint: format!("The sound {name}'s shelf plays."),
                             press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
                             step: Some(Box::new(turn2)),
@@ -1778,6 +1815,42 @@ impl Settings {
                     })
                     .collect::<Vec<Row>>();
                 Page { title: "Sound per console".into(), lead: "Each console can play its own sound; the rest use the one chosen in Sounds.".into(), rows }
+            }
+            Screen::SoundPacks => {
+                let mut rows = vec![
+                    Row { label: "Add from a folder".into(), value: "Choose".into(), hint: "A folder of sound files.".into(), press: Some(Box::new(|s: &mut Settings| s.pick(Pick::SoundPack, "A folder of sound files", true))), step: None },
+                    Row { label: "Add from a file or a ZIP".into(), value: "Choose".into(), hint: "One sound file, or a ZIP of sound files.".into(), press: Some(Box::new(|s: &mut Settings| s.pick(Pick::SoundPack, "A sound file or a ZIP of them", false))), step: None },
+                ];
+                if !self.packs.is_empty() {
+                    rows.push(Row { label: "— Your custom sounds —".into(), ..Row::default() });
+                }
+                for p in &self.packs {
+                    let (id, sound) = (p.id.clone(), p.sound_id());
+                    let n = p.files.len();
+                    rows.push(Row {
+                        label: p.name.clone(),
+                        value: "Remove".into(),
+                        hint: format!("{n} file{}. Removing it puts anything that used it back to Aero.", if n == 1 { "" } else { "s" }),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            if !s.twice(&format!("sndrm-{id}"), "Press again to remove these sounds") {
+                                return;
+                            }
+                            if !rustyshelf_core::soundpacks::remove(&s.app_root, &id) {
+                                s.say("Couldn't remove it".into());
+                                return;
+                            }
+                            if s.text(&["ui", "soundTheme"]) == sound {
+                                s.set(&["ui", "soundTheme"], json!("aero"));
+                            }
+                            let mut map = s.cfg["ui"]["soundByShelf"].as_object().cloned().unwrap_or_default();
+                            map.retain(|_, v| *v != sound);
+                            s.set(&["ui", "soundByShelf"], Value::Object(map));
+                            (s.packs, s.sound_changed) = (rustyshelf_core::soundpacks::list(&s.app_root), true);
+                        })),
+                        step: None,
+                    });
+                }
+                Page { title: "Custom sounds".into(), lead: "Sounds from a game: each moment of the menu plays one of the files, matched by their names; what a pack has no file for plays Aero's. Only WAV, OGG, MP3 and FLAC are used.".into(), rows }
             }
             Screen::Controller => {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];
