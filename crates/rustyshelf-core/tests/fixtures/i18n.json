@@ -3060,6 +3060,126 @@
     "Açık"
    ],
    [
+    "A folder with this console's covers, if you keep them separately. Name images after the game file; add -back for the back cover. · Enter chooses it, ◀ forgets it",
+    "Kapaklarını ayrı tutuyorsan bu konsolun kapak klasörü. Görselleri oyun dosyasının adıyla adlandır; arka kapak için -back ekle. · Enter seçer, ◀ unutur"
+   ],
+   [
+    "Add",
+    "Ekle"
+   ],
+   [
+    "Ask again",
+    "Yeniden sor"
+   ],
+   [
+    "August",
+    "Ağustos"
+   ],
+   [
+    "Buttons",
+    "Düğmeler"
+   ],
+   [
+    "Choose a cover art folder",
+    "Kapak görseli klasörü seç"
+   ],
+   [
+    "Continue",
+    "Devam et"
+   ],
+   [
+    "Disc or cartridge",
+    "Disk veya kartuş"
+   ],
+   [
+    "Dutch",
+    "Felemenkçe"
+   ],
+   [
+    "Escape",
+    "Escape"
+   ],
+   [
+    "Find a manual",
+    "Kılavuz bul"
+   ],
+   [
+    "Game paused",
+    "Oyun duraklatıldı"
+   ],
+   [
+    "How loud the boot sound plays, on its own: lower it without making the menu sounds quieter. It still follows the overall Volume.",
+    "Açılış sesinin tek başına ne kadar yüksek çaldığı: menü seslerini kısmadan azalt. Yine de genel Ses düzeyi'ne uyar."
+   ],
+   [
+    "January",
+    "Ocak"
+   ],
+   [
+    "Launch options back to the defaults",
+    "Başlatma seçeneklerini varsayılana döndür"
+   ],
+   [
+    "Looks in the Custom themes folder again.",
+    "Özel temalar klasörüne yeniden bakar."
+   ],
+   [
+    "Nothing is released yet.",
+    "Henüz yayımlanmış sürüm yok."
+   ],
+   [
+    "Open a text box on the TV to type into it (Find a game, or a name in Settings)",
+    "Yazmak için TV'de bir metin kutusu aç (Oyun bul ya da Ayarlar'da bir ad)"
+   ],
+   [
+    "Pages 6 of 6",
+    "Sayfa 6 / 6"
+   ],
+   [
+    "Reading Playnite's library…",
+    "Playnite kütüphanesi okunuyor…"
+   ],
+   [
+    "Recomps, PC ports and any other program, added by hand",
+    "Recomp'lar, PC portları ve elle eklenen diğer her program"
+   ],
+   [
+    "Search again in System to list the ones on this computer.",
+    "Bu bilgisayardakileri listelemek için Sistem'de yeniden ara."
+   ],
+   [
+    "Show again",
+    "Yeniden göster"
+   ],
+   [
+    "Steam's tools",
+    "Steam araçları"
+   ],
+   [
+    "Takes every paired phone's access away.",
+    "Eşleşmiş tüm telefonların erişimini kaldırır."
+   ],
+   [
+    "That's the picture in use already.",
+    "Kullanımdaki resim zaten bu."
+   ],
+   [
+    "The language the screen is shown in. Português (Brasil) is in the Electron app only for now: here it shows English.",
+    "Ekranın gösterildiği dil. Português (Brasil) şimdilik yalnızca Electron uygulamasında var: burada İngilizce görünür."
+   ],
+   [
+    "Ticks or unticks every game found that isn't already on the shelf.",
+    "Bulunan ve henüz rafta olmayan tüm oyunları işaretler ya da işaretini kaldırır."
+   ],
+   [
+    "Which games every shelf shows",
+    "Her rafın hangi oyunları gösterdiği"
+   ],
+   [
+    "Your installed Steam games on the PC shelf",
+    "Yüklü Steam oyunların PC rafında"
+   ],
+   [
     "Pick a free, downloadable Zeta Run model in your browser — check its licence — and save the .glb Omega Quest to Downloads. RustyShelf installs it as soon as it lands.",
     "Pick a free, downloadable Zeta Run model in your browser — check its licence — and save the .glb Omega Quest to Downloads. RustyShelf installs it as soon as it lands."
    ],
