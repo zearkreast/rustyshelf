@@ -135,6 +135,9 @@ struct Chosen {
 
 type Press = Box<dyn Fn(&mut Settings) + Send + Sync>;
 
+/// Settings' tabs, by what you came to do.
+const TABS: [&str; 8] = ["Library", "Look", "Sound", "Box art & media", "Controls", "Shelf & museum", "Accounts", "System"];
+
 /// The interface's voices, by `ui.soundTheme` and name.
 const VOICES: [(&str, &str); 6] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box"), ("disc", "Disc-era"), ("handheld", "Handheld"), ("living", "Living room")];
 
@@ -194,6 +197,8 @@ pub struct Settings {
     pub open: bool,
     /// the Kid mode PIN was given since Settings opened
     kid_open: bool,
+    /// Settings' tab (TABS)
+    tab: usize,
     /// closed by a key this frame: the shelf doesn't take that key too
     pub just_closed: bool,
     /// the first run: the pages come one after another, and can't be left before the last
@@ -358,6 +363,7 @@ impl Default for Settings {
             storage: Default::default(),
             art_pick: Default::default(),
             kid_open: false,
+            tab: 0,
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -631,7 +637,7 @@ impl Settings {
         if let Screen::EmuSetup(id) = &screen {
             self.load_setup(id);
         }
-        if matches!(screen, Screen::Sound | Screen::SoundConsoles | Screen::SoundPacks) {
+        if matches!(screen, Screen::Sound | Screen::SoundConsoles | Screen::SoundPacks | Screen::Root) {
             self.packs = rustyshelf_core::soundpacks::list(&self.app_root);
         }
         if screen == Screen::Storage {
@@ -1016,6 +1022,98 @@ impl Settings {
     }
 
     fn screen_page(&self) -> Page {
+        self.page_of(&self.stack.last().expect("a page").0)
+    }
+
+    /// Settings' first page, by what you came to do: the tab's rows, gathered from the pages they were on.
+    fn tab_page(&self) -> Page {
+        let open = |label: &str, value: String, hint: &str, to: Screen| -> Row {
+            Row { label: label.to_string(), value, hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| s.go(to.clone()))), step: None }
+        };
+        let rows_of = |screen: Screen| self.page_of(&screen).rows;
+        let (lead, mut rows) = match TABS[self.tab % TABS.len()] {
+            "Library" => {
+                let mut rows = self.attention_rows();
+                rows.extend([
+                    open("Consoles", String::new(), "Each console's emulator and games folders", Screen::Consoles),
+                    open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
+                    open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
+                    open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
+                    open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
+                ]);
+                ("Your consoles, their emulators and your games: where RustyShelf finds them and what goes on the shelves.", rows)
+            }
+            "Look" => ("How RustyShelf looks and moves: theme, size, clock and effects.", rows_of(Screen::Display)),
+            "Sound" => ("Interface sounds, menu music and songs.", rows_of(Screen::Sound)),
+            "Box art & media" => {
+                let mut rows = rows_of(Screen::BoxArt);
+                rows.push(open("Magazines & guides", String::new(), "The museum's reading corner: where your magazines and strategy guides are kept", Screen::Reading));
+                ("Covers, manuals and magazines: where they come from and when they download.", rows)
+            }
+            "Controls" => {
+                let mut rows = rows_of(Screen::Controller);
+                rows.push(open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone));
+                ("Your controller, and how to leave a game.", rows)
+            }
+            "Shelf & museum" => (
+                "What the shelf shows, and the museum room.",
+                vec![
+                    open("Museum", String::new(), "Its rooms, lighting, walls, floor and shelves", Screen::Museum),
+                    open("Shelf", String::new(), "The order of every shelf, and which games they show", Screen::Shelf),
+                ],
+            ),
+            "Accounts" => {
+                let mut rows = vec![Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() }];
+                rows.extend(rows_of(Screen::Accounts));
+                ("Sign-ins and keys that add art, achievements and features.", rows)
+            }
+            _ => ("Updates, your settings themselves, and Kid mode.", rows_of(Screen::System)),
+        };
+        rows.push(Row { label: "Back to the shelf".into(), press: Some(Box::new(|s: &mut Settings| s.back())), ..Row::default() });
+        Page { title: "Settings".into(), lead: lead.into(), rows }
+    }
+
+    /// Library's Needs attention: what's keeping a console's games off the shelf, each with its fix; and IGDB, a
+    /// suggestion when there are console games and it isn't connected.
+    fn attention_rows(&self) -> Vec<Row> {
+        let mut rows = Vec::new();
+        for c in systems().consoles.iter().filter(|c| self.flag(&["systems", &c.id, "enabled"], true) && self.cfg["systems"].get(&c.id).is_some()) {
+            let (emulator, folders) = (self.text(&["systems", &c.id, "emulator"]), self.list(&["systems", &c.id, "romDirs"]));
+            let retro = c.retro && !self.text(&["retroarch"]).is_empty();
+            let (label, hint) = if emulator.is_empty() && !retro {
+                (format!("{} has no emulator", c.name), "Choose the emulator that plays it")
+            } else if folders.is_empty() {
+                (format!("{} has no games folder", c.name), "Add the folder its games are in")
+            } else {
+                continue;
+            };
+            let id = c.id.clone();
+            rows.push(Row { label, value: "Fix".into(), hint: format!("{hint}."), press: Some(Box::new(move |s: &mut Settings| s.go(Screen::Console(id.clone())))), step: None });
+        }
+        if self.api_key("igdbId").is_empty() && !self.console_shelves.is_empty() {
+            rows.push(Row { label: "Connect IGDB for game info".into(), value: "Set up".into(), hint: "Free with a Twitch developer account: the description, genres and dates LaunchBox is missing.".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Accounts))), step: None });
+        }
+        if !rows.is_empty() {
+            rows.insert(0, Row { label: format!("— Needs attention · {} —", rows.len()), ..Row::default() });
+        }
+        rows
+    }
+
+    /// Settings' tabs, one step on (1) or back (-1).
+    fn tab_step(&mut self, by: i32) {
+        self.tab = (self.tab as i32 + by).rem_euclid(TABS.len() as i32) as usize;
+        if TABS[self.tab] == "Sound" {
+            self.packs = rustyshelf_core::soundpacks::list(&self.app_root);
+        }
+        if let Some(top) = self.stack.last_mut() {
+            top.1 = 0;
+        }
+        self.cues.push(("tick", by.signum()));
+        self.note.clear();
+        self.redraw = true;
+    }
+
+    fn page_of(&self, screen: &Screen) -> Page {
         let toggle = |label: &str, path: &'static [&'static str], default: bool, hint: &str| -> Row {
             Row {
                 label: label.to_string(),
@@ -1029,7 +1127,6 @@ impl Settings {
             Row { label: label.to_string(), value, hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| s.go(to.clone()))), step: None }
         };
         let next = |to: Screen| -> Row { Row { label: "Continue".into(), press: Some(Box::new(move |s: &mut Settings| s.go(to.clone()))), ..Row::default() } };
-        let (screen, _) = self.stack.last().expect("a page");
         match screen {
             Screen::Welcome => Page {
                 title: "Welcome to RustyShelf".into(),
@@ -1093,28 +1190,7 @@ impl Settings {
                     rows,
                 }
             }
-            Screen::Root => Page {
-                title: "Settings".into(),
-                lead: String::new(),
-                rows: vec![
-                    open("Consoles", String::new(), "Each console's emulator and games folders", Screen::Consoles),
-                    open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
-                    open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
-                    open("Box art", String::new(), "Downloads, the region, the art library", Screen::BoxArt),
-                    open("Museum", String::new(), "Its rooms, lighting, walls, floor and shelves", Screen::Museum),
-                    open("Magazines & guides", String::new(), "The museum's reading corner: where your magazines and strategy guides are kept", Screen::Reading),
-                    open("Sounds", String::new(), "The interface's sounds, their voice and volume, the boot sound", Screen::Sound),
-                    open("Display", String::new(), "", Screen::Display),
-                    open("Controller", String::new(), "The quit combo, the Home menu", Screen::Controller),
-                    Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() },
-                    open("Accounts", String::new(), "RetroAchievements, SteamGridDB, Steam, ScreenScraper, IGDB, RomM", Screen::Accounts),
-                    open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone),
-                    open("Collections", String::new(), "Shelves of your own: rename or delete them", Screen::Collections),
-                    open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
-                    open("System", String::new(), "Search again, emulator setup, export and import everything", Screen::System),
-                    Row { label: "Back to the shelf".into(), press: Some(Box::new(|s: &mut Settings| s.back())), ..Row::default() },
-                ],
-            },
+            Screen::Root => self.tab_page(),
             Screen::Consoles => {
                 let retroarch = self.text(&["retroarch"]);
                 // the first run shows what was found (and RetroArch only when it's there); every other console is a row away
@@ -2378,6 +2454,9 @@ pub fn input(
         s.open = true;
         s.changed = false;
         s.rearranged = false;
+        if matches!(first, Screen::Root | Screen::Sound) {
+            s.packs = rustyshelf_core::soundpacks::list(&s.app_root);
+        }
         s.stack = vec![(first, 0)];
         s.redraw = true;
         return;
@@ -2476,6 +2555,11 @@ pub fn input(
         s.redraw = true;
     }
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
+    let tab_by = (keys.just_pressed(KeyCode::PageDown) || keys.just_pressed(KeyCode::BracketRight) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::PageUp) || keys.just_pressed(KeyCode::BracketLeft) || pad(GamepadButton::LeftTrigger)) as i32;
+    if tab_by != 0 && !typing && s.stack.len() == 1 && s.stack.last().is_some_and(|p| p.0 == Screen::Root) && !s.kid_locked() {
+        s.tab_step(tab_by);
+        return;
+    }
     let side = (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32;
     if side != 0 {
         if let Some(step) = page.rows.get(at).and_then(|r| r.step.as_ref()) {
@@ -2562,6 +2646,7 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         return;
     }
     let page = s.page();
+    let tabs = s.stack.len() == 1 && s.stack.last().is_some_and(|p| p.0 == Screen::Root) && !s.kid_locked();
     let link = s.pairing_link().or_else(|| s.romm_link());
     if s.qr.as_ref().map(|q| &q.0) != link.as_ref() {
         if let Some((_, old)) = s.qr.take() {
@@ -2588,6 +2673,7 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         t("Back"),
         if s.wizard { String::new() } else { format!("      F1 · {}  {}", s.cap("☰"), t("Close")) }
     );
+    let keys = if tabs { format!("{keys}      PgUp PgDn · {} {}  {}", s.cap("L1"), s.cap("R1"), t("Tabs")) } else { keys };
     commands
         .spawn((
             SettingsUi,
@@ -2597,6 +2683,16 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
         ))
         .with_children(|p| {
             p.spawn((Text::new(t(&page.title)), font(4.4), TextColor(STEEL)));
+            if tabs {
+                p.spawn(Node { margin: UiRect::top(vmin(1.0)), column_gap: vmin(2.2), flex_wrap: FlexWrap::Wrap, ..default() }).with_children(|bar| {
+                    bar.spawn((Text::new(format!("{} ", s.cap("L1"))), font(1.8), TextColor(DIM)));
+                    for (i, name) in TABS.iter().enumerate() {
+                        let on = i == s.tab % TABS.len();
+                        bar.spawn((Text::new(t(name)), font(if on { 2.4 } else { 2.1 }), TextColor(if on { RUST } else { DIM })));
+                    }
+                    bar.spawn((Text::new(format!(" {}", s.cap("R1"))), font(1.8), TextColor(DIM)));
+                });
+            }
             p.spawn((Node { margin: UiRect::vertical(vmin(1.2)), max_width: percent(80), ..default() }, Text::new(t(&page.lead)), font(2.1), TextColor(DIM)));
             if first > 0 {
                 p.spawn((Text::new("▲"), font(1.6), TextColor(DIM)));
@@ -2628,4 +2724,31 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
             p.spawn((Text::new(hint), font(2.0), TextColor(STEEL)));
             p.spawn((Node { margin: UiRect::top(vmin(1.5)), ..default() }, Text::new(keys), font(1.8), TextColor(DIM)));
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_opens_on_eight_tabs_that_go_round() {
+        let mut s = Settings { wizard: false, stack: vec![(Screen::Root, 0)], ..Settings::default() };
+        s.cfg = json!({ "systems": { "ps2": { "enabled": true, "emulator": "", "romDirs": [] } }, "ui": {} });
+        let mut seen = Vec::new();
+        for _ in 0..TABS.len() {
+            let page = s.page();
+            assert!(page.rows.len() > 1, "{}", TABS[s.tab]);
+            assert_eq!(page.rows.last().map(|r| r.label.as_str()), Some("Back to the shelf"));
+            seen.push(page.lead.clone());
+            s.tab_step(1);
+        }
+        assert_eq!(s.tab, 0);
+        seen.dedup();
+        assert_eq!(seen.len(), TABS.len());
+        // Library starts with what needs attention: a console with no emulator
+        let rows = s.page().rows;
+        assert!(rows[0].label.starts_with("— Needs attention") && rows[1].label.contains("has no emulator"));
+        s.tab_step(-1);
+        assert_eq!(TABS[s.tab], "System");
+    }
 }
