@@ -1481,6 +1481,7 @@ impl Settings {
                     range("Brightness", "bright", (0.4, 1.6, 0.1, 1.0), |v| format!("{}%", (v * 100.0).round())),
                     range("Warmth", "warmth", (-1.0, 1.0, 0.1, 0.0), |v| if v > 0.05 { format!("Warm {}%", (v * 100.0).round()) } else if v < -0.05 { format!("Cool {}%", (-v * 100.0).round()) } else { "Neutral".into() }),
                     range("Spotlight on the case", "spot", (0.0, 2.0, 0.1, 1.0), |v| format!("{}%", (v * 100.0).round())),
+                    range("Dust in the light", "dust", (0.0, 2.0, 0.25, 1.0), |v| if v <= 0.0 { "Off".into() } else { format!("{}%", (v * 100.0).round()) }),
                     choice("Walls", "wall", &WALLS, ""),
                     choice("Floor", "floor", &FLOORS, ""),
                     choice("Shelves", "shelf", &SHELVES, ""),

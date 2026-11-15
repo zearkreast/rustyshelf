@@ -119,8 +119,9 @@ struct Style {
     wall: String,
     floor: String,
     shelf: String,
-    /// how strong the beam on the chosen case is, 0 to 2
+    /// how strong the beam on the chosen case is, 0 to 2, and how much dust drifts in the lamps' light
     spot: f32,
+    dust: f32,
     /// the gallery pieces: display plinths, velvet ropes, a bench, posters of your favourites
     plinths: bool,
     ropes: bool,
@@ -130,7 +131,7 @@ struct Style {
 
 impl Default for Style {
     fn default() -> Self {
-        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), spot: 1.0, plinths: false, ropes: false, bench: false, posters: false }
+        Style { scene: SCENES[0].1, bright: 1.0, warmth: 0.0, wall: "plaster".into(), floor: "stone".into(), shelf: "walnut".into(), spot: 1.0, dust: 1.0, plinths: false, ropes: false, bench: false, posters: false }
     }
 }
 
@@ -160,6 +161,7 @@ impl Style {
             floor: text("floor", "stone"),
             shelf: text("shelf", "walnut"),
             spot: st("spot").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+            dust: st("dust").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
             plinths: on("plinths"),
             ropes: on("ropes"),
             bench: on("bench"),
@@ -289,8 +291,18 @@ pub struct Museum {
     held: Option<Held>,
     lift: f32,
     backed: std::collections::HashSet<(usize, usize)>,
+    /// each row's dust: its motes (where they are, and each one's own drift), and their look
+    dust: Vec<Dust>,
     /// the surfaces drawn so far, by their finish
     surfaces: std::collections::HashMap<String, Handle<Image>>,
+}
+
+struct Dust {
+    row: usize,
+    mesh: Handle<Mesh>,
+    look: Handle<StandardMaterial>,
+    at: Vec<[f32; 3]>,
+    seed: Vec<f32>,
 }
 
 #[derive(Default)]
@@ -417,6 +429,7 @@ fn build(
     images: &mut Assets<Image>,
 ) {
     m.rows.clear();
+    m.dust.clear();
     (m.held, m.lift) = (None, 0.0);
     m.backed.clear();
     // what stands on the walls: (wall, the shelf, its games' places there)
@@ -571,6 +584,23 @@ fn build(
         widest = widest.max(end + 0.3);
         // the plank under the row, and the lamp over it
         commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(end + 0.66, PLANK, DEPTH + 0.1))), MeshMaterial3d(wood.clone()), Transform::from_xyz(end / 2.0, top - PLANK / 2.0, 0.0), ChildOf(parent)));
+        if room.dust > 0.0 {
+            // dust in the lamp's cone
+            let mut chance = rustyshelf_core::drawn::hash(&format!("{}{ri}", s.id)) | 1;
+            let mut roll = || {
+                chance ^= chance << 13;
+                chance ^= chance >> 17;
+                chance ^= chance << 5;
+                (chance % 10_000) as f32 / 10_000.0
+            };
+            let (lx, span) = (x / 2.0, x.min(5.0));
+            let at: Vec<[f32; 3]> = (0..70).map(|_| [lx + (roll() - 0.5) * span, y - 0.5 + roll() * 1.2, -0.2 + roll() * 1.4]).collect();
+            let seed: Vec<f32> = (0..70).map(|_| roll() * 100.0).collect();
+            let mesh = meshes.add(Mesh::new(bevy::mesh::PrimitiveTopology::PointList, bevy::asset::RenderAssetUsages::default()).with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, at.clone()));
+            let look = materials.add(StandardMaterial { base_color: Color::srgba_u8(0xff, 0xe6, 0xc0, 0), unlit: true, alpha_mode: AlphaMode::Add, ..default() });
+            commands.spawn((layer(), Mesh3d(mesh.clone()), MeshMaterial3d(look.clone()), Transform::default(), ChildOf(parent)));
+            m.dust.push(Dust { row: ri, mesh, look, at, seed });
+        }
         commands.spawn((
             ChildOf(parent),
             RowLight(ri),
@@ -1360,6 +1390,7 @@ pub fn run(
         s.intensity += (m.style.lamp() * (1.0 - 0.55 * m.lift) - s.intensity) * f;
     }
     show_frame(m, now, dt, materials, &mut wall.frame);
+    drift(m, now, dt, meshes, materials);
     if let Ok(mut text) = text.single_mut() {
         let r = &m.rows[m.row];
         let room = m.room_title().map(|t| format!("{t}  ·  ")).unwrap_or_default();
@@ -1390,6 +1421,35 @@ pub fn run(
             let g = &l.shelves[r.shelf].games[r.games[m.col]];
             format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, n)
         };
+    }
+}
+
+/// The dust drifts in the lamps' light: slowly sideways, settling, back to the top once it reaches the shelf; only
+/// near the rows in view.
+fn drift(m: &mut Museum, now: f32, dt: f32, meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) {
+    let near_y = m.rows.get(m.row).map_or(0.0, |r| r.y);
+    let f60 = dt * 60.0;
+    for d in &mut m.dust {
+        let Some(r) = m.rows.get(d.row) else { continue };
+        let alpha = 0.55 * r.lamp_on * m.style.dust * (1.0 - 0.5 * m.lift);
+        if let Some(mut mat) = materials.get_mut(&d.look) {
+            if (mat.base_color.alpha() - alpha).abs() > 0.01 {
+                mat.base_color.set_alpha(alpha);
+            }
+        }
+        if r.lamp_on <= 0.0 || (r.y - near_y).abs() > 3.2 && !m.wide {
+            continue;
+        }
+        for (p, seed) in d.at.iter_mut().zip(&d.seed) {
+            p[0] += (now * 1000.0 / 1700.0 + seed).sin() * 0.0004 * f60;
+            p[1] += ((now * 1000.0 / 2300.0 + seed * 1.3).cos() * 0.0003 - 0.00006) * f60;
+            if p[1] < r.y - 0.5 {
+                p[1] = r.y + 0.2;
+            }
+        }
+        if let Some(mut mesh) = meshes.get_mut(&d.mesh) {
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, d.at.clone());
+        }
     }
 }
 
