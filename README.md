@@ -526,7 +526,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   backdrop, and Artwork shows the game's own wide art sharp where it has some on disk, else its cover standing
   at the right), the floor mirroring the cases. Custom themes work as in the Electron
   app: each folder in `Custom themes` with a picture named `background` is a theme (with pictures for single
-  consoles and a `theme.json`), and the same three examples are written the first time. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
+  consoles and a `theme.json`), the same three examples are written the first time, and Settings → Display →
+  Make a theme from a picture makes one of a picture of yours. Over them: the console's name in its own lettering, the consoles' tabs, the clock, the chosen game's
   title, and the bar of keys (the keyboard's, or the pad's once a pad is used), all as the Electron app sets them.
   A shelf has the Electron app's own cases among its games: Surprise me (Enter or R lands on a game, Enter again
   plays it), Open with the console's emulator, and Add games on a shelf that has none and at the end of Custom.
@@ -694,7 +695,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   The PC's address is the adapter its traffic leaves by, or one on a 192.168 network when that's a VPN; the
   Electron app's list of virtual adapters to pass over isn't used.
 
-**Not yet:** the rest of Settings (making a custom theme from a picture, Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
+**Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 Art Studio and the art sources behind it (sharper scans over low-res pictures, spines cut from LaunchBox's
 full box wraps, choosing among ScreenScraper's scans and SteamGridDB's posters), the Manual Studio, the open case and the museum, the quit combo and Home on Nintendo and PlayStation pads that Windows
 doesn't show as XInput. On Linux, Epic's games and Windows programs (through Wine / Proton) aren't started

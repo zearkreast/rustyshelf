@@ -136,6 +136,7 @@ enum Pick {
     ImportFrom,
     ScanGames,
     Playnite,
+    ThemePicture,
 }
 
 #[derive(Resource)]
@@ -684,6 +685,14 @@ impl Settings {
             Pick::ImportFrom => self.import_from(path),
             Pick::ScanGames => self.scan_games(path),
             Pick::Playnite => self.read_playnite(Some(path)),
+            Pick::ThemePicture => match rustyshelf_core::customthemes::create(&rustyshelf_core::customthemes::root(&self.app_root), path, "") {
+                Ok(id) => {
+                    self.set(&["ui", "theme"], json!(id));
+                    self.reload_themes = true;
+                    self.say("Your picture is a theme now, and it's on. Its folder in Custom themes has a theme.json to change its name and colours.".into());
+                }
+                Err(why) => self.say(why),
+            },
         }
     }
 
@@ -1132,6 +1141,12 @@ impl Settings {
                             }
                         })),
                         step: None,
+                    },
+                    Row {
+                        label: "Make a theme from a picture".into(),
+                        hint: "Choose a JPG, PNG, WebP or SVG picture: it becomes the background of a new theme in the Custom themes folder, with colours to match.".into(),
+                        press: Some(Box::new(|s: &mut Settings| s.pick(Pick::ThemePicture, "Choose a picture for your theme", false))),
+                        ..Row::default()
                     },
                     Row { label: "Find themes again".into(), hint: "Looks in the Custom themes folder again.".into(), press: Some(Box::new(|s: &mut Settings| s.reload_themes = true)), ..Row::default() },
                     choice(
