@@ -570,7 +570,8 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   from the libretro thumbnail library, backs, spines and discs from the LaunchBox Games Database (its index is
   downloaded and built once), and where those have none a spine cut from LaunchBox's full box wrap, a spine (GameCube, Wii) or a spine and a back (Switch,
   3DS) cut from GameTDB's full cover scan, or a Switch 2 front or back from the Super Mario Wiki; a Switch or 3DS
-  game no source has a cartridge photo of gets one drawn from its front cover. Each game is looked at once a week at most. With
+  game no source has a cartridge photo of gets one drawn from its front cover. With your own SteamGridDB key, a game
+  no source has a front for gets its best-voted poster, replaced by a real scan when a later check finds one. Each game is looked at once a week at most. With
   Settings → Box art → Sharpest scans first (on unless switched off), the sharpest version comes first and a low-res
   picture RustyShelf downloaded is replaced by a clearly sharper one; any other picture that's there is never
   replaced. Both apps keep the same record of which pictures they placed (`data/art-provenance.json`).

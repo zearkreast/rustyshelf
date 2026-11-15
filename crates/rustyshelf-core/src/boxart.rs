@@ -252,6 +252,12 @@ pub enum Fetched {
 /// Downloads into a temporary name and keeps it only if it's a picture and, when replacing one (`compare`), clearly
 /// sharper than it.
 pub fn fetch_into(url: &str, dir: &Path, base: &str, suffix: &str, ext: &str, old: Option<&Path>, compare: bool) -> Fetched {
+    fetch_into_as(url, dir, base, suffix, ext, old, compare, "auto")
+}
+
+/// [`fetch_into`], with the picture on record as from `origin`.
+#[allow(clippy::too_many_arguments)]
+fn fetch_into_as(url: &str, dir: &Path, base: &str, suffix: &str, ext: &str, old: Option<&Path>, compare: bool, origin: &str) -> Fetched {
     let tmp = dir.join(format!("{base}{suffix}.incoming{ext}"));
     let longest = |f: &Path| size_of(f).map(|z| z.0.max(z.1));
     let result = (|| -> Result<Fetched, String> {
@@ -265,7 +271,7 @@ pub fn fetch_into(url: &str, dir: &Path, base: &str, suffix: &str, ext: &str, ol
                 return Ok(Fetched::Same);
             }
         }
-        place_art(dir, base, suffix, &tmp, ext).map_err(|e| if e.kind() == std::io::ErrorKind::StorageFull { "disk full".to_string() } else { e.to_string() })?;
+        place_art_as(dir, base, suffix, &tmp, ext, origin).map_err(|e| if e.kind() == std::io::ErrorKind::StorageFull { "disk full".to_string() } else { e.to_string() })?;
         Ok(Fetched::Placed)
     })();
     result.unwrap_or_else(|e| {
@@ -673,7 +679,6 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
 
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
-// TODO: still Electron-only: SteamGridDB posters for a front no source has
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
     let Run { art, app_root, cache_dir, kinds, region, hd, explicit, cfg } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
@@ -687,6 +692,7 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
             break;
         }
         let id = sys.console.id.as_str();
+        let posters = if want("front") { cache_dir.parent().and_then(crate::steamgrid::SteamGrid::from_settings) } else { None };
         // a console with an Art Studio style: each part follows the style's look
         let style = cfg["art"]["styles"].get(id).filter(|s| js::truthy(Some(s))).map(|_| crate::artstudio::style_for(cfg, id));
         progress(&sys.console.name, 0, sys.games.len());
@@ -720,7 +726,9 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 let reg = reg.as_str();
                 let old = art_file(&dir, &base, suffix);
                 let upgrade = sharp && !redo(key) && old.as_deref().is_some_and(|f| is_low(f, key) && crate::provenance::may_replace(f, explicit));
-                if old.is_some() && !redo(key) && !upgrade {
+                // a SteamGridDB poster standing in for a front no source had: a real scan replaces it whenever one is found
+                let poster_old = key == "front" && !redo(key) && !upgrade && old.as_deref().is_some_and(crate::provenance::is_poster);
+                if old.is_some() && !redo(key) && !upgrade && !poster_old {
                     continue;
                 }
                 let kind = match key {
@@ -779,12 +787,26 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 }
                 let stopped = || cancel.load(Ordering::Relaxed) || full.lock().unwrap().contains(&dir);
                 // nothing from the databases: the Super Mario Wiki's official box scans (Switch 2)
-                if !ok && old.is_none() && matches!(key, "front" | "back") && crate::wikiart::has(id) && !stopped() {
+                if !ok && (old.is_none() || poster_old) && matches!(key, "front" | "back") && crate::wikiart::has(id) && !stopped() {
                     let lower = reg.to_lowercase();
                     let wiki_region = if lower.contains("eur") { "eur" } else if lower.contains("jpn") || lower.contains("japan") { "jpn" } else { "usa" };
                     if let Some(w) = crate::wikiart::find(cache_dir, id, &covers::lookup_names(&game.title), key, wiki_region, now() as f64, &crate::wikiart::ask) {
                         ok = matches!(fetch_into(&w.url, &dir, &base, suffix, &format!(".{}", w.ext), None, false), Fetched::Placed);
                     }
+                }
+                // no box scan anywhere: SteamGridDB's best-voted poster (only with the user's key), on record as a poster
+                if let (false, None, "front", Some(sg), false) = (ok, &old, key, &posters, stopped()) {
+                    let names = covers::lookup_names(&game.title);
+                    for p in sg.posters(&crate::steamgrid::Game { appid: "", title: &game.title, names: &names }).into_iter().take(3) {
+                        if matches!(fetch_into_as(&p.url, &dir, &base, suffix, p.ext, None, false, "poster"), Fetched::Placed) {
+                            ok = true;
+                            break;
+                        }
+                    }
+                }
+                // still no real scan: the poster stays
+                if poster_old && !ok {
+                    continue;
                 }
                 if !ok && !wrap_first && key == "spine" && !stopped() {
                     ok = wrap_spine(&wraps(), id, &dir, &base, old.as_deref(), cache_dir, cancel);
