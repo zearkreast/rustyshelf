@@ -48,6 +48,7 @@ pub fn system_id(shelf: &str) -> Option<u32> {
         "megadrive" => 1,
         "mastersystem" => 2,
         "nes" => 3,
+        "fds" => 106,
         "snes" => 4,
         "gb" => 9,
         "gbc" => 10,
@@ -87,8 +88,8 @@ fn part_media(part: &str) -> &'static [&'static str] {
 }
 
 /// The shelves whose games come on a cartridge or a card, not a disc.
-const CART: [&str; 24] =
-    ["n3ds", "psvita", "sw", "sw2", "nes", "snes", "n64", "gb", "gbc", "gba", "nds", "megadrive", "mastersystem", "gamegear", "pcengine", "neogeo", "arcade", "sega32x", "atari2600", "atarilynx", "wonderswan", "ngp", "ngpc", "gamecom"];
+const CART: [&str; 25] =
+    ["n3ds", "psvita", "sw", "sw2", "nes", "fds", "snes", "n64", "gb", "gbc", "gba", "nds", "megadrive", "mastersystem", "gamegear", "pcengine", "neogeo", "arcade", "sega32x", "atari2600", "atarilynx", "wonderswan", "ngp", "ngpc", "gamecom"];
 
 /// A media's region as the box art's regions are named: "usa", "eur", "jpn", "world" or "".
 fn region_of(r: &str) -> &'static str {

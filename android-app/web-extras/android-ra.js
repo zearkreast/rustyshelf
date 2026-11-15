@@ -23,7 +23,7 @@
   const { N, st, ready, load, store, log, isNative } = C;
   const API = 'https://retroachievements.org/API/', MEDIA = 'https://media.retroachievements.org', SITE = 'https://retroachievements.org';
   // RetroAchievements' console ids for the shelves RustyShelf has on Android (Neo Geo sets are in its Arcade list)
-  const CONSOLE_ID = { megadrive: 1, n64: 2, snes: 3, gb: 4, gba: 5, gbc: 6, nes: 7, pcengine: 8, mastersystem: 11, psx: 12, gamegear: 15, gc: 16, nds: 18,
+  const CONSOLE_ID = { megadrive: 1, n64: 2, snes: 3, gb: 4, gba: 5, gbc: 6, nes: 7, fds: 7, pcengine: 8, mastersystem: 11, psx: 12, gamegear: 15, gc: 16, nds: 18,
     wii: 19, ps2: 21, arcade: 27, neogeo: 27, saturn: 39, dreamcast: 40, psp: 41, segacd: 9, sega32x: 10, atari2600: 25, atarilynx: 13, wonderswan: 53, ngp: 14, ngpc: 14 }; // (beta.9; DOS has no RetroAchievements)
   // how a console's games are hashed natively (RaHash.java); disc consoles are matched by title only
   const HASH = { nes: 'nes', snes: 'snes', pcengine: 'pce', n64: 'n64', nds: 'nds', gb: 'plain', gbc: 'plain', gba: 'plain', mastersystem: 'plain', gamegear: 'plain',

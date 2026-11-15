@@ -211,7 +211,8 @@ const CONSOLES = [
   ...retro([
     ['psx', 'PlayStation', 'DuckStation', ['duckstation-qt-x64-ReleaseLTCG.exe', 'duckstation-qt-x64-ReleaseLTCG-SSE2.exe', 'duckstation-qt.exe', 'duckstation-qt-ARM64-ReleaseLTCG.exe', 're:^duckstation[^\\\\]*\\.exe$', ...HAWK], ['{app}\\DuckStation', '{app}\\duckstation', '{app}\\duckstation-windows-x64-release', '%LOCALAPPDATA%\\Programs\\DuckStation', '%ProgramFiles%\\DuckStation', ...HAWK_DIRS],
       ['psx', 'ps1', 'playstation', 'playstation 1'], ['cue', 'chd', 'm3u', 'pbp', 'iso', 'ecm', 'mds', 'img', 'ccd'], '-fullscreen -batch -nogui -- "{rom}"', 'swanstation', true],
-    ['nes', 'NES', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['nes', 'famicom', 'nintendo entertainment system'], ['nes', 'fds', 'unf', 'unif', 'zip', '7z'], '', 'mesen'],
+    ['nes', 'NES', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['nes', 'famicom', 'nintendo entertainment system'], ['nes', 'unf', 'unif', 'zip', '7z'], '', 'mesen'],
+    ['fds', 'Famicom Disk System', 'RetroArch', [], [], ['fds', 'famicom disk system', 'famicom-disk-system', 'famicomdisksystem'], ['fds', 'qd', 'bin', 'zip', '7z'], '', 'mesen'],
     ['snes', 'SNES', 'RetroArch', [...HAWK], [...HAWK_DIRS], ['snes', 'sfc', 'super nintendo', 'super famicom'], ['sfc', 'smc', 'fig', 'swc', 'bs', 'zip', '7z'], '', 'snes9x'],
     ['n64', 'Nintendo 64', 'RetroArch', ['RMG.exe', ...N64_RA, ...HAWK], ['{app}\\RMG', '{app}\\Rosalie\'s Mupen GUI', '%LOCALAPPDATA%\\Programs\\RMG', ...N64_DIRS, ...HAWK_DIRS],
       ['n64', 'nintendo 64'], ['z64', 'n64', 'v64', 'zip', '7z'], '--fullscreen --quit-after-emulation --nogui "{rom}"', 'mupen64plus_next'],

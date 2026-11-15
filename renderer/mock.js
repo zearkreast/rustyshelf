@@ -53,7 +53,7 @@ if(/[?&]dos=1/.test(location.search))[["dos","DOS","RetroArch","RetroArch-Win64\
 // ?wave2=1 (beta.7): RetroArch installed and every other retro console it can run, without games, for the first run's
 // tidy "More consoles" (RetroArch alone ticks none of them)
 const WAVE2=/[?&]wave2=1/.test(location.search);
-if(WAVE2)[["nes","NES"],["n64","Nintendo 64"],["gb","Game Boy"],["gbc","Game Boy Color"],["nds","DS"],["mastersystem","Master System"],["gamegear","Game Gear"],["saturn","Saturn"],["pcengine","TurboGrafx-16"],["neogeo","Neo Geo"],["arcade","Arcade"],["segacd","Sega CD"],["sega32x","32X"],["atari2600","Atari 2600"],["atarilynx","Lynx"],["wonderswan","WonderSwan"],["dos","DOS"],["ngp","Neo Geo Pocket"],["ngpc","Neo Geo Pocket Color"],["gamecom","Game.com"]]
+if(WAVE2)[["nes","NES"],["fds","Famicom Disk System"],["n64","Nintendo 64"],["gb","Game Boy"],["gbc","Game Boy Color"],["nds","DS"],["mastersystem","Master System"],["gamegear","Game Gear"],["saturn","Saturn"],["pcengine","TurboGrafx-16"],["neogeo","Neo Geo"],["arcade","Arcade"],["segacd","Sega CD"],["sega32x","32X"],["atari2600","Atari 2600"],["atarilynx","Lynx"],["wonderswan","WonderSwan"],["dos","DOS"],["ngp","Neo Geo Pocket"],["ngpc","Neo Geo Pocket Color"],["gamecom","Game.com"]]
   .forEach(([id,name])=>{if(consoles.some(c=>c.id===id))return;consoles.push({id,name,emulatorName:"RetroArch",retro:true,exeNames:["retroarch.exe"],extensions:["zip"],gameArgs:'"{rom}"'});titles[id]=[];emu[id]="RetroArch-Win64\\retroarch.exe"});
 // four of them with games, for their cases and wordmarks (DS: its wide case in Inspect)
 // (?every=1: two games on every one of them, to look at each console's own 3D case)

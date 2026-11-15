@@ -111,6 +111,7 @@ struct Wanted {
 
 /// main/racores.js BIOS, keep in sync.
 const BIOS: &[Wanted] = &[
+    Wanted { console: "fds", need: Need::Required, note: "FDS games need disksys.rom in RetroArch system folder", files: &[("disksys.rom", "Japan", Some("ca30b50f880eb660a32069583cb65f9d"))] },
     Wanted {
         console: "psx",
         need: Need::One,

@@ -60,7 +60,7 @@ pub fn collections(sys: &str) -> &'static [Collection] {
         "psp" => &const { [scans("SonyPSPManuals")] },
         "x360" => &const { [Collection { id: "xbox-360-marketplace-game-manuals", folder: "", names: "", digital: true }, scans("xbox-360-manuals")] },
         "psx" => &const { [scans("SonyPlaystationManuals")] },
-        "nes" => &const { [scans("NESManuals")] },
+        "nes" | "fds" => &const { [scans("NESManuals")] },
         "snes" => &const { [scans("SNESManuals")] },
         "n64" => &const { [scans("Nintendo64Manuals_201812"), hires("Nintendo 64 Games/")] },
         "gb" => &const { [scans("NintendoGameBoyManuals")] },

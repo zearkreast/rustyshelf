@@ -145,6 +145,14 @@
     ],
     "romDirs": []
    },
+   "fds": {
+    "emulator": "{home}/.local/bin/retroarch",
+    "emulators": [
+     "{home}/.local/bin/retroarch",
+     "{home}/Emulators/retro/RetroArch-Linux.AppImage"
+    ],
+    "romDirs": []
+   },
    "snes": {
     "emulator": "{home}/.local/bin/retroarch",
     "emulators": [
@@ -401,6 +409,7 @@
    "wii": "{home}/Portable/a/b/c/d/dolphin-emu",
    "psx": "{home}/Portable/x/retroarch.AppImage",
    "nes": "{home}/Portable/x/retroarch.AppImage",
+   "fds": "{home}/Portable/x/retroarch.AppImage",
    "snes": "{home}/Portable/x/retroarch.AppImage",
    "n64": "{home}/Portable/x/retroarch.AppImage",
    "gb": "{home}/Portable/x/retroarch.AppImage",

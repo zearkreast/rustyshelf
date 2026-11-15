@@ -577,9 +577,51 @@
    ],
    "extensions": [
     "nes",
-    "fds",
     "unf",
     "unif",
+    "zip",
+    "7z"
+   ],
+   "gameArgs": "\"{rom}\"",
+   "emulatorArgs": "",
+   "coverSeconds": 4
+  },
+  {
+   "id": "fds",
+   "name": "Famicom Disk System",
+   "emulatorName": "RetroArch",
+   "raCore": "mesen",
+   "retro": true,
+   "raCores": [
+    [
+     "mesen",
+     "mesen"
+    ]
+   ],
+   "exeNames": [
+    "retroarch.exe"
+   ],
+   "emulatorFolders": [
+    "{app}\\RetroArch",
+    "{app}\\RetroArch-Win64",
+    "C:\\RetroArch-Win64",
+    "C:\\RetroArch",
+    "%APPDATA%\\RetroArch",
+    "%ProgramFiles%\\RetroArch",
+    "%ProgramFiles%\\RetroArch-Win64",
+    "%ProgramFiles(x86)%\\Steam\\steamapps\\common\\RetroArch",
+    "%ProgramFiles%\\Steam\\steamapps\\common\\RetroArch"
+   ],
+   "romFolderNames": [
+    "fds",
+    "famicom disk system",
+    "famicom-disk-system",
+    "famicomdisksystem"
+   ],
+   "extensions": [
+    "fds",
+    "qd",
+    "bin",
     "zip",
     "7z"
    ],

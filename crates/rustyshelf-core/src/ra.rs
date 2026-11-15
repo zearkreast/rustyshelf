@@ -28,7 +28,7 @@ pub fn console_id(shelf: &str) -> Option<u32> {
         "gb" => 4,
         "gba" => 5,
         "gbc" => 6,
-        "nes" => 7,
+        "nes" | "fds" => 7,
         "pcengine" => 8,
         "segacd" => 9,
         "sega32x" => 10,

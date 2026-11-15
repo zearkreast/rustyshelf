@@ -200,7 +200,7 @@ impl Named {
 // (main/manuals.js PLATFORM_RE, keep in sync)
 static PLATFORMS: LazyLock<Vec<Named>> = LazyLock::new(|| {
     let b = r"(?-u:\b)";
-    let table: [(&str, &str, &str); 44] = [
+    let table: [(&str, &str, &str); 45] = [
         ("gc", "(game ?cube|gcn|ngc)", ""),
         ("wii", "wii", " ?u"),
         ("wiiu", "wii ?u", ""),
@@ -221,6 +221,7 @@ static PLATFORMS: LazyLock<Vec<Named>> = LazyLock::new(|| {
         ("nds", "(nds|nintendo ds)", ""),
         ("psx", "(playstation|psx|ps1)", " ?[2-5]| portable"),
         ("nes", "(nes|famicom)", ""),
+        ("fds", "(fds|famicom ?disk ?system)", ""),
         ("snes", "(snes|super nintendo|super famicom)", ""),
         ("n64", "(n64|nintendo 64)", ""),
         ("gb", "game ?boy", " ?(colou?r|advance)"),
@@ -432,6 +433,7 @@ fn system_words(sys: &str) -> &'static [&'static str] {
         "n3ds" => &["3ds", "nintendo 3ds"],
         "psx" => &["playstation", "psx", "ps1"],
         "nes" => &["nes", "nintendo entertainment system", "famicom"],
+        "fds" => &["fds", "famicom disk system", "family computer disk system"],
         "snes" => &["snes", "super nintendo", "super famicom"],
         "n64" => &["n64", "nintendo 64"],
         "gb" => &["game boy", "gameboy"],
@@ -476,6 +478,7 @@ fn gdb_system(sys: &str) -> Option<&'static str> {
         "n3ds" => "nintendo-3ds",
         "psx" => "sony-playstation",
         "nes" => "nintendo-nes",
+        "fds" => "nintendo-famicom-disk-system",
         "snes" => "nintendo-snes",
         "n64" => "nintendo-n64",
         "gb" => "nintendo-game-boy",

@@ -238,6 +238,7 @@ body.aside *,body.aside *::before,body.aside *::after{animation-play-state:pause
 /* (beta.6) the retro shelves, each in its console's colours */
 .wm-psx{--wm-grad:linear-gradient(180deg,#f2f2f5 15%,#9aa3b5 100%);--wm-glow:rgba(160,170,190,.35);--wm-tagc:#c3c9d6}
 .wm-nes{--wm-grad:linear-gradient(180deg,#ffe2e2 10%,#e4202b 95%);--wm-glow:rgba(228,32,43,.4);--wm-tagc:#f2a6aa}
+.wm-fds{--wm-grad:linear-gradient(180deg,#fff3d6 10%,#9e1922 95%);--wm-glow:rgba(158,25,34,.4);--wm-tagc:#f2a8ad}
 .wm-snes{--wm-grad:linear-gradient(180deg,#efeaff 10%,#8f7ff0 95%);--wm-glow:rgba(143,127,240,.4);--wm-tagc:#c4baf5}
 .wm-n64{--wm-grad:linear-gradient(180deg,#dff6e8 10%,#18a85c 95%);--wm-glow:rgba(24,168,92,.4);--wm-tagc:#9ed9b8}
 .wm-gb,.wm-gbc{--wm-grad:linear-gradient(180deg,#f1f8d2 10%,#8bac0f 95%);--wm-glow:rgba(139,172,15,.4);--wm-tagc:#c6d98a}

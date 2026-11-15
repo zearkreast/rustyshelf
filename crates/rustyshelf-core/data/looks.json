@@ -563,6 +563,33 @@
    ],
    "glow": "#ff8a8a"
   },
+  "fds": {
+   "id": "fds",
+   "rc": 0.01,
+   "re": 0.08,
+   "edge": 0,
+   "depth": 0.18,
+   "spineInk": "#fbf5df",
+   "hue": 45,
+   "ratio": 0.71,
+   "caseColor": "#8a1820",
+   "caseSide": "#680e14",
+   "band": {
+    "bg": "#8a1820",
+    "fg": "#fbf5df",
+    "label": "FAMICOM DISK"
+   },
+   "spineBand": {
+    "bg": "#8a1820",
+    "fg": "#fbf5df",
+    "label": "FDS"
+   },
+   "tint": [
+    "#8a1820",
+    "#1c0305"
+   ],
+   "glow": "#ff737b"
+  },
   "snes": {
    "id": "snes",
    "rc": 0.01,
@@ -1341,6 +1368,10 @@
    "NES",
    "Home console"
   ],
+  "fds": [
+   "Famicom Disk System",
+   "Disk system"
+  ],
   "snes": [
    "SNES",
    "Home console"
@@ -1496,6 +1527,21 @@
    "grad": "linear-gradient(180deg,#ffe2e2 10%,#e4202b 95%)",
    "glow": "rgba(228,32,43,.4)",
    "tag": "#f2a6aa",
+   "font": "Lexend",
+   "weight": 800,
+   "spacing": 0,
+   "size": [
+    22,
+    2.6,
+    38
+   ],
+   "upper": true,
+   "italic": false
+  },
+  "fds": {
+   "grad": "linear-gradient(180deg,#fff3d6 10%,#9e1922 95%)",
+   "glow": "rgba(158,25,34,.4)",
+   "tag": "#f2a8ad",
    "font": "Lexend",
    "weight": 800,
    "spacing": 0,

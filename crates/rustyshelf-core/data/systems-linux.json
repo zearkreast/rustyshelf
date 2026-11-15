@@ -690,9 +690,59 @@
    ],
    "extensions": [
     "nes",
-    "fds",
     "unf",
     "unif",
+    "zip",
+    "7z"
+   ],
+   "gameArgs": "\"{rom}\"",
+   "emulatorArgs": "",
+   "coverSeconds": 4
+  },
+  {
+   "id": "fds",
+   "name": "Famicom Disk System",
+   "emulatorName": "RetroArch",
+   "raCore": "mesen",
+   "retro": true,
+   "raCores": [
+    [
+     "mesen",
+     "mesen"
+    ]
+   ],
+   "exeNames": [
+    "retroarch",
+    "org.libretro.RetroArch",
+    "re:^retroarch.*\\.appimage$"
+   ],
+   "emulatorFolders": [
+    "{app}",
+    "{app}/Emulators",
+    "%HOME%/Applications",
+    "%HOME%/.local/bin",
+    "%HOME%/.local/share/flatpak/exports/bin",
+    "/var/lib/flatpak/exports/bin",
+    "/usr/bin",
+    "/usr/games",
+    "/usr/local/bin",
+    "/opt",
+    "%HOME%/Emulation/tools",
+    "%HOME%/Desktop",
+    "%HOME%/Downloads",
+    "%HOME%/.local/share/Steam/steamapps/common/RetroArch",
+    "%HOME%/.steam/steam/steamapps/common/RetroArch"
+   ],
+   "romFolderNames": [
+    "fds",
+    "famicom disk system",
+    "famicom-disk-system",
+    "famicomdisksystem"
+   ],
+   "extensions": [
+    "fds",
+    "qd",
+    "bin",
     "zip",
     "7z"
    ],
