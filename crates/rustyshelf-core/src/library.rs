@@ -348,6 +348,15 @@ impl Library {
             }
         }
         infos.flush();
+        let studio = crate::manualstudio::Db::load(&data_dir);
+        for shelf in shelves.iter_mut().filter(|s| s.id == "wiiu") {
+            for g in shelf.games.iter_mut() {
+                if wiiu_cover_first(&data_dir, &studio, g) {
+                    let front = g.art.front.clone().unwrap_or_default();
+                    g.art.manual.insert(0, front);
+                }
+            }
+        }
         let art = PcArt { cfg: &config, data: &data_dir, boxes: config.pc_console_box(), steam_ids: pcgames::steam_ids(&data_dir), steam_infos: crate::info::steam_infos(&data_dir), sizes: &data };
         let mut pc: Vec<Game> = steam.into_iter().map(|g| art.steam_game(g)).collect();
         pc.extend(stores.into_iter().map(|g| art.pc_game(g)));
@@ -399,6 +408,14 @@ impl Library {
     }
 }
 
+/// A Wii U manual made from the game's e-manual opens on its contents page: the box front goes first, so the
+/// booklet opens on a cover like a printed one. Not over a scanned manual picked in Manual Studio.
+fn wiiu_cover_first(data_dir: &Path, studio: &crate::manualstudio::Db, g: &Game) -> bool {
+    let Some(first) = g.art.manual.first() else { return false };
+    let picked = studio.cur(&format!("wiiu|{}", g.file.to_string_lossy().to_lowercase())).and_then(|c| c.get("src")).and_then(Value::as_str).is_some_and(|s| !s.is_empty() && s != "builtin");
+    g.art.front.is_some() && !picked && (crate::wiiumanual::generated(data_dir, &g.title) || crate::wiiumanual::looks_made(first))
+}
+
 /// What the shelves want from outside, fetched and measured off the shelf's thread: the Xbox 360 title list (again
 /// after a week), the arcade names (once), and the size of each game folder that has none yet or has changed. True
 /// when reading the library again would show something new.
@@ -438,6 +455,7 @@ pub fn upkeep(lib: &Library) -> bool {
     }
     changed |= auto_covers(lib, &data_dir);
     changed |= auto_manuals(lib, &data_dir);
+    changed |= wiiu_manuals(lib, &data_dir);
     changed | convert_pdf_manuals(lib)
 }
 
@@ -518,6 +536,24 @@ fn auto_manuals(lib: &Library, data_dir: &Path) -> bool {
         changed |= spreads::split_manual(&g.dir, &g.base, spreads::Split::default()).is_ok_and(|pages| pages > 0);
     }
     changed
+}
+
+/// Each Wii U game's own e-manual made into pages, once a game. True when a manual was made.
+fn wiiu_manuals(lib: &Library, data_dir: &Path) -> bool {
+    let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
+    let mut want = Vec::new();
+    for shelf in lib.shelves.iter().filter(|s| s.id == "wiiu") {
+        let ShelfKind::Console { config, .. } = &shelf.kind else { continue };
+        for g in shelf.games.iter().filter(|g| g.source == Source::Rom) {
+            want.push(crate::wiiumanual::Want {
+                title: g.title.clone(),
+                file: g.file.clone(),
+                art_dir: art.manual_dir_for(config, &g.file, &lib.app_root),
+                base: crate::art::art_base(&g.file),
+            });
+        }
+    }
+    crate::wiiumanual::collect(data_dir, &want, &crate::wiiumanual_draw::render) > 0
 }
 
 /// (Linux) The Epic library asked for again when it's over 6 hours old, and Epic's box art for the games without a
@@ -676,6 +712,34 @@ fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_wii_u_manual_made_here_opens_on_the_box_front() {
+        let t = tempfile::tempdir().unwrap();
+        let data = t.path();
+        let page = data.join("art/Game-manual-01.jpg");
+        std::fs::create_dir_all(page.parent().unwrap()).unwrap();
+        image::RgbImage::new(20, 40).save(&page).unwrap();
+        let mut g = Game { title: "Game".into(), file: PathBuf::from("/games/Game.wua"), ..Game::default() };
+        g.art.manual = vec![page.clone()];
+        let studio = crate::manualstudio::Db::load(data);
+        assert!(!wiiu_cover_first(data, &studio, &g), "pages not made here");
+        std::fs::create_dir_all(data.join("wiiu-manuals")).unwrap();
+        std::fs::write(data.join("wiiu-manuals/Game.made"), "x").unwrap();
+        assert!(!wiiu_cover_first(data, &studio, &g), "no front");
+        g.art.front = Some(data.join("art/Game.png"));
+        assert!(wiiu_cover_first(data, &studio, &g));
+        let mut studio = studio;
+        studio.all["cur"]["wiiu|/games/game.wua"] = serde_json::json!({ "src": "coll:x" });
+        assert!(!wiiu_cover_first(data, &studio, &g), "a manual picked in Manual Studio has its own cover");
+        studio.all["cur"]["wiiu|/games/game.wua"] = serde_json::json!({ "src": "builtin" });
+        assert!(wiiu_cover_first(data, &studio, &g));
+        // made by another copy of the app: known by the pages' shape
+        std::fs::remove_file(data.join("wiiu-manuals/Game.made")).unwrap();
+        assert!(!wiiu_cover_first(data, &studio, &g));
+        image::RgbImage::new(1376, 2000).save(&page).unwrap();
+        assert!(wiiu_cover_first(data, &studio, &g));
+    }
 
     /// (the folders out of reach are kept for the whole app: one read at a time here)
     static ONE_LOAD: std::sync::Mutex<()> = std::sync::Mutex::new(());

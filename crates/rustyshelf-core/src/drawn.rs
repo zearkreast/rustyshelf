@@ -190,7 +190,7 @@ static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
 });
 
 #[derive(Clone, Copy)]
-enum Face {
+pub(crate) enum Face {
     /// one of the three title fonts
     Title(usize),
     /// Lexend at a weight: 0 regular, 1 medium, 2 bold, 3 extra bold, 4 semibold
@@ -202,7 +202,7 @@ enum Face {
 }
 
 /// The font a letter is drawn in: the face's own when it has the letter.
-fn font_for(face: Face, c: char) -> &'static FontRef<'static> {
+pub(crate) fn font_for(face: Face, c: char) -> &'static FontRef<'static> {
     let own = match face {
         Face::Title(i) => &FONTS.title[i % 3],
         Face::Lexend(w) => &FONTS.lexend[w.min(4)],
@@ -226,6 +226,11 @@ fn text_width(face: Face, text: &str, size: f32) -> f32 {
 
 /// A line of text as a shape, its left end on the baseline at (x, y).
 fn text_path(face: Face, text: &str, size: f32, x: f32, y: f32) -> Option<Path> {
+    spaced_path(face, text, size, x, y, 0.0)
+}
+
+/// As `text_path`, with `spacing` more after every letter.
+pub(crate) fn spaced_path(face: Face, text: &str, size: f32, x: f32, y: f32, spacing: f32) -> Option<Path> {
     let mut pb = PathBuilder::new();
     let mut pen = x;
     for c in text.chars() {
@@ -258,7 +263,7 @@ fn text_path(face: Face, text: &str, size: f32, x: f32, y: f32) -> Option<Path> 
                 pb.close();
             }
         }
-        pen += f.h_advance_unscaled(id) * k;
+        pen += f.h_advance_unscaled(id) * k + spacing;
     }
     pb.finish()
 }

@@ -5818,6 +5818,7 @@ dependencies = [
  "rustfft",
  "rustls",
  "rustyshelf-imgtools",
+ "ruzstd",
  "serde",
  "serde_json",
  "sha1",
