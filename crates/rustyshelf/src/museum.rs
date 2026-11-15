@@ -1052,7 +1052,7 @@ pub fn run(
         return;
     }
     // into the arcade: W, or Y on a pad
-    if keys.just_pressed(KeyCode::KeyW) || pad(GamepadButton::North) {
+    if m.held.is_none() && (keys.just_pressed(KeyCode::KeyW) || pad(GamepadButton::North)) {
         let cap = l.config.raw().get("ui").and_then(|u| u.get("arcadeCap")).and_then(|c| c.as_f64());
         if let Some(w) = crate::arcade::Walk::start(l, cap) {
             for (e, _) in things.iter().filter(|(_, hud)| !hud) {
@@ -1084,6 +1084,11 @@ pub fn run(
     let pick = keys.just_pressed(KeyCode::Space) || pad(GamepadButton::West);
     let backing = keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(settings.confirm().1);
     let holding = m.held.is_some();
+    let manual = m.rows.get(m.row).and_then(|r| r.games.get(m.col).map(|&gi| l.shelves[r.shelf].games[gi].art.manual.clone())).filter(|p| !p.is_empty());
+    if let (true, Some(pages)) = (holding && (keys.just_pressed(KeyCode::KeyM) || pad(GamepadButton::North)), manual.clone()) {
+        settings.manual = Some(pages);
+        return;
+    }
     if let Some(h) = m.held.as_mut() {
         if pick || backing {
             m.held = None;
@@ -1123,7 +1128,7 @@ pub fn run(
         }
     }
     let back = !holding && backing;
-    if m.rows.is_empty() || keys.just_pressed(KeyCode::KeyM) || (back && m.wide) {
+    if m.rows.is_empty() || (keys.just_pressed(KeyCode::KeyM) && !holding) || (back && m.wide) {
         return close(&mut commands, m, &things, &mut camera, &mut others.shelf_camera, &mut sounds);
     }
     if back {
@@ -1367,7 +1372,8 @@ pub fn run(
             note
         } else if m.held.is_some() && !r.games.is_empty() {
             let g = &l.shelves[r.shelf].games[r.games[m.col]];
-            format!("{}\n{}", g.title, tr("Arrows  Turn it  ·  Enter  Play  ·  Esc  Put it back"))
+            let read = if g.art.manual.is_empty() { String::new() } else { format!("  ·  {}", tr("M  Manual")) };
+            format!("{}\n{}{read}", g.title, tr("Arrows  Turn it  ·  Enter  Play  ·  Esc  Put it back"))
         } else if let (true, Some((u, x))) = (m.wide, unit) {
             let k = m.rack.pieces.iter().filter(|p| p.unit == u).count();
             format!("{room}{}  ·  {}\n{}", tr(x.label), tr(&if k == 1 { "1 issue".to_string() } else { format!("{k} issues") }), tr("Enter  Zoom in  ·  Esc  Leave"))
