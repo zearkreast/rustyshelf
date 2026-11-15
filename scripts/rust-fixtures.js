@@ -1008,6 +1008,93 @@ async function addgamesFixtures() {
       clean: names.map(n => [n, ag.clean(n)]), titles: exes.map(e => [e, ag.titleFor(e, path.join(tmp, 'Games')), ag.titleFor(e)]), lib, plan: ag.plan(lib, found) });
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+// ---- manuals (main/manuals.js): how a manual's title is matched to a game's, the searches and the download against
+// a stand-in for the sites (made-up games and uploads), and the automatic pick ----
+async function manualsFixtures() {
+  const https = require('https'), { EventEmitter } = require('events'), { PassThrough } = require('stream'), M = require('../main/manuals');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-man-')), there = v => JSON.parse(JSON.stringify(v).split(JSON.stringify(tmp).slice(1, -1)).join('<tmp>'));
+  const titles = ['Zeta Run', 'Zeta Run 2', 'Zeta Run II: The Long Way', 'The Legend of Omega & Sigma', "Tau's Racers", 'Omega Quest - Dawn of the Kings', 'Phi Party 9 (USA)', 'Call of Rho 7 Black Ops', 'Sigma', 'A', 'Zeta Run + Zeta Run Resort', 'Final Omega XIII-2', 'Alpha 10', '', 'An Ode of the Tau'];
+  const uploads = ['Zeta Run (GameCube) Manual', 'Zeta Run 2 - Instruction Booklet', 'Zeta Run Strategy Guide', 'Zeta Run III manual', 'Nintendo GameCube Zeta Run USA manual scan 2004', 'Zeta Run PS2 manual', 'Zeta Run Xbox 360 Manual', 'Legend of Omega and Sigma, The - Manual (Wii)',
+    'Tau s Racers Game Boy Color', 'Tau Racers promotional poster', 'Sigma Chronicles: The Other Game Collection Manual', 'Phi Party 9 Wii U manual', 'Phi Party 8', 'Call of Rho Black Ops manual', 'Zeta Run Mode d\'emploi', 'Zeta Run (PlayStation Portable)', 'Zeta Run PlayStation 2', 'Zeta Run playstation',
+    'Zeta Run Neo Geo Pocket Color', 'Zeta Run neo-geo pocket', 'Zeta Run Neo Geo', 'Zeta Run game boy advance', 'Zeta Run gameboy', 'Zeta Run xbox one', 'Zeta Run Xbox', 'Zeta Run Wii', 'Zeta Run WiiU', 'Zeta Run service manual', 'Zeta Run 1999 catalogue no 12345', ''];
+  const systems = ['gc', 'wii', 'wiiu', 'ps2', 'psx', 'psp', 'x360', 'xbox', 'gb', 'gbc', 'neogeo', 'ngp', 'nds', 'sw2', 'nowhere'];
+  const out = { norm: titles.concat(uploads).map(t => [t, M.norm(t), [...M.words(t)], [...M.seqNums(t)]]), parts: [], scores: [], foreign: [] };
+  for (const a of titles) for (const b of uploads) { const p = M.simParts(a, b); out.parts.push([a, b, p.recall, p.noise, !!p.wrongSequel, M.similarity(a, b)]); }
+  for (const sys of ['gc', 'wii', 'ps2', 'gb']) for (const t of uploads) for (const o of [{}, { lang: 'fre', downloads: 250 }, { lang: 'english', anyPlatform: true, downloads: '9000' }]) out.scores.push([sys, 'Zeta Run', t, o, M.scoreHit(sys, 'Zeta Run', t, o)]);
+  for (const sys of systems) for (const t of uploads) out.foreign.push([sys, t, M.foreignPlatform(sys, t, false), M.foreignPlatform(sys, t, true)]);
+  out.slugs = ["Tau's Racers (USA)", 'The Legend of Omega - Dawn', 'A Sigma & Rho Tale', 'Omega Quest, The - Second Part', 'Zeta Run!', '--Phi--', 'Ünï Çode', 'the'].map(t => [t, M.gdbSlugs(t)]);
+  out.alt = ['Zeta Run III', 'Zeta Run 3', 'Final Omega XIII: Part IV', 'Alpha 14', 'Phi 2 and 10', 'Nothing here', 'vii lowercase'].map(t => [t, M.altNumbers(t)]);
+  out.pageImages = [{ name: 'scan_01.jpg', source: 'original', format: 'JPEG', size: '200000' }, { name: 'scan_01_thumb.jpg', source: 'original', size: 200000 }, { name: '__ia_thumb.jpg' }, { name: 'x.PNG', source: 'derivative' }, { name: 'tile.jpg', format: 'Item Tile' },
+    { name: 'small.jpg', size: 9000 }, { name: 'huge.png', size: 90 * 1048576 }, { name: 'nosize.jpeg' }, { name: 'book.pdf', source: 'original' }, { name: 'thumbs/x.jpg' }, { name: 'a/.thumbs/x.jpg' }, null, { name: 'zero.jpg', size: 0 }].map(f => [f, M.isPageImage(f)]);
+  out.langs = [['eng', ''], ['English;French', ''], [['fre', 'eng'], ''], ['', 'Zeta Run Mode d\'emploi'], ['', 'Zeta Run Bedienungsanleitung'], ['', 'Zeta Run manuale'], ['', 'Manual de instrucciones'], ['', '取扱説明書'], ['xx', 'Plain'], ['JPN', ''], [undefined, 'Notice']].map(([r, t]) => [r === undefined ? null : r, t, M.langCode(r, t)]);
+  out.regions = ['Zeta Run (PAL)', 'Zeta Run NTSC-J', 'Zeta Run USA', 'Zeta Run (Europe) (USA)', 'Zeta Run', 'us', 'Australia', 'ntsc', 'bus'].map(t => [t, M.regionOf(t)]);
+  const cand = (id, title, language, score) => ({ id, title, language, score, english: !language || /^(eng|en)/.test(language) });
+  const list = [cand('a', 'Zeta Run Manual', 'eng', 9), cand('b', 'Zeta Run Mode d\'emploi', 'fre', 5.5), cand('c', 'Zeta Run (PAL) Manual', '', 8), cand('d', 'Zeta Run Japan', 'jpn', 2), cand('e', 'Zeta Run Anleitung', 'ger', 2.5)];
+  fs.writeFileSync(path.join(tmp, 'rejects.json'), JSON.stringify({ 'gc|rejecting': ['a'] })); M.setRejectStore(path.join(tmp, 'rejects.json'));
+  out.prefs = { list, picks: [] };
+  for (const pref of ['best', '', 'lang:fr', 'lang:de', 'lang:it', 'region:eur', 'region:jpn', 'nonsense']) for (const key of ['gc|plain', 'gc|rejecting']) { const p = M.prefPick(list, pref, key); out.prefs.picks.push([pref, key, p ? p.id : null, p ? p.score : null, list.map(c => M.prefMatch(c, pref))]); }
+
+  // the sites: an address → what it answers (page: a file of that letter, 3000 times)
+  const ia = q => `https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=identifier&fl[]=title&fl[]=language&fl[]=imagecount&fl[]=downloads&rows=12&output=json`;
+  const q1 = (t, w) => `(${JSON.stringify(t)}) AND mediatype:texts AND (manual OR instruction OR booklet)` + (w ? ` AND (${w.map(x => JSON.stringify(x)).join(' OR ')})` : ''), q2 = t => `title:(${JSON.stringify(t)}) AND mediatype:texts AND (manual OR instruction OR booklet)`;
+  const GC = ['gamecube', 'game cube', 'gcn', 'ngc'], docs = d => ({ json: { response: { docs: d } } }), doc = (identifier, title, more = {}) => ({ identifier, title, language: 'eng', imagecount: 12, downloads: 100, ...more });
+  const gdb = 'https://www.gamesdatabase.org/game/nintendo-gamecube/', dl = 'https://archive.org/download/';
+  const site = {
+    [ia(q1('Zeta Run', GC))]: docs([doc('zeta-run-gc', 'Zeta Run (GameCube) Manual'), doc('zeta-guide', 'Zeta Run Strategy Guide'), doc('zeta-fr', 'Zeta Run Mode d\'emploi', { language: ['fre', 'eng'], downloads: 900 }), doc('zeta-ps2', 'Zeta Run PS2 manual', { imagecount: '30' }), doc('zeta-3', 'Zeta Run III manual'),
+      doc('zeta-none', 'Zeta Run instruction booklet', { language: undefined, imagecount: undefined, downloads: 2000 }), doc('other', 'Something Else Entirely')]),
+    [gdb + 'zeta-run']: { body: '<html><a href="/Media/Manual/Zeta_Run_GameCube_Manual.pdf">Manual</a></html>' },
+    [ia(q1('Omega Quest', GC))]: docs([]), [ia(q2('Omega Quest'))]: docs([doc('omega-any', 'Omega Quest Manual', { language: 'English' })]), [gdb + 'omega-quest']: { body: 'Game Not Found' }, [gdb + 'omega-quest-']: { body: '<html>a page with no manual</html>' },
+    [ia(q1('Sigma III', GC))]: docs([]), [ia(q1('Sigma 3', GC))]: docs([doc('sigma-3', 'Sigma 3 Instruction Manual')]),
+    [ia(q1('Tau Racers + Tau Racers Resort', GC))]: docs([]), [ia(q1('Tau Racers', GC))]: docs([doc('tau', 'Tau Racers Manual (GameCube)')]),
+    [ia(q1('Busy Game', GC))]: { status: 503 }, [ia(q1('Refused Game', GC))]: { status: 400 }, [ia(q1('Junk Game', GC))]: { body: 'not json' }, [ia(q1('Odd Answer', GC))]: { json: { nothing: true } }, [ia(q1('Slow Down', GC))]: { status: 429 },
+    [ia(q1('Pdf Only', GC))]: { status: 503 }, [gdb + 'pdf-only']: { body: '<A HREF="https://www.gamesdatabase.org/Media/SYSTEM/Nintendo_GameCube/Manual/formated/Pdf_Only_PC_Game_Manual.PDF">x</A>' },
+    [ia(q1('Phi "Quoted" Kart', GC).replace('\\"', '').replace('\\"', ''))]: docs([doc('phi', 'Phi Quoted Kart manual')]),
+    [ia(q1('Zeta Run', null))]: docs([doc('zeta-wii', 'Zeta Run Wii Manual'), doc('zeta-pc', 'Zeta Run PC manual'), doc('zeta-fr', 'Zeta Run manuel', { language: 'fre' })]),
+    // uploads to download
+    'https://archive.org/metadata/counted': { json: { server: 'ia800.example.org', dir: '/1/items/counted', metadata: { imagecount: '3' }, files: [{ name: 'counted_jp2.zip' }, { name: 'counted.pdf' }] } },
+    [dl + 'counted/page/n0_w1600.jpg']: { page: 'A' }, [dl + 'counted/page/n1_w1600.jpg']: { status: 500 }, [dl + 'counted/page/n2_w1600.jpg']: { page: 'C' },
+    'https://ia800.example.org/BookReader/BookReaderImages.php?zip=%2F1%2Fitems%2Fcounted%2Fcounted_jp2.zip&file=counted_jp2%2Fcounted_0001.jp2&id=counted&scale=2&rotate=0': { page: 'B' },
+    'https://archive.org/metadata/numbered': { json: { server: 's', dir: '/d', metadata: {}, files: [{ name: 'Numbered Scan_jp2.zip' }, { name: 'Numbered Scan_page_numbers.json' }] } }, [dl + 'numbered/Numbered%20Scan_page_numbers.json']: { json: { pages: [{}, {}] } },
+    [dl + 'numbered/page/n0_w1600.jpg']: { page: 'D' }, [dl + 'numbered/page/n1_w1600.jpg']: { page: 'E' },
+    'https://archive.org/metadata/scanned': { json: { server: 's', dir: '/d', files: [{ name: 'scanned_jp2.zip' }, { name: 'scanned_scandata.xml' }] } }, [dl + 'scanned/scanned_scandata.xml']: { body: '<book>' + '<page leafNum="0">x</page>\n<page\tleafNum="1"></page>'.padEnd(2100, ' ') + '</book>' },
+    [dl + 'scanned/page/n0_w1600.jpg']: { page: 'F' }, [dl + 'scanned/page/n1_w1600.jpg']: { page: 'G' },
+    'https://archive.org/metadata/guessed': { json: { server: 's', dir: '/d', files: [{ name: 'guessed_jp2.zip' }] } }, ...Object.fromEntries(Array.from({ length: 40 }, (_, i) => [dl + `guessed/page/n${i}_w1600.jpg`, { page: 'HIJ'[Math.min(i, 2)] }])),
+    'https://archive.org/metadata/loose': { json: { files: [{ name: 'page 10.jpg', source: 'original', size: 30000 }, { name: 'page 2.PNG', source: 'original', size: 30000 }, { name: 'page 1.jpg', source: 'original', size: 30000 }, { name: '__ia_thumb.jpg' }, { name: 'page 3_thumb.jpg', source: 'original' }, { name: 'notes.txt' }] } },
+    [dl + 'loose/page%201.jpg']: { page: 'K' }, [dl + 'loose/page%202.PNG']: { page: 'L' }, [dl + 'loose/page%2010.jpg']: { page: 'M' },
+    'https://archive.org/metadata/broken': { json: { server: 's', dir: '/d', metadata: { imagecount: 3 }, files: [{ name: 'broken_jp2.zip' }] } }, [dl + 'broken/page/n0_w1600.jpg']: { page: 'N' }, [dl + 'broken/page/n2_w1600.jpg']: { body: 'tiny' },
+    'https://archive.org/metadata/gone': { status: 404 },
+    'https://www.gamesdatabase.org/Media/Manual/Zeta_Run_GameCube_Manual.pdf': { page: 'P' },
+    // for the automatic pick: one game with a confident match, one with a poor one, one that can't be asked about
+    [ia(q1('Alpha Tale', ['snes', 'super nintendo', 'super famicom']))]: docs([doc('counted', 'Alpha Tale Manual (SNES)')]),
+    [ia(q1('Beta Kart', ['snes', 'super nintendo', 'super famicom']))]: docs([doc('beta-guide', 'Beta Kart Strategy Guide')]),
+    [ia(q1('Gamma Force', ['snes', 'super nintendo', 'super famicom']))]: { status: 503 },
+  };
+  const asked = [], real = https.get;
+  https.get = (url, opts, cb) => { asked.push(url); const r = site[url] || { status: 404 }, req = new EventEmitter(); req.setTimeout = () => {}; req.destroy = e => { if (e) req.emit('error', e); };
+    setImmediate(() => { const res = new PassThrough(); res.statusCode = r.status || 200; res.headers = {}; cb(res); res.end(r.json ? JSON.stringify(r.json) : r.page ? r.page.repeat(3000) : r.body || ''); }); return req; };
+  const holds = dir => { try { return Object.fromEntries(fs.readdirSync(dir).sort().map(f => { const b = fs.readFileSync(path.join(dir, f)); return [f, b.toString('latin1', 0, 1) + b.length]; })); } catch { return {}; } };
+  try {
+    out.site = site;
+    out.searches = []; for (const [sys, title] of [['gc', 'Zeta Run'], ['gc', 'Omega Quest'], ['gc', 'Sigma III'], ['gc', 'Tau Racers + Tau Racers Resort'], ['gc', 'Busy Game'], ['gc', 'Refused Game'], ['gc', 'Junk Game'], ['gc', 'Odd Answer'], ['gc', 'Slow Down'], ['gc', 'Pdf Only'], ['gc', 'Phi "Quoted" Kart'], ['gc', 'Nothing At All'], ['pc', 'Zeta Run']]) {
+      let r; try { r = await M.search(sys, title); } catch (e) { r = { error: e.message }; } out.searches.push([sys, title, r]); }
+    out.elsewhere = await M.searchArchive('gc', 'Zeta Run', { anyPlatform: true });
+    out.gdb = await M.searchGamesDatabase('gc', 'Zeta Run');
+    out.fetched = []; for (const id of ['counted', 'numbered', 'scanned', 'guessed', 'loose', 'broken', 'gone']) { const dir = path.join(tmp, 'f-' + id); let r; try { r = await M.fetchManual(id, dir, 'Zeta Run (USA)', () => {}); } catch (e) { r = 'error: ' + e.message; } out.fetched.push([id, r, holds(dir)]); }
+    // chosen by hand: an upload, GamesDatabase's PDF, and an address that isn't one of its PDFs
+    const { CONSOLES } = require('../main/systems'), roms = path.join(tmp, 'roms'), sys = [{ def: CONSOLES.find(c => c.id === 'snes'), cfg: { romDirs: [roms], enabled: true } }];
+    fs.mkdirSync(roms); for (const n of ['Alpha Tale (USA).sfc', 'Beta Kart (Europe).sfc', 'Gamma Force (USA).sfc', 'Delta Has One (USA).sfc']) fs.writeFileSync(path.join(roms, n), 'rom');
+    fs.mkdirSync(path.join(roms, 'covers')); fs.writeFileSync(path.join(roms, 'covers', 'Delta Has One (USA)-manual-01.jpg'), 'page');
+    out.chosen = there(await M.downloadChosen(sys, [{ systemId: 'snes', file: path.join(roms, 'Beta Kart (Europe).sfc'), id: 'gdb:https://www.gamesdatabase.org/Media/Manual/Zeta_Run_GameCube_Manual.pdf' }, { systemId: 'snes', file: path.join(roms, 'Gamma Force (USA).sfc'), id: 'gdb:https://example.org/x.pdf' },
+      { systemId: 'snes', file: path.join(roms, 'Gamma Force (USA).sfc'), id: 'numbered' }], () => {}));
+    out.chosenHolds = holds(path.join(roms, 'covers'));
+    for (const f of fs.readdirSync(path.join(roms, 'covers'))) if (!f.startsWith('Delta')) fs.unlinkSync(path.join(roms, 'covers', f));
+    M.setStore(path.join(tmp, 'auto.json'));
+    out.auto = await M.autoFetch(sys); out.autoHolds = holds(path.join(roms, 'covers'));
+    out.autoMemo = there(Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(path.join(tmp, 'auto.json'), 'utf8'))).map(([k, v]) => { const { at, ...rest } = v; return [k.split('/').pop(), rest]; })));
+    asked.length = 0; out.autoAgain = [await M.autoFetch(sys), asked.length];
+    return out;
+  } finally { https.get = real; fs.rmSync(tmp, { recursive: true, force: true }); }
+}
 steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steam.json'), JSON.stringify(st, null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'pc.json'), JSON.stringify(await pcFixtures(), null, 1) + '\n');
@@ -1017,6 +1104,7 @@ steamFixtures().then(async st => {
   fs.writeFileSync(path.join(OUT, 'steamgrid.json'), JSON.stringify(await steamgridFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'dataexport.json'), JSON.stringify(await dataexportFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'addgames.json'), JSON.stringify(await addgamesFixtures(), null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, 'manuals.json'), JSON.stringify(await manualsFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'updates.json'), JSON.stringify(await updatesFixtures()) + '\n');
   fs.writeFileSync(path.join(OUT, 'homekeys.json'), JSON.stringify(homekeysFixtures(), null, 1) + '\n');
   fs.writeFileSync(path.join(OUT, 'screenscraper.json'), JSON.stringify(await screenscraperFixtures(), null, 1) + '\n');

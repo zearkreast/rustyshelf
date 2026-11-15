@@ -35,6 +35,7 @@ pub mod launch;
 pub mod lbindex;
 pub mod library;
 pub mod looks;
+pub mod manuals;
 pub mod music;
 pub mod n3ds;
 pub mod net;

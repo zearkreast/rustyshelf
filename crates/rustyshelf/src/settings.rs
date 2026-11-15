@@ -28,6 +28,7 @@ mod addgames;
 mod collections;
 mod custom;
 mod find;
+mod manuals;
 mod moving;
 pub mod setup;
 mod text;
@@ -66,6 +67,8 @@ enum Screen {
     /// the games found to add, to be ticked; and what a Playnite library comes to
     AddGames,
     Playnite,
+    /// the manuals found for the chosen game
+    Manuals,
     BoxArt,
     Display,
     Sound,
@@ -174,6 +177,7 @@ pub struct Settings {
     moves: moving::Moves,
     update: update::Update,
     adding: addgames::Adding,
+    manual_search: manuals::ManualSearch,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -248,6 +252,7 @@ impl Default for Settings {
             moves: Default::default(),
             update: Default::default(),
             adding: Default::default(),
+            manual_search: Default::default(),
             finding: Default::default(),
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
@@ -941,6 +946,7 @@ impl Settings {
             Screen::Custom => self.custom_page(),
             Screen::CustomGame(i) => self.custom_game_page(*i),
             Screen::AddGames => self.add_games_page(),
+            Screen::Manuals => self.manuals_page(),
             Screen::Playnite => self.playnite_page(),
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
@@ -1009,6 +1015,7 @@ impl Settings {
                 let mut rows = vec![
                     toggle("Download box art", &["ui", "autoCovers"], false, "Covers come from the libretro thumbnail library and the LaunchBox Games Database; game names are sent to them"),
                     Row { label: "Region".into(), value: REGIONS[at].1.into(), hint: "Which region's box comes first".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) },
+                    toggle("Fetch manuals for new games", &["ui", "autoManuals"], false, "Finds a game's manual on archive.org and GamesDatabase.org and saves its pages beside the box art, to read from Details; game names are sent to them"),
                     Row {
                         label: "Art library".into(),
                         value: if lib.is_empty() { "Beside the games".into() } else { short(&lib) },
@@ -1318,6 +1325,13 @@ impl Settings {
                             s.redraw = true;
                         })),
                         step: None,
+                    });
+                } else if self.can_find_manual() {
+                    rows.push(Row {
+                        label: "Find a manual".into(),
+                        hint: "Looks for this game's manual on archive.org and GamesDatabase.org (its name is sent to them) and lists what they have to pick from".into(),
+                        press: Some(Box::new(|s: &mut Settings| s.find_manual())),
+                        ..Row::default()
                     });
                 } else if let Some(pdf) = g.art.manual_pdf.clone() {
                     rows.push(Row {
@@ -1659,6 +1673,7 @@ pub fn input(
     s.poll_moves();
     s.poll_update();
     s.poll_adding();
+    s.poll_manuals();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;

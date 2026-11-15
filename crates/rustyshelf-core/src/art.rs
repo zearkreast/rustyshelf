@@ -178,6 +178,12 @@ impl ArtLibrary {
         self.folder(&root).unwrap_or(root).join("covers")
     }
 
+    /// Where a game's manual goes: as its art, but with an art library the games folder's `manuals` folder in it.
+    pub fn manual_dir_for(&self, sc: &SystemConfig, file: &Path, app_root: &Path) -> PathBuf {
+        let covers = self.dir_for(sc, file, app_root);
+        if sc.art_dir.is_empty() && self.root.is_some() { covers.with_file_name("manuals") } else { covers }
+    }
+
     /// The folders a console's art is looked for in, first match wins.
     pub fn dirs_for(&self, sc: &SystemConfig, app_root: &Path) -> Vec<PathBuf> {
         let mut out = Vec::new();

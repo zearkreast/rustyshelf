@@ -1375,3 +1375,154 @@ fn adding_many_games_matches_the_js() {
     let planned: Value = serde_json::from_str(&planned.to_string().replace(serde_json::to_string(&root).unwrap().trim_matches('"'), "<tmp>")).unwrap();
     assert_eq!(planned, fx["plan"]);
 }
+
+#[test]
+fn manuals_are_matched_found_and_downloaded_as_the_js_does() {
+    use rustyshelf_core::manuals::{self as m, Candidate, Got, Stores, Wanted, Web, WebError};
+    use serde_json::json;
+    use std::collections::BTreeSet;
+    use std::sync::Mutex;
+    let fx = fixture("manuals.json");
+    let text = |v: &Value| v.as_str().unwrap().to_string();
+    let set = |v: &Value| v.as_array().unwrap().iter().map(|w| w.as_str().unwrap().to_string()).collect::<BTreeSet<_>>();
+    for n in fx["norm"].as_array().unwrap() {
+        let t = n[0].as_str().unwrap();
+        assert_eq!((m::norm(t), m::words(t), m::seq_nums(t)), (text(&n[1]), set(&n[2]), set(&n[3])), "{t}");
+    }
+    let near = |a: f64, b: &Value| (a - b.as_f64().unwrap()).abs() < 1e-9;
+    for p in fx["parts"].as_array().unwrap() {
+        let (a, b) = (p[0].as_str().unwrap(), p[1].as_str().unwrap());
+        let (recall, noise, wrong) = m::sim_parts(a, b);
+        assert!(near(recall, &p[2]) && json!(noise) == p[3] && json!(wrong) == p[4] && near(m::similarity(a, b), &p[5]), "{a} | {b}: {recall} {noise} {wrong}, wanted {p}");
+    }
+    for s in fx["scores"].as_array().unwrap() {
+        let o = &s[3];
+        let downloads = o.get("downloads").map_or(0.0, |d| d.as_f64().unwrap_or_else(|| d.as_str().unwrap().parse().unwrap()));
+        let got = m::score_hit(s[0].as_str().unwrap(), s[1].as_str().unwrap(), s[2].as_str().unwrap(), o["lang"].as_str().unwrap_or(""), o["anyPlatform"] == true, downloads);
+        assert!(near(got, &s[4]), "{s}: {got}");
+    }
+    for f in fx["foreign"].as_array().unwrap() {
+        let (sys, t) = (f[0].as_str().unwrap(), f[1].as_str().unwrap());
+        assert_eq!(json!([m::foreign_platform(sys, t, false), m::foreign_platform(sys, t, true)]), json!([f[2], f[3]]), "{sys}: {t}");
+    }
+    for s in fx["slugs"].as_array().unwrap() {
+        assert_eq!(json!(m::gdb_slugs(s[0].as_str().unwrap())), s[1], "{}", s[0]);
+    }
+    for a in fx["alt"].as_array().unwrap() {
+        assert_eq!(json!(m::alt_numbers(a[0].as_str().unwrap())), a[1], "{}", a[0]);
+    }
+    for p in fx["pageImages"].as_array().unwrap() {
+        assert_eq!(json!(m::is_page_image(&p[0])), p[1], "{}", p[0]);
+    }
+    for l in fx["langs"].as_array().unwrap() {
+        let raw = match &l[0] {
+            Value::Array(a) => a.iter().map(|x| x.as_str().unwrap()).collect::<Vec<_>>().join(";"),
+            other => other.as_str().unwrap_or("").to_string(),
+        };
+        assert_eq!(json!(m::lang_code(&raw, l[1].as_str().unwrap())), l[2], "{l}");
+    }
+    for r in fx["regions"].as_array().unwrap() {
+        assert_eq!(json!(m::region_of(r[0].as_str().unwrap())), r[1], "{}", r[0]);
+    }
+    let list: Vec<Candidate> = fx["prefs"]["list"].as_array().unwrap().iter().map(|c| Candidate { id: text(&c["id"]), title: text(&c["title"]), language: text(&c["language"]), pages: 0, score: c["score"].as_f64().unwrap(), source: "", thumb: String::new(), url: String::new() }).collect();
+    for p in fx["prefs"]["picks"].as_array().unwrap() {
+        let (pref, key) = (p[0].as_str().unwrap(), p[1].as_str().unwrap());
+        let pick = m::pref_pick(&list, pref, &|id| key == "gc|rejecting" && id == "a");
+        assert_eq!((pick.as_ref().map(|c| c.id.as_str()), pick.as_ref().map(|c| c.score)), (p[2].as_str(), p[3].as_f64()), "{pref} for {key}");
+        assert_eq!(json!(list.iter().map(|c| m::pref_match(c, pref)).collect::<Vec<_>>()), p[4], "{pref}");
+    }
+
+    // the stand-in for the sites
+    struct Site<'a>(&'a Value, Mutex<usize>);
+    impl Site<'_> {
+        fn answer(&self, url: &str) -> Result<Vec<u8>, WebError> {
+            *self.1.lock().unwrap() += 1;
+            let Some(r) = self.0.get(url) else { return Err(WebError::Http(404)) };
+            match r["status"].as_u64() {
+                Some(code) if code != 200 => Err(WebError::Http(code as u16)),
+                _ => Ok(match (r.get("json"), r["page"].as_str()) {
+                    (Some(j), _) => j.to_string().into_bytes(),
+                    (None, Some(letter)) => letter.repeat(3000).into_bytes(),
+                    _ => r["body"].as_str().unwrap_or("").as_bytes().to_vec(),
+                }),
+            }
+        }
+    }
+    impl Web for Site<'_> {
+        fn json(&self, url: &str) -> Result<Value, WebError> {
+            serde_json::from_slice(&self.answer(url)?).map_err(|_| WebError::Unreadable)
+        }
+        fn text(&self, url: &str) -> Result<String, WebError> {
+            Ok(String::from_utf8(self.answer(url)?).unwrap())
+        }
+        fn file(&self, url: &str, dest: &Path) -> Result<bool, WebError> {
+            match self.answer(url) {
+                Ok(bytes) if bytes.len() >= 2048 => {
+                    fs::write(dest, bytes).unwrap();
+                    Ok(true)
+                }
+                _ => Ok(false),
+            }
+        }
+        fn pause(&self, _: u64) {}
+    }
+    let site = Site(&fx["site"], Mutex::new(0));
+    let listed = |found: &[Candidate]| Value::from(found.iter().map(Candidate::to_json).collect::<Vec<_>>());
+    for s in fx["searches"].as_array().unwrap() {
+        let got = match m::search(&site, s[0].as_str().unwrap(), s[1].as_str().unwrap()) {
+            Ok(found) => listed(&found),
+            Err(e) => json!({ "error": e.words() }),
+        };
+        assert_eq!(got, s[2], "{} {}", s[0], s[1]);
+    }
+    let plain = |found: &[Candidate]| Value::from(found.iter().map(|c| { let mut j = c.to_json(); let o = j.as_object_mut().unwrap(); o.remove("languageName"); o.remove("english"); j }).collect::<Vec<_>>());
+    assert_eq!(plain(&m::search_archive(&site, "gc", "Zeta Run", true).unwrap()), fx["elsewhere"]);
+    assert_eq!(plain(&m::search_games_database(&site, "gc", "Zeta Run").into_iter().collect::<Vec<_>>()), json!([fx["gdb"]]));
+
+    let tmp = tempfile::tempdir().unwrap();
+    let holds = |dir: &Path| -> Value {
+        let mut names: Vec<String> = fs::read_dir(dir).into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        names.sort();
+        names.into_iter().map(|n| { let b = fs::read(dir.join(&n)).unwrap(); (n, json!(format!("{}{}", b[0] as char, b.len()))) }).collect::<serde_json::Map<_, _>>().into()
+    };
+    for f in fx["fetched"].as_array().unwrap() {
+        let (id, dir) = (f[0].as_str().unwrap(), tmp.path().join(format!("f-{}", f[0].as_str().unwrap())));
+        let got = match m::fetch_manual(&site, id, &dir, "Zeta Run (USA)", &|_, _| {}) {
+            Ok(n) => json!(n),
+            Err(why) => json!(format!("error: {why}")),
+        };
+        assert_eq!((got, holds(&dir)), (f[1].clone(), f[2].clone()), "{id}");
+    }
+
+    let covers = tmp.path().join("roms").join("covers");
+    fs::create_dir_all(&covers).unwrap();
+    fs::write(covers.join("Delta Has One (USA)-manual-01.jpg"), "page").unwrap();
+    assert_eq!(m::download(&site, "gdb:https://www.gamesdatabase.org/Media/Manual/Zeta_Run_GameCube_Manual.pdf", &covers, "Beta Kart (Europe)", &|_, _| {}), Ok(Got::Pdf(covers.join("Beta Kart (Europe)-manual.pdf"))));
+    assert_eq!(json!(m::download(&site, "gdb:https://example.org/x.pdf", &covers, "Gamma Force (USA)", &|_, _| {}).unwrap_err()), fx["chosen"][0]["error"]);
+    assert_eq!(m::download(&site, "numbered", &covers, "Gamma Force (USA)", &|_, _| {}), Ok(Got::Pages(2)));
+    assert_eq!(holds(&covers), fx["chosenHolds"]);
+    for e in fs::read_dir(&covers).unwrap().flatten().filter(|e| !e.file_name().to_string_lossy().starts_with("Delta")) {
+        fs::remove_file(e.path()).unwrap();
+    }
+
+    let data = tmp.path().join("data");
+    fs::create_dir_all(&data).unwrap();
+    let games: Vec<Wanted> = [("Alpha Tale", "Alpha Tale (USA)"), ("Beta Kart", "Beta Kart (Europe)"), ("Gamma Force", "Gamma Force (USA)")]
+        .iter()
+        .map(|(title, base)| Wanted { sys: "snes".into(), title: title.to_string(), file: tmp.path().join("roms").join(format!("{base}.sfc")).to_string_lossy().into_owned(), dir: covers.clone(), base: base.to_string() })
+        .collect();
+    let mut stores = Stores::load(&data);
+    let now = 1.7e12;
+    assert_eq!(json!(m::auto_fetch(&site, &games, &mut stores, now, &|| false)), json!([fx["auto"]["searched"], fx["auto"]["got"]]));
+    assert_eq!(holds(&covers), fx["autoHolds"]);
+    let memo: Value = serde_json::from_slice(&fs::read(data.join("manual-auto.json")).unwrap()).unwrap();
+    let memo: serde_json::Map<String, Value> = memo.as_object().unwrap().iter().map(|(k, v)| { let mut v = v.clone(); assert_eq!(v.as_object_mut().unwrap().remove("at"), Some(json!(1.7e12 as i64))); (k.rsplit('/').next().unwrap().to_string(), v) }).collect();
+    assert_eq!(Value::from(memo), fx["autoMemo"]);
+    // looked at: nothing is asked again until it's due, a day after an error and a month after finding nothing
+    let asked = *site.1.lock().unwrap();
+    let mut stores = Stores::load(&data);
+    assert_eq!(m::auto_fetch(&site, &games[1..], &mut stores, now + 3_600_000.0, &|| false), (0, 0));
+    assert_eq!((*site.1.lock().unwrap(), fx["autoAgain"].clone()), (asked, json!([{ "searched": 0, "got": 0 }, 0])));
+    assert!(!stores.due(&games[1].key(), now + 29.0 * 86_400_000.0) && stores.due(&games[1].key(), now + 31.0 * 86_400_000.0));
+    assert!(!stores.due(&games[2].key(), now + 3_600_000.0) && stores.due(&games[2].key(), now + 25.0 * 3_600_000.0));
+}

@@ -313,7 +313,31 @@ pub fn upkeep(lib: &Library) -> bool {
     }
     changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
     changed |= steam_fill(lib, &data_dir);
-    changed | auto_covers(lib, &data_dir)
+    changed |= auto_covers(lib, &data_dir);
+    changed | auto_manuals(lib, &data_dir)
+}
+
+/// Manuals for the console games that have none, when fetching them is switched on: the confident matches on
+/// archive.org and GamesDatabase.org, forty games a run at most, each looked at again only when it's due. The
+/// Wii U reads its games' own. True when a manual came in.
+fn auto_manuals(lib: &Library, data_dir: &Path) -> bool {
+    use crate::manuals::{auto_fetch, Online, Stores, Wanted};
+    if !lib.config.auto_manuals() {
+        return false;
+    }
+    let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
+    let mut games = Vec::new();
+    for shelf in lib.shelves.iter().filter(|s| s.id != "wiiu") {
+        let ShelfKind::Console { config, .. } = &shelf.kind else { continue };
+        for g in shelf.games.iter().filter(|g| g.source == Source::Rom && g.art.manual.is_empty() && g.art.manual_pdf.is_none()) {
+            games.push(Wanted { sys: shelf.id.clone(), title: g.title.clone(), file: g.file.to_string_lossy().into_owned(), dir: art.manual_dir_for(config, &g.file, &lib.app_root), base: crate::art::art_base(&g.file) });
+        }
+    }
+    if games.is_empty() {
+        return false;
+    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+    auto_fetch(&Online, &games, &mut Stores::load(data_dir), now, &|| false).1 > 0
 }
 
 /// Box art for the console games missing a front, a back or a spine, unless box art downloads are off. Each game is

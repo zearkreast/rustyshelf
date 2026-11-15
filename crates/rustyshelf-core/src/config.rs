@@ -167,6 +167,11 @@ impl Config {
         seal_key.and_then(|k| crate::seal::unseal(&of("keysEnc"), k)).map_or(String::new(), |k| k.trim().to_string())
     }
 
+    /// Settings → Box art → fetch manuals for new games: off unless it was switched on.
+    pub fn auto_manuals(&self) -> bool {
+        self.raw.get("ui").and_then(|u| u.get("autoManuals")).and_then(Value::as_bool) == Some(true)
+    }
+
     /// Settings → Box art region: "auto", "usa", "eur" or "jpn".
     pub fn art_region(&self) -> &str {
         str_of(self.raw.get("ui").and_then(|u| u.get("artRegion")), "auto")
