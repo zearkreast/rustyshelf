@@ -39,6 +39,11 @@ jobs:
           restore-keys: alpha-windows-
       - name: Build
         shell: bash
+        # (issue 26) RustyShelf's own ScreenScraper developer login, from the repository's secrets, built in (never in
+        # git or the log); without the secrets the build goes on and ScreenScraper needs the player's own developer login
+        env:
+          RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
+          RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
         run: cargo build --release --locked -p rustyshelf
       - name: Name it for the release
         shell: bash
