@@ -42,6 +42,26 @@ pub struct MuseumText;
 #[derive(Component)]
 pub struct MuseumHud;
 
+/// The card beside the pulled case.
+#[derive(Component)]
+pub struct MuseumCard;
+
+/// The card's scale on the shelf.
+const CARD_S: f32 = 1.16;
+
+/// The card's parts, its one picture (each new selection is drawn over it), and how far it has faded in.
+struct CardParts {
+    entity: Entity,
+    face: Handle<StandardMaterial>,
+    board: Handle<StandardMaterial>,
+    image: Handle<Image>,
+    /// the case it was last asked to show, and the one its picture shows
+    asked: Option<(usize, usize)>,
+    shows: Option<(usize, usize)>,
+    drawing: Option<std::sync::Mutex<std::sync::mpsc::Receiver<((usize, usize), rustyshelf_core::drawn::Picture)>>>,
+    fade: f32,
+}
+
 /// The picture light over a row: the row.
 #[derive(Component)]
 pub struct RowLight(usize);
@@ -72,8 +92,10 @@ struct Row {
     sheets: Vec<(Handle<StandardMaterial>, Handle<StandardMaterial>)>,
     xs: Vec<f32>,
     y: f32,
-    /// where the row's plaque ends
+    /// where the row's plaque ends, its console's middle and width, and its cases' width
     end: f32,
+    console: (f32, f32),
+    w: f32,
     painted: bool,
     /// how far its light has come on in the walk-in, 0 to 1, and its plaque
     lamp_on: f32,
@@ -84,6 +106,8 @@ struct Row {
 struct About {
     plays: u64,
     ms: u64,
+    /// when it was last played, in milliseconds since 1970
+    last: u64,
     group: Option<String>,
     fav: bool,
 }
@@ -120,6 +144,7 @@ pub struct Museum {
     /// how long the walk-in has run: the picture lights come on row by row while the camera drifts in to the wall
     intro: Option<f32>,
     lang: String,
+    card: Option<CardParts>,
 }
 
 impl Museum {
@@ -210,6 +235,7 @@ fn build(
     materials: &mut Assets<StandardMaterial>,
     covers: &mut Covers,
     loader: &ArtLoader,
+    images: &mut Assets<Image>,
 ) {
     m.rows.clear();
     // what stands on the walls: (wall, the shelf, its games' places there)
@@ -333,7 +359,7 @@ fn build(
             SpotLight { color: Color::srgb(1.0, 0.88, 0.69), intensity: 0.0, range: 7.5, outer_angle: 0.95, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
             Transform::from_xyz(x / 2.0, y + ROW - 0.62, 0.9).looking_at(Vec3::new(x / 2.0, y - 0.5, 0.0), Vec3::Y),
         ));
-        m.rows.push(Row { wall, shelf: si, name, games, sheets, xs, y, end, painted: false, lamp_on: lit, plaque });
+        m.rows.push(Row { wall, shelf: si, name, games, sheets, xs, y, end, console: (x + 0.3 + console_w / 2.0, console_w), w: sw, painted: false, lamp_on: lit, plaque });
     }
     // each wall's panel behind its rows (a room's are its own width; the classic wall runs on); one floor for the room
     let tallest = on_wall.iter().copied().max().unwrap_or(1).max(1) as f32;
@@ -350,6 +376,17 @@ fn build(
     commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Sphere::new(400.0))), MeshMaterial3d(dark), Transform::from_xyz(widest / 2.0, 0.0, 0.0)));
     let bottom = -(tallest - 1.0) * ROW - 0.5 - PLANK - 0.4;
     commands.spawn((MuseumThing, layer(), Mesh3d(meshes.add(Plane3d::default().mesh().size(widest + 60.0, 40.0 + wall_w[1].max(wall_w[2])))), MeshMaterial3d(floor), Transform::from_xyz(widest / 2.0, bottom, 10.0)));
+    let image = images.add(crate::loading::to_image(1, 1, vec![255; 4]));
+    let face = materials.add(StandardMaterial { base_color: Color::srgba(1.0, 1.0, 1.0, 0.0), base_color_texture: Some(image.clone()), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
+    let board = materials.add(StandardMaterial { base_color: Color::srgba_u8(0x8a, 0x6a, 0x34, 0), metallic: 0.7, perceptual_roughness: 0.35, alpha_mode: AlphaMode::Blend, ..default() });
+    let entity = commands
+        .spawn((MuseumThing, MuseumCard, layer(), Transform::from_scale(Vec3::splat(CARD_S)), Visibility::Hidden))
+        .with_children(|c| {
+            c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(0.9, 0.44))), MeshMaterial3d(face.clone()), Transform::from_xyz(0.0, 0.0, 0.0125)));
+            c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(0.94, 0.48, 0.024))), MeshMaterial3d(board.clone())));
+        })
+        .id();
+    m.card = Some(CardParts { entity, face, board, image, asked: None, shows: None, drawing: None, fade: 0.0 });
     // begin at the shelf and game the cursor is on
     m.row = m.rows.iter().position(|r| r.shelf == cursor.shelf).unwrap_or(0);
     m.col = m.rows.get(m.row).and_then(|r| r.games.iter().position(|&g| g == cursor.game)).unwrap_or(0);
@@ -516,6 +553,15 @@ pub struct Making<'w> {
     meshes: ResMut<'w, Assets<Mesh>>,
     materials: ResMut<'w, Assets<StandardMaterial>>,
     mona: Res<'w, crate::hud::MonaSans>,
+    images: ResMut<'w, Assets<Image>>,
+}
+
+/// The wall's moving parts: the cases, the row lights and the card.
+#[derive(SystemParam)]
+pub struct Wall<'w, 's> {
+    cases: Query<'w, 's, (&'static Case, &'static mut Transform), (Without<MuseumCamera>, Without<RowLight>, Without<MuseumCard>)>,
+    lights: Query<'w, 's, (&'static RowLight, &'static mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
+    card: Query<'w, 's, (&'static mut Transform, &'static mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
 }
 
 /// What has the keys instead (a game running, Inspect, the manual reader), and the shelf's camera, which rests
@@ -544,15 +590,14 @@ pub fn run(
     mut sounds: ResMut<crate::sound::Sounds>,
     mut making: Making,
     mut camera: Cam,
-    mut cases: Query<(&Case, &mut Transform), (Without<MuseumCamera>, Without<RowLight>)>,
-    mut lights: Query<(&RowLight, &mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
+    mut wall: Wall,
     things: Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
     mut text: Query<&mut Text, With<MuseumText>>,
 ) {
     let LibraryState::Ready(l) = &lib.0 else { return };
-    let Making { covers, loader, meshes, materials, mona } = &mut making;
+    let Making { covers, loader, meshes, materials, mona, images } = &mut making;
     let mona = &**mona;
-    let (covers, loader, meshes, materials) = (&mut **covers, &**loader, &mut **meshes, &mut **materials);
+    let (covers, loader, meshes, materials, images) = (&mut **covers, &**loader, &mut **meshes, &mut **materials, &mut **images);
     let now = time.elapsed_secs();
     let m = &mut *museum;
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
@@ -584,7 +629,7 @@ pub fn run(
                 .flat_map(|(si, games)| games.iter().map(|&gi| &l.shelves[*si].games[gi]))
                 .map(|g| {
                     let p = rustyshelf_core::shelfview::played(g, &others.plays.0);
-                    let about = About { plays: p.map_or(0, |p| p.count), ms: p.map_or(0, |p| p.ms), group: rustyshelf_core::shelfview::group_of(g, sort, &others.plays.0, now_ms), fav: favs.contains(g.id.as_str()) };
+                    let about = About { plays: p.map_or(0, |p| p.count), ms: p.map_or(0, |p| p.ms), last: p.map_or(0, |p| p.last), group: rustyshelf_core::shelfview::group_of(g, sort, &others.plays.0, now_ms), fav: favs.contains(g.id.as_str()) };
                     (g.id.clone(), about)
                 })
                 .collect();
@@ -598,7 +643,7 @@ pub fn run(
             // Room → "Lights come on as you walk in" off: straight to the wall with every lamp lit
             let walk_in = ui.and_then(|u| u.get("museumStyle")).and_then(|x| x.get("walkIn")) != Some(&serde_json::Value::Bool(false));
             m.intro = walk_in.then_some(0.0);
-            build(&mut commands, m, l, &cursor, meshes, materials, covers, loader);
+            build(&mut commands, m, l, &cursor, meshes, materials, covers, loader, images);
             if let Ok((mut cam, _, _)) = camera.single_mut() {
                 cam.is_active = true;
             }
@@ -619,7 +664,7 @@ pub fn run(
     }
     settings.keys_taken = true;
     if m.walk.is_some() {
-        return walk_on(&mut commands, m, l, &time, &keys, &pads, &settings, &mut cursor, &mut sounds, (covers, loader, meshes, materials), &mut camera, &things, &mut text, &mut others.shelf_camera);
+        return walk_on(&mut commands, m, l, &time, &keys, &pads, &settings, &mut cursor, &mut sounds, (covers, loader, meshes, materials, images), &mut camera, &things, &mut text, &mut others.shelf_camera);
     }
     if let Some(t) = m.intro.as_mut() {
         *t += time.delta_secs();
@@ -656,7 +701,7 @@ pub fn run(
             let over = if e > 0.6 && e < 1.0 { 1.0 + 0.12 * ((e - 0.6) / 0.4 * std::f32::consts::PI).sin() } else { 1.0 };
             lamps.push(LAMP * strike.max(0.0) * over);
         }
-        for (row, mut s) in &mut lights {
+        for (row, mut s) in &mut wall.lights {
             s.intensity = lamps.get(row.0).copied().unwrap_or(0.0);
         }
         let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
@@ -695,7 +740,7 @@ pub fn run(
             commands.entity(e).despawn();
         }
         let held_cursor = Cursor { shelf: usize::MAX, ..Cursor::default() };
-        build(&mut commands, m, l, &held_cursor, meshes, materials, covers, loader);
+        build(&mut commands, m, l, &held_cursor, meshes, materials, covers, loader, images);
         (m.pull, m.moved_at, m.shown_front) = (0.0, now, None);
         sounds.play("shelf", to_room);
         return;
@@ -762,12 +807,17 @@ pub fn run(
     let dt = time.delta_secs();
     let settle = now - m.moved_at > 0.15;
     m.pull = if settle { (m.pull + dt * 3.0).min(1.0) } else { (m.pull - dt * 6.0).max(0.0) };
-    for (c, mut t) in &mut cases {
+    let mut chosen_at = Vec3::ZERO;
+    for (c, mut t) in &mut wall.cases {
         let k = if c.row == m.row && c.col == m.col { m.pull } else { 0.0 };
         let (out, face) = (ease((k / 0.62).min(1.0)), ease(((k - 0.55) / 0.45).clamp(0.0, 1.0)));
         t.translation = c.home + Vec3::new(0.0, out * 0.06, out * (c.w * PULL + c.d));
         t.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2 * face);
+        if k > 0.0 || (c.row == m.row && c.col == m.col) {
+            chosen_at = t.translation;
+        }
     }
+    show_card(m, l, chosen_at, dt, materials, images, &mut wall.card);
     let (eye, look) = m.view();
     let f = 1.0 - (-dt * 5.0).exp();
     m.eye = m.eye.lerp(eye, f);
@@ -776,7 +826,7 @@ pub fn run(
         *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
     }
     // the lamp over the row in view is on, the others dim
-    for (row, mut s) in &mut lights {
+    for (row, mut s) in &mut wall.lights {
         let want = if row.0 == m.row { LAMP } else { LAMP * 0.25 };
         s.intensity += (want - s.intensity) * f;
     }
@@ -786,6 +836,157 @@ pub fn run(
         let room = m.room_title().map(|t| format!("{t}  ·  ")).unwrap_or_default();
         text.0 = format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, r.games.len());
     }
+}
+
+/// The card beside the pulled case: drawn (off the frame) once the case is mostly out, faded in when it's out,
+/// standing on the plank to the case's right unless that runs into the console, then to its left.
+fn show_card(
+    m: &mut Museum,
+    l: &rustyshelf_core::library::Library,
+    chosen_at: Vec3,
+    dt: f32,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    card: &mut Query<(&mut Transform, &mut Visibility), (With<MuseumCard>, Without<Case>, Without<MuseumCamera>, Without<RowLight>)>,
+) {
+    let sel = (m.row, m.col);
+    let Some(r) = m.rows.get(m.row) else { return };
+    let (wall_at, turn) = m.walls[r.wall];
+    let Some(parts) = m.card.as_mut() else { return };
+    if parts.asked != Some(sel) && m.pull > 0.5 {
+        parts.asked = Some(sel);
+        let s = &l.shelves[r.shelf];
+        let about = card_of(&s.games[r.games[m.col]], &s.id, &r.name, m.about.get(&s.games[r.games[m.col]].id), &m.lang);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send((sel, rustyshelf_core::drawn::museum_card(&about)));
+        });
+        parts.drawing = Some(std::sync::Mutex::new(rx));
+    }
+    let drawn = parts.drawing.as_ref().and_then(|d| d.lock().ok()?.try_recv().ok());
+    if let Some((for_sel, pic)) = drawn {
+        parts.drawing = None;
+        if let Some(mut img) = images.get_mut(&parts.image) {
+            *img = crate::loading::to_image(pic.width, pic.height, pic.rgba);
+        }
+        parts.shows = Some(for_sel);
+    }
+    let mine = parts.shows == Some(sel) && parts.asked == Some(sel);
+    let want = if mine { ease(((m.pull - 0.7) / 0.3).clamp(0.0, 1.0)) } else { 0.0 };
+    parts.fade += (want - parts.fade) * (1.0 - (-dt * if mine { 10.0 } else { 25.0 }).exp());
+    for (h, rgb) in [(&parts.face, [1.0, 1.0, 1.0]), (&parts.board, [0x8a as f32 / 255.0, 0x6a as f32 / 255.0, 0x34 as f32 / 255.0])] {
+        if let Some(mut mat) = materials.get_mut(h) {
+            mat.base_color = Color::srgba(rgb[0], rgb[1], rgb[2], parts.fade);
+        }
+    }
+    let Ok((mut t, mut vis)) = card.get_mut(parts.entity) else { return };
+    *vis = if parts.fade > 0.01 { Visibility::Inherited } else { Visibility::Hidden };
+    let (right, left) = (chosen_at.x + r.w / 2.0 + 0.52 * CARD_S, chosen_at.x - r.w / 2.0 - 0.52 * CARD_S);
+    let (y, z) = (r.y - 0.5 + 0.25 * CARD_S + 0.01, chosen_at.z.max((DEPTH + 0.1) / 2.0 - 0.02));
+    let local = if right + 0.47 * CARD_S < r.console.0 - r.console.1 / 2.0 - 0.2 {
+        Vec3::new(right, y, z)
+    } else if left - 0.47 * CARD_S > -0.25 {
+        Vec3::new(left, y, z)
+    } else {
+        Vec3::new(right, y, (DEPTH + 0.1) / 2.0 + 0.2)
+    };
+    let turn = Quat::from_rotation_y(turn);
+    *t = Transform::from_translation(wall_at + turn * local).with_rotation(turn * Quat::from_rotation_x(-4f32.to_radians())).with_scale(Vec3::splat(CARD_S));
+}
+
+/// What the card says of a game, in the reader's language.
+fn card_of(g: &rustyshelf_core::scanner::Game, shelf: &str, row: &str, about: Option<&About>, lang: &str) -> rustyshelf_core::drawn::Card {
+    let tr = |t: &str| rustyshelf_core::i18n::tr(lang, t);
+    let i = g.info.clone().unwrap_or_default();
+    let year = i.year().map(|y| y.to_string());
+    let maker = [i.dev.clone(), year].into_iter().flatten().collect::<Vec<_>>().join(", ");
+    let publisher = i.publisher.clone().filter(|p| Some(p) != i.dev.as_ref());
+    let line2 = [publisher, i.genre().map(String::from), Some(row.to_string())].into_iter().flatten().collect::<Vec<_>>().join("  ·  ");
+    let (plays, ms) = about.map_or((0, 0), |a| (a.plays, a.ms));
+    let history = if plays > 0 {
+        let sessions = if plays == 1 { tr("1 session") } else { tr(&format!("{plays} sessions")) };
+        let mut parts = vec![tr(&format!("{} played", play_time(ms))), sessions];
+        if let Some(day) = about.map(|a| a.last).filter(|l| *l > 0) {
+            parts.push(tr(&format!("last played {}", day_of(day))));
+        }
+        parts.join("  ·  ")
+    } else {
+        tr("Not played yet")
+    };
+    let since = (g.added > 0).then(|| { let (y, mo, _) = civil(g.added); tr(&format!("In your collection since {} {y}", MONTHS[mo as usize - 1])) });
+    let a = &g.art;
+    let mut chips = vec![
+        (tr(if a.manual.is_empty() && a.manual_pdf.is_none() { "No manual" } else { "✓ Manual" }), !(a.manual.is_empty() && a.manual_pdf.is_none())),
+        (tr(if a.front.is_some() && a.back.is_some() && a.spine.is_some() { "✓ Full box art" } else { "Box art incomplete" }), a.front.is_some() && a.back.is_some() && a.spine.is_some()),
+    ];
+    if !matches!(shelf, "sw" | "sw2" | "n3ds") {
+        chips.push((tr(if a.disc.is_some() { "✓ Disc art" } else { "No disc art" }), a.disc.is_some()));
+    }
+    if let Some(n) = i.players.as_deref().and_then(|p| p.split(|c: char| !c.is_ascii_digit()).filter_map(|d| d.parse::<u32>().ok()).max()) {
+        chips.push((if n > 1 { tr(&format!("1–{n} players")) } else { tr("1 player") }, true));
+    }
+    if let Some(e) = i.esrb.as_deref().filter(|e| !e.is_empty()) {
+        let e = e.split(" (").next().unwrap_or(e).trim();
+        let short = match e.to_ascii_lowercase().as_str() {
+            "everyone 10+" => "E10+",
+            "everyone" => "E",
+            "teen" => "T",
+            "mature" => "M",
+            _ => e,
+        };
+        chips.push((short.to_string(), true));
+    }
+    let fav = about.is_some_and(|a| a.fav);
+    rustyshelf_core::drawn::Card {
+        title: g.title.clone(),
+        lines: [if maker.is_empty() { row.to_string() } else { maker }, line2],
+        rating: i.rating.map(|r| { let r = r.clamp(0.0, 5.0); ((r * 10.0).round() as u32, tr(&format!("{r:.1} community"))) }),
+        metacritic: i.metacritic.map(|m| m.round() as u32),
+        history,
+        since,
+        chips,
+        foot: format!("{}{}", if fav { format!("{}    ", tr("♥ favorite")) } else { String::new() }, tr("Enter  Play")),
+    }
+}
+
+const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/// Play time as the Electron app words it: "under a minute", "45 min", "2 h", "2 h 5 min".
+fn play_time(ms: u64) -> String {
+    let m = (ms as f64 / 60_000.0).round() as u64;
+    match m {
+        0 => "under a minute".into(),
+        1..=59 => format!("{m} min"),
+        _ if m.is_multiple_of(60) => format!("{} h", m / 60),
+        _ => format!("{} h {} min", m / 60, m % 60),
+    }
+}
+
+/// A day mid-sentence: "today", "yesterday", "3 days ago", else its date ("Mar 5, 2025").
+fn day_of(ms: u64) -> String {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    match now.saturating_sub(ms) / 86_400_000 {
+        0 => "today".into(),
+        1 => "yesterday".into(),
+        d @ 2..=6 => format!("{d} days ago"),
+        _ => {
+            let (y, m, d) = civil(ms);
+            format!("{} {d}, {y}", &MONTHS[m as usize - 1][..3])
+        }
+    }
+}
+
+/// The calendar day (UTC) of a time in milliseconds since 1970: year, month 1 to 12, day.
+fn civil(ms: u64) -> (i64, u32, u32) {
+    let z = (ms / 86_400_000) as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
 /// A plaque as bright as its row's light has come on.
@@ -811,7 +1012,7 @@ fn walk_on(
     settings: &crate::settings::Settings,
     cursor: &mut Cursor,
     sounds: &mut crate::sound::Sounds,
-    (covers, loader, meshes, materials): (&mut Covers, &ArtLoader, &mut Assets<Mesh>, &mut Assets<StandardMaterial>),
+    (covers, loader, meshes, materials, images): (&mut Covers, &ArtLoader, &mut Assets<Mesh>, &mut Assets<StandardMaterial>, &mut Assets<Image>),
     camera: &mut Cam,
     things: &Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
     text: &mut Query<&mut Text, With<MuseumText>>,
@@ -824,7 +1025,7 @@ fn walk_on(
             commands.entity(e).despawn();
         }
         let held_cursor = Cursor { shelf: usize::MAX, ..Cursor::default() };
-        build(commands, m, l, &held_cursor, meshes, materials, covers, loader);
+        build(commands, m, l, &held_cursor, meshes, materials, covers, loader, images);
         sounds.play("back", 1);
         return;
     }

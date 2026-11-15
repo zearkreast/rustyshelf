@@ -789,6 +789,102 @@ pub fn tabs(labels: &[(String, u32)], tall: u32) -> Picture {
     picture(c)
 }
 
+/// What a museum card says of a game, already in the reader's language.
+#[derive(Default, Clone, Hash)]
+pub struct Card {
+    pub title: String,
+    /// its maker and year (or its shelf), then its publisher, genre and shelf
+    pub lines: [String; 2],
+    /// the community rating out of 5, in tenths, with its words ("4.3 community"), and the Metascore
+    pub rating: Option<(u32, String)>,
+    pub metacritic: Option<u32>,
+    /// your time with it, and since when it has been in the collection
+    pub history: String,
+    pub since: Option<String>,
+    /// what's in the box, each owned or not: manual, box art, disc, then players and age rating
+    pub chips: Vec<(String, bool)>,
+    /// the favourite mark and what the confirm button does
+    pub foot: String,
+}
+
+/// A museum card, the gallery wall label under a pulled case, 1800 × 880.
+pub fn museum_card(card: &Card) -> Picture {
+    let (w, h) = (900.0, 440.0);
+    let mut c = Canvas { pix: Pixmap::new(1800, 880).expect("a card's size"), clip: None, t: Transform::from_scale(2.0, 2.0) };
+    c.rect(0.0, 0.0, w, h, &fade(0.0, h, rgba(0xf6, 0xf1, 0xe6, 1.0), rgba(0xe2, 0xd9, 0xc6, 1.0)));
+    c.stroke(Rect::from_xywh(14.0, 14.0, w - 28.0, h - 28.0).map(PathBuilder::from_rect), &solid(rgba(120, 100, 70, 0.35)), &width(2.0));
+    c.stroke(Rect::from_xywh(16.0, 16.0, w - 32.0, h - 32.0).map(PathBuilder::from_rect), &solid(rgba(255, 255, 255, 0.7)), &width(1.0));
+    let fit = |face: Face, t: &str, size: f32, most: f32| -> String {
+        if text_width(face, t, size) <= most {
+            return t.to_string();
+        }
+        let mut s: Vec<char> = t.chars().collect();
+        while s.len() > 4 && text_width(face, &format!("{}…", s.iter().collect::<String>()), size) > most {
+            s.pop();
+        }
+        format!("{}…", s.iter().collect::<String>())
+    };
+    let badge = if card.metacritic.is_some() { 92.0 } else { 0.0 };
+    c.text(Face::Lexend(2), &fit(Face::Lexend(2), &card.title, 50.0, w - 80.0 - badge), 50.0, 40.0, 74.0, 0.0, &solid(rgba(0x10, 0x0d, 0x0b, 1.0)));
+    c.text(Face::Lexend(1), &fit(Face::Lexend(1), &card.lines[0], 30.0, w - 80.0 - badge), 30.0, 40.0, 118.0, 0.0, &solid(rgba(0x2e, 0x28, 0x22, 1.0)));
+    c.text(Face::Lexend(1), &fit(Face::Lexend(1), &card.lines[1], 26.0, w - 80.0), 26.0, 40.0, 158.0, 0.0, &solid(rgba(0x46, 0x3e, 0x35, 1.0)));
+    c.rect(40.0, 178.0, w - 80.0, 2.0, &solid(rgba(20, 17, 16, 0.22)));
+    let mut y = 228.0;
+    if let Some((tenths, words)) = &card.rating {
+        let r = (*tenths as f32 / 10.0).clamp(0.0, 5.0);
+        for i in 0..5 {
+            let x = 40.0 + i as f32 * 34.0;
+            c.text(Face::Lexend(0), "★", 32.0, x, y, 0.0, &solid(rgba(0xcd, 0xbf, 0x9f, 1.0)));
+            let f = (r - i as f32).clamp(0.0, 1.0);
+            if f > 0.0 {
+                let mut mask = Mask::new(c.pix.width(), c.pix.height());
+                if let (Some(m), Some(rect)) = (mask.as_mut(), Rect::from_xywh(x, y - 32.0, 30.0 * f, 40.0)) {
+                    m.fill_path(&PathBuilder::from_rect(rect), FillRule::Winding, true, c.t);
+                }
+                c.clip = mask;
+                c.text(Face::Lexend(0), "★", 32.0, x, y, 0.0, &solid(rgba(0xb8, 0x86, 0x2b, 1.0)));
+                c.clip = None;
+            }
+        }
+        c.text(Face::Lexend(4), words, 24.0, 40.0 + 5.0 * 34.0 + 12.0, y - 6.0, 0.0, &solid(rgba(0x2e, 0x28, 0x22, 1.0)));
+        y += 46.0;
+    } else {
+        y -= 10.0;
+    }
+    if let Some(m) = card.metacritic {
+        let colour = if m >= 75 { rgba(0x2f, 0x7a, 0x22, 1.0) } else if m >= 50 { rgba(0xb0, 0x86, 0x0f, 1.0) } else { rgba(0xa3, 0x30, 0x1f, 1.0) };
+        let bx = w - 40.0 - 78.0;
+        c.rect(bx, 32.0, 78.0, 58.0, &solid(colour));
+        c.text(Face::Lexend(2), &m.to_string(), 36.0, bx + 39.0, 74.0, 0.5, &solid(rgba(255, 255, 255, 1.0)));
+        c.text(Face::Lexend(4), "METASCORE", 12.0, bx + 39.0, 106.0, 0.5, &solid(rgba(0x5a, 0x51, 0x46, 1.0)));
+    }
+    c.text(Face::Lexend(4), &fit(Face::Lexend(4), &card.history, 28.0, w - 80.0), 28.0, 40.0, y, 0.0, &solid(rgba(0x16, 0x12, 0x0f, 1.0)));
+    if let Some(since) = &card.since {
+        y += 38.0;
+        c.text(Face::Lexend(1), since, 25.0, 40.0, y, 0.0, &solid(rgba(0x3f, 0x37, 0x2f, 1.0)));
+    }
+    y += 24.0;
+    let mut cx = 40.0;
+    for (label, on) in &card.chips {
+        let tw = text_width(Face::Lexend(4), label, 22.0) + 32.0;
+        if cx + tw > w - 40.0 {
+            break;
+        }
+        let pill = round_rect(cx, y, tw, 36.0, 18.0);
+        if *on {
+            c.fill(pill, &solid(rgba(0x2c, 0x24, 0x1b, 1.0)));
+            c.text(Face::Lexend(4), label, 22.0, cx + 16.0, y + 25.0, 0.0, &solid(rgba(0xf6, 0xee, 0xdc, 1.0)));
+        } else {
+            c.fill(pill.clone(), &solid(rgba(60, 50, 40, 0.08)));
+            c.stroke(pill, &solid(rgba(60, 50, 40, 0.55)), &width(2.0));
+            c.text(Face::Lexend(4), label, 22.0, cx + 16.0, y + 25.0, 0.0, &solid(rgba(45, 38, 30, 0.78)));
+        }
+        cx += tw + 10.0;
+    }
+    c.text(Face::Lexend(4), &card.foot, 23.0, 40.0, h - 28.0, 0.0, &solid(rgba(0x4f, 0x46, 0x3b, 1.0)));
+    picture(c)
+}
+
 /// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).
 fn blurred(alpha: &[f32], w: usize, h: usize, sigma: f32) -> Vec<f32> {
     let r = (((12.0 * sigma * sigma / 3.0 + 1.0).sqrt() - 1.0) / 2.0).round().max(1.0) as usize;
