@@ -2,7 +2,9 @@
 //! the standard layout. Held upright: A confirms, B goes back, the D-pad moves, 1 / 2 are X / Y, - / + are the
 //! shoulder buttons, Home opens the Home menu. Held sideways (Settings → Controller): the D-pad turned, 2 confirms,
 //! 1 goes back. Dolphin gets the remote for its games; during one, Home held about a second opens RustyShelf's Home
-//! menu (a tap stays the game's own Wii HOME menu).
+//! menu (a tap stays the game's own Wii HOME menu). Pointed at the screen, a hand follows the remote over the shelf:
+//! A on a case chooses it, A on the chosen one turns it round, and the remote gives a short rumble as the hand moves
+//! onto a case.
 
 use bevy::input::gamepad::{GamepadConnection, GamepadConnectionEvent, RawGamepadButtonChangedEvent, RawGamepadEvent};
 use bevy::prelude::*;
@@ -28,6 +30,15 @@ pub struct Remote {
     watching: u16,
     home_since: Option<f32>,
     was_playing: bool,
+    /// where the remote points (0..1 of the camera's view) and whether the bar's lights are in view, as last read
+    aim: (f32, f32, bool),
+    /// the hand: where it is (0..1 of the screen, smoothed), whether it shows, and since when the lights were seen
+    hand: (f32, f32, bool),
+    seen_at: f32,
+    /// A was pressed while the hand pointed at the shelf: a click, not the pad's A
+    click: bool,
+    hovered: Option<usize>,
+    rumbled_at: f32,
 }
 
 /// The remote's buttons as the standard layout's.
@@ -124,11 +135,19 @@ pub fn run(
                     commands.entity(pad).despawn();
                 }
             }
-            Event::State { buttons: b, .. } => {
+            Event::State { buttons: b, x, y, seen } => {
                 // a game owns the screen: Home opens RustyShelf's Home menu over it, which the remote then drives
                 if playing.title.is_some() && !menu_open && b & btn::HOME != 0 && remote.shown & btn::HOME == 0 {
                     playing.home_pressed = true;
                 }
+                remote.aim = (x, y, seen);
+                // A clicks where the hand points: the pad doesn't get it (held, it stays the click's)
+                let pointing = remote.hand.2 && !settings.open && !settings.keys_taken && playing.title.is_none() && !menu_open;
+                let a_down = b & btn::A != 0;
+                if a_down && remote.shown & btn::A == 0 && pointing {
+                    remote.click = true;
+                }
+                let b = if a_down && (pointing || remote.click) && remote.shown & btn::A == 0 { b & !btn::A } else { b };
                 press(&mut remote, b, sideways, &mut raw, &mut buttons);
             }
             Event::Watch(b) => {
@@ -174,6 +193,91 @@ pub fn run(
         }
     }
     remote.was_playing = playing_now;
+}
+
+#[derive(Component)]
+pub struct Hand;
+
+pub fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    let p = rustyshelf_core::drawn::hand(104);
+    let image = images.add(crate::loading::to_image(p.width, p.height, p.rgba));
+    commands.spawn((Hand, Node { position_type: PositionType::Absolute, width: px(52), height: px(52), ..default() }, ImageNode::new(image), Visibility::Hidden, GlobalZIndex(60), Pickable::IGNORE));
+}
+
+/// The hand over the shelf: a central part of the camera's view covers the screen (Settings → Controller →
+/// Pointer speed), smoothed, with a little still zone. A click chooses the case it points at, or turns the chosen one.
+#[allow(clippy::too_many_arguments)]
+pub fn pointer(
+    time: Res<Time>,
+    mut remote: ResMut<Remote>,
+    settings: Res<crate::settings::Settings>,
+    playing: Res<Playing>,
+    windows: Query<&Window>,
+    camera: Query<(&Camera, &GlobalTransform), With<crate::shelf::ShelfCamera>>,
+    slots: Query<(&crate::shelf::Slot, &GlobalTransform)>,
+    mut cursor: ResMut<crate::shelf::Cursor>,
+    mut hand: Query<(&mut Node, &mut Visibility), With<Hand>>,
+    mut sounds: ResMut<crate::sound::Sounds>,
+) {
+    let now = time.elapsed_secs();
+    let (x, y, seen) = remote.aim;
+    if seen && remote.pad.is_some() {
+        let g = settings.wiimote_speed();
+        let (tx, ty) = (((x - 0.5) * g + 0.5).clamp(0.0, 1.0), ((y - 0.5) * g + 0.5).clamp(0.0, 1.0));
+        let (hx, hy, was) = remote.hand;
+        remote.hand = if !was {
+            (tx, ty, true)
+        } else {
+            let d = ((tx - hx).powi(2) + (ty - hy).powi(2)).sqrt();
+            let a = if d > 0.03 { 0.6 } else if d > 0.006 { 0.35 } else { 0.12 };
+            (hx + (tx - hx) * a, hy + (ty - hy) * a, true)
+        };
+        remote.seen_at = now;
+    } else if now - remote.seen_at > 0.25 {
+        remote.hand.2 = false;
+    }
+    let free = !settings.open && !settings.keys_taken && playing.title.is_none();
+    let shows = remote.hand.2 && free;
+    let Ok((mut node, mut vis)) = hand.single_mut() else { return };
+    *vis = if shows { Visibility::Inherited } else { Visibility::Hidden };
+    let Ok(window) = windows.single() else { return };
+    let (w, h) = (window.width(), window.height());
+    let (px_, py_) = (remote.hand.0 * w, remote.hand.1 * h);
+    // the fingertip on the point
+    (node.left, node.top) = (px(px_ - 18.0), px(py_ - 5.0));
+    let click = std::mem::take(&mut remote.click);
+    if !shows {
+        remote.hovered = None;
+        return;
+    }
+    let Ok((cam, eye)) = camera.single() else { return };
+    // the case under the hand: the nearest centre along the shelf, within a case's width of it
+    let under = slots
+        .iter()
+        .filter_map(|(slot, at)| {
+            let c = cam.world_to_viewport(eye, at.translation()).ok()?;
+            let r = cam.world_to_viewport(eye, at.translation() + at.right() * (at.scale().x * 0.5)).ok().map_or(40.0, |e| (e.x - c.x).abs().max(20.0));
+            let (dx, dy) = ((c.x - px_).abs(), (c.y - py_).abs());
+            (dx <= r && dy <= r * 2.2).then_some((slot.index, dx))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(i, _)| i);
+    if under != remote.hovered {
+        remote.hovered = under;
+        if under.is_some() && now - remote.rumbled_at > 0.09 {
+            remote.rumbled_at = now;
+            REMOTE.rumble(22);
+        }
+    }
+    if let Some(i) = under.filter(|_| click) {
+        if i == cursor.game {
+            cursor.flipped = !cursor.flipped;
+            sounds.play("flip", 1);
+        } else {
+            sounds.play("tick", if i < cursor.game { -1 } else { 1 });
+            (cursor.game, cursor.flipped) = (i, false);
+        }
+    }
 }
 
 #[cfg(test)]

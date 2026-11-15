@@ -707,6 +707,20 @@ pub fn cloud(size: u32) -> Picture {
     Picture { width: size, height: size, rgba }
 }
 
+/// The Wii remote's pointer: a white glove, its fingertip at 18 × 5 of its 52 px (style.css `#wmHand`).
+pub fn hand(size: u32) -> Picture {
+    const SVG: &str = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path fill='#fff' stroke='#2b5fd9' stroke-width='3' stroke-linejoin='round' \
+d='M22 6c3.3 0 6 2.7 6 6v17.5l2-.4V24c0-3 2.4-5.3 5.3-5.3S40.6 21 40.6 24v5.6l1.6-.2v-1.6c0-2.9 2.4-5.2 5.3-5.2s5.2 2.3 5.2 5.2v3.6l.8-.1c2.9-.4 5.5 1.9 5.5 4.8V44c0 8.8-7.2 16-16 16H34c-5.5 0-10.6-2.7-13.6-7.3L9.6 36.4c-1.6-2.4-1-5.6 1.4-7.2 2.2-1.5 5.1-1.1 6.8.9L16 30V12c0-3.3 2.7-6 6-6z'/></svg>";
+    let size = size.max(1);
+    let mut pix = resvg::tiny_skia::Pixmap::new(size, size).expect("a mark's size");
+    if let Ok(tree) = resvg::usvg::Tree::from_str(SVG, &resvg::usvg::Options::default()) {
+        let k = size as f32 / 64.0;
+        resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(k, k), &mut pix.as_mut());
+    }
+    let rgba = pix.pixels().iter().flat_map(|p| { let d = p.demultiply(); [d.red(), d.green(), d.blue(), d.alpha()] }).collect();
+    Picture { width: size, height: size, rgba }
+}
+
 /// A case's spine as the shelf shows it when there's no picture of it: the printed sheet inside the case's border,
 /// the console's band at the top and the title running down it. `width` × `height` pixels, `scale` of them to a
 /// pixel of the shelf's own measure; `edge`: the border at the top and bottom, in that measure.

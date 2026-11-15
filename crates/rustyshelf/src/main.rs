@@ -96,7 +96,7 @@ fn main() {
         .init_resource::<whatsnew::WhatsNew>()
         .init_resource::<tour::Tour>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup).chain())
         .add_systems(Update, appicon::set)
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
@@ -104,7 +104,7 @@ fn main() {
             (
                 loading::poll_library,
                 loading::recheck_folders,
-                (romm::run, wiimote::run),
+                (romm::run, wiimote::run, wiimote::pointer),
                 play::watch_game,
                 phone::run,
                 idle::run,
