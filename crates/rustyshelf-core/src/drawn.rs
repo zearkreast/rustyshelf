@@ -1,5 +1,5 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
-// Boxshelf's renderer/covers.js, as RustyShelf has it.
+// Boxshelf's renderer/covers.js, as RustyShelf has it (the museum's plaque and labels from renderer/museum.js).
 //! Box art drawn for a game that has none yet: a scene made up from its title (the same title always draws the same
 //! cover), the title across it, the console's band on top; and a back to match, with what's known of the game.
 
@@ -747,6 +747,46 @@ pub fn spine(look: &Look, title: &str, label: &str, width: u32, height: u32, edg
         px[3] = 255;
     }
     out
+}
+
+/// The brass name plate beside a museum row's console, 1024 × 384: the row's name, then a line for each of `lines`.
+pub fn plaque(name: &str, lines: &[String]) -> Picture {
+    let (w, h) = (1024.0, 384.0);
+    let mut c = Canvas { pix: Pixmap::new(1024, 384).expect("a plaque's size"), clip: None, t: Transform::identity() };
+    let stops = vec![GradientStop::new(0.0, rgba(0x5a, 0x45, 0x24, 1.0)), GradientStop::new(0.5, rgba(0x8a, 0x6a, 0x34, 1.0)), GradientStop::new(1.0, rgba(0x4e, 0x3a, 0x1e, 1.0))];
+    let brass = LinearGradient::new(Point::from_xy(0.0, 0.0), Point::from_xy(w, h), stops, SpreadMode::Pad, Transform::identity()).unwrap_or(Shader::SolidColor(rgba(0x8a, 0x6a, 0x34, 1.0)));
+    c.rect(0.0, 0.0, w, h, &Paint { shader: brass, anti_alias: true, ..Paint::default() });
+    c.rect(16.0, 16.0, w - 32.0, h - 32.0, &solid(rgba(0x1c, 0x15, 0x0c, 1.0)));
+    c.stroke(Rect::from_xywh(30.0, 30.0, w - 60.0, h - 60.0).map(PathBuilder::from_rect), &solid(rgba(255, 220, 160, 0.55)), &width(4.0));
+    let mut size = 74.0;
+    while text_width(Face::Lexend(2), name, size) > w - 128.0 && size > 30.0 {
+        size -= 2.0;
+    }
+    c.text(Face::Lexend(2), name, size, 64.0, 124.0, 0.0, &solid(rgba(0xf3, 0xe7, 0xc9, 1.0)));
+    for (i, line) in lines.iter().enumerate() {
+        c.text(Face::Lexend(0), line, 34.0, 64.0, 204.0 + i as f32 * 52.0, 0.0, &solid(rgba(243, 231, 201, 0.85)));
+    }
+    picture(c)
+}
+
+/// The museum's section labels for one row, stacked into one picture: each `(label, width)` in pixels, `tall` high.
+pub fn tabs(labels: &[(String, u32)], tall: u32) -> Picture {
+    let wide = labels.iter().map(|l| l.1).max().unwrap_or(32).max(32);
+    let mut c = Canvas { pix: Pixmap::new(wide, tall * labels.len().max(1) as u32).expect("the labels' size"), clip: None, t: Transform::identity() };
+    let h = tall as f32;
+    for (k, (label, w)) in labels.iter().enumerate() {
+        let (top, w) = (k as f32 * h, *w as f32);
+        let stops = vec![GradientStop::new(0.0, rgba(0xd2, 0xb2, 0x73, 1.0)), GradientStop::new(0.5, rgba(0x8a, 0x6a, 0x34, 1.0)), GradientStop::new(1.0, rgba(0x5e, 0x45, 0x20, 1.0))];
+        let brass = LinearGradient::new(Point::from_xy(0.0, top), Point::from_xy(0.0, top + h), stops, SpreadMode::Pad, Transform::identity()).unwrap_or(Shader::SolidColor(rgba(0x8a, 0x6a, 0x34, 1.0)));
+        c.rect(0.0, top, w, h, &Paint { shader: brass, anti_alias: true, ..Paint::default() });
+        c.rect(0.0, top, 6.0, h, &solid(rgba(255, 235, 190, 0.75)));
+        let mut size = 50.0;
+        while text_width(Face::Lexend(2), label, size) > w - 22.0 && size > 16.0 {
+            size -= 2.0;
+        }
+        c.text(Face::Lexend(2), label, size, 14.0, top + h / 2.0 + 2.0 + below_middle(Face::Lexend(2), size), 0.0, &solid(rgba(0x1c, 0x15, 0x0c, 1.0)));
+    }
+    picture(c)
 }
 
 /// A picture's alpha blurred as a Gaussian `sigma` pixels wide would (three box blurs).

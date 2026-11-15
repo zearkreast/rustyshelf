@@ -232,6 +232,9 @@ pub enum Art {
     Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
     /// a spine painted `width` × `height` pixels, two to a pixel of the shelf: `edge` is the case's border there
     Spine { look: Box<Look>, title: String, label: String, width: u32, height: u32, edge: f32 },
+    /// a museum row's name plate, and its section labels
+    Plaque { name: String, lines: Vec<String> },
+    Tabs { labels: Vec<(String, u32)>, tall: u32 },
 }
 
 impl Art {
@@ -247,6 +250,8 @@ impl Art {
                 PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
             }
             Art::Spine { look, title, label, width, height, edge } => PathBuf::from(format!("drawn:{}|s|{title}|{label}|{width}x{height}|{edge}", look.id)),
+            Art::Plaque { name, lines } => PathBuf::from(format!("drawn:plaque|{name}|{}", lines.join("|"))),
+            Art::Tabs { labels, tall } => PathBuf::from(format!("drawn:tabs|{tall}|{}", labels.iter().map(|(l, w)| format!("{l}:{w}")).collect::<Vec<_>>().join("|"))),
         }
     }
 
@@ -268,6 +273,8 @@ impl Art {
             }),
             Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
             Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
+            Art::Plaque { name, lines } => drawn(rustyshelf_core::drawn::plaque(name, lines)),
+            Art::Tabs { labels, tall } => drawn(rustyshelf_core::drawn::tabs(labels, *tall)),
         }
     }
 }

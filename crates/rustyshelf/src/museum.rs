@@ -42,8 +42,14 @@ pub struct MuseumText;
 #[derive(Component)]
 pub struct MuseumHud;
 
+/// The picture light over a row: the row.
 #[derive(Component)]
-pub struct RowLight;
+pub struct RowLight(usize);
+
+type Cam<'w, 's> = Query<'w, 's, (&'static mut Camera, &'static mut Transform, &'static Projection), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>;
+
+/// The full brightness of a row's picture light.
+const LAMP: f32 = 260_000.0;
 
 /// A case on the wall: its row, its place there, and where it stands.
 #[derive(Component)]
@@ -66,7 +72,20 @@ struct Row {
     sheets: Vec<(Handle<StandardMaterial>, Handle<StandardMaterial>)>,
     xs: Vec<f32>,
     y: f32,
+    /// where the row's plaque ends
+    end: f32,
     painted: bool,
+    /// how far its light has come on in the walk-in, 0 to 1, and its plaque
+    lamp_on: f32,
+    plaque: Handle<StandardMaterial>,
+}
+
+/// What the museum shows of a game besides its case: its plays, the section it's in for the shelf's sort, a favourite.
+struct About {
+    plays: u64,
+    ms: u64,
+    group: Option<String>,
+    fav: bool,
 }
 
 #[derive(Resource, Default)]
@@ -95,8 +114,12 @@ pub struct Museum {
     walls: [(Vec3, f32); 3],
     /// walking through the arcade
     walk: Option<crate::arcade::Walk>,
-    /// each shelf's games that have a case, for this visit
+    /// each shelf's games that have a case, for this visit, and what's known of them by id
     kept: Vec<(usize, Vec<usize>)>,
+    about: std::collections::HashMap<String, About>,
+    /// how long the walk-in has run: the picture lights come on row by row while the camera drifts in to the wall
+    intro: Option<f32>,
+    lang: String,
 }
 
 impl Museum {
@@ -107,6 +130,25 @@ impl Museum {
         let (at, turn) = self.walls[r.wall];
         let to_room = |p: Vec3| at + Quat::from_rotation_y(turn) * p;
         (to_room(Vec3::new(x - 0.2, r.y + 0.02, 3.7)), to_room(Vec3::new(x - 0.2, r.y - 0.03, 0.0)))
+    }
+
+    /// The whole wall the row in view is on, as far as it fits: the walk-in's view.
+    fn overview(&self, aspect: f32) -> (Vec3, Vec3) {
+        let Some(r) = self.rows.get(self.row) else { return self.view() };
+        let on: Vec<&Row> = self.rows.iter().filter(|o| o.wall == r.wall).collect();
+        let wide = on.iter().map(|o| o.end).fold(0.0, f32::max);
+        let top = on.iter().map(|o| o.y).fold(f32::MIN, f32::max) + 0.8;
+        let bottom = on.iter().map(|o| o.y).fold(f32::MAX, f32::min) - 0.7;
+        let (w, h) = (wide + 1.1, top - bottom);
+        let half = 18f32.to_radians().tan();
+        let z = ((h / 2.0) / half).max((w / 2.0) / half / aspect.max(0.1)).min(14.0) + DEPTH / 2.0;
+        let seen = z * half * aspect;
+        let cur = r.xs.get(self.col).copied().unwrap_or(0.0);
+        let x = if seen * 2.0 >= w { wide / 2.0 } else { cur.clamp(seen - 0.55, wide + 0.55 - seen) };
+        let y = (top + bottom) / 2.0;
+        let (at, turn) = self.walls[r.wall];
+        let to_room = |p: Vec3| at + Quat::from_rotation_y(turn) * p;
+        (to_room(Vec3::new(x, y, z)), to_room(Vec3::new(x, y, 0.0)))
     }
 
     fn room_title(&self) -> Option<&str> {
@@ -190,13 +232,19 @@ fn build(
         }
         None => m.kept.iter().map(|(si, games)| (0, *si, games.clone())).collect(),
     };
+    // a shelf split over several rows in a room has its console and plaque at the end of its last one
+    let parts = |si: usize| groups.iter().filter(|g| g.1 == si).count();
+    let last_of = |k: usize| !groups[k + 1..].iter().any(|g| g.1 == groups[k].1);
     let wood = materials.add(StandardMaterial { base_color: Color::srgb(0.23, 0.15, 0.1), perceptual_roughness: 0.55, ..default() });
     let wall = materials.add(StandardMaterial { base_color: Color::srgb(0.09, 0.1, 0.14), perceptual_roughness: 0.95, ..default() });
     let floor = materials.add(StandardMaterial { base_color: Color::srgb(0.12, 0.11, 0.1), perceptual_roughness: 0.32, metallic: 0.25, ..default() });
-    // each wall's width: its longest row
+    let brass = materials.add(StandardMaterial { base_color: Color::srgb_u8(0xc9, 0xa8, 0x6a), metallic: 0.8, perceptual_roughness: 0.3, emissive: LinearRgba::rgb(0.045, 0.024, 0.005), ..default() });
+    // the console, the plaque beside it and the room around them, after a row's cases
+    let tail = |w: f32| 0.3 + (w * 1.7).max(1.3) + 0.12 + 1.5 + 0.3;
     let width_of = |si: usize, games: &[usize]| -> f32 {
         let s = &lib.shelves[si];
-        games.iter().map(|&gi| { let look = looks::look_for(&s.id, &s.games[gi]); (look.h.unwrap_or(1.0) * look.ratio * look.depth).max(0.045) + GAP }).sum::<f32>() + 0.6
+        let w = games.first().map_or(1.0, |&gi| { let look = looks::look_for(&s.id, &s.games[gi]); look.h.unwrap_or(1.0) * look.ratio });
+        games.iter().map(|&gi| { let look = looks::look_for(&s.id, &s.games[gi]); (look.h.unwrap_or(1.0) * look.ratio * look.depth).max(0.045) + GAP }).sum::<f32>() + if games.len() >= 3 { 0.16 } else { 0.0 } + tail(w)
     };
     let mut wall_w = [4.0f32; 3];
     for (wall, si, games) in &groups {
@@ -209,7 +257,8 @@ fn build(
     let parents: Vec<Entity> = m.walls.iter().map(|(at, turn)| commands.spawn((MuseumThing, Transform::from_translation(*at).with_rotation(Quat::from_rotation_y(*turn)), Visibility::Inherited)).id()).collect();
     let mut on_wall = [0usize; 3];
     let mut widest: f32 = 4.0;
-    for (wall, si, games) in groups {
+    let mut seen = std::collections::HashMap::new();
+    for (k, (wall, si, games)) in groups.iter().cloned().enumerate() {
         let s = &lib.shelves[si];
         let ri = m.rows.len();
         let li = on_wall[wall];
@@ -218,6 +267,10 @@ fn build(
         let parent = parents[wall];
         let mut x = 0.0;
         let (mut sheets, mut xs) = (Vec::new(), Vec::new());
+        let style = looks::look(&s.id).clone();
+        let (sw, sch) = (style.h.unwrap_or(1.0) * style.ratio, style.h.unwrap_or(1.0));
+        // each run of games in one section of the shelf's sort: where it starts and ends, and its name
+        let mut tabs: Vec<(f32, f32, String)> = Vec::new();
         for (col, &gi) in games.iter().enumerate() {
             let g = &s.games[gi];
             let look = looks::look_for(&s.id, g);
@@ -235,21 +288,52 @@ fn build(
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(d * 0.96, ch * 0.98))), MeshMaterial3d(spine.clone()), Transform::from_xyz(0.0, 0.0, w / 2.0 + 0.001)));
                     c.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(w * 0.96, ch * 0.98))), MeshMaterial3d(front.clone()), Transform::from_xyz(d / 2.0 + 0.001, 0.0, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))));
                 });
+            if let Some(group) = m.about.get(&g.id).and_then(|a| a.group.clone()).filter(|_| games.len() >= 6) {
+                match tabs.last_mut() {
+                    Some(t) if t.2 == group => t.1 = x + d / 2.0,
+                    _ => tabs.push((x - d / 2.0, x + d / 2.0, group)),
+                }
+            }
             sheets.push((spine, front));
             xs.push(x);
             x += d / 2.0 + GAP;
         }
-        widest = widest.max(x + 0.6);
+        let top = y - 0.5;
+        let front_z = (DEPTH + 0.1) / 2.0 + 0.002;
+        if !tabs.is_empty() {
+            section_tabs(commands, parent, &tabs, top, front_z, &m.lang, &brass, meshes, materials, covers, loader);
+        }
+        if games.len() >= 3 {
+            let z = -DEPTH / 2.0 + sw / 2.0 + 0.02;
+            commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(0.12, 0.02, sw * 0.9))), MeshMaterial3d(wood.clone()), Transform::from_xyz(x + 0.05, top + 0.01, z), ChildOf(parent)));
+            commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(0.02, sch * 0.62, sw * 0.9))), MeshMaterial3d(wood.clone()), Transform::from_xyz(x + 0.005, top + sch * 0.31, z), ChildOf(parent)));
+            x += 0.16;
+        }
+        let console_w = (sw * 1.7).max(1.3);
+        if last_of(k) {
+            stand_in(commands, parent, &style, Vec3::new(x + 0.3 + console_w / 2.0, top, 0.0), console_w, meshes, materials);
+        }
+        let total = parts(si);
+        let part = seen.entry(si).and_modify(|n| *n += 1).or_insert(1usize);
+        let name = if total > 1 { format!("{} · {part} of {total}", s.name) } else { s.name.clone() };
+        let lit = if m.intro.is_some() { 0.0 } else { 1.0 };
+        let plaque = materials.add(StandardMaterial { base_color: plaque_tint(lit), unlit: true, ..default() });
+        let at = x + 0.3 + console_w + 0.12 + 0.75;
+        commands.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(1.5, 0.56))), MeshMaterial3d(plaque.clone()), Transform::from_xyz(at, top + 0.3, -DEPTH / 2.0 + 0.06), ChildOf(parent)));
+        let lines = plaque_lines(&games.iter().map(|&gi| &s.games[gi]).collect::<Vec<_>>(), &m.about, &m.lang);
+        covers.want(Art::Plaque { name: name.clone(), lines }, (plaque.clone(), 0.0), loader, materials);
+        let end = at + 0.75;
+        widest = widest.max(end + 0.3);
         // the plank under the row, and the lamp over it
-        commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(x + 0.66, PLANK, DEPTH + 0.1))), MeshMaterial3d(wood.clone()), Transform::from_xyz(x / 2.0, y - 0.5 - PLANK / 2.0, 0.0), ChildOf(parent)));
+        commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(end + 0.66, PLANK, DEPTH + 0.1))), MeshMaterial3d(wood.clone()), Transform::from_xyz(end / 2.0, top - PLANK / 2.0, 0.0), ChildOf(parent)));
         commands.spawn((
             ChildOf(parent),
-            RowLight,
+            RowLight(ri),
             layer(),
             SpotLight { color: Color::srgb(1.0, 0.88, 0.69), intensity: 0.0, range: 7.5, outer_angle: 0.95, inner_angle: 0.5, shadow_maps_enabled: false, ..default() },
             Transform::from_xyz(x / 2.0, y + ROW - 0.62, 0.9).looking_at(Vec3::new(x / 2.0, y - 0.5, 0.0), Vec3::Y),
         ));
-        m.rows.push(Row { wall, shelf: si, name: s.name.clone(), games, sheets, xs, y, painted: false });
+        m.rows.push(Row { wall, shelf: si, name, games, sheets, xs, y, end, painted: false, lamp_on: lit, plaque });
     }
     // each wall's panel behind its rows (a room's are its own width; the classic wall runs on); one floor for the room
     let tallest = on_wall.iter().copied().max().unwrap_or(1).max(1) as f32;
@@ -272,6 +356,116 @@ fn build(
     let (eye, look) = m.view();
     (m.eye, m.look) = (eye + Vec3::new(0.0, 0.0, 6.0), look);
     paint(m, lib, covers, loader, materials);
+}
+
+/// A row's section labels on its plank's front edge, each over a brass rail under exactly its cases. A label that would
+/// run into the one before is left off; its rail still shows the split.
+#[allow(clippy::too_many_arguments)]
+fn section_tabs(
+    commands: &mut Commands,
+    parent: Entity,
+    tabs: &[(f32, f32, String)],
+    top: f32,
+    z: f32,
+    lang: &str,
+    brass: &Handle<StandardMaterial>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    covers: &mut Covers,
+    loader: &ArtLoader,
+) {
+    use bevy::asset::RenderAssetUsages;
+    use bevy::mesh::{Indices, PrimitiveTopology};
+    const LH: f32 = 0.036;
+    const PXH: u32 = 80;
+    let mut last_end = -1.0;
+    let mut shown: Vec<(f32, f32, String)> = Vec::new();
+    for (x0, x1, label) in tabs {
+        let label = rustyshelf_core::i18n::tr(lang, label);
+        let w = (0.03 + label.chars().count() as f32 * 0.019).clamp(0.07, 0.26).min((x1 - x0).max(0.07));
+        if *x0 < last_end + 0.006 {
+            continue;
+        }
+        last_end = x0 + w;
+        shown.push((*x0, w, label));
+    }
+    let cells: Vec<u32> = shown.iter().map(|t| (t.1 * PXH as f32 / LH).round() as u32).collect();
+    let atlas = cells.iter().copied().max().unwrap_or(32).max(32) as f32;
+    let n = shown.len() as f32;
+    let (mut pos, mut uv, mut idx) = (Vec::new(), Vec::new(), Vec::new());
+    for (k, (x0, w, _)) in shown.iter().enumerate() {
+        let (y0, y1, u1, v0, v1) = (top - 0.011 - LH, top - 0.011, cells[k] as f32 / atlas, k as f32 / n, (k + 1) as f32 / n);
+        let o = pos.len() as u32;
+        pos.extend([[*x0, y0, z], [x0 + w, y0, z], [x0 + w, y1, z], [*x0, y1, z]]);
+        uv.extend([[0.0, v1], [u1, v1], [u1, v0], [0.0, v0]]);
+        idx.extend([o, o + 1, o + 2, o, o + 2, o + 3]);
+    }
+    if !shown.is_empty() {
+        let normals = vec![[0.0, 0.0, 1.0]; pos.len()];
+        let mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default())
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, pos)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uv)
+            .with_inserted_indices(Indices::U32(idx));
+        let plates = materials.add(StandardMaterial { base_color: Color::srgb(0.55, 0.45, 0.3), metallic: 0.6, perceptual_roughness: 0.35, ..default() });
+        commands.spawn((layer(), Mesh3d(meshes.add(mesh)), MeshMaterial3d(plates.clone()), ChildOf(parent)));
+        if let Some(mut m) = materials.get_mut(&plates) {
+            m.base_color = Color::WHITE;
+        }
+        let labels = shown.into_iter().zip(cells).map(|(t, w)| (t.2, w)).collect();
+        covers.want(Art::Tabs { labels, tall: PXH }, (plates, 0.0), loader, materials);
+    }
+    for (x0, x1, _) in tabs {
+        let (a, b) = (x0 + 0.003, x1 - 0.003);
+        if b > a {
+            commands.spawn((layer(), Mesh3d(meshes.add(Rectangle::new(b - a, 0.005))), MeshMaterial3d(brass.clone()), Transform::from_xyz((a + b) / 2.0, top - 0.0055, z), ChildOf(parent)));
+        }
+    }
+}
+
+/// The original stand-in console at a row's end, its foot at `at`: a low slab in the shelf's colours with a lit strip,
+/// and a controller in front of it.
+fn stand_in(commands: &mut Commands, parent: Entity, style: &looks::Look, at: Vec3, w: f32, meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) {
+    let (h, d) = (0.34, DEPTH * 0.7);
+    let body = materials.add(StandardMaterial { base_color: color(style.case_side), perceptual_roughness: 0.45, metallic: 0.1, clearcoat: 0.5, ..default() });
+    let shell = materials.add(StandardMaterial { base_color: color(style.case_color), perceptual_roughness: 0.3, clearcoat: 0.7, ..default() });
+    let pad = materials.add(StandardMaterial { base_color: color(style.case_color), perceptual_roughness: 0.6, ..default() });
+    let strip = materials.add(StandardMaterial { base_color: color(style.glow), unlit: true, ..default() });
+    commands.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w, h, d))), MeshMaterial3d(body), Transform::from_translation(at + Vec3::Y * h / 2.0), ChildOf(parent))).with_children(|c| {
+        c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w * 0.5, h * 0.12, 0.01))), MeshMaterial3d(strip), Transform::from_xyz(0.0, -h * 0.2, d / 2.0 + 0.005)));
+        c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w * 0.9, 0.01, d * 0.9))), MeshMaterial3d(shell), Transform::from_xyz(0.0, h / 2.0, 0.0)));
+        c.spawn((layer(), Mesh3d(meshes.add(Cuboid::new(w * 0.32, h * 0.35, d * 0.5))), MeshMaterial3d(pad), Transform::from_xyz(w * 0.1, -h / 2.0 + h * 0.18, d / 2.0 + d * 0.4)));
+    });
+}
+
+/// What a row's plaque says under its name: how many games and how much they've been played, the most played one,
+/// and the favourites.
+fn plaque_lines(games: &[&rustyshelf_core::scanner::Game], about: &std::collections::HashMap<String, About>, lang: &str) -> Vec<String> {
+    let tr = |t: &str| rustyshelf_core::i18n::tr(lang, t);
+    let (mut played, mut ms, mut top, mut fav) = (0, 0u64, None::<(u64, &str)>, 0);
+    for g in games {
+        let Some(a) = about.get(&g.id) else { continue };
+        if a.plays > 0 {
+            played += 1;
+            ms += a.ms;
+            if top.is_none_or(|t| a.ms > t.0) {
+                top = Some((a.ms, g.title.as_str()));
+            }
+        }
+        fav += usize::from(a.fav);
+    }
+    let n = games.len();
+    let count = tr(&if n == 1 { "1 game".to_string() } else { format!("{n} games") });
+    let hrs = ms as f64 / 3_600_000.0;
+    let hours = if hrs >= 1.0 { format!("{hrs:.1} h played") } else if ms > 0 { format!("{} min played", (ms as f64 / 60_000.0).round()) } else { "not played yet".to_string() };
+    let mut lines = vec![if played > 0 { format!("{count} · {} · {}", tr(&format!("{played} played")), tr(&hours)) } else { format!("{count} · {}", tr("nothing played yet")) }];
+    if let Some((_, t)) = top.filter(|t| t.0 > 0) {
+        lines.push(tr(&format!("Most played: {t}")));
+    }
+    if fav > 0 {
+        lines.push(tr(&if fav == 1 { "1 favorite".to_string() } else { format!("{fav} favorites") }));
+    }
+    lines
 }
 
 /// The spines of the rows near the one in view, painted once each.
@@ -349,9 +543,9 @@ pub fn run(
     mut cursor: ResMut<Cursor>,
     mut sounds: ResMut<crate::sound::Sounds>,
     mut making: Making,
-    mut camera: Query<(&mut Camera, &mut Transform), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>,
+    mut camera: Cam,
     mut cases: Query<(&Case, &mut Transform), (Without<MuseumCamera>, Without<RowLight>)>,
-    mut lights: Query<(&mut SpotLight, &Transform), (With<RowLight>, Without<Case>, Without<MuseumCamera>)>,
+    mut lights: Query<(&RowLight, &mut SpotLight), (Without<Case>, Without<MuseumCamera>)>,
     things: Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
     mut text: Query<&mut Text, With<MuseumText>>,
 ) {
@@ -379,6 +573,21 @@ pub fn run(
             m.open = true;
             m.grouping = l.config.raw().get("ui").and_then(|u| u.get("museumStyle")).and_then(|x| x.get("grouping")).and_then(|g| g.as_str()).unwrap_or("classic").to_string();
             m.kept = kept(l, &others.plays.0);
+            let ui = l.config.raw().get("ui");
+            m.lang = ui.and_then(|u| u.get("language")).and_then(|v| v.as_str()).unwrap_or("en").to_string();
+            let favs: std::collections::HashSet<&str> = ui.and_then(|u| u.get("favorites")).and_then(|f| f.as_array()).map(|f| f.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
+            let sort = ui.and_then(|u| u.get("sort")).and_then(|v| v.as_str()).unwrap_or("az");
+            let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+            m.about = m
+                .kept
+                .iter()
+                .flat_map(|(si, games)| games.iter().map(|&gi| &l.shelves[*si].games[gi]))
+                .map(|g| {
+                    let p = rustyshelf_core::shelfview::played(g, &others.plays.0);
+                    let about = About { plays: p.map_or(0, |p| p.count), ms: p.map_or(0, |p| p.ms), group: rustyshelf_core::shelfview::group_of(g, sort, &others.plays.0, now_ms), fav: favs.contains(g.id.as_str()) };
+                    (g.id.clone(), about)
+                })
+                .collect();
             m.plan = (m.grouping != "classic").then(|| rustyshelf_core::museum_plan::plan_museum(&entries(l, &m.kept), &m.grouping));
             // the room the game under the cursor is in
             let here = l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).map(|g| g.id.clone());
@@ -386,8 +595,11 @@ pub fn run(
                 (Some(p), Some(id)) => p.by_game.get(&id).and_then(|at| p.rooms.iter().position(|r| r.id == at.room)).unwrap_or(0),
                 _ => 0,
             };
+            // Room → "Lights come on as you walk in" off: straight to the wall with every lamp lit
+            let walk_in = ui.and_then(|u| u.get("museumStyle")).and_then(|x| x.get("walkIn")) != Some(&serde_json::Value::Bool(false));
+            m.intro = walk_in.then_some(0.0);
             build(&mut commands, m, l, &cursor, meshes, materials, covers, loader);
-            if let Ok((mut cam, _)) = camera.single_mut() {
+            if let Ok((mut cam, _, _)) = camera.single_mut() {
                 cam.is_active = true;
             }
             if let Ok(mut shelf) = others.shelf_camera.single_mut() {
@@ -395,6 +607,11 @@ pub fn run(
             }
             spawn_text(&mut commands, m.camera, mona);
             (m.pull, m.moved_at, m.shown_front) = (0.0, now, None);
+            if m.intro.is_some() {
+                let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
+                let (eye, look) = m.overview(aspect);
+                (m.eye, m.look) = (eye + Vec3::new(0.0, -0.3, 1.6), look);
+            }
             sounds.play("open", 1);
             settings.keys_taken = true;
         }
@@ -403,6 +620,57 @@ pub fn run(
     settings.keys_taken = true;
     if m.walk.is_some() {
         return walk_on(&mut commands, m, l, &time, &keys, &pads, &settings, &mut cursor, &mut sounds, (covers, loader, meshes, materials), &mut camera, &things, &mut text, &mut others.shelf_camera);
+    }
+    if let Some(t) = m.intro.as_mut() {
+        *t += time.delta_secs();
+        let t = *t;
+        let skip = keys.get_just_pressed().next().is_some() || pads.iter().any(|p| p.get_just_pressed().next().is_some());
+        if skip || t > 0.9 + m.rows.len() as f32 * 0.36 + 0.8 {
+            m.intro = None;
+            m.rows.iter_mut().for_each(|r| r.lamp_on = 1.0);
+            m.moved_at = now;
+            for r in &m.rows {
+                if let Some(mut mat) = materials.get_mut(&r.plaque) {
+                    mat.base_color = plaque_tint(1.0);
+                }
+            }
+            return;
+        }
+        let mut lamps = Vec::with_capacity(m.rows.len());
+        for (i, r) in m.rows.iter_mut().enumerate() {
+            let k = (t - (0.9 + i as f32 * 0.36)) / 0.7;
+            if k <= 0.0 {
+                lamps.push(0.0);
+                continue;
+            }
+            if r.lamp_on == 0.0 {
+                sounds.play("lamp", 1);
+            }
+            r.lamp_on = r.lamp_on.max(k.min(1.0));
+            if let Some(mut mat) = materials.get_mut(&r.plaque) {
+                mat.base_color = plaque_tint(r.lamp_on);
+            }
+            // strike, dip, bloom, and a touch over before it settles
+            let e = k.min(1.0);
+            let strike = if e < 0.18 { e / 0.18 * 0.55 } else if e < 0.3 { 0.55 - (e - 0.18) / 0.12 * 0.35 } else { 0.2 + (1.0 - (1.0 - (e - 0.3) / 0.7).powi(3)) * 0.8 };
+            let over = if e > 0.6 && e < 1.0 { 1.0 + 0.12 * ((e - 0.6) / 0.4 * std::f32::consts::PI).sin() } else { 1.0 };
+            lamps.push(LAMP * strike.max(0.0) * over);
+        }
+        for (row, mut s) in &mut lights {
+            s.intensity = lamps.get(row.0).copied().unwrap_or(0.0);
+        }
+        let aspect = camera.single().ok().and_then(|(_, _, p)| if let Projection::Perspective(p) = p { Some(p.aspect_ratio) } else { None }).unwrap_or(16.0 / 9.0);
+        let (eye, look) = m.overview(aspect);
+        let f = 1.0 - (-time.delta_secs() * 1.6).exp();
+        m.eye = m.eye.lerp(eye, f);
+        m.look = m.look.lerp(look, f);
+        if let Ok((_, mut t, _)) = camera.single_mut() {
+            *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
+        }
+        if let Ok(mut text) = text.single_mut() {
+            text.0 = m.room_title().unwrap_or_default().to_string();
+        }
+        return;
     }
     // into the arcade: W, or Y on a pad
     if keys.just_pressed(KeyCode::KeyW) || pad(GamepadButton::North) {
@@ -504,13 +772,12 @@ pub fn run(
     let f = 1.0 - (-dt * 5.0).exp();
     m.eye = m.eye.lerp(eye, f);
     m.look = m.look.lerp(look, f);
-    if let Ok((_, mut t)) = camera.single_mut() {
+    if let Ok((_, mut t, _)) = camera.single_mut() {
         *t = Transform::from_translation(m.eye).looking_at(m.look, Vec3::Y);
     }
     // the lamp over the row in view is on, the others dim
-    let y = m.rows[m.row].y;
-    for (mut s, t) in &mut lights {
-        let want = if (t.translation.y - (y + ROW - 0.62)).abs() < 0.01 { 260_000.0 } else { 60_000.0 };
+    for (row, mut s) in &mut lights {
+        let want = if row.0 == m.row { LAMP } else { LAMP * 0.25 };
         s.intensity += (want - s.intensity) * f;
     }
     if let Ok(mut text) = text.single_mut() {
@@ -519,6 +786,12 @@ pub fn run(
         let room = m.room_title().map(|t| format!("{t}  ·  ")).unwrap_or_default();
         text.0 = format!("{}  ·  {}\n{room}{} of {}", g.title, r.name, m.col + 1, r.games.len());
     }
+}
+
+/// A plaque as bright as its row's light has come on.
+fn plaque_tint(lamp_on: f32) -> Color {
+    let v = 0.3 + 0.6 * lamp_on;
+    Color::srgb(v, v, v)
 }
 
 fn ease(k: f32) -> f32 {
@@ -539,7 +812,7 @@ fn walk_on(
     cursor: &mut Cursor,
     sounds: &mut crate::sound::Sounds,
     (covers, loader, meshes, materials): (&mut Covers, &ArtLoader, &mut Assets<Mesh>, &mut Assets<StandardMaterial>),
-    camera: &mut Query<(&mut Camera, &mut Transform), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>,
+    camera: &mut Cam,
     things: &Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
     text: &mut Query<&mut Text, With<MuseumText>>,
     shelf_camera: &mut Query<&mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
@@ -581,7 +854,7 @@ fn walk_on(
         let k = Vec2::new(side, forward).length().max(1.0);
         w.step(forward / k * speed, side / k * speed);
     }
-    if let Ok((_, mut t)) = camera.single_mut() {
+    if let Ok((_, mut t, _)) = camera.single_mut() {
         *t = w.eye();
     }
     if let Ok(mut text) = text.single_mut() {
@@ -614,7 +887,7 @@ fn close(
     commands: &mut Commands,
     m: &mut Museum,
     things: &Query<(Entity, Has<MuseumHud>), Or<(With<MuseumThing>, With<MuseumHud>)>>,
-    camera: &mut Query<(&mut Camera, &mut Transform), (With<MuseumCamera>, Without<Case>, Without<RowLight>)>,
+    camera: &mut Cam,
     shelf_camera: &mut Query<&mut Camera, (With<crate::shelf::ShelfCamera>, Without<MuseumCamera>)>,
     sounds: &mut crate::sound::Sounds,
 ) {
@@ -624,7 +897,7 @@ fn close(
     for (e, _) in things {
         commands.entity(e).despawn();
     }
-    if let Ok((mut cam, _)) = camera.single_mut() {
+    if let Ok((mut cam, _, _)) = camera.single_mut() {
         cam.is_active = false;
     }
     m.open = false;
