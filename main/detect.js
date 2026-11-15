@@ -53,7 +53,20 @@ function mediaRoots() {
   }
   return [...new Set(out)];
 }
-const searchRoots = () => [...SEARCH_ROOTS.map(expand), ...mediaRoots()];
+// (RustyShelf) a folder named for emulators or games at the top of every drive (D:\Emulators, E:\Emulation …), where
+// a downloaded portable emulator is often unzipped; found once per start
+let driveTops = null;
+function driveRoots() {
+  if (process.platform !== 'win32') return [];
+  if (!driveTops) { driveTops = [];
+    for (let c = 67; c <= 90; c++) { const d = String.fromCharCode(c) + ':\\'; let names; try { names = require('fs').readdirSync(d); } catch { continue; }
+      for (const n of names) if (/^(emulators?|emulation|emus?|games|retro|portable)$/i.test(n)) driveTops.push(d + n); } }
+  return driveTops;
+}
+const searchRoots = () => [...new Set([...SEARCH_ROOTS.map(expand), ...driveRoots(), ...mediaRoots()])];
+// portable copies sit deeper than installed ones (Downloads\Emulators\Dolphin\dolphin-2412-x64\Dolphin-x64\Dolphin.exe): the
+// common places are looked through four folders deep, at most 6,000 folders each
+const deepIndex = index => index.deep || (index.deep = makeIndex(4, 6000));
 
 function findExe(folders, exeNames, index = makeIndex()) {
   for (const f of folders) {
@@ -65,7 +78,7 @@ function findExe(folders, exeNames, index = makeIndex()) {
   // Portable copies in common places (e.g. Desktop\Emulators\Dolphin-x64\Dolphin.exe)
   for (const root of searchRoots()) {
     if (!isDir(root)) continue;
-    const hit = findIn(index, root, exeNames);
+    const hit = findIn(deepIndex(index), root, exeNames);
     if (hit) return hit;
   }
   return null;
@@ -75,7 +88,8 @@ function findExe(folders, exeNames, index = makeIndex()) {
 // another one (Flycast for the Dreamcast, Gopher64 for the N64) is one press away. At most 8, in the order they're found.
 function findAllExe(folders, exeNames, index = makeIndex()) {
   const out = [], add = h => { if (h && !out.some(x => x.toLowerCase() === h.toLowerCase())) out.push(h); };
-  for (const dir of [...folders.map(expand), ...searchRoots()]) { if (out.length >= 8 || !isDir(dir)) continue; for (const n of exeNames) add(findIn(index, dir, [n])); }
+  const roots = new Set(searchRoots());
+  for (const dir of [...folders.map(expand), ...roots]) { if (out.length >= 8 || !isDir(dir)) continue; for (const n of exeNames) add(findIn(roots.has(dir) ? deepIndex(index) : index, dir, [n])); }
   return out.slice(0, 8);
 }
 // Look for "<root>\ROMS\<system>" style folders.

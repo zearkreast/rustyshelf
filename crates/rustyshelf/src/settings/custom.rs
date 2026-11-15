@@ -95,7 +95,7 @@ impl Settings {
 
     pub(super) fn custom_game_page(&self, i: usize) -> Page {
         let (title, args, shelf) = (self.custom_field(i, "title"), self.custom_field(i, "args"), self.custom_field(i, "shelf"));
-        let mut shelves: Vec<(String, String)> = vec![("custom".into(), "Custom".into()), ("ports".into(), "Ports & Recomps".into()), ("pc".into(), "PC".into())];
+        let mut shelves: Vec<(String, String)> = vec![("custom".into(), "Custom".into()), ("pc".into(), "PC".into()), ("ports".into(), "Ports & Recomps".into())];
         shelves.extend(systems().consoles.iter().map(|c| (c.id.clone(), c.name.clone())));
         let on = shelves.iter().position(|x| x.0 == shelf).unwrap_or(0);
         let name = shelves[on].1.clone();

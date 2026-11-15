@@ -271,7 +271,7 @@ function* scanFilesG(sysDef, sysCfg) {
   // (beta.10) one folder deeper everywhere (games sorted into genre or series folders went missing), and two more for
   // consoles whose games are folders (PS3 <group>\<game>\PS3_GAME\USRDIR, Xbox 360 Content\<profile>\<title id>\00007000).
   // Games' own data folders are never walked (USRDIR, romfs, an extracted 360 game, a package's .data)
-  const deep = !!(sysDef.gameFile || sysDef.deep || sysDef.id === 'x360'), DEPTH = deep ? 6 : 4;
+  const deep = !!(sysDef.gameFile || sysDef.deep || sysDef.id === 'x360'), DEPTH = deep ? 8 : 6; // (RustyShelf) a games folder picked high up (Games\Nintendo\GameCube\USA\<game>\…) is read deep enough; keep in sync with scanner.rs
   const exts = sysDef.id === 'x360' ? [...sysDef.extensions, 'stfs'] : sysDef.extensions; // ('stfs': Games on Demand / Arcade packages, which have no extension)
   // the bare words update / dlc / patch / pass mean an update package only on the Switch shelves (shared/titles.js)
   const ct = f => Titles.cleanTitle(path.basename(f), { updateWords: sysDef.id === 'sw' || sysDef.id === 'sw2' });

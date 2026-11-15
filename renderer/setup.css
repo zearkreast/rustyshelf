@@ -1029,3 +1029,6 @@ body.pad-input #setup.wz-win .wz-key{display:none}
 .drv-row:focus-within,.drv-btns .btn:focus{outline:2px solid #8fb4ff;outline-offset:2px}
 .drv-tag{margin-left:auto;font-size:.8em;opacity:.6}
 .drv-btns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+
+/* the language choice on the first page */
+.wz-lang{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 18px}

@@ -297,6 +297,31 @@
       "manualPdf": null,
       "hero": null
      }
+    },
+    {
+     "title": "Too Deep",
+     "region": "USA",
+     "disc": 0,
+     "file": "a/b/c/d/e/Too Deep (USA).iso",
+     "ext": "iso",
+     "sizeBytes": 1,
+     "discs": [
+      "a/b/c/d/e/Too Deep (USA).iso"
+     ],
+     "titleId": null,
+     "notInstalled": false,
+     "compat": null,
+     "art": {
+      "front": null,
+      "back": null,
+      "madeBack": false,
+      "spine": null,
+      "madeSpine": false,
+      "disc": null,
+      "manual": [],
+      "manualPdf": null,
+      "hero": null
+     }
     }
    ]
   },

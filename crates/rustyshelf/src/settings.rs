@@ -113,6 +113,9 @@ struct Chosen {
 }
 
 type Press = Box<dyn Fn(&mut Settings) + Send + Sync>;
+
+/// The languages there are, each by its own name (never translated).
+const LANGUAGES: [(&str, &str); 4] = [("en", "English"), ("tr", "Türkçe"), ("fr", "Français"), ("pt", "Português (Brasil)")];
 type Step = Box<dyn Fn(&mut Settings, i32) + Send + Sync>;
 
 #[derive(Default)]
@@ -145,6 +148,8 @@ enum Pick {
     ExportTo,
     ImportFrom,
     ScanGames,
+    /// a folder of emulators downloaded and unzipped by hand: every console missing one gets the one found there
+    EmulatorsIn,
     Playnite,
     ThemePicture,
     /// a picture of the player's own for a part of a game's box (true: the spine is cut from it)
@@ -206,6 +211,8 @@ pub struct Settings {
     manual_search: manuals::ManualSearch,
     mstudio: mstudio::MStudio,
     trophies: trophies::Trophies,
+    /// the first run's console list shows every console, not just the ones found
+    every_console: bool,
     /// the genres the games have and how many of each, for Add a tag shelf (read when Settings opens)
     genres: Vec<(String, usize)>,
     storage: storage::Storage,
@@ -292,6 +299,7 @@ impl Default for Settings {
             manual_search: Default::default(),
             mstudio: Default::default(),
             trophies: Default::default(),
+            every_console: false,
             genres: Vec::new(),
             storage: Default::default(),
             art_pick: Default::default(),
@@ -600,6 +608,20 @@ impl Settings {
         }
     }
 
+    /// The language the screen is in, each by its own name (◀ ▶ or Enter changes it).
+    fn language_row(&self) -> Row {
+        let now = self.text(&["ui", "language"]);
+        let at = LANGUAGES.iter().position(|x| x.0 == now).unwrap_or(0);
+        let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "language"], json!(LANGUAGES[(at as i32 + d).rem_euclid(LANGUAGES.len() as i32) as usize].0));
+        Row {
+            label: "Language".into(),
+            value: LANGUAGES[at].1.into(),
+            hint: "The language the screen is shown in. Português (Brasil) is in the Electron app only for now: here it shows English.".into(),
+            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+            step: Some(Box::new(turn)),
+        }
+    }
+
     fn back(&mut self) {
         if self.stack.len() > 1 {
             self.stack.pop();
@@ -701,6 +723,21 @@ impl Settings {
                     self.set(&["systems", &id, "romDirs"], json!(dirs));
                 }
             }
+            Pick::EmulatorsIn => {
+                let (found, retroarch) = Detector::new(&self.app_root).emulators_in(&p);
+                let mut set = 0;
+                for (id, exe) in found {
+                    if self.text(&["systems", &id, "emulator"]).is_empty() {
+                        self.set(&["systems", &id, "emulator"], json!(exe));
+                        self.set(&["systems", &id, "enabled"], json!(true));
+                        set += 1;
+                    }
+                }
+                if !retroarch.is_empty() && self.text(&["retroarch"]).is_empty() {
+                    self.set(&["retroarch"], json!(retroarch));
+                }
+                self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", if set == 1 { "" } else { "s" }) });
+            }
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
@@ -767,6 +804,7 @@ impl Settings {
                         ..Row::default()
                     },
                     Row { label: "I'll pick them myself".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Consoles))), ..Row::default() },
+                    self.language_row(),
                 ],
             },
             Screen::Root => Page {
@@ -790,16 +828,23 @@ impl Settings {
                 ],
             },
             Screen::Consoles => {
-                let mut rows = vec![open(
-                    "RetroArch",
-                    Some(self.text(&["retroarch"])).filter(|e| !e.is_empty()).map_or("Not set".into(), |e| short(&e)),
-                    "The program every retro console without an emulator of its own runs in",
-                    Screen::Emulator(String::new()),
-                )];
-                // on the first run the consoles with something found come first
+                let retroarch = self.text(&["retroarch"]);
+                // the first run shows what was found (and RetroArch only when it's there); every other console is a row away
+                let mut rows = if self.wizard && retroarch.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![open("RetroArch", if retroarch.is_empty() { "Not set".into() } else { short(&retroarch) }, "The program every retro console without an emulator of its own runs in", Screen::Emulator(String::new()))]
+                };
                 let mut consoles: Vec<&Console> = systems().consoles.iter().collect();
+                let mut hidden = 0;
+                let found_any = consoles.iter().any(|c| self.flag(&["systems", &c.id, "enabled"], true));
                 if self.wizard {
                     consoles.sort_by_key(|c| !self.flag(&["systems", &c.id, "enabled"], true));
+                    if !self.every_console && found_any {
+                        let before = consoles.len();
+                        consoles.retain(|c| self.flag(&["systems", &c.id, "enabled"], true));
+                        hidden = before - consoles.len();
+                    }
                 }
                 for c in consoles {
                     let id = c.id.clone();
@@ -815,10 +860,35 @@ impl Settings {
                         })),
                     });
                 }
+                rows.push(Row {
+                    label: "Emulators somewhere else?".into(),
+                    value: "Choose their folder".into(),
+                    hint: "If you downloaded your emulators and unzipped them yourself (to Downloads, another drive, a USB stick), choose the folder they're in: every console missing one gets the one found there.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.pick(Pick::EmulatorsIn, "Choose the folder your emulators are in", true))),
+                    ..Row::default()
+                });
+                if hidden > 0 {
+                    rows.push(Row {
+                        label: format!("More consoles ({hidden})"),
+                        hint: "Every console RustyShelf can run; ◀ ▶ on one gives it a shelf.".into(),
+                        press: Some(Box::new(|s: &mut Settings| {
+                            s.every_console = true;
+                            s.redraw = true;
+                        })),
+                        ..Row::default()
+                    });
+                }
                 if self.wizard {
                     rows.push(next(Screen::Pc));
                 }
-                Page { title: "Your consoles".into(), lead: "A console that's on has a shelf. Open one to choose its emulator and its games folders.".into(), rows }
+                let lead = if self.wizard && !found_any {
+                    "Step 1 of 3 · Nothing was found on this PC yet. ◀ ▶ turns on the consoles you play; Enter opens one to choose its emulator and games folder."
+                } else if self.wizard {
+                    "Step 1 of 3 · The consoles that are on get a shelf: these were found on your PC. ◀ ▶ turns one on or off; Enter opens it to choose its emulator and games folders."
+                } else {
+                    "A console that's on has a shelf. Open one to choose its emulator and its games folders."
+                };
+                Page { title: "Your consoles".into(), lead: lead.into(), rows }
             }
             Screen::Console(id) => {
                 let Some(c) = self.console(id) else { return Page { title: id.clone(), lead: String::new(), rows: Vec::new() } };
@@ -1109,7 +1179,8 @@ impl Settings {
                 if self.wizard {
                     rows.push(next(Screen::BoxArt));
                 }
-                Page { title: "PC games and apps".into(), lead: "The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing.".into(), rows }
+                let lead = if self.wizard { "Step 2 of 3 · The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." } else { "The PC shelf holds your Steam games and the other stores'. A store that isn't installed simply adds nothing." };
+                Page { title: "PC games and apps".into(), lead: lead.into(), rows }
             }
             Screen::BoxArt => {
                 let lib = self.text(&["ui", "artLibrary"]);
@@ -1137,10 +1208,15 @@ impl Settings {
                         })),
                     },
                 ];
+                // the first run asks just the one question; the rest shows once downloads are on
+                if self.wizard && !self.flag(&["ui", "autoCovers"], false) {
+                    rows.truncate(1);
+                }
                 if self.wizard {
                     rows.push(next(Screen::Done));
                 }
-                Page { title: "Box art".into(), lead: "RustyShelf can fetch the covers your games don't have yet.".into(), rows }
+                let lead = if self.wizard { "Step 3 of 3 · RustyShelf can fetch the covers your games don't have yet. Your game titles are sent to find them; nothing else about you or your PC." } else { "RustyShelf can fetch the covers your games don't have yet." };
+                Page { title: "Box art".into(), lead: lead.into(), rows }
             }
             Screen::Display => {
                 // one of a list, by its saved name: Enter and right go on to the next, left back
@@ -1154,13 +1230,7 @@ impl Settings {
                 let named = |list: &[(&str, &str)]| list.iter().map(|(id, name)| (id.to_string(), name.to_string())).collect::<Vec<_>>();
                 let clock = self.text(&["ui", "clock"]);
                 let mut rows = vec![
-                    choice(
-                        "Language",
-                        &["ui", "language"],
-                        named(&[("en", "English"), ("fr", "Français"), ("tr", "Türkçe"), ("pt", "Português (Brasil)")]),
-                        &self.text(&["ui", "language"]),
-                        "The language the screen is shown in. Português (Brasil) is in the Electron app only for now: here it shows English.",
-                    ),
+                    self.language_row(),
                     choice(
                         "Theme",
                         &["ui", "theme"],
@@ -2025,7 +2095,7 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
                 ))
                 .with_children(|r| {
                     r.spawn((Text::new(t(&row.label)), font(2.5), TextColor(if chosen { STEEL } else { DIM })));
-                    r.spawn((Text::new(t(&row.value)), font(2.2), TextColor(if chosen { RUST } else { DIM })));
+                    r.spawn((Text::new(if LANGUAGES.iter().any(|l| l.1 == row.value) { row.value.clone() } else { t(&row.value) }), font(2.2), TextColor(if chosen { RUST } else { DIM })));
                 });
             }
             if first + WINDOW < n {

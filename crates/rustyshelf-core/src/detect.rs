@@ -30,11 +30,18 @@ struct Index {
     /// a folder picked by hand is looked through deeper, but never more than this many folders
     max_dirs: usize,
     cache: RefCell<HashMap<String, Listing>>,
+    /// the common places are looked through deeper: a portable copy sits further down than an installed one
+    /// (Downloads\Emulators\Dolphin\dolphin-2412-x64\Dolphin-x64\Dolphin.exe)
+    deep: std::cell::OnceCell<Box<Index>>,
 }
 
 impl Index {
     fn new(max_depth: u32, max_dirs: usize) -> Index {
-        Index { max_depth, max_dirs, cache: RefCell::new(HashMap::new()) }
+        Index { max_depth, max_dirs, cache: RefCell::new(HashMap::new()), deep: std::cell::OnceCell::new() }
+    }
+
+    fn deeper(&self) -> &Index {
+        self.deep.get_or_init(|| Box::new(Index::new(4, 6000)))
     }
 
     fn of(&self, dir: &str) -> Listing {
@@ -63,6 +70,25 @@ impl Index {
         self.cache.borrow_mut().insert(key, m.clone());
         m
     }
+}
+
+/// A folder named for emulators or games at the top of every drive (D:\Emulators, E:\Emulation …), where a
+/// downloaded portable emulator is often unzipped (Windows; found once). Keep in sync with main/detect.js driveRoots.
+fn drive_roots() -> &'static [String] {
+    static TOPS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    TOPS.get_or_init(|| {
+        static NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(emulators?|emulation|emus?|games|retro|portable)$").unwrap());
+        if !cfg!(windows) {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        for c in b'C'..=b'Z' {
+            let d = format!("{}:\\", c as char);
+            let Ok(rd) = std::fs::read_dir(&d) else { continue };
+            out.extend(rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| NAME.is_match(n)).map(|n| format!("{d}{n}")));
+        }
+        out
+    })
 }
 
 /// BizHawk covers many consoles: in a folder with another emulator for the console too, that one wins.
@@ -159,24 +185,32 @@ impl<'a> Detector<'a> {
     }
 
     fn search_roots(&self) -> Vec<String> {
-        self.systems.search_roots.iter().map(|r| self.expand(r)).chain(self.media.iter().cloned()).collect()
+        let mut out: Vec<String> = Vec::new();
+        for r in self.systems.search_roots.iter().map(|r| self.expand(r)).chain(drive_roots().iter().cloned()).chain(self.media.iter().cloned()) {
+            if !out.contains(&r) {
+                out.push(r);
+            }
+        }
+        out
     }
 
     /// The program in the emulator's usual folders, else a portable copy in a common place
-    /// (Desktop\Emulators\Dolphin-x64\Dolphin.exe).
+    /// (Desktop\Emulators\Dolphin-x64\Dolphin.exe), looked through deeper.
     fn find_exe(&self, folders: &[String], names: &[String], index: &Index) -> Option<String> {
-        folders.iter().map(|f| self.expand(f)).chain(self.search_roots()).filter(|d| is_dir(Path::new(d))).find_map(|d| find_in(index, &d, names))
+        folders.iter().map(|f| self.expand(f)).filter(|d| is_dir(Path::new(d))).find_map(|d| find_in(index, &d, names)).or_else(|| self.search_roots().into_iter().filter(|d| is_dir(Path::new(d))).find_map(|d| find_in(index.deeper(), &d, names)))
     }
 
     /// Every copy of a console's emulators found, in the order they're found.
     fn find_all_exe(&self, folders: &[String], names: &[String], index: &Index) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
-        for dir in folders.iter().map(|f| self.expand(f)).chain(self.search_roots()) {
+        let roots = self.search_roots();
+        for dir in folders.iter().map(|f| self.expand(f)).chain(roots.iter().cloned()) {
             if out.len() >= 8 || !is_dir(Path::new(&dir)) {
                 continue;
             }
+            let at = if roots.contains(&dir) { index.deeper() } else { index };
             for n in names {
-                if let Some(h) = find_in(index, &dir, std::slice::from_ref(n)).filter(|h| !out.iter().any(|x| x.to_lowercase() == h.to_lowercase())) {
+                if let Some(h) = find_in(at, &dir, std::slice::from_ref(n)).filter(|h| !out.iter().any(|x| x.to_lowercase() == h.to_lowercase())) {
                     out.push(h);
                 }
             }

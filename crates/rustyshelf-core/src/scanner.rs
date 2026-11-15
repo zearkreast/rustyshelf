@@ -377,7 +377,8 @@ fn added_ms(m: &fs::Metadata) -> u64 {
 
 fn walk_files(console: &Console, sc: &SystemConfig) -> Vec<PathBuf> {
     let deep = console.game_file.is_some() || console.deep || console.id == "x360";
-    let depth = if deep { 6 } else { 4 };
+    // (keep in sync with main/scanner.js)
+    let depth = if deep { 8 } else { 6 };
     let game_file = console.game_file.as_deref();
     // "stfs": Games on Demand / Arcade packages, which have no extension
     let mut exts = console.extensions.clone();

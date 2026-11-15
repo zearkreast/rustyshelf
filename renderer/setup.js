@@ -44,7 +44,10 @@ const hubWizard=()=>wizard&&onAndroid();
 // GameCube startup, launch options, your own art folder) keeps its default and lives in Settings.
 const winWizard=()=>wizard&&!onAndroid();
 function sectionList(){
-  if(winWizard())return [{id:"welcome",label:"Welcome"},{id:"pick",label:"Your consoles"},{id:"fix",label:"Finish setting up"},{id:"artlook",label:"Box art"},{id:"accounts",label:"Accounts"},{id:"done",label:"Done"}]; // (beta.9: Accounts, optional)
+  // (RustyShelf) the very first run leaves Accounts out (it's in Settings → Accounts & services; the last page says so):
+  // three pages of keys were the most a first-time user had to read past. Setup run again from Settings keeps it
+  if(winWizard())return [{id:"welcome",label:"Welcome"},{id:"pick",label:"Your consoles"},{id:"fix",label:"Finish setting up"},{id:"artlook",label:"Box art"},
+    ...(info.config&&info.config.setupDone?[{id:"accounts",label:"Accounts"}]:[]),{id:"done",label:"Done"}];
   const s=[],hub=!wizard||hubWizard();
   if(wizard)s.push({id:"welcome",label:"Welcome"});
   // the Android build's own wizard questions (android-wizard.js: games folder, box art, bottom screen, Home app), one per page;
@@ -302,6 +305,11 @@ function welcome(b){
   if(onAndroid())head(b,"Welcome","Let's connect your emulators and games","RustyShelf looks for the emulator apps on this device and the game folders you've already let it see. Next you'll see the consoles it found first; every other console is one tap away under More consoles.");
   else head(b,"Welcome to RustyShelf","Let's find your games","RustyShelf looks for your emulators, games, Steam library and streaming apps. Next you pick which consoles you play, and it's ready in a minute.");
   if(onAndroid()){const root=info.appRoot;b.append(el("div",{class:"field"},el("div",{class:"lbl"},"RustyShelf folder"),el("div",{class:"d-cmd",text:root})))}
+  // (RustyShelf) the language first: the page reloads in it, the wizard where it was
+  {const cur=cfg.ui.language||"en",row=el("div",{class:"wz-lang",role:"radiogroup","aria-label":"Language",translate:"no"}); /* (each language by its own name) */
+    [["en","English"],["tr","Türkçe"],["fr","Français"],["pt","Português (Brasil)"]].forEach(([id,name])=>row.append(el("button",{type:"button",class:"btn small"+(cur===id?" primary":""),role:"radio","aria-checked":String(cur===id),onclick:async()=>{
+      if(cur===id)return;cfg.ui.language=id;clearTimeout(saveT);await persist();try{localStorage.setItem("bs.lang",id)}catch{}location.reload()}},name)));
+    b.append(row)}
   b.append(el("div",{class:"d-actions"},
     el("button",{type:"button",class:"btn primary",onclick:async()=>{if(detecting)return;if(await runDetect(true)===false)return;searched=true;pickInit();if(step===0)step=1;render()}} /* (beta.10) only moves on if you're still on Welcome */,detecting?el("span",{class:"scanning"}):null,detecting?" Looking…":winWizard()?"Find my emulators and games":"Find automatically"),
     el("button",{type:"button",class:"btn",onclick:()=>{pickInit();step=1;render()}},winWizard()?"I'll pick them myself":"Set up by hand")));
@@ -325,7 +333,7 @@ const pickFound=sc=>!!(sc&&((sc.romDirs||[]).length||(sc.emulator&&!isRA(sc.emul
 function pickItems(){
   const L=info.consoles.map(c=>{const sc=cfg.systems[c.id];return {id:c.id,name:c.name,
     found:()=>pickFound(sc),ra:()=>!pickFound(sc)&&isRA(sc.emulator),on:()=>sc.enabled!==false,set:v=>{sc.enabled=v},
-    status:()=>{const n=sc.romDirs.length,e=c.emulatorName||"Emulator";return sc.emulator?`${e} found${n?` · ${n} game folder${n===1?"":"s"}`:""}`:n?`Games found · ${e} not found yet`:`${e} not found`}}});
+    status:()=>{const n=sc.romDirs.length,e=c.emulatorName||"Emulator";if(c.standalone)return "PC programs you put on it · no emulator needed";return sc.emulator?`${e} found${n?` · ${n} game folder${n===1?"":"s"}`:""}`:n?`Games found · ${e} not found yet`:`${e} not found`}}});
   if(!window.bsPlatform||bsPlatform.has("steam"))L.push({id:"steam",name:"Steam",found:()=>!!cfg.steam.path,on:()=>!!cfg.steam.enabled,set:v=>{cfg.steam.enabled=v},status:()=>cfg.steam.path?"Steam found · your PC games":"Steam not found"});
   for(const a of info.apps||[]){const c=cfg.apps[a.id];if(c)L.push({id:"app:"+a.id,name:a.name,found:()=>!!c.path,on:()=>!!c.enabled,set:v=>{c.enabled=v},status:()=>c.path?`${a.name} found · Media shelf`:`${a.name} not found`})}
   return L;
@@ -364,7 +372,7 @@ function pickSection(b){
 // this page just says so.
 function fixNeeds(){
   const out=[];
-  for(const c of info.consoles){const sc=cfg.systems[c.id];if(sc&&sc.enabled!==false&&!(sc.emulator&&sc.romDirs.length))out.push({kind:"con",def:c,sc})}
+  for(const c of info.consoles){const sc=cfg.systems[c.id];if(sc&&sc.enabled!==false&&!c.standalone&&!(sc.emulator&&sc.romDirs.length))out.push({kind:"con",def:c,sc})}
   if(cfg.steam.enabled&&!cfg.steam.path)out.push({kind:"steam"});
   for(const a of info.apps||[]){const c=cfg.apps[a.id];if(c&&c.enabled&&!c.path)out.push({kind:"app",def:a,c})}
   return out;
@@ -378,6 +386,16 @@ function fixSection(b){
   const ready=pickItems().filter(x=>x.on()&&!need.some(n=>(n.def&&("app:"+n.def.id===x.id||n.def.id===x.id))||(n.kind==="steam"&&x.id==="steam")));
   if(ready.length){if(need.length)b.append(el("div",{class:"wz2-sub",text:"Ready"}));
     b.append(el("div",{class:"wz2-grid"+(need.length?" small":"")},ready.map(x=>el("div",{class:"wz2-card on ready"},el("span",{class:"wz2-tick","aria-hidden":"true"}),el("span",{class:"wz2-name",text:x.name}),el("span",{class:"wz2-st ok",text:x.status()})))))}
+  // (RustyShelf) emulators downloaded and unzipped somewhere else: their folder once, and every console missing one gets it
+  if(api.emulatorsIn&&need.some(n=>n.kind==="con"&&!n.sc.emulator))b.append(el("section",{class:"wz2-fix wz2-emufolder"},
+    el("div",{class:"wz2-fh"},el("span",{class:"wz2-fname",text:"Emulators somewhere else?"})),
+    el("p",{class:"hint-text",text:"If you downloaded your emulators and unzipped them yourself (to Downloads, another drive, a USB stick), choose the folder they're in: RustyShelf looks through it, four folders deep, and fills in every console below that's missing one."}),
+    el("div",{class:"d-actions"},el("button",{type:"button",class:"btn primary",onclick:async()=>{
+      const p=await api.pick({kind:"folder",title:"Choose the folder your emulators are in"}).catch(()=>null),dir=typeof p==="string"?p:p&&p.path;if(!dir)return;
+      let r=null;try{r=await api.emulatorsIn(dir)}catch{}const set=[];
+      for(const[id,exe]of Object.entries((r&&r.systems)||{})){const sc=cfg.systems[id];if(sc&&!sc.emulator){sc.emulator=exe;set.push(id)}}
+      if(r&&r.retroarch&&!cfg.retroarch)cfg.retroarch=r.retroarch;
+      Shelf.toast(set.length?`Found ${set.length} emulator${set.length===1?"":"s"} there`:"No emulator RustyShelf knows was found in that folder");changed();render()}},"Choose the folder…"))));
   for(const n of need){
     const box=el("section",{class:"wz2-fix"});
     if(n.kind==="con"){const {def,sc}=n,emu=def.emulatorName||"Emulator";
@@ -432,7 +450,8 @@ function artLookSection(b){
   head(b,"Step 3 of 3","How should your boxes look?","RustyShelf finds the covers, backs, spines and discs for your games online.");
   b.append(card("","",toggle("Download box art automatically",on,v=>{cfg.ui.autoCovers=v;render()},"wz2-ac"),
     el("div",{class:"hint-text",text:"Sends your game titles (and GameCube / Wii disc IDs) to LaunchBox, libretro, GameTDB and the Super Mario Wiki to find pictures. If you add a SteamGridDB key later, PC games, ports and recomps with no cover are looked up there by title too. Nothing else about you or your PC is sent."})));
-  const g=el("div",{class:"wz2-looks"+(on?"":" off")});
+  if(!on){b.append(el("p",{class:"wz2-foot",text:"With it off your games get plain made-up cases. You can turn it on any time in Settings → Box art & manuals."}));return}
+  const g=el("div",{class:"wz2-looks"});
   LOOKS.forEach(([id,t,d,tag])=>g.append(el("button",{type:"button",class:"wz2-look"+(look===id?" on":""),role:"radio","aria-checked":String(look===id),disabled:!on,onclick:()=>setLook(id)},
     el("span",{class:"wz2-art "+id,"aria-hidden":"true"}),el("span",{class:"wz2-name",text:t}),el("span",{class:"wz2-st",text:d}),tag?el("span",{class:"wz2-tag",text:tag}):null)));
   b.append(g);
@@ -994,7 +1013,7 @@ let pvClipAsked=false;
 function pvClipStart(){if(pvClipAsked)return;if(pvClipOk&&(pvClipAsked=true)&&api.clipHelper&&(cfg.ui.previews||"off")!=="off"&&cfg.ui.previewClips!==false)api.clipHelper().catch(()=>{})}
 async function doneSection(b){
   pvClipStart(); // (beta.8) the console trailer helper, in the background (Settings → Video previews shows how it went)
-  head(b,"All set","Here's your library","You can change any of this later in Settings (press S, or View on the controller: Create on a PlayStation pad, − on a Switch pad).");
+  head(b,"All set","Here's your library","You can change any of this later in Settings (press S, or Start on the controller and then Settings). Your accounts (RetroAchievements, SteamGridDB, ScreenScraper) are in Settings → Accounts & services whenever you want them.");
   const grid=el("div",{class:"summary-grid"},el("div",{class:"sum"},el("span",{class:"scanning"}),el("span",{text:" Scanning…"})));b.append(grid);
   // Windows: the art was chosen on the Box art page; here its first download shows its progress (covers:auto from
   // main.js autoCovers, which the scan below starts), then points to the Art Studio

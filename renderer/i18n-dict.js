@@ -43,7 +43,7 @@
   const ATTRS = ["title", "placeholder", "aria-label", "alt"];
 
   function textNode(n) {
-    const p = n.parentNode; if (!p || SKIP.has(p.nodeName)) return;
+    const p = n.parentNode; if (!p || SKIP.has(p.nodeName) || (p.closest && p.closest('[translate="no"]'))) return;
     const v = n.nodeValue, t = tr(v); if (t !== v) n.nodeValue = t;
   }
   function attrs(el) {

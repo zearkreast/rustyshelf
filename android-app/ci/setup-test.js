@@ -77,21 +77,25 @@ module.exports = async function setupPass({ browser, base, check, OUT }) {
     await page.screenshot({ path: path.join(OUT, 'setup-finish.png') });
     check('First run: Finish setting up offers "Set up my emulators for me", on, naming the emulators found', fin.has && fin.on && /RetroArch/.test(fin.text) && /DuckStation/.test(fin.text), JSON.stringify({ has: fin.has, on: fin.on }));
     await page.getByRole('button', { name: 'Next' }).click(); await pause(800);
-    await page.getByRole('button', { name: 'Next' }).click(); await pause(800);
-    // (beta.9) Accounts, optional: one card per service, and the page can be skipped without filling anything in
-    const ac = await page.evaluate(() => ({ title: (document.getElementById('suTitle') || {}).textContent || '', nav: [...document.querySelectorAll('#suNav .su-step')].map(s => s.textContent.trim()),
-      cards: [...document.querySelectorAll('.wz2-acct')].map(c => c.dataset.svc), next: (document.querySelector('#suFoot [data-next]') || {}).textContent || '' }));
-    check('First run (beta.9): an optional Accounts page between Box art and Done, a card each for RetroAchievements, SteamGridDB, ScreenScraper (and fanart.tv under More), skippable',
-      /Connect your accounts/.test(ac.title) && ac.nav.join('|') === 'Welcome|Your consoles|Finish setting up|Box art|Accounts|Done' && ac.cards.join() === 'ra,steamgriddb,screenscraper,fanart' && ac.next === 'Skip for now', JSON.stringify(ac));
-    await page.getByRole('button', { name: 'Skip for now' }).click(); await pause(2500);
-    const skipped = await page.evaluate(async () => { const c = (await window.rustyshelf.getConfig()).config; return { title: (document.getElementById('suTitle') || {}).textContent || '', ra: (c.ra && c.ra.user) || '', sg: (c.keys && c.keys.steamgriddb) || '' }; });
-    check('First run (beta.9): Skip for now goes on to Done and leaves every account empty', /library/i.test(skipped.title) && !skipped.ra && !skipped.sg, JSON.stringify(skipped));
+    await page.getByRole('button', { name: 'Next' }).click(); await pause(2500);
+    // (RustyShelf) the very first run has no Accounts page: Box art goes on to Done, which says where the accounts are
+    const skipped = await page.evaluate(async () => { const c = (await window.rustyshelf.getConfig()).config; return { title: (document.getElementById('suTitle') || {}).textContent || '', nav: [...document.querySelectorAll('#suNav .su-step')].map(s => s.textContent.trim()),
+      lead: (document.querySelector('#suBody') || {}).textContent || '', ra: (c.ra && c.ra.user) || '', sg: (c.keys && c.keys.steamgriddb) || '' }; });
+    check('First run: no Accounts page (Box art goes on to Done, which points to Settings → Accounts & services), every account left empty',
+      /library/i.test(skipped.title) && skipped.nav.join('|') === 'Welcome|Your consoles|Finish setting up|Box art|Done' && /Accounts & services/.test(skipped.lead) && !skipped.ra && !skipped.sg, JSON.stringify({ title: skipped.title, nav: skipped.nav }));
     const done = await page.evaluate(() => (document.querySelector('.wz2-emudone') || {}).textContent || '');
     check('First run: Done says what was set up and what was left as you had it', /Set up: .*RetroArch/.test(done) && /Left as you had them: Dolphin/.test(done), done.slice(0, 160));
     // (beta.9) Accounts filled in: typed on a keyboard, and with a controller (A on a box opens the on-screen keyboard, B puts it away)
-    await page.goto(base + '?platform=windows&retro=1');
-    await page.waitForSelector('#setup.on', { timeout: 90000 }); await pause(800);
+    // (setup run again on a set-up library: the Accounts page is there, a card each for RetroAchievements, SteamGridDB,
+    // ScreenScraper and fanart.tv)
+    await page.goto(base + '?platform=windows&retro=1&shelf=1');
+    await page.waitForFunction(() => window.Shelf && Shelf.getMode && Shelf.getMode() === 'browse', null, { timeout: 90000 }); await pause(800);
+    await page.evaluate(() => Setup.open({ wizard: true }));
+    await page.waitForSelector('#setup.on', { timeout: 30000 }); await pause(800);
     await page.locator('#suNav .su-step', { hasText: 'Accounts' }).click(); await pause(600);
+    const ac = await page.evaluate(() => ({ title: (document.getElementById('suTitle') || {}).textContent || '', cards: [...document.querySelectorAll('.wz2-acct')].map(c => c.dataset.svc), next: (document.querySelector('#suFoot [data-next]') || {}).textContent || '' }));
+    check('Setup run again: the optional Accounts page, a card each for RetroAchievements, SteamGridDB, ScreenScraper (and fanart.tv under More), skippable',
+      /Connect your accounts/.test(ac.title) && ac.cards.join() === 'ra,steamgriddb,screenscraper,fanart' && ac.next === 'Skip for now', JSON.stringify(ac));
     await page.locator('input[data-osk="ra.user"]').fill('tester'); await pause(200);
     const fill = await page.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), o = {}, q = s => document.querySelector(s);
       o.next = (q('#suFoot [data-next]') || {}).textContent;
