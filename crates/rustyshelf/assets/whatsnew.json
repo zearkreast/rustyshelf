@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.1.0-alpha.4", "name": "0.1.0 alpha 4", "date": "2026-11-16", "title": "Settings in tabs, the Wii remote, your own sounds and seventeen themes",
+    "highlights": [
+      "Alpha 3 no longer hangs at a white window on Windows",
+      "Settings in eight tabs, with what needs attention first",
+      "The Wii remote on a DolphinBar, with its pointer on the shelf",
+      "Your own sounds, a sound per console and three new voices",
+      "Seventeen new themes"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Settings in tabs", "Library, Look, Sound, Box art & media, Controls, Shelf, Accounts and System, switched with LB / RB or Page Up / Page Down. Library starts with what needs attention, each with Fix."],
+        ["What's new and the tour", "A new build shows its highlights once, Settings → System lists every version's notes, and a tour of the shelf runs the first time (Show the tour brings it back)."],
+        ["Your setup is kept", "A new version copies your setup first and puts back a missing or damaged config.json; Undo the update's settings changes puts the copy back. A new RustyShelf folder offers to bring your setup over."],
+        ["Nintendo and PlayStation pads during a game", "Joy-Con, Pro Controller, DualShock 4 and DualSense: their quit combo closes the game and Home opens the Home menu, as an Xbox pad's do."],
+        ["The Wii remote", "On a DolphinBar it drives the shelf, Settings and the Home menu, upright or sideways, with a pointer that picks a case. It's handed to Dolphin for a Wii or GameCube game, and Home held opens the Home menu."],
+        ["IGDB", "With a Twitch developer app's Client ID and Secret (Accounts), Details fills in the description, genres, developer and release LaunchBox is missing."],
+        ["Sounds", "Disc-era, Handheld and Living room; a sound per console; and Custom sounds from a game, a folder, a file or a ZIP."],
+        ["Seventeen new themes", "Nebula, Abyss, Ember, Dusk, Prism, Hologram, Starfield, Rainy Night, Cherry Blossom, Snowfall, Event Horizon, Glass Lake, Neon City, Deep Sea, Thunderstorm, Fireflies and Desert Night. Pocket, Walnut, CRT and VHS are retired."]
+      ] },
+      { "h": "Fixed", "items": [
+        ["The white window", "Alpha 3 could hang at a white window on Windows as it set its icon."]
+      ] },
+      { "h": "Changed", "items": [
+        ["The museum is gone", "Its development stopped, so it's out of the native app; View opens Details again. The Electron app keeps its museum."]
+      ] }
+    ]
+  },
+  {
     "version": "0.1.0-alpha.3", "name": "0.1.0 alpha 3", "date": "2026-11-16", "title": "RustyShelf's icon, the museum, Kid mode and RomM",
     "highlights": [
       "The museum: the classic wall, rooms by maker or genre, the walkable arcade and the reading corner",
