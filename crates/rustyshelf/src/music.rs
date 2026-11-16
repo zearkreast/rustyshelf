@@ -248,8 +248,8 @@ fn write(shared: Arc<Shared>, asked: Receiver<Ask>) {
 pub struct Music {
     shared: Arc<Shared>,
     ask: Sender<Ask>,
-    /// the track that's playing ("own": your music)
-    track: Option<&'static str>,
+    /// the track that's playing ("own": your music; "pack:<file>": a sound pack's own music)
+    track: Option<String>,
     tonic: i32,
     /// your music was asked to be read again
     pub reload: bool,
@@ -287,15 +287,21 @@ pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, mut settings: R
         _ => None,
     };
     let heard = prefs.on && prefs.music_level > 0.0 && prefs.volume > 0.0 && playing.title.is_none() && shelf.is_some();
-    let track = music::track(&prefs.music).filter(|_| heard);
-    let wanted = track.map(|t| t.id).or((heard && prefs.music == "own").then_some("own"));
+    // a sound pack with music of its own plays it in place of the track chosen
+    let pack = sounds.pack_music().filter(|_| heard && prefs.music != "off");
+    let track = music::track(&prefs.music).filter(|_| heard && pack.is_none());
+    let wanted = match &pack {
+        Some(f) => Some(format!("pack:{}", f.display())),
+        None => track.map(|t| t.id.to_string()).or((heard && prefs.music == "own").then(|| "own".to_string())),
+    };
     let tonic = music::tonic(cues::theme(&prefs.voice).root(), shelf.map_or(0, |s| cues::key_of(&s.id).0));
-    if wanted != music.track || (std::mem::take(&mut music.reload) && wanted == Some("own")) {
-        music.track = wanted;
+    if wanted != music.track || (std::mem::take(&mut music.reload) && wanted.as_deref() == Some("own")) {
+        music.track = wanted.clone();
         music.tonic = tonic;
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.subsec_nanos() ^ d.as_secs() as u32);
-        let _ = music.ask.send(match (track, wanted) {
+        let _ = music.ask.send(match (track, &wanted) {
             (Some(track), _) => Ask::Play { track, seed, tonic },
+            (None, Some(_)) if pack.is_some() => Ask::Own { files: pack.into_iter().collect(), seed },
             (None, Some(_)) => Ask::Own { files: rustyshelf_core::usermusic::music_files(&rustyshelf_core::paths::app_root()).into_iter().map(|(_, f)| f).collect(), seed },
             (None, None) => Ask::Stop,
         });
@@ -305,8 +311,8 @@ pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, mut settings: R
     }
     let mut level = music.shared.level.lock().unwrap();
     // (your own files are recordings, quieter by ear than the app's music at the same setting)
-    level.to = match wanted {
-        Some("own") => (prefs.music_level * 1.4 * prefs.volume).min(1.0),
+    level.to = match wanted.as_deref() {
+        Some(w) if w == "own" || w.starts_with("pack:") => (prefs.music_level * 1.4 * prefs.volume).min(1.0),
         Some(_) => prefs.music_level * prefs.volume,
         None => 0.0,
     };

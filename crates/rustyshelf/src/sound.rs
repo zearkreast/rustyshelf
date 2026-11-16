@@ -122,6 +122,12 @@ impl Sounds {
         let _ = self.jobs.send(Job::Cue { voices: cue.voices, tone: self.state.theme().tone, level: cue.level, volume: self.volume, seed: self.seed });
     }
 
+    /// The music file of the pack playing on this shelf, when it has one.
+    pub fn pack_music(&self) -> Option<std::path::PathBuf> {
+        let p = self.pack.as_ref()?;
+        soundpacks::file_of(&rustyshelf_core::paths::app_root(), p, p.file_for("music")?)
+    }
+
     /// The sound the shelf plays: a voice, or a pack (and Aero for what it has no file for).
     fn choose(&mut self) {
         let sound = soundpacks::sound_for(&self.shelf, &self.voice, &self.by_shelf, &self.packs);
