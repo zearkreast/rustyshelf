@@ -15,7 +15,6 @@
 [![Plateformes : Windows, Linux, Android](https://img.shields.io/badge/plateformes-Windows%20%C2%B7%20Linux%20%C2%B7%20Android-informational)](#installation)
 [![Build/release check](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml/badge.svg)](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml)
 [![Electron](https://img.shields.io/badge/app-Electron-47848F?logo=electron&logoColor=white)](docs/MANUAL.md#run-from-source)
-[![Rust + Bevy](https://img.shields.io/badge/r%C3%A9%C3%A9criture-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](#version-native-en-rust)
 
 </div>
 
@@ -76,16 +75,6 @@ dossiers de jeux, vous vérifiez chaque système, puis vous choisissez **Open Ru
 
 La liste complète se trouve dans le [manuel](docs/MANUAL.md#controls).
 
-## Version native en Rust
-
-RustyShelf est en cours de réécriture sous forme d'application native en Rust, dans `crates/`, avec
-[Bevy](https://bevy.org/). Elle lit les mêmes réglages et les mêmes données que l'application Electron : une configuration
-faite dans l'une fonctionne dans l'autre. Elle ne la remplace pas encore : installez et utilisez l'application Electron. Le
-manuel indique [ce qui fonctionne déjà](docs/MANUAL.md#native-rust-version).
-
-```bash
-cargo run -p rustyshelf --release -- --windowed
-```
 
 ## Documentation
 

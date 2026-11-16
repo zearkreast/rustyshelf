@@ -1523,8 +1523,7 @@ async function renderSpine(id, title, front) {
   return Buffer.from(m[1], 'base64');
 }
 artstudio.setMaker({ back: renderBack, spine: renderSpine });
-// Steam has no box back to download: one is made from the store's screenshots and description. Keep in sync with
-// crates/rustyshelf-core/src/steamart.rs make_backs.
+// Steam has no box back to download: one is made from the store's screenshots and description.
 const fromFileUrl = u => (/^bsfile:\/\/local\//.test(u || '') ? decodeURIComponent(u.slice(15).replace(/\?.*$/, '')) : null);
 async function makeSteamBacks(games) {
   if (cfg.ui.makeBacks === false) return 0;

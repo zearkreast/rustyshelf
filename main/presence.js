@@ -72,7 +72,7 @@ function configure({ enabled, appId, logger } = {}) {
 // RustyShelf's icon, where Discord can fetch it: the picture when there's no cover, and the small one beside a cover
 const ICON = 'https://raw.githubusercontent.com/zearkreast/rustyshelf/rustyshelf/renderer/app-icon.png';
 // A game started: its title, the shelf (or store) it's from and the time it began; `image` (an https address) is its
-// cover. Keep in sync with crates/rustyshelf-core/src/presence.rs activity
+// cover.
 function setGame(title, shelf, image) {
   if (!on) return;
   const t = String(title || 'a game').slice(0, 120), img = /^https:\/\/\S+$/.test(String(image || '')) && String(image).length <= 256 ? String(image) : '';

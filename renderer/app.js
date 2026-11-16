@@ -3764,7 +3764,6 @@ function attractCheck(){
   if(performance.now()-lastInputAt>mins*60000){attract=true;app.classList.add("attract");attractT=setTimeout(attractStep,2200)}
 }
 // Settings → Shelf: how long each box stays (ui.attractPace) and whether it wanders to other shelves (ui.attractWander).
-// Keep in sync with crates/rustyshelf/src/settings.rs idle()
 const ATTRACT_MS={slow:7000,normal:4200,fast:2500};
 function attractPace(){const p=cfgInfo&&cfgInfo.config.ui.attractPace;return ATTRACT_MS[p]?p:"normal"}
 function attractWander(){return !(cfgInfo&&cfgInfo.config.ui.attractWander===false)}

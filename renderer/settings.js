@@ -1180,7 +1180,7 @@ const L0=[["1","2","3","4","5","6","7","8","9","0"],["q","w","e","r","t","y","u"
 const L1=[["1","2","3","4","5","6","7","8","9","0"],["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L","\""],["Z","X","C","V","B","N","M","_",":","⌫"]];
 const L2=[["!","@","#","$","%","^","&","*","(",")"],["\\","/",":",";","_","=","+","{","}","~"],["[","]","<",">","|","?",",","`","'","\""],["€","£","¥","§","°","·","…","-",".","⌫"]];
 let oskMode="search",oskSig="";
-// (Paste: a key copied on the PC or phone goes in with the controller too) keep in sync with crates/rustyshelf/src/osk.rs
+// (Paste: a key copied on the PC or phone goes in with the controller too)
 function keysNow(){const P=api.clipboardText?["Paste"]:[];if(oskMode==="search")return [...L0,["Space",...P,"Clear","Done"]];return [...[L0,L1,L2][oskLayer],["Shift","#+=","Space",...P,"Clear","Cancel","Done"]]}
 async function oskPaste(){let t="";try{t=String(await api.clipboardText()||"").trim()}catch{}if(!t){toast("Nothing to paste: copy it first");return}for(const ch of t)typeChar(ch);render()}
 function openOsk(mode){oskMode=mode||"search";oskLayer=0;E.osk.classList.add("on");focus="osk";const n=keysNow().flat().length;if(oskI>=n)oskI=0;oskSig=""}

@@ -15,7 +15,6 @@
 [![Платформы: Windows, Linux, Android](https://img.shields.io/badge/%D0%BF%D0%BB%D0%B0%D1%82%D1%84%D0%BE%D1%80%D0%BC%D1%8B-Windows%20%C2%B7%20Linux%20%C2%B7%20Android-informational)](#установка)
 [![Build/release check](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml/badge.svg)](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml)
 [![Electron](https://img.shields.io/badge/app-Electron-47848F?logo=electron&logoColor=white)](docs/MANUAL.md#run-from-source)
-[![Rust + Bevy](https://img.shields.io/badge/rewrite-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](#нативная-версия-на-rust)
 
 </div>
 
@@ -73,16 +72,6 @@
 
 Полный список есть в [руководстве](docs/MANUAL.md#controls).
 
-## Нативная версия на Rust
-
-RustyShelf переписывается как нативное приложение на Rust, в папке `crates/`, на движке [Bevy](https://bevy.org/). Оно
-читает те же настройки и данные, что и приложение на Electron, так что настройка, сделанная в одном, работает в другом.
-Это пока не замена: устанавливайте и используйте приложение на Electron. В руководстве перечислено,
-[что уже работает](docs/MANUAL.md#native-rust-version).
-
-```bash
-cargo run -p rustyshelf --release -- --windowed
-```
 
 ## Документация
 

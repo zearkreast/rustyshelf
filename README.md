@@ -15,7 +15,6 @@
 [![Platforms: Windows, Linux, Android](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20Linux%20%C2%B7%20Android-informational)](#install)
 [![Build/release check](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml/badge.svg)](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml)
 [![Electron](https://img.shields.io/badge/app-Electron-47848F?logo=electron&logoColor=white)](docs/MANUAL.md#run-from-source)
-[![Rust + Bevy](https://img.shields.io/badge/rewrite-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](#native-rust-version)
 
 </div>
 
@@ -73,15 +72,6 @@ each system, then choose **Open RustyShelf**.
 
 The [manual](docs/MANUAL.md#controls) has the full list.
 
-## Native Rust version
-
-RustyShelf is being rewritten as a native app in Rust, in `crates/`, with [Bevy](https://bevy.org/). It reads the same
-settings and data as the Electron app, so a setup made in either works in both. It isn't a replacement yet: install and use
-the Electron app. The manual lists [what works so far](docs/MANUAL.md#native-rust-version).
-
-```bash
-cargo run -p rustyshelf --release -- --windowed
-```
 
 ## Documentation
 
@@ -114,7 +104,7 @@ Boxshelf's work, by its author. What the forks added is tagged **[fork]** in the
 [Super Mario Wiki](https://www.mariowiki.com).
 **Manuals:** [Internet Archive](https://archive.org) collections and [GamesDatabase.org](https://www.gamesdatabase.org).
 Box art and manuals are © their publishers.
-**Fonts:** SIL Open Font License (see `renderer\fonts\LICENSES`; the Rust app's copies and their licences are in `crates\rustyshelf-core\assets\fonts`).
+**Fonts:** SIL Open Font License (see `renderer\fonts\LICENSES`).
 **PC games:** [legendary](https://github.com/derrod/legendary) and [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher).
 **Bundled libraries** and their licences: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 

@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0). Written by Haseo
 // (https://github.com/Haseosama) in their Boxshelf fork for French: the English on screen swapped, as it's drawn, for
 // the chosen language's (Settings → Display → Language, localStorage "bs.lang"): French (i18n-fr.js) or Turkish
-// (i18n-tr.js). Keep the matching in sync with crates/rustyshelf-core/src/i18n.rs.
+// (i18n-tr.js).
 (function () {
   "use strict";
   let lang = "";

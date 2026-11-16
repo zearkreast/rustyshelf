@@ -15,7 +15,6 @@
 [![Platformlar: Windows, Linux, Android](https://img.shields.io/badge/platformlar-Windows%20%C2%B7%20Linux%20%C2%B7%20Android-informational)](#kurulum)
 [![Build/release check](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml/badge.svg)](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml)
 [![Electron](https://img.shields.io/badge/uygulama-Electron-47848F?logo=electron&logoColor=white)](docs/MANUAL.md#run-from-source)
-[![Rust + Bevy](https://img.shields.io/badge/yeniden%20yaz%C4%B1m-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](#yerel-rust-sürümü)
 
 </div>
 
@@ -73,16 +72,6 @@ her sistemi gözden geçirirsiniz, sonra **Open RustyShelf** seçersiniz.
 
 Tam liste [kılavuzda](docs/MANUAL.md#controls).
 
-## Yerel Rust sürümü
-
-RustyShelf, `crates/` klasöründe [Bevy](https://bevy.org/) ile Rust'ta yerel bir uygulama olarak yeniden yazılıyor.
-Electron uygulamasıyla aynı ayarları ve verileri okur; birinde yapılan kurulum diğerinde de çalışır. Henüz onun yerini
-tutmuyor: Electron uygulamasını kurup kullanın. Kılavuzda [şimdiye kadar çalışanların](docs/MANUAL.md#native-rust-version)
-listesi var.
-
-```bash
-cargo run -p rustyshelf --release -- --windowed
-```
 
 ## Belgeler
 
