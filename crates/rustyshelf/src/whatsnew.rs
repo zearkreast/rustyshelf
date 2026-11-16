@@ -53,6 +53,7 @@ pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut wn: ResMut<WhatsNew>, mut 
         items: top.highlights.iter().take(5).cloned().collect(),
         keys: Vec::new(),
         buttons: vec!["Got it".into(), "All the notes".into()],
+        ..Default::default()
     });
     wn.showing = true;
 }

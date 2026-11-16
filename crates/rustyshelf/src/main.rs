@@ -111,7 +111,7 @@ fn main() {
                 phone::run,
                 idle::run,
                 home::run,
-                (card::run, whatsnew::run, tour::run).chain(),
+                (card::run, play::pick_build, whatsnew::run, tour::run).chain(),
                 reader::run,
                 shelf::inspect,
                 settings::input,

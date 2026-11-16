@@ -1,6 +1,6 @@
-//! One card over the shelf, in Settings' look: What's new after an update, and the shelf tour's steps. ◀ ▶ moves
-//! between its buttons, Enter / A picks the lit one, Esc / B closes it. While it's up the shelf and Settings leave
-//! the keys to it.
+//! One card over the shelf, in Settings' look: What's new after an update, the shelf tour's steps, and a few choices
+//! one per row (the Switch 2 build to start in). ◀ ▶ moves between its buttons (▲ ▼ between its choices), Enter / A
+//! picks the lit one, Esc / B closes it. While it's up the shelf and Settings leave the keys to it.
 
 use bevy::prelude::*;
 
@@ -17,6 +17,10 @@ pub struct Content {
     pub keys: Vec<(String, String)>,
     /// the first is the main one
     pub buttons: Vec<String>,
+    /// choices, one per row with a line beside it, picked instead of the buttons
+    pub options: Vec<(String, String)>,
+    /// the choice lit first
+    pub first: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,7 +40,8 @@ pub struct Card {
 
 impl Card {
     pub fn show(&mut self, c: Content) {
-        (self.shown, self.lit, self.outcome, self.built) = (Some(c), 0, None, false);
+        let lit = c.first.min(c.options.len().saturating_sub(1));
+        (self.shown, self.lit, self.outcome, self.built) = (Some(c), lit, None, false);
     }
 
     pub fn is_open(&self) -> bool {
@@ -87,8 +92,13 @@ pub fn run(
     };
     settings.keys_taken = true;
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
-    let n = c.buttons.len().max(1);
-    let step = (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32;
+    let rows = !c.options.is_empty();
+    let n = if rows { c.options.len() } else { c.buttons.len().max(1) };
+    let step = if rows {
+        (keys.just_pressed(KeyCode::ArrowDown) || pad(GamepadButton::DPadDown)) as i32 - (keys.just_pressed(KeyCode::ArrowUp) || pad(GamepadButton::DPadUp)) as i32
+    } else {
+        (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32
+    };
     if step != 0 && n > 1 {
         card.lit = (card.lit as i32 + step).rem_euclid(n as i32) as usize;
         card.built = false;
@@ -131,6 +141,21 @@ pub fn run(
             }
             for item in &c.items {
                 p.spawn(text(format!("•  {}", t(item)), 400, 14.0, INK));
+            }
+            if rows {
+                p.spawn(Node { margin: UiRect::top(px(6)), flex_direction: FlexDirection::Column, row_gap: px(4), ..default() }).with_children(|list| {
+                    for (i, (label, line)) in c.options.iter().enumerate() {
+                        let on = i == lit;
+                        list.spawn((
+                            Node { padding: UiRect::axes(px(14), px(9)), column_gap: px(12), justify_content: JustifyContent::SpaceBetween, align_items: AlignItems::Center, border_radius: BorderRadius::all(px(10)), ..default() },
+                            BackgroundColor(if on { Color::srgba(1.0, 1.0, 1.0, 0.14) } else { Color::NONE }),
+                        ))
+                        .with_children(|row| {
+                            row.spawn(text(label.clone(), if on { 700 } else { 500 }, 15.0, INK));
+                            row.spawn(text(t(line), 400, 12.0, DIM));
+                        });
+                    }
+                });
             }
             for (k, what) in &c.keys {
                 p.spawn(Node { column_gap: px(10), align_items: AlignItems::Center, ..default() }).with_children(|row| {

@@ -62,6 +62,7 @@ fn show(card: &mut Card, step: &Step, last: bool) {
         items: Vec::new(),
         keys: step.keys.iter().map(|(k, w)| (k.to_string(), w.to_string())).collect(),
         buttons: if last { vec!["Done".into()] } else { vec!["Next".into(), "Skip the tour".into()] },
+        ..Default::default()
     });
 }
 

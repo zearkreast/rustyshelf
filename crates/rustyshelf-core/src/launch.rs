@@ -303,7 +303,6 @@ fn clean_env_of(vars: Vec<(String, String)>, extra: Option<Vec<(String, String)>
 }
 
 /// Everything the Electron app decides before it starts a game: the emulator, its options, the file it's handed.
-// TODO: still Electron-only: the Switch 2 build picker
 /// (Windows) The game through RocketLauncher, which picks and starts the emulator itself. None when RocketLauncher has
 /// no system for this console and it's on for every console without this one chosen: the console keeps its emulator.
 fn rocket_plan(console: &Console, file: &Path, cfg: &Config) -> Result<Option<Plan>, LaunchError> {
@@ -328,15 +327,20 @@ pub fn is_rocket(exe: &str) -> bool {
     Path::new(exe).file_name().is_some_and(|n| n.eq_ignore_ascii_case("RocketLauncher.exe"))
 }
 
-/// `say`: what the launch screen says while the game is got ready (a 3DS install, a RetroArch core's download).
-pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path, say: &mut dyn FnMut(&str)) -> Result<Plan, LaunchError> {
+/// `build`: the Switch 2 build chosen at Play, over the game's own and the shelf's. `say`: what the launch screen says
+/// while the game is got ready (a 3DS install, a RetroArch core's download).
+#[allow(clippy::too_many_arguments)]
+pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path, build: Option<&Path>, say: &mut dyn FnMut(&str)) -> Result<Plan, LaunchError> {
     let id = console.id.as_str();
     if crate::rocket::use_for(id, cfg) {
         if let Some(p) = rocket_plan(console, file, cfg)? {
             return Ok(p);
         }
     }
-    let mut exe = choose_emulator(console, sc, game_id, cfg, app_root)?;
+    let mut exe = match build.filter(|_| id == "sw2") {
+        Some(b) => nx2::chosen(cfg, app_root, &file.to_string_lossy(), b).map_err(LaunchError::Refused)?.exe,
+        None => choose_emulator(console, sc, game_id, cfg, app_root)?,
+    };
     if id == "ps4" && file.extension().is_some_and(|e| e.eq_ignore_ascii_case("pkg")) {
         return refuse(PS4_PKG);
     }
@@ -739,7 +743,7 @@ pub fn launch_app(name: &str, path: &str, app_root: &Path) -> Result<Child, Laun
 }
 
 pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Child, LaunchError> {
-    start(&plan(console, sc, file, game_id, cfg, app_root, &mut |_| {})?)
+    start(&plan(console, sc, file, game_id, cfg, app_root, None, &mut |_| {})?)
 }
 
 #[cfg(test)]
@@ -792,7 +796,7 @@ mod tests {
             let console = systems().console(id).unwrap();
             let cfg = Config::parse(cfg).unwrap();
             let game_id = format!("{id}:{}", file.display());
-            plan(console, &cfg.system(console), file, &game_id, &cfg, self.dir.path(), &mut |_| {})
+            plan(console, &cfg.system(console), file, &game_id, &cfg, self.dir.path(), None, &mut |_| {})
         }
     }
 

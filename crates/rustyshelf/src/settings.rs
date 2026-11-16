@@ -17,7 +17,7 @@ use rustyshelf_core::library::ShelfKind;
 use rustyshelf_core::scanner::{Game, Source};
 use rustyshelf_core::shelfview::{self, SORTS};
 use rustyshelf_core::systems::{systems, Console};
-use rustyshelf_core::{emucfg, emuname, paths};
+use rustyshelf_core::{emucfg, emuname, nx2, paths};
 use serde_json::{json, Value};
 
 use crate::hud::Face;
@@ -43,6 +43,7 @@ mod phone;
 mod romm;
 pub mod setup;
 mod storage;
+mod sw2;
 mod text;
 mod trophies;
 mod update;
@@ -124,6 +125,8 @@ enum Screen {
     SoundConsoles,
     /// Settings → Sounds → Custom sounds
     SoundPacks,
+    /// Settings → Switch 2 → Emulators (forks)
+    Sw2Builds,
 }
 
 /// The game the shelf's menu or Details was opened on.
@@ -212,6 +215,9 @@ enum Pick {
     RomFoldersIn,
     /// your own sounds: a folder, a sound file or a ZIP of them
     SoundPack,
+    /// a Switch 2 emulator for the list Play shows, and a folder of them
+    Sw2Build,
+    Sw2Folder,
 }
 
 #[derive(Resource)]
@@ -286,6 +292,7 @@ pub struct Settings {
     /// your own sounds, read when a sound page opens
     packs: Vec<rustyshelf_core::soundpacks::Pack>,
     storage: storage::Storage,
+    sw2: sw2::Sw2Ui,
     art_pick: art::ArtPick,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
@@ -395,6 +402,7 @@ impl Default for Settings {
             console_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
+            sw2: Default::default(),
             art_pick: Default::default(),
             kid_open: false,
             tab: 0,
@@ -704,6 +712,9 @@ impl Settings {
         if screen == Screen::Storage {
             self.load_storage(false);
         }
+        if matches!(&screen, Screen::Sw2Builds) || matches!(&screen, Screen::Console(id) if id == "sw2") {
+            self.load_sw2(false);
+        }
         if screen == Screen::Details {
             self.load_achievements(false);
             self.load_igdb();
@@ -994,6 +1005,8 @@ impl Settings {
                 }
                 self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", if set == 1 { "" } else { "s" }) });
             }
+            Pick::Sw2Build => self.sw2_picked(false, path),
+            Pick::Sw2Folder => self.sw2_picked(true, path),
             Pick::SoundPack => {
                 match rustyshelf_core::soundpacks::import_from(&self.app_root, &[path.to_path_buf()], None) {
                     Ok(pack) => {
@@ -1388,6 +1401,9 @@ impl Settings {
                     open("Emulator", if emu.is_empty() { "Not set".into() } else { emuname::label(&emu) }, &short(&emu), Screen::Emulator(e)),
                     open("Games folders", format!("{n} folder{}", if n == 1 { "" } else { "s" }), "", Screen::Folders(f)),
                 ];
+                if id == "sw2" {
+                    rows.insert(2, self.sw2_row());
+                }
                 if self.rocket_on() {
                     rows.splice(1..1, self.rocket_console_rows(id, &c.emulator_name));
                 }
@@ -2272,6 +2288,7 @@ impl Settings {
             Screen::EpicDownloads => self.epic_downloads_page(),
             Screen::WhatsNew => self.whatsnew_page(),
             Screen::Storage => self.storage_page(),
+            Screen::Sw2Builds => self.sw2_page(),
             Screen::Art => self.art_page(),
             Screen::ArtPart => self.art_part_page(),
             Screen::Kid => self.kid_page(),
@@ -2601,6 +2618,7 @@ pub fn input(
     s.poll_manual_studio();
     s.poll_trophies();
     s.poll_storage();
+    s.poll_sw2();
     s.poll_art(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {

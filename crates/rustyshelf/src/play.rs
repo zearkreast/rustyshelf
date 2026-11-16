@@ -5,7 +5,7 @@ use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
-use rustyshelf_core::{emucfg, emuname};
+use rustyshelf_core::{emucfg, emuname, nx2};
 use rustyshelf_core::gamewatch::{self, Event, Spec};
 use rustyshelf_core::history::History;
 use rustyshelf_core::launch::{self, LaunchError};
@@ -92,6 +92,37 @@ pub struct Playing {
     pub romm: Option<Downloading>,
     /// what the boot slide says while a console game is got ready (a RomM download, a 3DS install, a RetroArch core)
     pub line: Option<std::sync::Arc<Mutex<String>>>,
+    /// the Switch 2 build to start in, asked for at Play
+    pick: BuildPick,
+}
+
+/// "Start in which build?" at Play on the Switch 2 shelf: the builds are looked for off the screen's thread, then
+/// offered on a card; the one chosen starts the game.
+#[derive(Default)]
+struct BuildPick {
+    /// the game the builds are being looked for (its id, file and title)
+    asking: Option<(String, String, String, Mutex<Receiver<nx2::Offer>>)>,
+    /// on the card: the game and the builds offered (the row after them adds one)
+    shown: Option<(String, String, String, Vec<std::path::PathBuf>)>,
+    /// the program picked to add, for that game
+    adding: Option<(String, String, String, Mutex<Receiver<Option<std::path::PathBuf>>>)>,
+    /// chosen for a game: its build, or none when there were none to offer
+    next: Option<(String, Option<std::path::PathBuf>)>,
+    /// Play is pressed for it once the card has let go of the keys
+    go: bool,
+}
+
+impl BuildPick {
+    fn busy(&self) -> bool {
+        self.asking.is_some() || self.adding.is_some() || self.shown.is_some()
+    }
+
+    fn ask(&mut self, cfg: rustyshelf_core::config::Config, id: String, file: String, title: String) {
+        let (tx, rx) = channel();
+        let f = file.clone();
+        std::thread::spawn(move || drop(tx.send(nx2::offer(&cfg, &paths::app_root(), &f))));
+        self.asking = Some((id, file, title, Mutex::new(rx)));
+    }
 }
 
 pub struct Downloading {
@@ -260,7 +291,7 @@ pub fn navigate(
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
     // Settings has the keys while it's open, and so has the Home menu
-    if settings.open || settings.keys_taken || (settings.just_closed && !asked) {
+    if settings.open || settings.keys_taken || (settings.just_closed && !asked) || playing.pick.busy() {
         return;
     }
     if let Some(d) = playing.romm.as_ref().filter(|_| keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pads.iter().any(|p| p.just_pressed(settings.confirm().1))) {
@@ -533,8 +564,21 @@ pub fn navigate(
             }
         },
         (ShelfKind::Console { console, config }, Source::Rom) => {
+            let shelf_file = g.file.to_string_lossy().into_owned();
+            let build = match playing.pick.next.take() {
+                Some((id, b)) if id == g.id => b,
+                _ if console.id == "sw2" && settings.sw2_asks() => {
+                    let cfg = settings.config_now().unwrap_or_else(|| l.config.clone());
+                    return playing.pick.ask(cfg, g.id.clone(), shelf_file, g.title.clone());
+                }
+                _ => None,
+            };
+            if let Some(b) = &build {
+                settings.remember_sw2_build(&shelf_file, b);
+            }
+            let cfg = if build.is_some() { settings.config_now().unwrap_or_else(|| l.config.clone()) } else { l.config.clone() };
             let (tx, rx) = channel();
-            let (console, sc, file, id, cfg, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.config.clone(), l.app_root.clone());
+            let (console, sc, file, id, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.app_root.clone());
             playing.console = console.id.clone();
             let waiting = settings.at_launch();
             let (cancel, line) = (std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), std::sync::Arc::new(Mutex::new(String::new())));
@@ -550,7 +594,7 @@ pub fn navigate(
                     Some(Err(why)) => return drop(tx.send(Err(LaunchError::Refused(why)))),
                     None => file,
                 };
-                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root, &mut |t| *line.lock().unwrap() = t.to_string()).and_then(|p| {
+                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root, build.as_deref(), &mut |t: &str| *line.lock().unwrap() = t.to_string()).and_then(|p| {
                     let exe = p.exe.to_string_lossy().into_owned();
                     let still = waiting.and_then(|w| w.run(&p.exe));
                     if !launch::is_rocket(&exe) {
@@ -597,6 +641,96 @@ pub fn navigate(
             }
         },
         (ShelfKind::Pc | ShelfKind::Apps | ShelfKind::Mixed, Source::Rom) | (_, Source::Tile(_)) => {}
+    }
+}
+
+/// The Switch 2 build picker's card, and the shelf's build put right at the start when it's gone.
+pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Card>, mut settings: ResMut<crate::settings::Settings>, mut toast: ResMut<Toast>, time: Res<Time>, mut gone: Local<Option<Mutex<Receiver<Option<nx2::Build>>>>>, mut looked: Local<bool>) {
+    if !std::mem::replace(&mut *looked, true) {
+        if let Some(cfg) = settings.config_now() {
+            let (tx, rx) = channel();
+            std::thread::spawn(move || drop(tx.send(nx2::replacement(&cfg, &paths::app_root()))));
+            *gone = Some(Mutex::new(rx));
+        }
+    }
+    if let Some(b) = gone.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        *gone = None;
+        if let Some(b) = b {
+            settings.replace_sw2_build(&b);
+        }
+    }
+    let now = time.elapsed_secs();
+    let pick = &mut playing.pick;
+    if pick.go {
+        if !settings.keys_taken {
+            pick.go = false;
+            settings.play = true;
+        }
+        return;
+    }
+    let offered = pick.asking.as_ref().map(|a| a.3.lock().unwrap().try_recv());
+    match offered {
+        None | Some(Err(TryRecvError::Empty)) => {}
+        Some(Err(TryRecvError::Disconnected)) => pick.asking = None,
+        Some(Ok(offer)) => {
+            let (id, file, title, _) = pick.asking.take().unwrap();
+            if offer.builds.is_empty() {
+                // none to choose from: the shelf's emulator, as without the list
+                (pick.next, pick.go) = (Some((id, None)), true);
+                return;
+            }
+            let day = |ms: f64| chrono::DateTime::from_timestamp_millis(ms as i64).map(|d| d.with_timezone(&chrono::Local).format("%b %-d").to_string()).unwrap_or_default();
+            let mut options: Vec<(String, String)> = offer.builds.iter().map(|b| (b.label.clone(), if offer.nup && !b.nup { "may not open .nup games".into() } else { day(b.date) })).collect();
+            options.push(("+ Add another emulator…".into(), "eglantine.exe, lichii.exe…".into()));
+            let first = offer.first.as_ref().and_then(|f| offer.builds.iter().position(|b| b.exe == *f)).unwrap_or(0);
+            card.show(crate::card::Content {
+                kick: "Choose a build".into(),
+                title: "Start in which build?".into(),
+                sub: title.clone(),
+                keys: vec![("Enter".into(), "Start".into()), ("Esc".into(), "Back".into())],
+                options,
+                first,
+                ..default()
+            });
+            pick.shown = Some((id, file, title, offer.builds.into_iter().map(|b| b.exe).collect()));
+        }
+    }
+    if let Some(got) = pick.adding.as_ref().and_then(|a| a.3.lock().unwrap().try_recv().ok()) {
+        let (id, file, title, _) = pick.adding.take().unwrap();
+        if let Some(exe) = got {
+            toast.text = match settings.add_sw2_build(&exe) {
+                Ok(()) => "Emulator added".into(),
+                Err(e) => e,
+            };
+            toast.until = now + 4.0;
+        }
+        if let Some(cfg) = settings.config_now() {
+            playing.pick.ask(cfg, id, file, title);
+        }
+        return;
+    }
+    if pick.shown.is_none() {
+        return;
+    }
+    let Some(o) = card.take() else { return };
+    let (id, file, title, exes) = pick.shown.take().unwrap();
+    match o {
+        crate::card::Outcome::Picked(i) if i < exes.len() => (pick.next, pick.go) = (Some((id, Some(exes[i].clone()))), true),
+        crate::card::Outcome::Picked(_) => {
+            let (tx, rx) = channel();
+            std::thread::spawn(move || {
+                if let Some(answer) = std::env::var_os("RUSTYSHELF_PICK") {
+                    return drop(tx.send(Some(answer.into())));
+                }
+                let mut dialog = rfd::FileDialog::new().set_title("Choose a Switch 2 emulator (eglantine.exe, lichii.exe, orchid.exe…)");
+                if cfg!(windows) {
+                    dialog = dialog.add_filter("Programs", &["exe"]);
+                }
+                let _ = tx.send(dialog.pick_file());
+            });
+            pick.adding = Some((id, file, title, Mutex::new(rx)));
+        }
+        crate::card::Outcome::Back => {}
     }
 }
 

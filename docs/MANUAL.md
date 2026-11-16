@@ -582,6 +582,11 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   else RetroArch with the console's core; with the options the emulator in use takes (a standalone retro emulator,
   Ryujinx, Dolphin's settings for the session, the GameCube startup), the real Xenia behind Xenia Manager, a PS Vita game
   by its title id, an unpacked Switch 2 game in its newest update, and a PS5 game with the Kyty launcher's settings.
+- Asks which build a Switch 2 game starts in, as the Electron app does: Play lists every Eglantine build and fork in
+  the Switch 2 emulator folders (with the ones added by hand), starting on the one the game was last started in, a
+  .nup game on a build that opens .nup; "+ Add another emulator…" adds one from there. Settings → Switch 2 →
+  Emulators (forks) chooses one build for every game instead, adds or removes builds and folders of them, and a
+  shelf build that's gone is replaced by the newest one at the start.
 - Shows your installed Steam games on a PC shelf, from every Steam library, with Steam's covers (or the cover you chose
   in the Electron app) and your playtime, and starts them through Steam. Steam's tools (Proton, runtimes) stay off it
   unless Settings → PC games says otherwise.
@@ -600,7 +605,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Shows the names you gave games in the Electron app (Details → Rename).
 - Does what the Electron app does around a launch: Eden and its forks, PCSX2 and RPCS3 stop asking before they close,
   Dolphin's Stop hotkey takes the quit combo from every controller, a 3DS `.cia` is installed into Azahar the first
-  time it's played, and on Windows a RetroArch core that's missing is downloaded.
+  time it's played, and on Windows a RetroArch core that's missing is downloaded (the boot slide says how far each is).
 - Fetches what the shelves need by itself, behind the shelf: the Xbox 360 title list (again after a week), the arcade
   names (once), the size of unpacked Switch 2 games and of PC games' folders, and, unless box art downloads are off,
   the covers and store info Steam's own cache doesn't have. With box art downloads on, the other stores' games get
@@ -775,7 +780,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, and opening the case in Inspect (its disc and its manual inside). Android
-isn't built: the rewrite goes to Windows first. Choosing a Switch 2 build, hiding the taskbar
+isn't built: the rewrite goes to Windows first. Hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash
