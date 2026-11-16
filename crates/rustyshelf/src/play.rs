@@ -90,12 +90,12 @@ pub struct Playing {
     pub close_asked: bool,
     /// a RomM game being downloaded before it starts
     pub romm: Option<Downloading>,
+    /// what the boot slide says while a console game is got ready (a RomM download, a 3DS install, a RetroArch core)
+    pub line: Option<std::sync::Arc<Mutex<String>>>,
 }
 
 pub struct Downloading {
     pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    /// what the boot slide says about it
-    pub line: std::sync::Arc<Mutex<String>>,
 }
 
 /// A helper program that runs beside the game and goes when the game does.
@@ -539,18 +539,18 @@ pub fn navigate(
             let waiting = settings.at_launch();
             let (cancel, line) = (std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), std::sync::Arc::new(Mutex::new(String::new())));
             if g.romm.is_some_and(|r| r.cloud) {
-                playing.romm = Some(Downloading { cancel: cancel.clone(), line: line.clone() });
+                playing.romm = Some(Downloading { cancel: cancel.clone() });
             }
+            playing.line = Some(line.clone());
             std::thread::spawn(move || {
                 let data = paths::data_dir(&root);
                 let seal = rustyshelf_core::seal::key(&paths::env_var);
-                let mut say = |t: String| *line.lock().unwrap() = t;
-                let file = match rustyshelf_core::romm::fetch_shelf_game(&cfg, seal.as_ref(), &data, &root, &console.id, &sc.rom_dirs, &file, &mut say, Some(&cancel)) {
+                let file = match rustyshelf_core::romm::fetch_shelf_game(&cfg, seal.as_ref(), &data, &root, &console.id, &sc.rom_dirs, &file, &mut |t| *line.lock().unwrap() = t, Some(&cancel)) {
                     Some(Ok(got)) => got,
                     Some(Err(why)) => return drop(tx.send(Err(LaunchError::Refused(why)))),
                     None => file,
                 };
-                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root).and_then(|p| {
+                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root, &mut |t| *line.lock().unwrap() = t.to_string()).and_then(|p| {
                     let exe = p.exe.to_string_lossy().into_owned();
                     let still = waiting.and_then(|w| w.run(&p.exe));
                     if !launch::is_rocket(&exe) {
@@ -689,6 +689,7 @@ pub fn watch_game(
         None | Some(Err(TryRecvError::Empty)) => {}
         Some(Ok(Ok((child, exe, still)))) => {
             info!("Launched {title}");
+            playing.line = None;
             if playing.romm.take().is_some() {
                 crate::loading::READ_AGAIN.store(true, std::sync::atomic::Ordering::Relaxed);
             }

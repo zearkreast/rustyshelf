@@ -154,21 +154,22 @@ pub fn run(
             }
         }
     }
-    // a RomM game downloading first: the slide stays until it's in, its last line saying how far
-    let line = playing.romm.as_ref().map(|d| d.line.lock().unwrap().clone());
+    // a game got ready first (a RomM download, a 3DS install, a RetroArch core): the slide stays until it has started,
+    // its last line saying how far
+    let line = playing.line.as_ref().map(|l| l.lock().unwrap().clone()).filter(|l| !l.is_empty());
     if line.is_none() && downloading.take().is_some() {
         slide.since = now - 0.45;
     }
-    if let Some(line) = line.filter(|l| downloading.as_ref() != Some(l)) {
+    if let Some(l) = line.as_ref().filter(|l| downloading.as_ref() != Some(*l)) {
         for (part, _, _, _, text, ..) in &mut parts {
             if let (Part::Emulator, Some(mut text)) = (part, text) {
-                text.0 = line.clone();
+                text.0 = l.clone();
             }
         }
-        *downloading = Some(line);
+        *downloading = Some(l.clone());
     }
     // it leaves when its time is up, or at once when the game didn't start
-    if slide.left.is_none() && ((now - slide.since >= STAYS && playing.romm.is_none()) || playing.title.is_none()) {
+    if slide.left.is_none() && ((now - slide.since >= STAYS && playing.romm.is_none() && line.is_none()) || playing.title.is_none()) {
         slide.left = Some(now);
     }
     let away = slide.left.map_or(0.0, |left| (now - left) / LEAVES);

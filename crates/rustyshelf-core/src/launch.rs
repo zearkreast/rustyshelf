@@ -328,7 +328,8 @@ pub fn is_rocket(exe: &str) -> bool {
     Path::new(exe).file_name().is_some_and(|n| n.eq_ignore_ascii_case("RocketLauncher.exe"))
 }
 
-pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Plan, LaunchError> {
+/// `say`: what the launch screen says while the game is got ready (a 3DS install, a RetroArch core's download).
+pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path, say: &mut dyn FnMut(&str)) -> Result<Plan, LaunchError> {
     let id = console.id.as_str();
     if crate::rocket::use_for(id, cfg) {
         if let Some(p) = rocket_plan(console, file, cfg)? {
@@ -365,8 +366,7 @@ pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cf
     }
     let mut rom = file.to_string_lossy().into_owned();
     if id == "n3ds" {
-        // TODO: the launch screen shows how far the install is (the Electron app's launch:status)
-        let boot = crate::n3ds::boot_file(file, &exe.to_string_lossy(), &crate::paths::env_var, &mut |_| {}).map_err(LaunchError::Refused)?;
+        let boot = crate::n3ds::boot_file(file, &exe.to_string_lossy(), &crate::paths::env_var, say).map_err(LaunchError::Refused)?;
         rom = boot.to_string_lossy().into_owned();
     }
     if id == "psvita" {
@@ -425,9 +425,11 @@ pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cf
         let core = match retro_core(&exe, &cid) {
             Some(core) => core,
             // a missing core is downloaded now, from the same place RetroArch's Online Updater gets it
-            // TODO: the launch screen shows how far the download is (the Electron app's launch:status)
-            None if cfg!(windows) => crate::racores::get(&exe.to_string_lossy(), &cid, &crate::paths::env_var, &mut |_| {})
-                .map_err(|e| LaunchError::Refused(format!("RetroArch doesn't have the {nm} core for {con} yet, and it couldn't be downloaded ({e}). {fix}")))?,
+            None if cfg!(windows) => {
+                say(&format!("Getting RetroArch's {nm} core…"));
+                crate::racores::get(&exe.to_string_lossy(), &cid, &crate::paths::env_var, &mut |p| say(&format!("Getting RetroArch's {nm} core… {p}%")))
+                    .map_err(|e| LaunchError::Refused(format!("RetroArch doesn't have the {nm} core for {con} yet, and it couldn't be downloaded ({e}). {fix}")))?
+            }
             None => return refuse(format!("RetroArch doesn't have the {nm} core for {con} yet. {fix}")),
         };
         game_args = format!(r#"-f -L "{}" "{{rom}}""#, core.display());
@@ -737,7 +739,7 @@ pub fn launch_app(name: &str, path: &str, app_root: &Path) -> Result<Child, Laun
 }
 
 pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Child, LaunchError> {
-    start(&plan(console, sc, file, game_id, cfg, app_root)?)
+    start(&plan(console, sc, file, game_id, cfg, app_root, &mut |_| {})?)
 }
 
 #[cfg(test)]
@@ -790,7 +792,7 @@ mod tests {
             let console = systems().console(id).unwrap();
             let cfg = Config::parse(cfg).unwrap();
             let game_id = format!("{id}:{}", file.display());
-            plan(console, &cfg.system(console), file, &game_id, &cfg, self.dir.path())
+            plan(console, &cfg.system(console), file, &game_id, &cfg, self.dir.path(), &mut |_| {})
         }
     }
 
