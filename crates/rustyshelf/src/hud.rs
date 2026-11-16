@@ -93,6 +93,14 @@ impl MonaSans {
         font
     }
 
+    /// At a size relative to the window, with another font for the arrows and symbols Mona Sans hasn't got.
+    pub fn sized(&self, weight: u32, size: FontSize, also: &Handle<Font>) -> TextFont {
+        let mut font = TextFont::from_font_size(size);
+        font.font = FontSource::List(self.0.iter().chain([also]).cloned().map(FontSource::Handle).collect());
+        font.weight = FontWeight(weight.clamp(200, 900) as u16);
+        font
+    }
+
     /// A title, in the font's wide cut.
     pub fn wide(&self, weight: u32, size: f32) -> TextFont {
         TextFont { width: FontWidth::EXPANDED, ..self.font(weight, size) }
