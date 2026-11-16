@@ -76,7 +76,6 @@ const padsense = require('./main/padsense'); // which real controllers are plugg
 const modelfind = require('./main/modelfind');
 const icons = require('./main/icons');
 const dolphin = require('./main/dolphin');
-const imgtools = require('./main/imgtools'); // (Rust image manipulation and spine-cutting engine)
 const covers = require('./main/covers');
 const artstudio = require('./main/artstudio');
 const manuals = require('./main/manuals');
@@ -292,9 +291,6 @@ function thumbFor(file, stat, h) {
     // never behind a manual), off this thread; the decode here below is only what's left when that fails
     let buf = null;
     if (process.platform !== 'win32' && sz && sz[1] > 0) {
-      if (imgtools.isAvailable()) {
-        try { buf = await imgtools.shrink(file, Math.max(1, Math.round(sz[0] * h / sz[1]))); } catch {}
-      }
       if (!buf && thumbHelperFails < 3) {
         const r = await helperJob('img-tools.html', async () => { const b = await fs.promises.readFile(file); return { data: new Uint8Array(b.buffer, b.byteOffset, b.length), mode: 'shrink', w: Math.max(1, Math.round(sz[0] * h / sz[1])) }; }, 15000, false, 'thumbs');
         const m = !r.err && /^data:image\/jpeg;base64,(.+)$/.exec(String((r.pages || [])[0] || '')); if (m) buf = Buffer.from(m[1], 'base64'); else if (r.err && /timed out|gone|did not load/.test(r.err) && ++thumbHelperFails >= 3) log('thumbnails: the image window keeps failing (' + r.err + '), scaling them here from now on');
@@ -1142,28 +1138,12 @@ const spreads = require('./main/spreads');
 // cut a scan into halves in a hidden window (decoding big scans here on the main thread froze the shelf)
 // (beta.9) a manual page too big to show, made `w` pixels wide in the same hidden image window (never decoded here)
 async function shrinkPage(file, w) {
-  if (imgtools.isAvailable()) {
-    try {
-      const b = await imgtools.shrink(file, w);
-      if (b) return b;
-    } catch (e) {
-      log('shrink page (native fallback)', path.basename(file), e.message);
-    }
-  }
   const r = await helperJob('img-tools.html', async () => { const b = await fs.promises.readFile(file); return { data: new Uint8Array(b.buffer, b.byteOffset, b.length), mode: 'shrink', w }; }, 60000, true);
   if (r.err) { log('shrink page', path.basename(file), r.err); return null; }
   const m = /^data:image\/jpeg;base64,(.+)$/.exec(String((r.pages || [])[0] || ''));
   return m ? Buffer.from(m[1], 'base64') : null;
 }
 async function cropBoth(file) {
-  if (imgtools.isAvailable()) {
-    try {
-      const halves = await imgtools.crop(file);
-      if (halves && halves.left && halves.right) return halves;
-    } catch (e) {
-      log('crop (native fallback)', path.basename(file), e.message);
-    }
-  }
   const r = await helperJob('img-tools.html', async () => { const b = await fs.promises.readFile(file); return { data: new Uint8Array(b.buffer, b.byteOffset, b.length) }; }, 60000, true);
   if (r.err) log('crop', path.basename(file), r.err);
   const b = r.pages.map(d => { const m = /^data:image\/jpeg;base64,(.+)$/.exec(String(d)); return m ? Buffer.from(m[1], 'base64') : null; });
@@ -1175,14 +1155,6 @@ async function cropBoth(file) {
 const CASE = { gc: [.711, .074], wii: [.711, .074], ps2: [.711, .074], x360: [.711, .074], xbox: [.711, .074], wiiu: [.711, .058], ps3: [.789, .07], ps4: [.789, .07], ps5: [.789, .07], sw: [.618, .059], sw2: [.618, .059], psp: [.578, .078], n3ds: [1.127, .112] };
 async function spineCut(file, sysId, part) { // part 'back' (1.71): the back panel left of the spine, from the same fold search
   const [front, spine] = CASE[sysId] || CASE.gc;
-  if (imgtools.isAvailable()) {
-    try {
-      const b = await imgtools.spine(file, { front, spine, part: part === 'back' ? 'back' : 'spine' });
-      if (b) return b;
-    } catch (e) {
-      log(part === 'back' ? 'back cut (native fallback)' : 'spine (native fallback)', path.basename(file), e.message);
-    }
-  }
   const r = await helperJob('img-tools.html', async () => { const b = await fs.promises.readFile(file); return { data: new Uint8Array(b.buffer, b.byteOffset, b.length), mode: 'spine', front, spine, part: part === 'back' ? 'back' : 'spine' }; }, 30000, true);
   if (r.err) log(part === 'back' ? 'back cut' : 'spine', path.basename(file), r.err);
   const m = /^data:image\/jpeg;base64,(.+)$/.exec(String(r.pages[0] || '')); return m ? Buffer.from(m[1], 'base64') : null;
@@ -1191,14 +1163,6 @@ covers.setSpineCutter(spineCut);
 // a cartridge picture made from a Switch / 3DS game's front cover (1.73.5), in the same hidden image window: for the games no
 // source has a cartridge photo of (Art Studio offers it last; automatic fetching uses it when nothing else was found)
 async function cartMake(front, sysId) {
-  if (imgtools.isAvailable()) {
-    try {
-      const b = await imgtools.cart(front, sysId);
-      if (b) return b;
-    } catch (e) {
-      log('cartridge from cover (native fallback)', path.basename(front), e.message);
-    }
-  }
   const r = await helperJob('img-tools.html', async () => { const b = await fs.promises.readFile(front); return { data: new Uint8Array(b.buffer, b.byteOffset, b.length), mode: 'cart', sys: sysId }; }, 30000, true);
   if (r.err) log('cartridge from cover', path.basename(front), r.err);
   const m = /^data:image\/png;base64,(.+)$/.exec(String(r.pages[0] || '')); return m ? Buffer.from(m[1], 'base64') : null;
@@ -2038,9 +2002,6 @@ async function pcConsoleBoxes(games) {
       for (const [part, url] of [['back', box.back], ['spine', box.spine], ['', box.url]]) {
         if (!url) continue; const buf = await fetchImage(url); if (!buf) continue;
         let mBuf = null;
-        if (imgtools.isAvailable()) {
-          try { mBuf = await imgtools.rebrand(buf, { plat: box.plat, part }); } catch {}
-        }
         if (!mBuf) {
           const r = await helperJob('img-tools.html', async () => ({ mode: 'rebrand', plat: box.plat, part, data: new Uint8Array(buf.buffer, buf.byteOffset, buf.length) }), 30000, true);
           const m = /^data:image\/jpeg;base64,(.+)$/.exec(String((r && r.pages || [])[0] || '')); if (!m) { log('PC console box', g.title, part || 'front', r && r.err || 'not made'); continue; }
@@ -3280,7 +3241,7 @@ function startUp() {
   stremio.init({ log, fanartKey: () => (cfg && cfg.keys && cfg.keys.fanart) || '', artDir: path.join(app.getPath('userData'), 'stremio-art'), fetchBuf: async url => { const r = await net.fetch(url, { signal: AbortSignal.timeout(30000) }); /* (beta.10: a stalled answer gives up) */ if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return Buffer.from(await r.arrayBuffer()); } }); // null = really not there; other failures throw, so nothing "missing" is cached for them
   icons.init(app.getPath('userData'), log);
   x360.init(app.getPath('userData'), log); scanSetLog(log); // (beta.10: games folders that can't be read go in the log)
-  steamart.init(app.getPath('userData'), log); dirsize.init({ dataDir: app.getPath('userData'), log, onMeasured: () => { scanForget(); /* (the Switch 2 folders' sizes: the next scan reads them afresh) */ if (alive()) win.webContents.send('library:changed', { sizes: 1 }); } }); pcgames.init(app.getPath('userData'), log); if (linux.isLinux) linuxpc.init({ dataDir: app.getPath('userData'), appRoot: paths.appRoot(), log, fetchBuf: async u => { const r = await net.fetch(u); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; } }); pccovers.init({ dataDir: app.getPath('userData'), log, fileUrl, fetchImage, steamgrid: require('./main/steamgrid'), steamCover: id => steamart.local(id).front, match: covers.sgMatch, steamSearch: (t, exact) => pcgames.steamSearch(t, exact), consoleBoxes: (t, r) => covers.consoleBoxes ? covers.consoleBoxes(t, r) : (covers.consoleBox(t, r) ? [covers.consoleBox(t, r)] : []), artRegion: () => cfg.ui && cfg.ui.artRegion, rebrand: async (buf, { plat, part }) => { if (imgtools.isAvailable()) { try { const b = await imgtools.rebrand(buf, { plat, part }); if (b) return b; } catch {} } const r = await helperJob('img-tools.html', async () => ({ mode: 'rebrand', plat, part, data: new Uint8Array(buf.buffer, buf.byteOffset, buf.length) }), 30000, true); const m = /^data:image\/jpeg;base64,(.+)$/.exec(String((r && r.pages || [])[0] || '')); return m ? Buffer.from(m[1], 'base64') : null; } });
+  steamart.init(app.getPath('userData'), log); dirsize.init({ dataDir: app.getPath('userData'), log, onMeasured: () => { scanForget(); /* (the Switch 2 folders' sizes: the next scan reads them afresh) */ if (alive()) win.webContents.send('library:changed', { sizes: 1 }); } }); pcgames.init(app.getPath('userData'), log); if (linux.isLinux) linuxpc.init({ dataDir: app.getPath('userData'), appRoot: paths.appRoot(), log, fetchBuf: async u => { const r = await net.fetch(u); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; } }); pccovers.init({ dataDir: app.getPath('userData'), log, fileUrl, fetchImage, steamgrid: require('./main/steamgrid'), steamCover: id => steamart.local(id).front, match: covers.sgMatch, steamSearch: (t, exact) => pcgames.steamSearch(t, exact), consoleBoxes: (t, r) => covers.consoleBoxes ? covers.consoleBoxes(t, r) : (covers.consoleBox(t, r) ? [covers.consoleBox(t, r)] : []), artRegion: () => cfg.ui && cfg.ui.artRegion, rebrand: async (buf, { plat, part }) => { const r = await helperJob('img-tools.html', async () => ({ mode: 'rebrand', plat, part, data: new Uint8Array(buf.buffer, buf.byteOffset, buf.length) }), 30000, true); const m = /^data:image\/jpeg;base64,(.+)$/.exec(String((r && r.pages || [])[0] || '')); return m ? Buffer.from(m[1], 'base64') : null; } });
   wiiumanual.init(app.getPath('userData'), log);
   ra.init(app.getPath('userData'), log); ra.setCredentials(cfg.ra && cfg.ra.enabled !== false ? cfg.ra.user : '', cfg.ra && cfg.ra.key);
   manuals.init(log); archive.init(log); manuals.setStore(path.join(app.getPath('userData'), 'manual-auto.json')); manuals.setRejectStore(path.join(app.getPath('userData'), 'manual-rejects.json'));

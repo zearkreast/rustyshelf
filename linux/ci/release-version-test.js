@@ -23,11 +23,6 @@ check('kind: "For version" is a release', t('For version 2.4.16').kind === 'rele
 check('kind: "For build" is a build', t('For build').kind === 'build', t('For build'));
 check('kind: "For build 9.9.9" (its first build, .0) is still a build, not a release', t('For build 9.9.9').kind === 'build' && t('For build 9.9.9').version === '9.9.9.0', t('For build 9.9.9'));
 check('kind: no phrase is none', t('Fix the museum').kind === 'none', t('Fix the museum'));
-const alphaTags = [...tags, 'v0.1.0-alpha.1', 'v0.1.0-alpha.3', 'v0.2.0-alpha.9'];
-check('"For alpha": the native app\'s first alpha of its Cargo version', JSON.stringify(decide('Rust: more ports\n\nFor alpha', tags, '1.9.0+0', '0.1.0')) === JSON.stringify({ build: true, kind: 'alpha', version: '0.1.0-alpha.1', reason: 'alpha 1 of the native app 0.1.0' }), decide('For alpha', tags, '1.9.0+0', '0.1.0'));
-check('"For alpha": one more than the alphas of that version tagged before', decide('For alpha.', alphaTags, '', '0.1.0').version === '0.1.0-alpha.4', decide('For alpha.', alphaTags, '', '0.1.0'));
-check('"For alpha" without a Cargo version stops', decide('For alpha', tags, '', '').build === false, decide('For alpha', tags, '', ''));
-check('"For alphabet" doesn\'t count', decide('Sort for alphabet order', tags, '', '0.1.0').build === false, decide('Sort for alphabet order', tags, '', '0.1.0'));
-check('an alpha tag isn\'t a release tag: "For build" still counts from 2.12.4.283', decide('For build', alphaTags, '', '0.1.0').version === '2.12.4.284', decide('For build', alphaTags));
+check('"For alpha" doesn\'t start a build', decide('More work\n\nFor alpha', tags, '1.9.0+0').build === false, decide('For alpha', tags, '1.9.0+0'));
 console.log(fails ? `${fails} check(s) failed` : 'all passed');
 process.exit(fails ? 1 : 0);

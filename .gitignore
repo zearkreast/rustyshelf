@@ -30,13 +30,8 @@
 !/THIRD-PARTY-NOTICES.md
 !/*.bat
 !/start-rustyshelf.sh
-!/Cargo.toml
-!/Cargo.lock
-!/crates/
 
 # 3. Never commit these, even inside allowed folders
-target/
-main/bin/
 node_modules/
 dist/
 *.log
@@ -65,7 +60,6 @@ playwright-report/
 # caches, editors, the OS
 __pycache__/
 *.pyc
-*.rs.bk
 *.blend1
 *.tmp
 *.swp

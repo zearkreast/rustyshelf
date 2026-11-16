@@ -1,38 +1,8 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): this file is the same as Boxshelf's
-// main/lbindex.js apart from the app's name (RustyShelf) and native Rust indexer acceleration.
-// LaunchBox index builder: reading the 500 MB XML in JavaScript holds a lot of memory and causes OOM crashes.
-// The native Rust binary 'rustyshelf-imgtools lbindex' parses the XML with streaming low memory and writes
-// the index and shards in seconds. Worker threads and pure JS are kept as fallback.
+// main/lbindex.js apart from the app's name (RustyShelf).
 const fs = require('fs');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 const path = require('path');
-const { spawn } = require('child_process');
-
-let binPath = null;
-let binChecked = false;
-
-function findBinary() {
-  if (binChecked) return binPath;
-  binChecked = true;
-
-  const ext = process.platform === 'win32' ? '.exe' : '';
-  const binName = `rustyshelf-imgtools${ext}`;
-
-  // 1. Unpacked asar path (packaged app)
-  const unpacked = path.join(__dirname, 'bin', binName).replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
-  if (fs.existsSync(unpacked)) { binPath = unpacked; return binPath; }
-
-  // 2. Local main/bin path
-  const local = path.join(__dirname, 'bin', binName);
-  if (fs.existsSync(local)) { binPath = local; return binPath; }
-
-  // 3. Cargo target/release build path
-  const cargo = path.join(__dirname, '..', 'target', 'release', binName);
-  if (fs.existsSync(cargo)) { binPath = cargo; return binPath; }
-
-  binPath = null;
-  return null;
-}
 
 const ROMAN = { ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, xi: 11, xii: 12, xiii: 13, xiv: 14, xv: 15, xvi: 16, xvii: 17, xviii: 18, xix: 19, xx: 20 };
 const ROMAN_RE = new RegExp('\\b(' + Object.keys(ROMAN).sort((a, b) => b.length - a.length).join('|') + ')\\b', 'g');
@@ -116,7 +86,7 @@ function buildLaunchboxIndex(xmlFile, onPct, platformList, version) {
 const LOAD_ERRORS = new Set(['ERR_WORKER_PATH', 'ERR_WORKER_INIT_FAILED', 'ERR_WORKER_UNSUPPORTED_OPERATION', 'MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND']);
 const WORKER_FILE = __filename.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
 
-function buildInWorkerThread(xmlFile, idxFile, platformList, version, onPct, signal) {
+function buildInWorker(xmlFile, idxFile, platformList, version, onPct, signal) {
   return new Promise((resolve, reject) => {
     let w, heard = false, settled = false;
     const done = (fn, v) => { if (!settled) { settled = true; fn(v); } };
@@ -127,81 +97,6 @@ function buildInWorkerThread(xmlFile, idxFile, platformList, version, onPct, sig
     w.on('message', m => { heard = true; if (m && m.pct != null && onPct) onPct(m.pct); else if (m && m.error) done(reject, new Error('LaunchBox index: ' + m.error)); else if (m && m.done) done(resolve, m.counts); });
     w.on('error', e => { if (!heard && e && LOAD_ERRORS.has(e.code)) e.workerUnavailable = true; done(reject, e); });
     w.on('exit', code => done(reject, new Error(code ? 'index worker stopped (' + code + ')' : 'index worker ended without an index')));
-  });
-}
-
-// Build the index: prefers the high-speed Rust native binary which streams the 500 MB XML with low memory.
-function buildInWorker(xmlFile, idxFile, platformList, version, onPct, signal) {
-  const bin = findBinary();
-  if (!bin) {
-    return buildInWorkerThread(xmlFile, idxFile, platformList, version, onPct, signal);
-  }
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const done = (fn, v) => { if (!settled) { settled = true; fn(v); } };
-    if (signal && signal.aborted) return reject(Object.assign(new Error('Refresh cancelled'), { code: 'cancelled' }));
-
-    const args = [
-      'lbindex',
-      '--xml', xmlFile,
-      '--out', idxFile,
-      '--platforms', JSON.stringify(platformList),
-      '--version', String(version),
-      '--shards', path.dirname(idxFile)
-    ];
-
-    let child;
-    try {
-      child = spawn(bin, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch {
-      return buildInWorkerThread(xmlFile, idxFile, platformList, version, onPct, signal).then(resolve, reject);
-    }
-
-    if (signal) {
-      signal.addEventListener('abort', () => {
-        done(reject, Object.assign(new Error('Refresh cancelled'), { code: 'cancelled' }));
-        try { child.kill('SIGTERM'); } catch {}
-        setTimeout(() => { try { fs.unlinkSync(idxFile + '.tmp'); } catch {} }, 500);
-      }, { once: true });
-    }
-
-    let stdoutBuf = '', counts = null;
-    child.stdout.on('data', chunk => {
-      stdoutBuf += chunk.toString('utf8');
-      let nl;
-      while ((nl = stdoutBuf.indexOf('\n')) >= 0) {
-        const line = stdoutBuf.slice(0, nl).trim();
-        stdoutBuf = stdoutBuf.slice(nl + 1);
-        if (!line) continue;
-        try {
-          const m = JSON.parse(line);
-          if (m.pct != null && onPct) onPct(m.pct);
-          if (m.counts != null) counts = m.counts;
-          if (m.error) done(reject, new Error('LaunchBox index: ' + m.error));
-        } catch {}
-      }
-    });
-
-    let stderrBuf = '';
-    child.stderr.on('data', chunk => { stderrBuf += chunk.toString('utf8'); });
-
-    child.on('error', () => {
-      // Fallback to worker thread if native binary fails to start
-      buildInWorkerThread(xmlFile, idxFile, platformList, version, onPct, signal).then(resolve, reject);
-    });
-
-    child.on('close', code => {
-      if (code === 0 && counts != null) {
-        done(resolve, counts);
-      } else if (!settled) {
-        if (stderrBuf.trim()) {
-          done(reject, new Error('LaunchBox index failed: ' + stderrBuf.trim()));
-        } else {
-          done(reject, new Error('LaunchBox index exited with code ' + code));
-        }
-      }
-    });
   });
 }
 
@@ -219,7 +114,7 @@ function writeShards(idx, dir, stamp) {
   fs.writeFileSync(path.join(dir, 'launchbox-shards.json'), JSON.stringify({ v: idx.v, at: idx.at, plats: Object.keys(idx.games || {}), stamp }));
 }
 
-function splitInWorkerThread(idxFile, dir) {
+function splitInWorker(idxFile, dir) {
   return new Promise((resolve, reject) => {
     let w, settled = false; const done = (fn, v) => { if (!settled) { settled = true; fn(v); } };
     try { w = new Worker(WORKER_FILE, { workerData: { split: idxFile, dir }, resourceLimits: { maxOldGenerationSizeMb: 2048 } }); }
@@ -227,58 +122,6 @@ function splitInWorkerThread(idxFile, dir) {
     w.on('message', m => { if (m && m.error) done(reject, new Error(m.error)); else if (m && m.split) done(resolve, true); });
     w.on('error', e => { if (e && LOAD_ERRORS.has(e.code)) e.workerUnavailable = true; done(reject, e); });
     w.on('exit', code => done(reject, new Error('split worker ended (' + code + ')')));
-  });
-}
-
-// Split an existing index: prefers the native Rust binary
-function splitInWorker(idxFile, dir) {
-  const bin = findBinary();
-  if (!bin) {
-    return splitInWorkerThread(idxFile, dir);
-  }
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const done = (fn, v) => { if (!settled) { settled = true; fn(v); } };
-
-    const args = ['lbshards', '--index', idxFile, '--dir', dir];
-    let child;
-    try {
-      child = spawn(bin, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch {
-      return splitInWorkerThread(idxFile, dir).then(resolve, reject);
-    }
-
-    let stdoutBuf = '', ok = false;
-    child.stdout.on('data', chunk => {
-      stdoutBuf += chunk.toString('utf8');
-      let nl;
-      while ((nl = stdoutBuf.indexOf('\n')) >= 0) {
-        const line = stdoutBuf.slice(0, nl).trim();
-        stdoutBuf = stdoutBuf.slice(nl + 1);
-        if (!line) continue;
-        try {
-          const m = JSON.parse(line);
-          if (m.split) ok = true;
-          if (m.error) done(reject, new Error(m.error));
-        } catch {}
-      }
-    });
-
-    let stderrBuf = '';
-    child.stderr.on('data', chunk => { stderrBuf += chunk.toString('utf8'); });
-
-    child.on('error', () => {
-      splitInWorkerThread(idxFile, dir).then(resolve, reject);
-    });
-
-    child.on('close', code => {
-      if (code === 0 || ok) {
-        done(resolve, true);
-      } else if (!settled) {
-        done(reject, new Error(stderrBuf.trim() || ('split failed with code ' + code)));
-      }
-    });
   });
 }
 

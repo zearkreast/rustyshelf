@@ -43,8 +43,7 @@ jobs:
           set -o pipefail
           git fetch --tags --force --quiet
           git tag -l 'v*' > "$RUNNER_TEMP/tags.txt"
-          CARGO=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version *= *"\(.*\)"/\1/p' Cargo.toml)
-          node scripts/release-version.js "$MSG" "$RUNNER_TEMP/tags.txt" "$(node -p "require('./package.json').version")" "$CARGO" | tee -a "$GITHUB_OUTPUT"
+          node scripts/release-version.js "$MSG" "$RUNNER_TEMP/tags.txt" "$(node -p "require('./package.json').version")" | tee -a "$GITHUB_OUTPUT"
 
       - name: Summary
         env:

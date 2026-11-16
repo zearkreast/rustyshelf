@@ -7,10 +7,6 @@
   "main": "main.js",
   "private": true,
   "scripts": {
-    "build:rust": "node scripts/build-rust.js",
-    "prestart": "node scripts/build-rust.js",
-    "predist": "node scripts/build-rust.js",
-    "predist:linux": "node scripts/build-rust.js",
     "start": "electron .",
     "windowed": "electron . --windowed",
     "dist": "electron-builder --win portable",
@@ -48,8 +44,7 @@
     "artifactBuildStarted": "scripts/linux-wrapper.js",
     "asar": true,
     "asarUnpack": [
-      "main/lbindex.js",
-      "main/bin/**"
+      "main/lbindex.js"
     ],
     "electronFuses": {
       "runAsNode": false,

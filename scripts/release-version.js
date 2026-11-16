@@ -5,13 +5,11 @@
 //   "For version 2.4.15"           → 2.4.15.0, a new version (stops if v2.4.15.0 is already there)
 //   "For build"                    → the next build of the newest version released (2.12.4.283 → 2.12.4.284)
 //   "For build 2.12.4" / "2.12.4.x" → the next build of that version (its first is .0); the number after it is only a reference
-//   "For alpha"                    → an alpha of the native Rust app (crates/), A.B.C-alpha.N: A.B.C the Cargo workspace's
-//                                    version, N one more than its alphas tagged before; published as a prerelease
 //   neither                        → no build
 // The phrases can be anywhere in the message, in any case. "For build" counts only as a phrase of its own (followed by a
 // version, punctuation or the end of a line), so a sentence like "for build systems" doesn't start one.
 //
-//   node scripts/release-version.js "<commit message>" <file listing the tags, one per line> [package.json version] [Cargo version]
+//   node scripts/release-version.js "<commit message>" <file listing the tags, one per line> [package.json version]
 // Prints GitHub Actions outputs: build=true|false, kind=release|build|none (a "For version" commit is a release, a "For build"
 // one a build), version, tag, semver, code (Android), reason. Exits 1 when the version asked
 // for can't be built.
@@ -19,7 +17,6 @@
 const fs = require('fs');
 
 const VERSION_RE = /\bfor version\s+v?(\d+)\.(\d+)\.(\d+)(?!\.?\d)/i; // (a 4th number isn't a version: "2.5.0." ending a sentence is)
-const ALPHA_RE = /\bfor alpha(?=[ \t]*(?:$|[.,;:!?)\]]))/im;
 const BUILD_RE = /\bfor build(?:\s+v?(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?)?(?=[ \t]*(?:$|[.,;:!?)\]]))/im;
 
 // the release tags: [{ v: [A, B, C], d: DDDD }]
@@ -30,15 +27,8 @@ const same = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
 const cmpV = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 const nextBuild = (tags, v) => tags.filter(t => same(t.v, v)).reduce((m, t) => Math.max(m, t.d), -1) + 1;
 
-function decide(message, tagLines, pkgVersion, cargoVersion) {
+function decide(message, tagLines, pkgVersion) {
   const tags = parseTags(tagLines), msg = String(message || '');
-  if (ALPHA_RE.test(msg)) {
-    const base = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(cargoVersion || '').trim());
-    if (!base) return { build: false, error: 'no version in Cargo.toml for the alpha' };
-    const v = base[0], esc = v.replace(/\./g, '\\.'), re = new RegExp(`^v${esc}-alpha\\.(\\d+)$`);
-    const n = (tagLines || []).map(t => re.exec(String(t).trim())).filter(Boolean).reduce((a, x) => Math.max(a, +x[1]), 0) + 1;
-    return { build: true, kind: 'alpha', version: `${v}-alpha.${n}`, reason: `alpha ${n} of the native app ${v}` };
-  }
   let m = VERSION_RE.exec(msg);
   if (m) {
     const v = [+m[1], +m[2], +m[3]];
@@ -60,16 +50,15 @@ function decide(message, tagLines, pkgVersion, cargoVersion) {
 module.exports = { decide, parseTags };
 
 if (require.main === module) {
-  const [msg, tagFile, pkgVersion, cargoVersion] = process.argv.slice(2);
+  const [msg, tagFile, pkgVersion] = process.argv.slice(2);
   const lines = tagFile ? fs.readFileSync(tagFile === '-' ? 0 : tagFile, 'utf8').split(/\r?\n/) : [];
-  const r = decide(msg, lines, pkgVersion, cargoVersion);
-  // (an alpha's version isn't four numbers: no semver or Android code for it)
-  const n = r.version && r.kind !== 'alpha' ? r.version.split('.').map(Number) : null;
+  const r = decide(msg, lines, pkgVersion);
+  const n = r.version ? r.version.split('.').map(Number) : null;
   // semver: the form npm and electron-builder take (A.B.C+DDDD); code: Android's versionCode, newer for every build
   // (A ≤ 20, B and C ≤ 99, DDDD ≤ 9999 keep it under Google Play's 2100000000)
   const code = n && n[0] <= 20 && n[1] <= 99 && n[2] <= 99 && n[3] <= 9999 ? ((n[0] * 100 + n[1]) * 100 + n[2]) * 10000 + n[3] : '';
   if (n && !code) { console.error(`${r.version} is too big for an Android version code`); process.exit(1); }
-  const out = [`build=${r.build}`, `kind=${r.kind || 'none'}`, `version=${r.version || ''}`, `tag=${r.version ? 'v' + r.version : ''}`, `semver=${n ? n.slice(0, 3).join('.') + '+' + n[3] : r.kind === 'alpha' ? r.version : ''}`,
+  const out = [`build=${r.build}`, `kind=${r.kind || 'none'}`, `version=${r.version || ''}`, `tag=${r.version ? 'v' + r.version : ''}`, `semver=${n ? n.slice(0, 3).join('.') + '+' + n[3] : ''}`,
     `code=${code}`, `reason=${(r.error || r.reason || '').replace(/\n/g, ' ')}`];
   console.log(out.join('\n'));
   if (r.error) { console.error(r.error); process.exit(1); }
