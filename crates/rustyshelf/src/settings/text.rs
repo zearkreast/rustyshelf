@@ -125,46 +125,59 @@ impl Settings {
 
 impl Editing {
     /// `caps`: the pad's buttons that end the typing, cancel it, take a letter back and type a space.
-    pub(super) fn draw(&self, commands: &mut Commands, face: &Handle<Font>, caps: [&str; 4]) {
-        let font = |size: f32| TextFont::from_font_size(FontSize::VMin(size)).with_font(face.clone());
+    pub(super) fn draw(&self, commands: &mut Commands, font: &dyn Fn(u32, f32) -> TextFont, caps: [&str; 4]) {
         let rows = osk::rows(self.layer);
+        let keys = [(vec!["Enter", caps[0]], "Done"), (vec!["Esc", caps[1]], "Cancel"), (vec![caps[2]], "⌫"), (vec![caps[3]], "Space")];
         commands
             .spawn((
                 SettingsUi,
-                Node { width: percent(100), height: percent(100), position_type: PositionType::Absolute, flex_direction: FlexDirection::Column, padding: UiRect::axes(vmin(8.0), vmin(6.0)), ..default() },
-                BackgroundColor(PANEL),
+                Node { width: percent(100), height: percent(100), position_type: PositionType::Absolute, flex_direction: FlexDirection::Column, align_items: AlignItems::Center, padding: UiRect::new(dp(120.0), dp(120.0), dp(80.0), dp(120.0)), ..default() },
+                surface(),
                 GlobalZIndex(10),
             ))
             .with_children(|p| {
-                p.spawn((Text::new(self.label.clone()), font(4.4), TextColor(STEEL)));
-                p.spawn((Node { margin: UiRect::vertical(vmin(1.2)), max_width: percent(80), ..default() }, Text::new(self.hint.clone()), font(2.1), TextColor(DIM)));
-                p.spawn((Node { width: percent(100), padding: UiRect::axes(vmin(1.6), vmin(1.4)), margin: UiRect::bottom(vmin(3.0)), ..default() }, BackgroundColor(CHOSEN)))
+                p.spawn(Node { width: dp(1160.0), flex_direction: FlexDirection::Column, ..default() }).with_children(|p| {
+                    p.spawn((Text::new(self.label.clone()), font(800, 52.0), TextColor(S_INK)));
+                    p.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(26.0)), max_width: dp(900.0), ..default() }, Text::new(self.hint.clone()), font(400, 20.0), TextColor(S_DIM)));
+                    p.spawn((
+                        Node { padding: UiRect::axes(dp(22.0), dp(16.0)), margin: UiRect::bottom(dp(30.0)), border: UiRect::all(dp(2.0)), border_radius: BorderRadius::all(dp(14.0)), ..default() },
+                        BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.055)),
+                        BorderColor::all(S_ACC2.with_alpha(0.85)),
+                        children![(Text::new(format!("{}▏", self.value)), font(500, 28.0), TextColor(S_INK))],
+                    ));
+                    for (r, row) in rows.iter().enumerate() {
+                        p.spawn(Node { column_gap: dp(8.0), margin: UiRect::vertical(dp(4.0)), justify_content: JustifyContent::Center, ..default() }).with_children(|line| {
+                            for (c, key) in row.iter().enumerate() {
+                                let chosen = (r, c) == self.key;
+                                let on = (key == "Shift" && self.layer == 1) || (key == "#+=" && self.layer == 2);
+                                let wide = if key == "Space" { 400.0 } else if key.chars().count() > 1 { 190.0 } else { 86.0 };
+                                let mut k = line.spawn((
+                                    Node { width: dp(wide), height: dp(76.0), justify_content: JustifyContent::Center, align_items: AlignItems::Center, border: UiRect::all(dp(2.0)), border_radius: BorderRadius::all(dp(14.0)), ..default() },
+                                    BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.055)),
+                                    BorderColor::all(Color::NONE),
+                                ));
+                                if chosen {
+                                    k.insert(lit());
+                                }
+                                k.with_children(|k| {
+                                    k.spawn((Text::new(key.clone()), font(600, 26.0), TextColor(if chosen { Color::WHITE } else if on { S_ACC2 } else { S_INK2 })));
+                                });
+                            }
+                        });
+                    }
+                });
+                p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), width: percent(100), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
+                    bar.spawn((
+                        Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
+                        BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
+                        BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
+                    ))
                     .with_children(|b| {
-                        b.spawn((Text::new(format!("{}▏", self.value)), font(2.8), TextColor(STEEL)));
-                    });
-                for (r, row) in rows.iter().enumerate() {
-                    p.spawn(Node { flex_direction: FlexDirection::Row, column_gap: vmin(0.6), margin: UiRect::vertical(vmin(0.3)), ..default() }).with_children(|line| {
-                        for (c, key) in row.iter().enumerate() {
-                            let chosen = (r, c) == self.key;
-                            let lit = (key == "Shift" && self.layer == 1) || (key == "#+=" && self.layer == 2);
-                            let wide = if key == "Space" { 21.0 } else if key.chars().count() > 1 { 11.0 } else { 5.4 };
-                            line.spawn((
-                                Node { width: vmin(wide), height: vmin(5.4), justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
-                                BackgroundColor(if chosen { RUST } else { KEY }),
-                            ))
-                            .with_children(|k| {
-                                k.spawn((Text::new(key.clone()), font(2.4), TextColor(if chosen || !lit { STEEL } else { RUST })));
-                            });
+                        for (caps, label) in &keys {
+                            key_hint(b, font, caps, label);
                         }
                     });
-                }
-                p.spawn(Node { flex_grow: 1.0, ..default() });
-                p.spawn((
-                    Node { margin: UiRect::top(vmin(1.5)), ..default() },
-                    Text::new(format!("Type on the keyboard, or pick keys with the pad      Enter · {}  Done      Esc · {}  Cancel      {}  ⌫      {}  Space", caps[0], caps[1], caps[2], caps[3])),
-                    font(1.8),
-                    TextColor(DIM),
-                ));
+                });
             });
     }
 }
