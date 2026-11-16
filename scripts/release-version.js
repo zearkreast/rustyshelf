@@ -3,11 +3,13 @@
 // (A.B.C the version, DDDD the build of it), from the pushed commit's message and the release tags already there (vA.B.C.DDDD).
 //
 //   "For version 2.4.15"           → 2.4.15.0, a new version (stops if v2.4.15.0 is already there)
-//   "For build"                    → the next build of the newest version released (2.12.4.283 → 2.12.4.284)
+//   "For build"                    → the next build of the Cargo workspace's version (0.2.0.3 → 0.2.0.4); without one, of the
+//                                    newest version released
 //   "For build 2.12.4" / "2.12.4.x" → the next build of that version (its first is .0); the number after it is only a reference
 //   "For alpha"                    → an alpha of the native Rust app (crates/), A.B.C-alpha.N: A.B.C the Cargo workspace's
 //                                    version, N one more than its alphas tagged before; published as a prerelease
 //   neither                        → no build
+// With a Cargo version given, "For version" and "For build" must name that version.
 // The phrases can be anywhere in the message, in any case. "For build" counts only as a phrase of its own (followed by a
 // version, punctuation or the end of a line), so a sentence like "for build systems" doesn't start one.
 //
@@ -39,9 +41,13 @@ function decide(message, tagLines, pkgVersion, cargoVersion) {
     const n = (tagLines || []).map(t => re.exec(String(t).trim())).filter(Boolean).reduce((a, x) => Math.max(a, +x[1]), 0) + 1;
     return { build: true, kind: 'alpha', version: `${v}-alpha.${n}`, reason: `alpha ${n} of the native app ${v}` };
   }
+  const cargo = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(cargoVersion || '').trim());
+  // (the app shows Cargo's version: a build of any other one would say the wrong thing)
+  const notCargo = v => cargo && !same(v, [+cargo[1], +cargo[2], +cargo[3]]) ? `Cargo.toml's version is ${cargo[0]}: set the workspace version to ${v.join('.')} first` : null;
   let m = VERSION_RE.exec(msg);
   if (m) {
     const v = [+m[1], +m[2], +m[3]];
+    if (notCargo(v)) return { build: false, error: notCargo(v) };
     if (tags.some(t => same(t.v, v) && t.d === 0)) return { build: false, error: `v${v.join('.')}.0 is already released: use "For build" for the next build of it, or a new version` };
     return { build: true, kind: 'release', version: [...v, 0].join('.'), reason: `new version ${v.join('.')}` };
   }
@@ -49,8 +55,10 @@ function decide(message, tagLines, pkgVersion, cargoVersion) {
   if (m) {
     let v;
     if (m[1] != null) v = [+m[1], +m[2], +m[3]];
+    else if (cargo) v = [+cargo[1], +cargo[2], +cargo[3]];
     else if (tags.length) v = tags.slice().sort((a, b) => cmpV(b.v, a.v))[0].v; // (the newest version released)
     else { const p = /^(\d+)\.(\d+)\.(\d+)/.exec(String(pkgVersion || '')); if (!p) return { build: false, error: 'no release yet and no version in package.json: start with "For version A.B.C"' }; v = [+p[1], +p[2], +p[3]]; }
+    if (notCargo(v)) return { build: false, error: notCargo(v) };
     const d = nextBuild(tags, v);
     return { build: true, version: [...v, d].join('.'), kind: 'build', reason: d ? `build ${d} of ${v.join('.')}` : `first build of ${v.join('.')}` };
   }

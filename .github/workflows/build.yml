@@ -1,0 +1,147 @@
+# RustyShelf builds of the native app (crates/): Windows (exe), Linux (AppImage) and Android (APK), as the run's
+# downloads. Called by build-release-check.yml (a "For build" commit) and by release.yml (a release). Nothing is
+# published here.
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      code:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux AppImage
+    # (the oldest runner: the AppImage needs the glibc it was built against or newer)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - name: Rust toolchain and libraries
+        run: |
+          rustup update stable --no-self-update && rustup default stable
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-linux-${{ hashFiles('Cargo.lock') }}
+          restore-keys: build-linux-
+      - name: Build
+        # (issue 26) RustyShelf's own ScreenScraper developer login, from the repository's secrets, built in (never in
+        # git or the log); without the secrets ScreenScraper needs the player's own developer login
+        env:
+          RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
+          RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+        run: cargo build --release --locked -p rustyshelf
+      - name: Make the AppImage
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          D=RustyShelf.AppDir
+          mkdir -p "$D/usr/bin" out
+          cp target/release/rustyshelf "$D/usr/bin/rustyshelf"
+          cp crates/rustyshelf/assets/app-icon.png "$D/rustyshelf.png"
+          printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=RustyShelf' 'Exec=rustyshelf' 'Icon=rustyshelf' 'Categories=Game;' > "$D/rustyshelf.desktop"
+          printf '%s\n' '#!/bin/sh' 'exec "$(dirname "$(readlink -f "$0")")/usr/bin/rustyshelf" "$@"' > "$D/AppRun"
+          chmod +x "$D/AppRun"
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run --no-appstream "$D" "out/RustyShelf-$VERSION-linux.AppImage"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/*.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows exe
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - name: Rust toolchain
+        shell: bash
+        run: rustup update stable --no-self-update && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-windows-${{ hashFiles('Cargo.lock') }}
+          restore-keys: build-windows-
+      - name: Build
+        shell: bash
+        env:
+          RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
+          RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+        run: cargo build --release --locked -p rustyshelf
+      - name: Name it for the build
+        shell: bash
+        run: |
+          mkdir out
+          cp target/release/rustyshelf.exe "out/RustyShelf-${{ inputs.version }}-windows.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Rust toolchain
+        run: |
+          rustup update stable --no-self-update && rustup default stable
+          rustup target add aarch64-linux-android
+          cargo install cargo-ndk --locked
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: build-android-${{ hashFiles('Cargo.lock') }}
+          restore-keys: build-android-
+      - name: Build the app's library
+        env:
+          RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
+          RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          cargo ndk -t arm64-v8a -P 26 -o crates/rustyshelf/android/app/src/main/jniLibs build --release --locked -p rustyshelf --lib
+      # (signed with the debug key: installable by hand)
+      - name: Build the APK
+        working-directory: crates/rustyshelf/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace -PrsVersionName="${{ inputs.version }}" -PrsVersionCode="${{ inputs.code }}"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          mv app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/RustyShelf-${{ inputs.version }}-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/*.apk
+          if-no-files-found: error
+          retention-days: 14

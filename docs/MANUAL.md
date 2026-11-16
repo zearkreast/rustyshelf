@@ -338,9 +338,23 @@ Those scripts are on the `archive/electron` branch, as they run the Electron app
 
 ### Release builds
 
-Every push to `rustyshelf` triggers **Build/release check** (`.github/workflows/build-release-check.yml`). A commit
-message with `For alpha` builds the Windows exe and the Android APK (`alpha.yml`) and publishes them as a prerelease
-`A.B.C-alpha.N`, `A.B.C` being the Cargo workspace's version. Any other commit builds nothing.
+Every push to `rustyshelf` triggers **Build/release check** (`.github/workflows/build-release-check.yml`), which decides
+what to do from the commit message:
+
+| Commit message contains | Result |
+|---|---|
+| Nothing special | The check stops; nothing is built |
+| `For build` | The Windows exe, the Linux AppImage and the Android APK are built (`build.yml`) and kept as the run's downloads for 14 days; no release |
+| `For version 0.2.0` | The same builds, then a GitHub release `0.2.0.0` (`release.yml`), marked as the latest |
+| `For alpha` | The Windows exe and the Android APK, published as a prerelease `A.B.C-alpha.N` (`alpha.yml`) |
+
+Versions look like `A.B.C.DDDD`: `A.B.C` is the Cargo workspace's version (`Cargo.toml`), which the app shows, and `DDDD`
+the build of it. `For build` and `For version` fail when they name another version than Cargo's: change the workspace
+version first. A `For version` commit also fails if that version has already been released. `For build` only counts as
+a phrase on its own, followed by a version, punctuation or the end of the line.
+
+`node scripts/push-build.js "Build: what it is"` creates that build commit, pushes it and returns immediately.
+`--status` shows how the latest runs are going.
 
 ### Community report
 
