@@ -384,10 +384,14 @@ pub fn update(
     if time.elapsed_secs() < toast.until {
         note = toast.text.clone();
     }
-    let (date, hour) = match settings.clock() {
+    // (the quick menu lies over the top right corner)
+    let (date, hour) = match settings.clock().filter(|_| !settings.panels.is_open()) {
         Some((day_too, twenty_four)) => clock(chrono::Local::now(), day_too, twenty_four),
         None => Default::default(),
     };
+    if settings.panels.is_open() {
+        counter.clear();
+    }
     let under = under.join("  ·  ");
     for (mut text, mut font, line) in &mut lines {
         let want = match line {
@@ -437,7 +441,8 @@ pub fn update(
         if node.top != top {
             node.top = top;
         }
-        seen.set_if_neq(if settings.open { Visibility::Hidden } else { Visibility::Inherited });
+        // (the quick menu takes the game's line away as the shelf steps aside)
+        seen.set_if_neq(if settings.open || settings.panels.is_open() { Visibility::Hidden } else { Visibility::Inherited });
     }
 }
 
@@ -641,7 +646,7 @@ pub fn hints(
     }
     let Ok((bar, mut seen)) = bar.single_mut() else { return };
     let any = matches!(&lib.0, LibraryState::Ready(l) if !l.shelves.is_empty());
-    seen.set_if_neq(if settings.open || inspect.on || !any { Visibility::Hidden } else { Visibility::Inherited });
+    seen.set_if_neq(if settings.open || settings.panels.is_open() || inspect.on || !any { Visibility::Hidden } else { Visibility::Inherited });
     let now = (prompts.pad, settings.glyphs(), settings.swap());
     if *shown == Some(now) {
         return;

@@ -297,6 +297,10 @@ pub fn navigate(
     // Details' Play starts the game under the cursor
     let asked = std::mem::take(&mut settings.play);
     // Settings has the keys while it's open, and so has the Home menu
+    // Exit RustyShelf, chosen in the quick menu
+    if settings.panels.take_quit() {
+        exit.write(AppExit::Success);
+    }
     if settings.open || settings.keys_taken || (settings.just_closed && !asked) || playing.pick.busy() {
         return;
     }

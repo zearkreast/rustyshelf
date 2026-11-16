@@ -137,6 +137,11 @@ complete yet.
   own (a Steam game's, else the Steam store's games of that name), SteamGridDB's posters with a key — and tiles to
   search under another name, use a picture of yours, or go back to the automatic cover (`data/pc-covers`, as the
   Electron app keeps it). The covers' thumbnails are kept in `data/pc-cover-cache`.
+- Has the Electron app's two panels over the shelf: the Sort panel (G, or Menu held), a card at the top with the
+  order and the filter as rows of chips, applied as they change; and the quick menu (Menu, Tab, or a finger held on
+  the shelf), sliding in at the right while the shelf steps aside, with the chosen game, its Favorite / Details /
+  Box art / Hide tiles, and Find a game, the volume (← →), Sort & filter's chips, Trophies, Updates, Settings and
+  Power (Exit RustyShelf, Sleep, and Restart and Shut down pressed twice). A white pill glides between its rows.
 - Has Settings → Shelf → Console order: each shelf moves up (←) or down (→) the list, and the shelves along the top
   follow at once (`ui.shelfOrder`, which the Electron app reads too); Reset puts RustyShelf's own order back.
 - Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and
@@ -331,7 +336,8 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Inspect: hold the case up and turn it freely | V | Right stick click |
 | Favorite | H | hold Y |
 | Details | I | X |
-| Sort and filter (the shelf's menu) | G | Menu |
+| Sort and filter (the Sort panel) | G | hold Menu |
+| Quick menu: Favorite, Details, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab | Menu |
 | Settings | S | View |
 | Surprise me | R | left stick click |
 | Find a game | / | hold the left stick |

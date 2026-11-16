@@ -37,6 +37,7 @@ pub use kid::kid_hidden;
 pub use notes::notes;
 mod manuals;
 mod moving;
+pub mod panels;
 pub mod motion;
 mod notes;
 mod mstudio;
@@ -164,7 +165,8 @@ const TABS: [&str; 8] = ["Library", "Look", "Sound", "Box art & media", "Control
 const VOICES: [(&str, &str); 6] = [("aero", "Aero"), ("melody", "Melody"), ("musicbox", "Music box"), ("disc", "Disc-era"), ("handheld", "Handheld"), ("living", "Living room")];
 
 /// The languages there are, each by its own name (never translated).
-const LANGUAGES: [(&str, &str); 4] = [("en", "English"), ("tr", "Türkçe"), ("fr", "Français"), ("pt", "Português (Brasil)")];
+// (in the Electron app's order, settings.js)
+const LANGUAGES: [(&str, &str); 4] = [("en", "English"), ("pt", "Português (Brasil)"), ("fr", "Français"), ("tr", "Türkçe")];
 type Step = Box<dyn Fn(&mut Settings, i32) + Send + Sync>;
 
 #[derive(Default)]
@@ -226,6 +228,10 @@ pub struct Settings {
     pub cover_asked: Option<crate::coverpick::Ask>,
     /// Settings was opened only to type something in: it closes when that's done
     edit_alone: bool,
+    /// the Sort panel and the quick menu over the shelf
+    pub panels: panels::Panels,
+    /// Details asked for on the way to a console game's Art Studio
+    then_art: bool,
     /// controller pulses asked for from Settings' own pages, for `rumble::send`
     pub pulses: Vec<(f32, f32, u64)>,
     /// the Kid mode PIN was given since Settings opened
@@ -411,6 +417,8 @@ impl Default for Settings {
             motion: Default::default(),
             cover_asked: None,
             edit_alone: false,
+            panels: Default::default(),
+            then_art: false,
             order_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
@@ -676,9 +684,9 @@ impl Settings {
     }
 
     /// Settings or Details is up and hides the shelf entirely: what's behind needn't be drawn or kept moving. (The
-    /// shelf menu and the first run's card leave the shelf in view.)
+    /// first run's card leaves the shelf in view.)
     pub fn covers_shelf(&self) -> bool {
-        self.open && self.motion.faded_in && !self.wizard && !(self.stack.len() == 1 && self.stack[0].0 == Screen::Shelf)
+        self.open && self.motion.faded_in && !self.wizard
     }
 
     /// Settings opened only to type the name a cover is searched under; the picker comes back with what was typed.
@@ -961,7 +969,7 @@ impl Settings {
         Row {
             label: "Language".into(),
             value: LANGUAGES[at].1.into(),
-            hint: "The language the screen is shown in. Português (Brasil) is in the Electron app only for now: here it shows English.".into(),
+            hint: "The language the screen is shown in.".into(),
             press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
             step: Some(Box::new(turn)),
         }
@@ -2287,7 +2295,7 @@ impl Settings {
                     let id = s.filters[n].0.clone();
                     s.set(&["ui", "filter"], json!(id));
                 };
-                let mut rows = vec![
+                let rows = vec![
                     Row { label: "Order".into(), value: SORTS[at].1.into(), hint: "The order of every shelf".into(), press: Some(Box::new(move |s: &mut Settings| turn_sort(s, 1))), step: Some(Box::new(turn_sort)) },
                     Row {
                         label: "Show".into(),
@@ -2297,27 +2305,6 @@ impl Settings {
                         step: Some(Box::new(turn_filter)),
                     },
                 ];
-                if let Some(c) = &self.chosen {
-                    let (id, id2) = (c.game.id.clone(), c.game.id.clone());
-                    let fav = self.list(&["ui", "favorites"]).contains(&c.game.id);
-                    rows.push(open(&format!("Details of {}", c.game.title), String::new(), "", Screen::Details));
-                    rows.push(Row {
-                        label: "Favorite".into(),
-                        value: on_off(fav),
-                        hint: c.game.title.clone(),
-                        press: Some(Box::new(move |s: &mut Settings| s.flip("favorites", &id))),
-                        step: Some(Box::new(move |s: &mut Settings, _| s.flip("favorites", &id2))),
-                    });
-                }
-                // Settings as S opens it, with its tabs: not a page under the menu
-                rows.push(Row {
-                    label: "Settings".into(),
-                    press: Some(Box::new(|s: &mut Settings| {
-                        s.stack = vec![(Screen::Root, 0)];
-                        s.redraw = true;
-                    })),
-                    ..Row::default()
-                });
                 Page { title: "Shelf".into(), lead: String::new(), rows }
             }
             Screen::Details => {
@@ -2714,6 +2701,39 @@ pub fn input(
             toast.text = failed;
             toast.until = time.elapsed_secs() + 8.0;
         }
+        let now = time.elapsed_secs();
+        // a panel over the shelf has the keys
+        if s.panel_keys(&keys, &pads, now) {
+            s.keys_taken = true;
+            return;
+        }
+        let start = (pad(GamepadButton::Start), pads.iter().any(|p| p.just_released(GamepadButton::Start)), pads.iter().any(|p| p.pressed(GamepadButton::Start)));
+        let panel = if playing.title.is_some() || s.wanted.is_some() {
+            None
+        } else if keys.just_pressed(KeyCode::KeyG) {
+            Some(panels::Which::Sort)
+        } else if keys.just_pressed(KeyCode::Tab) {
+            Some(panels::Which::Quick)
+        } else {
+            s.start_button(start.0, start.1, start.2, now)
+        };
+        if let Some(which) = panel {
+            if let LibraryState::Ready(l) = &lib.0 {
+                let game = l.shelves.get(cursor.shelf).and_then(|shelf| {
+                    let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|x| x.id == *id)).unwrap_or(shelf);
+                    let g = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_)))?;
+                    Some(panels::PanelGame { game: g.clone(), console: own.id.clone(), shelf_name: shelf.name.clone(), played: shelfview::played(g, &plays.0) })
+                });
+                let home = l.shelves.get(cursor.shelf).is_some_and(|x| x.id == "home");
+                if let Some(b) = &base.0 {
+                    let all: Vec<&Game> = b.shelves.iter().flat_map(|sh| sh.games.iter()).collect();
+                    s.filters = shelfview::filters(&all, &s.text(&["ui", "filter"]));
+                }
+                s.open_panel(which, game, home, now);
+                s.keys_taken = true;
+            }
+            return;
+        }
         let first = if playing.title.is_some() {
             None
         } else if let Some(page) = s.wanted.take() {
@@ -2722,9 +2742,7 @@ pub fn input(
             Some(Screen::Find)
         } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) {
             Some(Screen::Root)
-        } else if keys.just_pressed(KeyCode::KeyG) || keys.just_pressed(KeyCode::Tab) || pad(GamepadButton::Start) {
-            Some(Screen::Shelf)
-        // (as the Electron app: View / Minus opens Details; Settings is in the shelf menu, Start)
+        // (as the Electron app: View / Minus opens Details; Settings is in the quick menu, Start)
         } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || pad(GamepadButton::Select) {
             Some(Screen::Details)
         } else {
@@ -2778,7 +2796,12 @@ pub fn input(
         if matches!(first, Screen::Root | Screen::Sound) {
             s.packs = rustyshelf_core::soundpacks::list(&s.app_root);
         }
+        let details = first == Screen::Details;
         s.stack = vec![(first, 0)];
+        // the quick menu's Box art, for a console game: its Art Studio, from its Details
+        if std::mem::take(&mut s.then_art) && details && s.can_pick_art() {
+            s.stack.push((Screen::Art, 0));
+        }
         s.redraw = true;
         return;
     }
@@ -3079,8 +3102,6 @@ enum Look {
     Settings,
     /// the case on the left, the game's name, Play and the rest on the right
     Details,
-    /// a panel over the shelf
-    Menu,
     /// a card in the middle with the steps down its side
     Setup,
 }
@@ -3103,6 +3124,19 @@ fn step_of(stack: &[(Screen, usize)]) -> usize {
         .unwrap_or(1)
 }
 
+/// A heading in capitals, as the language writes them: Turkish has a dotted capital İ for i, and I for ı.
+fn upper(lang: &str, s: &str) -> String {
+    if lang == "tr" {
+        s.chars().flat_map(|c| match c {
+            'i' => vec!['İ'],
+            'ı' => vec!['I'],
+            c => c.to_uppercase().collect(),
+        }).collect()
+    } else {
+        s.to_uppercase()
+    }
+}
+
 /// The row's label without the dashes a section's heading row has round it.
 fn bare(label: &str) -> &str {
     label.trim_matches(|c: char| c == '—' || c == ' ')
@@ -3117,6 +3151,8 @@ type Fonts<'a> = &'a dyn Fn(u32, f32) -> TextFont;
 /// What moves in a list as it's built: the highlight's place (none yet on a new page), the scroll, and the chosen
 /// row's slide, spring and nudge.
 struct ListMotion {
+    /// the language the headings are in capitals in
+    lang: String,
     highlight: Option<Vec4>,
     scroll: f32,
     slid: Option<i32>,
@@ -3194,7 +3230,7 @@ fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, from: usize, at: usize, 
             }
             line.with_children(|r| {
                 if head && !chosen {
-                    r.spawn((Text::new(t(bare(&row.label)).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
+                    r.spawn((Text::new(upper(&mv.lang, &t(bare(&row.label)))), font(700, 13.0), TextColor(S_FAINT)));
                     return;
                 }
                 r.spawn((Text::new(t(bare(&row.label))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 })));
@@ -3321,8 +3357,6 @@ pub fn draw(
         Look::Setup
     } else if screen == Some(Screen::Details) && s.chosen.is_some() {
         Look::Details
-    } else if screen == Some(Screen::Shelf) && s.stack.len() == 1 {
-        Look::Menu
     } else {
         Look::Settings
     };
@@ -3340,7 +3374,7 @@ pub fn draw(
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
     let (highlight, scroll) = s.motion.now(now);
-    let mv = ListMotion { highlight, scroll, slid: s.motion.slid(now), flipped: s.motion.flipped(now), pressed: s.motion.just_pressed(now) };
+    let mv = ListMotion { lang: s.text(&["ui", "language"]), highlight, scroll, slid: s.motion.slid(now), flipped: s.motion.flipped(now), pressed: s.motion.just_pressed(now) };
     let lang = s.text(&["ui", "language"]);
     let t = |text: &str| rustyshelf_core::i18n::tr(&lang, text);
     let chosen_row = page.rows.get(at);
@@ -3362,30 +3396,8 @@ pub fn draw(
         keys.push((vec!["PgUp".into(), "PgDn".into()], t("Section")));
     }
     let mut ui = commands.spawn((SettingsUi, Node { width: percent(100), height: percent(100), position_type: PositionType::Absolute, ..default() }, GlobalZIndex(10)));
-    if look == Look::Menu {
-        ui.insert(BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.35)));
-    } else {
-        ui.insert(surface());
-    }
+    ui.insert(surface());
     ui.with_children(|p| match look {
-        Look::Menu => {
-            p.spawn(Node { position_type: PositionType::Absolute, top: dp(96.0), left: px(0), right: px(0), justify_content: JustifyContent::Center, ..default() }).with_children(|wrap| {
-                wrap.spawn((
-                    Node { width: dp(860.0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(28.0), dp(28.0), dp(24.0), dp(18.0)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(dp(22.0)), ..default() },
-                    BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.86)),
-                    BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
-                    BoxShadow(vec![ShadowStyle { color: Color::srgba(0.0, 0.0, 0.0, 0.5), x_offset: px(0), y_offset: dp(24.0), spread_radius: dp(-8.0), blur_radius: dp(60.0) }]),
-                ))
-                .with_children(|panel| {
-                    panel.spawn((Node { margin: UiRect::bottom(dp(8.0)), ..default() }, Text::new(t("Arrange your shelves").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
-                    row_list(panel, &page, 0, at, 804.0, &font, &t, &mv);
-                    if !hint.is_empty() {
-                        panel.spawn((Node { margin: UiRect::top(dp(6.0)), ..default() }, Text::new(hint.clone()), font(400, 17.0), TextColor(S_DIM)));
-                    }
-                });
-            });
-            key_bar(p, &keys, &font);
-        }
         Look::Details => {
             let c = s.chosen.as_ref().expect("a chosen game");
             let g = &c.game;
@@ -3412,7 +3424,7 @@ pub fn draw(
             });
             p.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(px(0), dp(96.0), dp(110.0), dp(110.0)), ..default() })).with_children(|right| {
                 let system = systems().console(&c.console).map_or(c.console.clone(), |x| x.name.clone());
-                right.spawn((Text::new(system.to_uppercase()), font(700, 16.0), TextColor(S_ACC2)));
+                right.spawn((Text::new(upper(&lang, &system)), font(700, 16.0), TextColor(S_ACC2)));
                 right.spawn((Node { margin: UiRect::vertical(dp(10.0)), ..default() }, Text::new(g.title.clone()), wide(800, 76.0), TextColor(S_INK)));
                 let info = g.info.as_ref();
                 let chips: Vec<String> = [
@@ -3458,7 +3470,7 @@ pub fn draw(
                 if let Some(text) = text.filter(|x| !x.is_empty()) {
                     right.spawn((Node { max_width: dp(860.0), margin: UiRect::bottom(dp(18.0)), ..default() }, Text::new(text), font(400, 21.0), TextColor(S_INK2)));
                 }
-                right.spawn((Node { margin: UiRect::vertical(dp(6.0)), ..default() }, Text::new(t("More").to_uppercase()), font(700, 15.0), TextColor(S_DIM)));
+                right.spawn((Node { margin: UiRect::vertical(dp(6.0)), ..default() }, Text::new(upper(&lang, &t("More"))), font(700, 15.0), TextColor(S_DIM)));
                 row_list(right, &page, rest, at, 860.0, &font, &t, &mv);
             });
             key_bar(p, &keys, &font);
@@ -3483,7 +3495,7 @@ pub fn draw(
                             b.spawn((Text::new("Rusty"), wide(800, 40.0), TextColor(S_RUSTY)));
                             b.spawn((Text::new("Shelf"), wide(800, 40.0), TextColor(S_INK)));
                         });
-                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(8.0), dp(22.0)), ..default() }, Text::new(t("Setup").to_uppercase()), font(700, 15.0), TextColor(S_DIM)));
+                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(8.0), dp(22.0)), ..default() }, Text::new(upper(&lang, &t("Setup"))), font(700, 15.0), TextColor(S_DIM)));
                         for (i, name) in STEPS.iter().enumerate() {
                             let on = i == step;
                             side.spawn((
@@ -3504,7 +3516,7 @@ pub fn draw(
                     });
                     card.spawn(Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, ..default() }).with_children(|main| {
                         main.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_height: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(46.0), dp(46.0), dp(46.0), dp(10.0)), ..default() })).with_children(|pg| {
-                            pg.spawn((Text::new(t("Welcome to RustyShelf").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
+                            pg.spawn((Text::new(upper(&lang, &t("Welcome to RustyShelf"))), font(700, 14.0), TextColor(S_DIM)));
                             pg.spawn((Node { margin: UiRect::top(dp(8.0)), ..default() }, Text::new(t(&page.title)), wide(800, 46.0), TextColor(S_INK)));
                             if !page.lead.is_empty() {
                                 pg.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(16.0)), max_width: dp(860.0), ..default() }, Text::new(t(&page.lead)), font(400, 19.0), TextColor(S_DIM)));
@@ -3533,13 +3545,13 @@ pub fn draw(
                 BorderColor::all(S_LINE),
             ))
             .with_children(|side| {
-                side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), px(0), dp(18.0)), ..default() }, Text::new(t("Settings").to_uppercase()), font(800, 15.0), TextColor(S_DIM)));
+                side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), px(0), dp(18.0)), ..default() }, Text::new(upper(&lang, &t("Settings"))), font(800, 15.0), TextColor(S_DIM)));
                 if !root {
                     return;
                 }
                 for (i, name) in TABS.iter().enumerate() {
                     if let (group, true) = group_of(name) {
-                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(14.0), dp(6.0)), ..default() }, Text::new(t(group).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
+                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(14.0), dp(6.0)), ..default() }, Text::new(upper(&lang, &t(group))), font(700, 13.0), TextColor(S_FAINT)));
                     }
                     let on = i == s.tab % TABS.len();
                     let mut item = side.spawn((
@@ -3563,7 +3575,7 @@ pub fn draw(
             p.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_width: px(0), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(48.0), dp(48.0), dp(44.0), dp(120.0)), ..default() })).with_children(|pg| {
                 let eyebrow = if root { t(group_of(tab).0) } else { String::new() };
                 if !eyebrow.is_empty() {
-                    pg.spawn((Text::new(eyebrow.to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
+                    pg.spawn((Text::new(upper(&lang, &eyebrow)), font(700, 14.0), TextColor(S_DIM)));
                 }
                 pg.spawn((Node { margin: UiRect::top(dp(6.0)), ..default() }, Text::new(if tabs { t(tab) } else { t(&page.title) }), wide(800, 52.0), TextColor(S_INK)));
                 if page.lead.is_empty() {

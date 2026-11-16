@@ -4,7 +4,8 @@
 //! A finger on the screen (Android, the Steam Deck, touch screens), as the keys it stands for, so every screen does
 //! what it already does for them: along the shelf a sideways drag steps through the games and a tap on the chosen case
 //! plays it; from a side edge inwards is Back (Esc) everywhere, and off the shelf a quick swipe to the left is too.
-//! In Settings a drag up or down moves through the rows, and a tap on a card picks its lit button.
+//! In Settings a drag up or down moves through the rows, and a tap on a card picks its lit button. A finger held
+//! still on the shelf opens the quick menu (Tab).
 
 use bevy::prelude::*;
 
@@ -15,6 +16,8 @@ const MOVED: f32 = 8.0 / 1440.0;
 /// a step along the shelf, and between Settings' rows (of the height)
 const STEP: f32 = 0.07;
 const ROW: f32 = 0.06;
+/// seconds a finger is held still for the quick menu
+const LONG: f32 = 0.6;
 
 #[derive(Default)]
 pub struct Finger {
@@ -27,6 +30,8 @@ pub struct Finger {
     edge: bool,
     /// a second finger came: it's no gesture of ours
     lost: bool,
+    /// held long enough: the quick menu opened, and letting go does nothing more
+    long: bool,
 }
 
 pub fn run(
@@ -68,6 +73,10 @@ pub fn run(
         if (p - f.start).length() > MOVED * w {
             f.moved = true;
         }
+        if shelf && !f.moved && !f.lost && !f.long && now - f.at >= LONG {
+            f.long = true;
+            press(KeyCode::Tab);
+        }
         if f.lost || f.edge || !f.moved {
             return;
         }
@@ -90,7 +99,7 @@ pub fn run(
     if !ended {
         return;
     }
-    let (fin, start, quick, lost, edge, moved) = (f.last, f.start, now - f.at < 0.6, f.lost, f.edge, f.moved);
+    let (fin, start, quick, lost, edge, moved) = (f.last, f.start, now - f.at < 0.6, f.lost || f.long, f.edge, f.moved);
     *f = Finger::default();
     if lost {
         return;

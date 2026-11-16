@@ -786,6 +786,24 @@ pub fn measure(
     }
 }
 
+/// The shelf stepping aside for the quick menu, as #scene does in quickshelf.css (translateX(-17vw) scale(.92)): the
+/// camera's part of its view moved and grown, so the cases move as one flat picture.
+pub fn aside(time: Res<Time>, settings: Res<crate::settings::Settings>, stage: Res<Stage>, mut camera: Query<&mut Camera, With<ShelfCamera>>, mut last: Local<f32>) {
+    let k = settings.panels.aside(time.elapsed_secs());
+    if (k - *last).abs() < 1e-4 && !stage.is_changed() {
+        return;
+    }
+    *last = k;
+    let Ok(mut cam) = camera.single_mut() else { return };
+    let (w, h) = (stage.w.round().max(1.0), stage.h.round().max(1.0));
+    let below = 1.0 - EYE_Y;
+    let scale = 1.0 - 0.08 * k;
+    let full = Vec2::new(w * 100.0, h * (below * 200.0).round()) * scale;
+    let size = Vec2::new(w * 100.0, h * 100.0);
+    let centre = (Vec2::new(0.0, h * (below * 200.0 - 100.0).round()) + size / 2.0) * scale;
+    cam.sub_camera_view = Some(SubCameraView { full_size: full.round().as_uvec2(), offset: centre - size / 2.0 + Vec2::new(0.17 * w * 100.0 * k, 0.0), size: size.as_uvec2() });
+}
+
 /// The colour a media app's drawn cover is made around, for the apps that have their own.
 fn app_hue(app: &str) -> Option<f32> {
     match app {
@@ -1282,7 +1300,10 @@ pub fn backdrop(
                     }
                     image.image = picture(&mut images, p);
                 }
-                (node.left, node.top, node.width, node.height) = (px(stage.w / 2.0 - w / 2.0), px(stage.h * EYE_Y - h / 2.0), px(w), px(h));
+                // (it steps aside with the shelf for the quick menu)
+                let k = settings.panels.aside(now);
+                let (w, h) = (w * (1.0 - 0.08 * k), h * (1.0 - 0.08 * k));
+                (node.left, node.top, node.width, node.height) = (px(stage.w / 2.0 - w / 2.0 - 0.17 * stage.w * k), px(stage.h * EYE_Y - h / 2.0), px(w), px(h));
                 // it breathes: down to .55 and back every 3.4 s
                 let beat = (now / 3.4).fract();
                 let breath = 1.0 - 0.45 * bezier(EASE_IN_OUT, 1.0 - (beat * 2.0 - 1.0).abs());
