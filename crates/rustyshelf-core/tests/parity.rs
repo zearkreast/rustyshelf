@@ -452,7 +452,7 @@ fn emulator_settings_change_as_in_the_js() {
                 use rustyshelf_core::emusetup::{kind_of, Options, Setup};
                 let setup = Setup { data_dir: tmp.path().join("app/data"), app_root: tmp.path().join("app"), var: &var };
                 let exe = at(&step[1]);
-                let opts = |o: &Value| Options { graphics: o["graphics"].as_str().unwrap_or("").to_string(), bios_dir: String::new() };
+                let opts = |o: &Value| Options { graphics: o["graphics"].as_str().unwrap_or("").to_string(), ..Options::default() };
                 let pairs = |l: &[(&str, &str)]| serde_json::json!(l.iter().map(|(g, why)| serde_json::json!([g, why])).collect::<Vec<_>>());
                 match what {
                     "setupPlan" => kind_of(&exe).map_or(Value::Null, |k| {

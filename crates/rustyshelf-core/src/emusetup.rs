@@ -8,6 +8,9 @@
 //! - graphics: a resolution preset, fast / balanced / pretty
 //! - quit: no "are you sure?" question when the game is closed
 //! - resume (RetroArch, off unless chosen): save on quit, carry on where you left off next time
+//! - picture (off unless chosen): screen shape, sharp pixels and a retro TV look, each only where the emulator has it.
+//!   Setting names as Boxshelf checked them on 2026-11-11 against RetroArch 1.22.2, DuckStation, PCSX2, Dolphin
+//!   and PPSSPP 1.19.3 / 1.20.4.
 //!
 //! Every file is backed up once before its first change (the backups Settings → Restore emulator settings puts
 //! back), written whole through a temporary file, and listed in `data/emu-setup.json` so Undo puts exactly those
@@ -27,7 +30,7 @@ use crate::paths::{is_dir, is_file};
 /// Windows for now: the emulators keep their settings elsewhere on Linux.
 pub const ON: bool = cfg!(windows);
 
-pub const GROUPS: &[&str] = &["controller", "hotkeys", "bios", "graphics", "quit", "resume"];
+pub const GROUPS: &[&str] = &["controller", "hotkeys", "bios", "graphics", "quit", "resume", "picture"];
 
 /// A group's name in Settings.
 pub fn group_name(group: &str) -> &'static str {
@@ -38,13 +41,14 @@ pub fn group_name(group: &str) -> &'static str {
         "graphics" => "Graphics",
         "quit" => "No quit questions",
         "resume" => "Resume where you left off",
+        "picture" => "Picture",
         _ => "",
     }
 }
 
-/// Every group is on unless switched off, but resume.
+/// Every group is on unless switched off, but resume and picture.
 fn default_on(group: &str) -> bool {
-    group != "resume"
+    !matches!(group, "resume" | "picture")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +99,8 @@ pub struct Change {
     pub file: String,
     /// RetroArch's `key = "value"` lines without sections, not an ini
     pub cfg: bool,
+    /// a RetroArch shader preset RustyShelf starts (its one `#reference` line), never written over
+    pub preset: bool,
     pub section: String,
     pub key: String,
     pub value: String,
@@ -109,6 +115,8 @@ pub struct Plan {
     pub changes: Vec<Change>,
     pub skipped: Vec<(&'static str, &'static str)>,
     pub groups: Vec<&'static str>,
+    /// the Picture choices this emulator hasn't got: what, and why
+    pub picture_skipped: Vec<(&'static str, &'static str)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -117,6 +125,26 @@ pub struct Options {
     pub graphics: String,
     /// the BIOS folder to point at; empty for the shared one
     pub bios_dir: String,
+    /// Picture: the screen's shape ("original", "wide"; anything else leaves it), sharp pixels (None leaves them),
+    /// a retro TV look
+    pub shape: String,
+    pub sharp: Option<bool>,
+    pub crt: bool,
+}
+
+/// Which Picture choices an emulator has a real setting for.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PictureCan {
+    pub shape: bool,
+    pub wide: bool,
+    pub sharp: bool,
+    pub crt: bool,
+}
+
+impl PictureCan {
+    pub fn any(self) -> bool {
+        self.shape || self.sharp || self.crt
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -143,6 +171,8 @@ pub struct Status {
     pub groups: Vec<&'static str>,
     pub skipped: Vec<(&'static str, &'static str)>,
     pub bios_dir: Option<String>,
+    pub picture: PictureCan,
+    pub picture_skipped: Vec<(&'static str, &'static str)>,
 }
 
 pub struct Setup<'a> {
@@ -306,6 +336,38 @@ fn resolution(kind: Kind, preset: &str) -> &'static str {
     }
 }
 
+fn preset_text(reference: &str) -> String {
+    format!("#reference \"{reference}\"")
+}
+
+/// RetroArch's global shader preset: a small file RustyShelf starts (one `#reference` line), only when it isn't there.
+fn set_preset(f: &str, reference: &str) -> std::io::Result<bool> {
+    if Path::new(f).symlink_metadata().is_ok() {
+        return Ok(false);
+    }
+    if let Some(d) = Path::new(f).parent() {
+        std::fs::create_dir_all(d)?;
+    }
+    let tmp = format!("{f}.tmp");
+    std::fs::write(&tmp, format!("{}\n", preset_text(reference))).and_then(|()| std::fs::rename(&tmp, f)).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })?;
+    Ok(true)
+}
+
+/// `to` from `from` as Node's path.relative gives it (both absolute); `to` itself when they're on different drives.
+fn relative(from: &str, to: &str) -> String {
+    let parts = |p: &str| -> Vec<String> { p.split(['/', '\\']).filter(|x| !x.is_empty()).map(String::from).collect() };
+    let (a, b) = (parts(from), parts(to));
+    let same = |x: &str, y: &str| if cfg!(windows) { x.eq_ignore_ascii_case(y) } else { x == y };
+    let common = a.iter().zip(&b).take_while(|(x, y)| same(x, y)).count();
+    if common == 0 && cfg!(windows) {
+        return to.to_string();
+    }
+    let up = std::iter::repeat_n("..".to_string(), a.len() - common);
+    up.chain(b[common..].iter().cloned()).collect::<Vec<_>>().join(std::path::MAIN_SEPARATOR_STR)
+}
+
 fn pairs(want: &[(&str, &str)]) -> Vec<(String, String)> {
     want.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }
@@ -464,12 +526,170 @@ impl Setup<'_> {
         }
     }
 
+    /// RetroArch's own folder as its settings name it (":" is the folder RetroArch is in), else `def` beside it.
+    fn ra_dir(&self, exe: &str, key: &str, def: &str) -> String {
+        static OWN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^:[\\/]?").unwrap());
+        match cfg_get(&read_text(&self.ra_cfg(exe)), key).filter(|v| !v.is_empty() && v != "default") {
+            Some(v) => OWN.replace(&v, regex::NoExpand(&format!("{}{}", js::dirname(exe), std::path::MAIN_SEPARATOR))).into_owned(),
+            None => js::join(&[&js::dirname(exe), def]),
+        }
+    }
+
+    /// RetroArch's retro TV look: a global shader preset per shader kind (its config folder's global.slangp and
+    /// global.glslp, so any video driver finds one) that only points at a CRT preset in its own shaders folder.
+    /// The presets to start (file, reference), or why not.
+    fn ra_crt(&self, exe: &str) -> Result<Vec<(String, String)>, &'static str> {
+        const CRT: [&str; 4] = ["crt-easymode", "crt-lottes", "crt-geom", "crt-pi"];
+        let (sh, conf) = (self.ra_dir(exe, "video_shader_dir", "shaders"), self.ra_dir(exe, "rgui_config_directory", "config"));
+        let mut files = Vec::new();
+        for t in ["slang", "glsl"] {
+            let crt = js::join(&[&sh, &format!("shaders_{t}"), "crt"]);
+            let Some(name) = CRT.iter().find(|n| is_file(Path::new(&js::join(&[&crt, &format!("{n}.{t}p")])))) else { continue };
+            let target = js::join(&[&crt, &format!("{name}.{t}p")]);
+            let rel = relative(&conf, &target);
+            let r = if rel.is_empty() || js::is_absolute(&rel) { target } else { rel };
+            files.push((js::join(&[&conf, &format!("global.{t}p")]), r.replace('\\', "/")));
+        }
+        if files.is_empty() {
+            return Err("RetroArch's CRT shaders aren't there yet (its Online Updater gets them)");
+        }
+        // a global preset of your own, in any of the places RetroArch looks for one, is kept
+        for d in [conf.clone(), js::dirname(&self.ra_cfg(exe)), js::join(&[&sh, "presets"])] {
+            for e in ["slangp", "glslp", "cgp"] {
+                let f = js::join(&[&d, &format!("global.{e}")]);
+                let ours = files.iter().find(|x| resolve(Path::new(&x.0)).to_string_lossy().to_lowercase() == resolve(Path::new(&f)).to_string_lossy().to_lowercase());
+                if is_file(Path::new(&f)) && ours.is_none_or(|o| read_text(&f).trim() != preset_text(&o.1)) {
+                    return Err("it already uses a shader of your own");
+                }
+            }
+        }
+        Ok(files)
+    }
+
+    /// What this emulator's picture can do, why not where it can't (what, why), and the changes for `opts`.
+    pub fn picture(&self, kind: Kind, exe: &str, opts: &Options) -> (PictureCan, Vec<(&'static str, &'static str)>, Vec<Change>) {
+        const SHAPE: &str = "Screen shape";
+        const WIDE: &str = "Widescreen";
+        const SHARP: &str = "Sharp pixels";
+        const CRT: &str = "Retro TV look";
+        let (mut can, mut why, mut out) = (PictureCan::default(), Vec::new(), Vec::new());
+        let mut add = |file: &str, cfg: bool, section: &str, want: &[(&str, &str)]| {
+            out.extend(want.iter().map(|(k, v)| Change { group: "picture", file: file.to_string(), cfg, preset: false, section: section.to_string(), key: k.to_string(), value: v.to_string() }));
+        };
+        let shape = |can: PictureCan| match opts.shape.as_str() {
+            "original" if can.shape => Some("original"),
+            "wide" if can.shape && can.wide => Some("wide"),
+            _ => None,
+        };
+        match kind {
+            Kind::RetroArch => {
+                let (f, crt) = (self.ra_cfg(exe), self.ra_crt(exe));
+                can = PictureCan { shape: true, wide: false, sharp: true, crt: crt.is_ok() };
+                why.push((WIDE, "a wide picture would only stretch the games"));
+                if let Err(w) = crt {
+                    why.push((CRT, w));
+                }
+                // 22: "Core provided", the console's own shape
+                if shape(can) == Some("original") {
+                    add(&f, true, "", &[("aspect_ratio_index", "22")]);
+                }
+                if let Some(sharp) = opts.sharp {
+                    add(&f, true, "", &[("video_scale_integer", if sharp { "true" } else { "false" })]);
+                }
+                if let (true, Ok(files)) = (opts.crt, self.ra_crt(exe)) {
+                    add(&f, true, "", &[("video_shader_enable", "true"), ("auto_shaders_enable", "true")]);
+                    out.extend(files.into_iter().map(|(file, r)| Change { group: "picture", file, cfg: false, preset: true, section: String::new(), key: "#reference".into(), value: r }));
+                }
+            }
+            Kind::Dolphin => {
+                let Some(d) = self.dolphin_dir(exe) else { return (can, why, out) };
+                can.shape = true;
+                why.extend([(WIDE, "Wii games are wide by themselves; GameCube ones need a code for each game"), (SHARP, "Dolphin has no setting for it"), (CRT, "not offered for Dolphin yet")]);
+                // 0: Auto, the game's own shape
+                if shape(can) == Some("original") {
+                    add(&js::join(&[&d, "Config", "GFX.ini"]), false, "Settings", &[("AspectRatio", "0"), ("wideScreenHack", "False")]);
+                }
+            }
+            Kind::DuckStation => {
+                let Some(f) = self.duck_ini(exe) else { return (can, why, out) };
+                let t = read_text(&f);
+                let shader = is_file(Path::new(&js::join(&[&js::dirname(exe), "resources", "shaders", "crt-lottes.glsl"])));
+                let stages: u32 = ini_get(&t, "PostProcessing", "StageCount").and_then(|n| n.trim().parse().ok()).unwrap_or(0);
+                let mine = stages > 1 || (stages == 1 && ini_get(&t, "PostProcessing/Stage1", "ShaderName").as_deref() != Some("crt-lottes"));
+                can = PictureCan { shape: true, wide: true, sharp: true, crt: shader && !mine };
+                if !shader {
+                    why.push((CRT, "this DuckStation doesn't have its CRT shader"));
+                } else if mine {
+                    why.push((CRT, "it already uses picture filters of your own"));
+                }
+                if let Some(s) = shape(can) {
+                    add(&f, false, "Display", &[("AspectRatio", if s == "wide" { "16:9" } else { "Auto (Game Native)" })]);
+                    add(&f, false, "GPU", &[("WidescreenHack", if s == "wide" { "true" } else { "false" })]);
+                }
+                // sharp off: a whole-number scaling goes back to DuckStation's own (smooth); any other choice is kept
+                match opts.sharp {
+                    Some(true) => add(&f, false, "Display", &[("Scaling", "NearestInteger")]),
+                    Some(false) if ini_get(&t, "Display", "Scaling").is_some_and(|v| v.ends_with("Integer")) => add(&f, false, "Display", &[("Scaling", "BilinearSmooth")]),
+                    _ => {}
+                }
+                if opts.crt && can.crt {
+                    add(&f, false, "PostProcessing", &[("Enabled", "true"), ("StageCount", "1")]);
+                    add(&f, false, "PostProcessing/Stage1", &[("ShaderName", "crt-lottes")]);
+                }
+            }
+            Kind::Pcsx2 => {
+                let Some(f) = self.pcsx2_ini(exe) else { return (can, why, out) };
+                // the TV Shader list's index: 5 = Lottes CRT, 0 = None; any other one chosen is kept
+                let tv = ini_get(&read_text(&f), "EmuCore/GS", "TVShader").map(|v| v.trim().to_string()).unwrap_or_else(|| "0".into());
+                let tv_mine = tv != "0" && tv != "5";
+                can = PictureCan { shape: true, wide: true, sharp: true, crt: !tv_mine };
+                if tv_mine {
+                    why.push((CRT, "it already uses a TV filter of your own"));
+                }
+                // "Auto 4:3/3:2" is 4:3, and 16:9 for a game with a widescreen patch (while those patches are on)
+                if let Some(s) = shape(can) {
+                    add(&f, false, "EmuCore", &[("EnableWideScreenPatches", if s == "wide" { "true" } else { "false" })]);
+                    add(&f, false, "EmuCore/GS", &[("AspectRatio", "Auto 4:3/3:2")]);
+                }
+                if let Some(sharp) = opts.sharp {
+                    add(&f, false, "EmuCore/GS", &[("IntegerScaling", if sharp { "true" } else { "false" })]);
+                }
+                if opts.crt && can.crt {
+                    add(&f, false, "EmuCore/GS", &[("TVShader", "5")]);
+                }
+            }
+            Kind::Ppsspp => {
+                let Some(f) = self.ppsspp_ini(exe) else { return (can, why, out) };
+                let t = read_text(&f);
+                let sec = if t.lines().any(|l| l.trim() == "[DisplayLayout.Landscape]") { "DisplayLayout.Landscape" } else { "Graphics" };
+                // its own "CRT" post shader (CRT Scanlines), only while no other post shader is on
+                let has = read_text(&js::join(&[&js::dirname(exe), "assets", "shaders", "defaultshaders.ini"])).lines().any(|l| l.trim() == "[CRT]");
+                let mine = ini_section(&t, "PostShaderList").iter().any(|(_, v)| !v.is_empty() && v != "Off" && v != "CRT");
+                can = PictureCan { shape: false, wide: false, sharp: true, crt: has && !mine };
+                why.push((SHAPE, "the PSP's screen is wide already"));
+                if !has {
+                    why.push((CRT, "this PPSSPP doesn't have its CRT shader"));
+                } else if mine {
+                    why.push((CRT, "it already uses a picture filter of your own"));
+                }
+                if let Some(sharp) = opts.sharp {
+                    add(&f, false, sec, &[("DisplayIntegerScale", if sharp { "True" } else { "False" })]);
+                }
+                if opts.crt && can.crt {
+                    add(&f, false, "PostShaderList", &[("PostShader1", "CRT")]);
+                }
+            }
+        }
+        why.sort_by_key(|w| [SHAPE, WIDE, SHARP, CRT].iter().position(|x| *x == w.0));
+        (can, why, out)
+    }
+
     /// Every change setting this emulator up would make.
     pub fn plan(&self, kind: Kind, exe: &str, opts: &Options) -> Plan {
         static PS2_BIOS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(scph|ps2|bios).*\.bin$").unwrap());
         let mut p = Plan::default();
         let add = |p: &mut Plan, group: &'static str, file: &str, cfg: bool, section: &str, want: Vec<(String, String)>| {
-            p.changes.extend(want.into_iter().map(|(key, value)| Change { group, file: file.to_string(), cfg, section: section.to_string(), key, value }));
+            p.changes.extend(want.into_iter().map(|(key, value)| Change { group, file: file.to_string(), cfg, preset: false, section: section.to_string(), key, value }));
         };
         let bios = if opts.bios_dir.is_empty() { self.shared_bios_dir() } else { opts.bios_dir.clone() };
         let bios_free = |d: Option<String>| d.filter(|d| !d.is_empty()).is_none_or(|d| !has_bios_files(&d));
@@ -546,6 +766,9 @@ impl Setup<'_> {
                 add(&mut p, "graphics", &f, false, "Graphics", pairs(&[("InternalResolution", resolution(kind, &opts.graphics))]));
             }
         }
+        let (_, why, changes) = self.picture(kind, exe, opts);
+        p.picture_skipped = why;
+        p.changes.extend(changes);
         p.ok = true;
         for c in &p.changes {
             if !p.groups.contains(&c.group) {
@@ -638,7 +861,7 @@ impl Setup<'_> {
                 let _ = std::fs::copy(&c.file, snapshot_of(&c.file));
             }
             let refs: Vec<(&str, &str)> = w.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-            let changed = if c.cfg { set_cfg(&c.file, w) } else { emucfg::set_ini(&c.file, &c.section, &refs) };
+            let changed = if c.preset { set_preset(&c.file, &c.value) } else if c.cfg { set_cfg(&c.file, w) } else { emucfg::set_ini(&c.file, &c.section, &refs) };
             match changed {
                 Ok(true) => {
                     if !files.contains(&c.file) {
@@ -652,7 +875,7 @@ impl Setup<'_> {
                         made_bak.push(c.file.clone());
                     }
                     let pk = format!("{}\0{}", c.file, c.section);
-                    let e = rec["prev"].as_object_mut().unwrap().entry(pk).or_insert_with(|| json!({ "file": c.file, "fmt": if c.cfg { "cfg" } else { "ini" }, "section": if c.section.is_empty() { Value::Null } else { json!(c.section) }, "keys": {} }));
+                    let e = rec["prev"].as_object_mut().unwrap().entry(pk).or_insert_with(|| json!({ "file": c.file, "fmt": if c.preset { "preset" } else if c.cfg { "cfg" } else { "ini" }, "section": if c.section.is_empty() { Value::Null } else { json!(c.section) }, "keys": {} }));
                     if let Some(keys) = e.get_mut("keys").and_then(Value::as_object_mut) {
                         for (k, v) in before {
                             keys.entry(k).or_insert(v);
@@ -724,7 +947,8 @@ impl Setup<'_> {
                         restored.push(f.clone());
                     }
                 } else {
-                    for e in prev.values().filter(|e| e["file"] == f.as_str()) {
+                    // (a shader preset RustyShelf started that's different now was saved over in RetroArch: it's yours)
+                    for e in prev.values().filter(|e| e["file"] == f.as_str() && e["fmt"] != "preset") {
                         let keys: Vec<(String, Option<String>)> = e["keys"].as_object().into_iter().flatten().map(|(k, v)| (k.clone(), v.as_str().map(String::from))).collect();
                         let changed = if e["fmt"] == "cfg" {
                             set_cfg_or_drop(&f, &keys)
@@ -794,6 +1018,8 @@ impl Setup<'_> {
             groups: p.groups,
             skipped: p.skipped,
             bios_dir: self.bios_dir_of(kind, exe),
+            picture: self.picture(kind, exe, &Options::default()).0,
+            picture_skipped: p.picture_skipped,
         })
     }
 }
@@ -897,7 +1123,7 @@ mod tests {
         let setup = Setup { data_dir: tmp.path().join("app/data"), app_root: tmp.path().join("app"), var: &var };
         let resolved = |e: &str| PathBuf::from(e);
         let emulators = vec![at("a/Dolphin.exe"), String::new(), at("b/duckstation.exe"), at("a/Dolphin.exe"), at("c/pcsx2.exe")];
-        let opts = Options { graphics: "fast".into(), bios_dir: String::new() };
+        let opts = Options { graphics: "fast".into(), ..Options::default() };
         let r = setup.auto(&emulators, &resolved, &[], false, &opts, now);
         assert_eq!((r.done, r.later, r.left), (vec!["Dolphin"], vec!["DuckStation"], vec!["PCSX2"]));
         assert_eq!(r.pending, vec![at("b/duckstation.exe")]);
@@ -911,6 +1137,60 @@ mod tests {
         write("b/settings.ini", "[Main]\n");
         assert_eq!(setup.at_launch(&duck, &resolved, &r.pending, false, &opts, now), Some(Vec::new()));
         assert!(setup.status(&duck.to_string_lossy(), now).unwrap().done.is_some());
+    }
+
+    #[test]
+    fn picture_choices_where_the_emulator_has_them() {
+        let tmp = tempfile::tempdir().unwrap();
+        let at = |p: &str| tmp.path().join(p).to_string_lossy().into_owned();
+        let write = |p: &str, text: &str| {
+            let f = tmp.path().join(p);
+            std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+            std::fs::write(f, text).unwrap();
+        };
+        for f in ["ra/retroarch.exe", "ra/shaders/shaders_slang/crt/crt-lottes.slangp", "d/duckstation.exe", "d/portable.txt"] {
+            write(f, "");
+        }
+        write("ra/retroarch.cfg", "video_driver = \"vulkan\"\n");
+        write("d/settings.ini", "[Display]\nScaling = BilinearSmooth\n");
+        std::fs::create_dir_all(tmp.path().join("app/data")).unwrap();
+        let home = at("home");
+        let var = move |k: &str| matches!(k, "HOME" | "USERPROFILE").then(|| home.clone());
+        let setup = Setup { data_dir: tmp.path().join("app/data"), app_root: tmp.path().join("app"), var: &var };
+        let now = now_for_tests();
+
+        let (ra, duck) = (at("ra/retroarch.exe"), at("d/duckstation.exe"));
+        let st = setup.status(&ra, now).unwrap();
+        assert_eq!(st.picture, PictureCan { shape: true, wide: false, sharp: true, crt: true });
+        assert_eq!(st.picture_skipped, [("Widescreen", "a wide picture would only stretch the games")]);
+        // DuckStation without its CRT shader: no retro TV look
+        let st = setup.status(&duck, now).unwrap();
+        assert_eq!((st.picture.wide, st.picture.crt), (true, false));
+        assert_eq!(st.picture_skipped, [("Retro TV look", "this DuckStation doesn't have its CRT shader")]);
+
+        // Picture is off unless switched on
+        let opts = Options { shape: "original".into(), sharp: Some(true), crt: true, ..Options::default() };
+        let r = setup.apply(&ra, &[], &opts, now);
+        assert!(r.ok && !r.applied.contains(&"picture"));
+        let r = setup.apply(&ra, &[("picture", true)], &opts, now);
+        assert!(r.applied.contains(&"picture"));
+        let cfg = std::fs::read_to_string(at("ra/retroarch.cfg")).unwrap();
+        for line in ["aspect_ratio_index = \"22\"", "video_scale_integer = \"true\"", "video_shader_enable = \"true\""] {
+            assert!(cfg.contains(line), "{line}");
+        }
+        let preset = at("ra/config/global.slangp");
+        assert_eq!(std::fs::read_to_string(&preset).unwrap(), format!("#reference \"..{}shaders{0}shaders_slang{0}crt{0}crt-lottes.slangp\"\n", std::path::MAIN_SEPARATOR).replace('\\', "/"));
+        // now it's ours, it doesn't count as a shader of your own; Undo takes it away again
+        assert!(setup.status(&ra, now).unwrap().picture.crt);
+        setup.undo(&ra);
+        assert!(!Path::new(&preset).exists());
+
+        let wide = Options { shape: "wide".into(), sharp: Some(true), ..Options::default() };
+        setup.apply(&duck, &[("picture", true)], &wide, now);
+        let ini = std::fs::read_to_string(at("d/settings.ini")).unwrap();
+        for line in ["AspectRatio = 16:9", "WidescreenHack = true", "Scaling = NearestInteger"] {
+            assert!(ini.contains(line), "{line}");
+        }
     }
 
     fn now_for_tests() -> u64 {

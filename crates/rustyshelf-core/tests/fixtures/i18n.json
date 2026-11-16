@@ -1287,6 +1287,18 @@
     "Créez-en une ci-dessus, ou choisissez Ajouter à… dans les Détails d'un jeu"
    ],
    [
+    "Original (4:3)",
+    "Original (4:3)"
+   ],
+   [
+    "Scanlines and a soft glow, like an old TV. Undo takes it off again.",
+    "Des lignes de balayage et une lueur douce, comme une vieille télé. Annuler l'enlève à nouveau."
+   ],
+   [
+    "this DuckStation doesn't have its CRT shader",
+    "ce DuckStation n'a pas son shader CRT"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Pas comme avant cette version : Zeta Run. Réglages → Système peut remettre la copie"
    ],
@@ -2549,6 +2561,10 @@
    [
     "On:  is on Zeta Run.",
     "On:  is on Zeta Run."
+   ],
+   [
+    "Zeta Run: left as it is",
+    "Zeta Run : laissé tel quel"
    ],
    [
     "  Add games  ",
@@ -4032,6 +4048,18 @@
     "Kendi yaptığın, her konsoldan oyunları karıştıran raflar: bir tane yap, adlandır, üzerine koymak için oyun ara."
    ],
    [
+    "Widescreen",
+    "Geniş ekran"
+   ],
+   [
+    "a wide picture would only stretch the games",
+    "geniş bir görüntü oyunları yalnızca gererdi"
+   ],
+   [
+    "it already uses picture filters of your own",
+    "zaten kendi seçtiğin görüntü filtrelerini kullanıyor"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Bu sürümden önceki gibi değil: Zeta Run. Ayarlar → Sistem kopyayı geri koyabilir"
    ],
@@ -5302,6 +5330,10 @@
    [
     "On: Omega Quest is on Continue & favorites.",
     "Açık: Omega Quest, Devam et ve favoriler rafında."
+   ],
+   [
+    "Continue & favorites: left as it is",
+    "Devam et ve favoriler: olduğu gibi bırakıldı"
    ],
    [
     "  Add games  ",

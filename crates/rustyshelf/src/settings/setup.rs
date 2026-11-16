@@ -23,6 +23,7 @@ fn about(group: &str) -> &'static str {
         "graphics" => "Sets the resolution to the Graphics preset below.",
         "quit" => "No \"are you sure?\" question when a game is closed.",
         "resume" => "RetroArch saves when you quit a game and carries on from there next time.",
+        "picture" => "Changes how your games look, with the choices below. Off unless you switch it on.",
         _ => "",
     }
 }
@@ -113,7 +114,7 @@ impl Settings {
     fn options(&self) -> Options {
         let chosen = self.text(&["emuSetup", "graphics"]);
         let graphics = if chosen.is_empty() || chosen == "auto" { emusetup::preset_for(self.gpu_vendor).to_string() } else { chosen };
-        Options { graphics, bios_dir: String::new() }
+        Options { graphics, shape: self.text(&["emuSetup", "shape"]), sharp: Some(self.flag(&["emuSetup", "sharp"], false)), crt: self.flag(&["emuSetup", "crt"], false), ..Options::default() }
     }
 
     /// A console's emulator as the settings have it: its own, else RetroArch for a console RetroArch runs.
@@ -197,6 +198,9 @@ impl Settings {
             Some(st) => {
                 if self.setup.on.is_empty() {
                     self.setup.on = st.groups.iter().map(|g| (*g, *g != "resume")).collect();
+                    if st.picture.any() {
+                        self.setup.on.push(("picture", false));
+                    }
                 }
                 let root = self.app_root.clone();
                 info.pending = self.list(&["emuSetup", "pending"]).iter().any(|p| launch::emu_path(p, &root).to_string_lossy().to_lowercase() == exe.to_lowercase());
@@ -262,6 +266,43 @@ impl Settings {
         self.redraw = true;
     }
 
+    /// Picture's choices (`emuSetup.shape`, `sharp`, `crt`), each only where this emulator has it.
+    fn picture_rows(&self, st: &emusetup::Status) -> Vec<Row> {
+        let mut rows = Vec::new();
+        let can = st.picture;
+        if can.shape {
+            let original = if matches!(st.kind, Kind::DuckStation | Kind::Pcsx2) { "Original (4:3)" } else { "Original" };
+            let mut shapes = vec![("auto", "Leave as it is"), ("original", original)];
+            if can.wide {
+                shapes.push(("wide", "Widescreen"));
+            }
+            let now = self.text(&["emuSetup", "shape"]);
+            let at = shapes.iter().position(|x| x.0 == now).unwrap_or(0);
+            let value = shapes[at].1;
+            let turn = move |s: &mut Settings, d: i32| {
+                s.set(&["emuSetup", "shape"], json!(shapes[(at as i32 + d).rem_euclid(shapes.len() as i32) as usize].0));
+                s.setup.plan = None;
+            };
+            let hint = if can.wide { "Original: the console's own shape. Widescreen: 16:9, drawn wide where the game allows it." } else { "Original: the console's own shape." };
+            rows.push(Row { label: "Screen shape".into(), value: value.into(), hint: hint.into(), press: Some(Box::new({ let turn = turn.clone(); move |s: &mut Settings| turn(s, 1) })), step: Some(Box::new(turn)) });
+        }
+        let switch = |label: &str, key: &'static str, hint: &str| {
+            let on = self.flag(&["emuSetup", key], false);
+            let flip = move |s: &mut Settings| {
+                s.set(&["emuSetup", key], json!(!on));
+                s.setup.plan = None;
+            };
+            Row { label: label.into(), value: on_off(on), hint: hint.into(), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) }
+        };
+        if can.sharp {
+            rows.push(switch("Sharp pixels", "sharp", "Grows the picture in whole steps only, so every pixel is crisp and the same size. It may leave a border around it."));
+        }
+        if can.crt {
+            rows.push(switch("Retro TV look", "crt", "Scanlines and a soft glow, like an old TV. Undo takes it off again."));
+        }
+        rows
+    }
+
     pub(super) fn setup_page(&self, id: &str) -> Page {
         let said = |label: String, value: String, hint: String| Row { label, value, hint, ..Row::default() };
         let emu = emuname::label(&self.emulator_of(id));
@@ -281,7 +322,7 @@ impl Settings {
             None => (format!("{name} isn't set up yet"), "Everything it changes is backed up first, and Undo puts it back.".to_string()),
         };
         let mut rows = vec![said(head, String::new(), under)];
-        for (g, on) in &self.setup.on {
+        for (g, on) in self.setup.on.iter().filter(|g| g.0 != "picture") {
             let g = *g;
             let flip = move |s: &mut Settings| {
                 if let Some(x) = s.setup.on.iter_mut().find(|x| x.0 == g) {
@@ -309,8 +350,27 @@ impl Settings {
                 step: Some(Box::new(turn)),
             });
         }
+        let picture = self.setup.on.iter().find(|g| g.0 == "picture").map(|g| g.1);
+        if let Some(on) = picture {
+            let flip = |s: &mut Settings| {
+                if let Some(x) = s.setup.on.iter_mut().find(|x| x.0 == "picture") {
+                    x.1 = !x.1;
+                }
+                s.setup.plan = None;
+                s.redraw = true;
+            };
+            rows.push(Row { label: group_name("picture").into(), value: on_off(on), hint: about("picture").into(), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) });
+        }
+        if picture == Some(true) {
+            rows.extend(self.picture_rows(st));
+        }
         for (group, why) in &st.skipped {
             rows.push(said(format!("{}: left as it is", group_name(group)), String::new(), why.to_string()));
+        }
+        if picture == Some(true) {
+            for (what, why) in &st.picture_skipped {
+                rows.push(said(format!("{what}: left as it is"), String::new(), why.to_string()));
+            }
         }
         if st.ready {
             let (exe, console) = (i.exe.clone(), id.to_string());

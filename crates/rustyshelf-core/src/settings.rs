@@ -523,12 +523,24 @@ pub fn sanitize(cfg: &mut Value) {
     }
     let e = cfg.get("emuSetup").filter(|e| e.is_object());
     let get = |k: &str| e.and_then(|e| e.get(k));
+    // Set up for me's Picture choices: native only, so kept only when they're there
+    let picture: Vec<(&str, Value)> = [
+        get("shape").map(|v| ("shape", json!(js::str_of(Some(v)).filter(|v| ["auto", "original", "wide"].contains(v)).unwrap_or("auto")))),
+        get("sharp").map(|v| ("sharp", json!(*v == Value::Bool(true)))),
+        get("crt").map(|v| ("crt", json!(*v == Value::Bool(true)))),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
     cfg["emuSetup"] = json!({
         "auto": get("auto") != Some(&Value::Bool(false)),
         "graphics": js::str_of(get("graphics")).filter(|g| ["auto", "fast", "balanced", "pretty"].contains(g)).unwrap_or("auto"),
         "resume": get("resume") == Some(&Value::Bool(true)),
         "pending": strings(get("pending"), 1024, 40),
     });
+    for (k, v) in picture {
+        cfg["emuSetup"][k] = v;
+    }
     cfg["emuSeen"] = Value::Array(strings(cfg.get("emuSeen"), 1024, 20));
 
     let ui = cfg["ui"].as_object_mut().unwrap();
