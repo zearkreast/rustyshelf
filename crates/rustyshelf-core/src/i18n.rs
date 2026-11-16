@@ -1,7 +1,6 @@
-//! The interface in another language: an English text on screen swapped for its translation, from the same
-//! dictionaries the Electron app uses (renderer/i18n-fr.js, renderer/i18n-tr.js, and Thanks2111's Brazilian
-//! Portuguese, renderer/i18n-pt-data.js). Keep the matching in sync with renderer/i18n-dict.js and, for Portuguese,
-//! renderer/i18n.js.
+//! The interface in another language: an English text on screen swapped for its translation, from the Electron app's
+//! dictionaries (`assets/i18n`: its renderer/i18n-fr.js, renderer/i18n-tr.js, and Thanks2111's Brazilian Portuguese,
+//! renderer/i18n-pt-data.js, as JSON). The matching is renderer/i18n-dict.js's and, for Portuguese, renderer/i18n.js's.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{LazyLock, Mutex, OnceLock};
@@ -15,9 +14,9 @@ pub struct Dict {
     cache: Mutex<HashMap<String, Option<String>>>,
 }
 
-const FR: &str = include_str!("../assets/i18n/i18n-fr.js");
-const TR: &str = include_str!("../assets/i18n/i18n-tr.js");
-const PT: &str = include_str!("../assets/i18n/i18n-pt-data.js");
+const FR: &str = include_str!("../assets/i18n/fr.json");
+const TR: &str = include_str!("../assets/i18n/tr.json");
+const PT: &str = include_str!("../assets/i18n/pt.json");
 
 /// The languages there's a dictionary for, by `ui.language`.
 pub const LANGS: [&str; 3] = ["fr", "tr", "pt"];
@@ -60,10 +59,9 @@ fn js_regex(src: &str) -> Option<Regex> {
 }
 
 impl Dict {
-    /// `window.BS_I18N_XX = { exact: {...}, patterns: [[source, template], ...] };` after a comment
-    fn parse(js: &str) -> Option<Dict> {
-        let body = &js[js.find("= {")? + 2..=js.rfind('}')?];
-        let v: Value = serde_json::from_str(body).ok()?;
+    /// `{"exact": {...}, "patterns": [[source, template], ...]}`
+    fn parse(json: &str) -> Option<Dict> {
+        let v: Value = serde_json::from_str(json).ok()?;
         let exact = v["exact"].as_object()?.iter().filter_map(|(k, t)| Some((k.clone(), t.as_str()?.to_string()))).collect();
         let pats = v["patterns"].as_array()?.iter().filter_map(|p| Some((js_regex(p.get(0)?.as_str()?)?, p.get(1)?.as_str()?.to_string()))).collect();
         Some(Dict { exact, pats, cache: Mutex::new(HashMap::new()) })
@@ -153,9 +151,9 @@ struct Pt {
 }
 
 impl Pt {
-    /// `window.__BS_PT={"d":{english: portuguese},"t":[[source, [piece…], literal, groups], …]};`
-    fn parse(js: &str) -> Option<Pt> {
-        let v: Value = serde_json::from_str(&js[js.find('{')?..=js.rfind('}')?]).ok()?;
+    /// `{"d": {english: portuguese}, "t": [[source, [piece…], literal, groups], …]}`
+    fn parse(json: &str) -> Option<Pt> {
+        let v: Value = serde_json::from_str(json).ok()?;
         let pairs: Vec<(String, String)> = v["d"].as_object()?.iter().filter_map(|(k, t)| Some((k.clone(), t.as_str()?.to_string()))).collect();
         let exact: HashMap<String, String> = pairs.iter().cloned().collect();
         let mut lower = HashMap::new();
@@ -305,10 +303,17 @@ mod tests {
 
     #[test]
     fn every_pattern_compiles() {
-        for js in [FR, TR] {
-            let v: Value = serde_json::from_str(&js[js.find("= {").unwrap() + 2..=js.rfind('}').unwrap()]).unwrap();
+        for json in [FR, TR] {
+            let v: Value = serde_json::from_str(json).unwrap();
             let bad: Vec<&str> = v["patterns"].as_array().unwrap().iter().map(|p| p[0].as_str().unwrap()).filter(|s| js_regex(s).is_none()).collect();
             assert!(bad.is_empty(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn every_language_loads() {
+        assert_eq!(tr("fr", "Home console"), "Console de salon");
+        assert_eq!(tr("tr", "Home console"), "Ev konsolu");
+        assert_eq!(tr("pt", "Home"), "Início");
     }
 }
