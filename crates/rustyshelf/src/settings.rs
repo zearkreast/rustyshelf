@@ -25,6 +25,7 @@ use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
 
 mod accounts;
+pub use accounts::{AchFrom, AchGame};
 mod addgames;
 mod art;
 mod collections;

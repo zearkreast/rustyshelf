@@ -374,6 +374,17 @@ impl Settings {
         self.ask_ra(move |ra| RaAnswer::Progress(id, ra.progress(&shelf, &title, force)));
     }
 
+    /// Where a running game's achievements are read from for the Home menu: Xenia's or RPCS3's files, or
+    /// RetroAchievements with an account. None for a console none of them covers.
+    pub fn ach_from(&self, console: &str) -> Option<AchFrom> {
+        if let Some(exe) = self.own_ach_emulator(console) {
+            return Some(AchFrom::Own { x360: console == "x360", exe, cache: paths::data_dir(&self.app_root).join("trophy-packs") });
+        }
+        rustyshelf_core::ra::console_id(console)?;
+        let (user, key) = self.ra_account();
+        (!user.is_empty() && !key.is_empty()).then(|| AchFrom::Ra { ra: self.ra.clone(), user, key })
+    }
+
     /// The chosen game's achievements in a line, for Details; None on a shelf RetroAchievements doesn't cover
     /// or without an account.
     pub(super) fn achievements_line(&self) -> Option<String> {
@@ -549,4 +560,65 @@ fn achievement_row(a: &Value, steam: bool) -> Row {
         _ => "",
     };
     Row { label: format!("{} {mark}{}", if earned { "★" } else { "☆" }, a["title"].as_str().unwrap_or("")), value, hint, ..Row::default() }
+}
+
+/// Where a running game's achievements come from (`Settings::ach_from`).
+pub enum AchFrom {
+    Own { x360: bool, exe: std::path::PathBuf, cache: std::path::PathBuf },
+    Ra { ra: Arc<Ra>, user: String, key: String },
+}
+
+/// The running game as its achievements are looked up: its console, title, file and Xbox 360 title id.
+pub struct AchGame {
+    pub console: String,
+    pub title: String,
+    pub file: std::path::PathBuf,
+    pub title_id: String,
+}
+
+impl AchFrom {
+    pub fn label(&self) -> &'static str {
+        match self {
+            AchFrom::Own { x360: false, .. } => "Trophies",
+            _ => "Achievements",
+        }
+    }
+
+    pub fn source(&self) -> &'static str {
+        match self {
+            AchFrom::Own { x360: true, .. } => "Xenia",
+            AchFrom::Own { .. } => "RPCS3",
+            AchFrom::Ra { .. } => "RetroAchievements",
+        }
+    }
+
+    fn own(x360: bool, exe: &std::path::Path, cache: &std::path::Path, g: &AchGame) -> Option<Value> {
+        if x360 {
+            let id = g.title_id.len() == 8 && g.title_id.chars().all(|c| c.is_ascii_hexdigit());
+            return id.then(|| xeniaach::progress(exe, &g.title_id, &paths::env_var)).flatten();
+        }
+        rpcs3troph::progress(exe, &g.title, &g.file, Some(cache), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64))
+    }
+
+    /// Whether the game has any: from the files on this PC, or RetroAchievements' game list as last downloaded.
+    pub fn has_any(&self, g: &AchGame) -> bool {
+        match self {
+            AchFrom::Own { x360, exe, cache } => Self::own(*x360, exe, cache, g).is_some_and(|p| p["total"].as_u64().unwrap_or(0) > 0),
+            AchFrom::Ra { ra, user, key } => {
+                ra.set_credentials(user, key);
+                ra.has_set(&g.console, &g.title)
+            }
+        }
+    }
+
+    /// The game's progress; RetroAchievements' kept copy is used when it's no older than `max_age_ms`.
+    pub fn read(&self, g: &AchGame, max_age_ms: u64) -> Result<Option<Value>, String> {
+        match self {
+            AchFrom::Own { x360, exe, cache } => Ok(Self::own(*x360, exe, cache, g)),
+            AchFrom::Ra { ra, user, key } => {
+                ra.set_credentials(user, key);
+                ra.progress_within(&g.console, &g.title, max_age_ms)
+            }
+        }
+    }
 }

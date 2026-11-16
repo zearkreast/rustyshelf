@@ -218,6 +218,8 @@ pub enum Out {
     Cue(&'static str, i32),
     /// the menu closed with this action: first its sound, then what to do
     Close(&'static str, String),
+    /// the running game's achievements are to be read (again, now, when true)
+    Ach(bool),
 }
 
 /// A row of the menu as it's drawn.
@@ -257,6 +259,7 @@ pub fn label(id: &str) -> &str {
         "shutdown" => "Shut down",
         "quitapp" => "Quit RustyShelf",
         "back" => "Back",
+        "ach" => "Achievements",
         other => other,
     }
 }
@@ -274,13 +277,49 @@ pub struct Menu {
     /// since when the button is held on a row that needs it, how full its bar was drawn, and whether a full bar
     /// has been on screen
     hold: Option<(f64, f64, bool)>,
+    /// the Achievements item's name ("Achievements", or "Trophies" for a PS3 game)
+    ach_label: String,
+    /// on the Achievements page: the one chosen, of how many
+    ach: Option<(usize, usize)>,
 }
 
 impl Menu {
     pub fn open(info: Info) -> Menu {
         let list = |l: &[String], usual: &[&str]| if l.is_empty() { usual.iter().map(|s| s.to_string()).collect() } else { l.to_vec() };
         let (main, power) = (list(&info.actions, &["resume", "quit"]), list(&info.power, &["sleep", "restart", "shutdown"]));
-        Menu { items: main.clone(), main, power, info, in_power: false, sel: 0, main_sel: 0, hold: None }
+        Menu { items: main.clone(), main, power, info, in_power: false, sel: 0, main_sel: 0, hold: None, ach_label: String::new(), ach: None }
+    }
+
+    /// The running game has achievements: their item goes in before Power, the row chosen staying chosen.
+    pub fn add_ach(&mut self, label: &str) {
+        if self.main.iter().any(|i| i == "ach") {
+            return;
+        }
+        let at = self.main.iter().position(|i| i == "power").unwrap_or(self.main.len());
+        self.main.insert(at, "ach".into());
+        self.ach_label = label.to_string();
+        if self.in_power || self.ach.is_some() {
+            if self.main_sel >= at {
+                self.main_sel += 1;
+            }
+        } else {
+            self.items = self.main.clone();
+            if self.sel >= at {
+                self.sel += 1;
+            }
+        }
+    }
+
+    /// On the Achievements page: the one chosen.
+    pub fn ach(&self) -> Option<usize> {
+        self.ach.map(|a| a.0)
+    }
+
+    /// The page's list came: `n` of them, `first` chosen.
+    pub fn ach_loaded(&mut self, n: usize, first: usize) {
+        if self.ach.is_some() {
+            self.ach = Some((first.min(n.saturating_sub(1)), n));
+        }
     }
 
     pub fn in_power(&self) -> bool {
@@ -308,7 +347,7 @@ impl Menu {
             "save" | "load" if i.slot > 0 => format!("slot {}", i.slot),
             "sleep" if i.in_game => if i.can_save { "saves, then sleeps" } else if i.paused { "game stays paused" } else { "game keeps running" }.into(),
             "resume" if i.in_game && !i.paused => "game is still running".into(),
-            "power" => "›".into(),
+            "power" | "ach" => "›".into(),
             _ => String::new(),
         }
     }
@@ -317,13 +356,16 @@ impl Menu {
         self.items
             .iter()
             .enumerate()
-            .map(|(n, id)| Row { label: label(id).to_string(), sub: self.sub_for(id), selected: n == self.sel, danger: needs_hold(id), sep_before: !self.in_power && n > 0 && matches!(id.as_str(), "power" | "quit"), id: id.clone() })
+            .map(|(n, id)| Row { label: if id == "ach" && !self.ach_label.is_empty() { self.ach_label.clone() } else { label(id).to_string() }, sub: self.sub_for(id), selected: n == self.sel, danger: needs_hold(id), sep_before: !self.in_power && n > 0 && matches!(id.as_str(), "power" | "quit"), id: id.clone() })
             .collect()
     }
 
     /// The prompts under the menu: a button, and what it does.
     pub fn foot(&self) -> Vec<(&'static str, &'static str)> {
         let leave = if self.info.in_game { "Resume" } else { "Close" };
+        if self.ach.is_some() {
+            return vec![(self.glyph(true), "Ask again"), (self.glyph(false), "Back"), ("↕", "Move")];
+        }
         vec![(self.glyph(true), "Select"), (self.glyph(false), if self.in_power { "Back" } else { leave }), ("↕", "Move"), (if self.info.glyphs == Glyphs::Nintendo { "Home" } else { "Guide" }, leave)]
     }
 
@@ -357,6 +399,10 @@ impl Menu {
                 Some(Out::Cue("open", 0))
             }
             "back" => self.leave_power(),
+            "ach" => {
+                (self.main_sel, self.ach) = (self.sel, Some((0, 0)));
+                Some(Out::Ach(false))
+            }
             id => Some(close(id)),
         }
     }
@@ -377,6 +423,27 @@ impl Menu {
             "b" if self.info.swap_ab => "a",
             other => other,
         };
+        if let Some((sel, n)) = self.ach {
+            let by = match button {
+                "up" if down => -1,
+                "down" if down => 1,
+                _ => 0,
+            };
+            return match button {
+                _ if by != 0 && n > 0 => {
+                    let to = (sel as i32 + by).clamp(0, n as i32 - 1) as usize;
+                    self.ach = Some((to, n));
+                    (to != sel).then_some(Out::Cue("tick", by))
+                }
+                "a" if down => Some(Out::Ach(true)),
+                "b" if down => {
+                    (self.ach, self.sel) = (None, self.main_sel);
+                    Some(Out::Cue("back", 0))
+                }
+                "home" | "start" if down => Some(close("resume")),
+                _ => None,
+            };
+        }
         let grid = self.info.center && !self.in_power;
         match button {
             "up" if down => self.step(if grid { -3 } else { -1 }),
@@ -411,9 +478,65 @@ fn close(action: &str) -> Out {
     Out::Close(if matches!(action, "resume" | "quit") { "back" } else { "open" }, action.to_string())
 }
 
+/// The Achievements page's summary of a game's progress (as RetroAchievements, Xenia's or RPCS3's files give it):
+/// what's unlocked, the share unlocked in percent, and the points line ending with where it's from.
+pub fn ach_summary(p: &Value, src: &str) -> (String, u32, String) {
+    let n = |k: &str| p.get(k).and_then(Value::as_f64).unwrap_or(0.0);
+    let (earned, total) = (n("earned"), n("total"));
+    let pct = if total > 0.0 { (100.0 * earned / total).round() as u32 } else { 0 };
+    let mastered = p.get("mastered").and_then(Value::as_str).filter(|m| !m.is_empty());
+    let state = match mastered {
+        Some("mastered") => "Mastered".to_string(),
+        Some("platinum") => "Platinum".to_string(),
+        Some("completed") => "Completed".to_string(),
+        _ => format!("{earned} of {total} unlocked"),
+    };
+    let points = match p.get("unit").and_then(Value::as_str) {
+        Some("G") => format!("{} / {} G", n("pointsEarned"), n("points")),
+        Some("trophy") => p.get("grades").and_then(Value::as_str).filter(|g| !g.is_empty()).map_or_else(|| format!("{earned} / {total} trophies"), str::to_string),
+        _ => format!("{} / {} points", n("pointsEarned"), n("points")),
+    };
+    let line = format!("{}{points} · {}", if mastered.is_some() { format!("{earned} of {total} unlocked · ") } else { String::new() }, src);
+    (state, pct, line)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_achievements_item_and_page() {
+        let mut m = Menu::open(Info { in_game: true, actions: ["resume", "save", "power", "quit"].map(String::from).to_vec(), ..Info::default() });
+        m.press("down", true, 0.0);
+        m.press("down", true, 0.0);
+        m.add_ach("Trophies");
+        let rows = m.rows();
+        assert_eq!(rows.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["resume", "save", "ach", "power", "quit"]);
+        // the row that was chosen (Power) still is; the item is named for the game's kind
+        assert!(rows[3].selected);
+        assert_eq!((rows[2].label.as_str(), rows[2].sub.as_str()), ("Trophies", "›"));
+        m.press("up", true, 0.0);
+        assert_eq!(m.press("a", true, 0.0), Some(Out::Ach(false)));
+        m.ach_loaded(3, 1);
+        assert_eq!(m.ach(), Some(1));
+        m.press("down", true, 0.0);
+        assert_eq!(m.press("down", true, 0.0), None);
+        assert_eq!(m.ach(), Some(2));
+        assert_eq!(m.press("a", true, 0.0), Some(Out::Ach(true)));
+        assert_eq!(m.press("b", true, 0.0), Some(Out::Cue("back", 0)));
+        assert_eq!(m.ach(), None);
+        assert!(m.rows()[2].selected);
+    }
+
+    #[test]
+    fn an_achievements_summary() {
+        let ra = serde_json::json!({ "earned": 3, "total": 12, "points": 100, "pointsEarned": 25 });
+        assert_eq!(ach_summary(&ra, "RetroAchievements"), ("3 of 12 unlocked".into(), 25, "25 / 100 points · RetroAchievements".into()));
+        let x = serde_json::json!({ "earned": 2, "total": 2, "points": 30, "pointsEarned": 30, "unit": "G", "mastered": "completed" });
+        assert_eq!(ach_summary(&x, "Xenia"), ("Completed".into(), 100, "2 of 2 unlocked · 30 / 30 G · Xenia".into()));
+        let ps = serde_json::json!({ "earned": 1, "total": 3, "unit": "trophy", "grades": "1 gold" });
+        assert_eq!(ach_summary(&ps, "RPCS3").2, "1 gold · RPCS3");
+    }
 
     #[test]
     fn an_action_sends_its_key_then_unpauses() {

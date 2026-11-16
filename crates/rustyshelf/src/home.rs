@@ -5,7 +5,8 @@
 //! RustyShelf comes to the front with the menu; what's chosen goes back to the game as hotkeys.
 
 use std::collections::HashMap;
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use bevy::prelude::*;
@@ -18,7 +19,7 @@ use crate::hud::{MonaSans, Toast};
 use crate::loading::{to_image, LibraryRes, LibraryState};
 use crate::padwatch;
 use crate::play::Playing;
-use crate::settings::Settings;
+use crate::settings::{AchFrom, AchGame, Settings};
 use crate::shelf::{bezier, Covers, Cursor, Stage};
 use crate::sound::Sounds;
 
@@ -46,6 +47,25 @@ struct Game {
     /// the PC was put to sleep from the menu: on waking the menu comes back over the paused game
     slept: bool,
 }
+
+/// What was found out about the running game's achievements, off the frame.
+enum AchNews {
+    /// it has some: the menu gets their item
+    Has,
+    List(Result<Option<serde_json::Value>, String>),
+}
+
+/// The running game's achievements: where they're read from, and what's been heard.
+struct Ach {
+    from: Arc<(AchFrom, AchGame)>,
+    tx: Sender<AchNews>,
+    rx: Mutex<Receiver<AchNews>>,
+    /// the page's list: None while it's read
+    list: Option<Result<Option<serde_json::Value>, String>>,
+}
+
+/// RetroAchievements is asked at most this often (ms), and never answered from before the game started
+const RA_MAX_MS: f64 = 120_000.0;
 
 /// What was done to the game off the frame.
 enum Done {
@@ -77,6 +97,7 @@ pub struct Home {
     icons: HashMap<&'static str, Handle<Image>>,
     /// the minute the panel's clock shows
     minute: u32,
+    ach: Option<Ach>,
 }
 
 impl Home {
@@ -95,7 +116,7 @@ pub struct Panel;
 pub struct HoldBar;
 
 // (renderer/home.js ICON, keep in sync) a 24 by 24 drawing each; `true`: filled, not stroked
-const ICONS: [(&str, &str, bool); 12] = [
+const ICONS: [(&str, &str, bool); 13] = [
     ("resume", "M8 5.5v13l11-6.5z", true),
     ("save", "M12 4v10m0 0-4-4m4 4 4-4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3", false),
     ("load", "M12 15V5m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3", false),
@@ -112,6 +133,7 @@ const ICONS: [(&str, &str, bool); 12] = [
     ("restart", "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7", false),
     ("quitapp", "M6 6l12 12M18 6L6 18", false),
     ("back", "M15 5l-7 7 7 7", false),
+    ("ach", "M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3.5 4.5M16 6h3a3 3 0 0 1-3.5 4.5M12 13v4M8.5 20.5h7M10 17h4v3.5h-4z", false),
 ];
 
 fn icon_of(id: &str) -> &str {
@@ -193,6 +215,22 @@ pub fn run(
         }
     }
 
+    if let Some(ach) = home.ach.as_mut() {
+        let news: Vec<AchNews> = ach.rx.lock().unwrap().try_iter().collect();
+        for n in news {
+            let Some(menu) = home.menu.as_mut().filter(|m| m.info.in_game) else { continue };
+            match n {
+                AchNews::Has => menu.add_ach(ach.from.0.label()),
+                AchNews::List(got) => {
+                    let all = got.as_ref().ok().and_then(|p| p.as_ref()).and_then(|p| p["achievements"].as_array());
+                    menu.ach_loaded(all.map_or(0, Vec::len), all.and_then(|a| a.iter().position(|x| x["earned"] != true)).unwrap_or(0));
+                    ach.list = Some(got);
+                }
+            }
+            home.fresh = true;
+        }
+    }
+
     match (&playing.title, playing.pid) {
         (None, _) => {
             if home.game.take().is_some() {
@@ -260,6 +298,20 @@ pub fn run(
             });
             (home.menu, home.since, home.left, home.shown, home.fresh) = (Some(Menu::open(info)), now, None, true, true);
             sounds.play("panel", 0);
+            // whether the game has achievements is worked out each time the menu opens over it, off the frame
+            let console = playing.running_in().0.map(|e| e.0.to_string()).unwrap_or_default();
+            let found = l.shelves.iter().flat_map(|s| s.games.iter()).find(|g| g.id == playing.game_id());
+            home.ach = found.zip(settings.ach_from(&console)).map(|(g, from)| {
+                let (tx, rx) = channel();
+                let from = Arc::new((from, AchGame { console, title: g.title.clone(), file: g.file.clone(), title_id: g.title_id.clone().unwrap_or_default() }));
+                let (both, said) = (from.clone(), tx.clone());
+                std::thread::spawn(move || {
+                    if both.0.has_any(&both.1) {
+                        let _ = said.send(AchNews::Has);
+                    }
+                });
+                Ach { from, tx, rx: Mutex::new(rx), list: None }
+            });
             // paused while it's still in front, then RustyShelf comes forward with the menu; a game already
             // paused (left so by Sleep) isn't toggled back on
             let (pid, pause, paused) = (game.pid, game.keys.pause.clone(), game.paused);
@@ -360,6 +412,19 @@ pub fn run(
                 continue;
             }
             Out::Close(cue, action) => (cue, action),
+            Out::Ach(again) => {
+                sounds.play(if again { "tick" } else { "open" }, 0);
+                if let Some(ach) = home.ach.as_mut() {
+                    let since = home.game.as_ref().map_or(RA_MAX_MS, |g| wall - g.started);
+                    let max_age = if again { 0 } else { since.clamp(1.0, RA_MAX_MS) as u64 };
+                    let (from, tx) = (ach.from.clone(), ach.tx.clone());
+                    ach.list = None;
+                    std::thread::spawn(move || {
+                        let _ = tx.send(AchNews::List(from.0.read(&from.1, max_age)));
+                    });
+                }
+                continue;
+            }
         };
         sounds.play(cue, 0);
         (home.menu, home.left) = (None, Some(now));
@@ -475,6 +540,8 @@ pub fn draw(
         let (rows, in_game, paused, in_power) = (menu.rows(), menu.info.in_game, menu.info.paused, menu.in_power());
         let (held, foot, system, cover) = (menu.held() as f32, menu.foot(), menu.info.system.clone(), home.cover.clone());
         let icons = &home.icons;
+        let ach_sel = menu.ach();
+        let (ach_label, ach_src, ach_list) = home.ach.as_ref().map_or(("Achievements", "RetroAchievements", None), |a| (a.from.0.label(), a.from.0.source(), a.list.clone()));
         commands.entity(entity).despawn_related::<Children>().with_children(|p| {
             p.spawn((Node { position_type: PositionType::Absolute, left: px(0), top: px(0), width: percent(100), height: percent(100), border_radius: BorderRadius::all(px(if center { 24 } else { 0 })), ..default() }, stretched(panel_back)));
             if !center {
@@ -504,45 +571,105 @@ pub fn draw(
             if in_power {
                 p.spawn((Node { margin: UiRect::new(px(6), px(6), px(2), px(8)), ..default() }, spaced("POWER", 400, 11.0, DIM, 0.18)));
             }
-            let grid = center && !in_power;
-            let list = if grid {
-                Node { display: Display::Grid, grid_template_columns: RepeatedGridTrack::flex(3, 1.0), column_gap: px(10), row_gap: px(10), flex_grow: 1.0, ..default() }
-            } else {
-                Node { flex_direction: FlexDirection::Column, row_gap: px(6), flex_grow: 1.0, ..default() }
-            };
-            p.spawn(list).with_children(|items| {
-                for row in &rows {
-                    if row.sep_before && !grid {
-                        items.spawn((Node { height: px(1), margin: UiRect::axes(px(6), px(8)), ..default() }, BackgroundColor(LINE)));
-                    }
-                    let (ink, back) = match (row.selected, row.danger) {
-                        (true, true) => (DARK, Color::srgb(1.0, 0.914, 0.914)),
-                        (true, false) => (DARK, Color::srgba(1.0, 1.0, 1.0, 0.94)),
-                        _ => (DIM, Color::NONE),
+            if let Some(sel) = ach_sel {
+                p.spawn(Node { flex_direction: FlexDirection::Column, row_gap: px(8), flex_grow: 1.0, min_height: px(0), overflow: Overflow::clip(), ..default() }).with_children(|v| {
+                    v.spawn((Node { margin: UiRect::new(px(6), px(6), px(2), px(4)), ..default() }, spaced(&ach_label.to_uppercase(), 400, 11.0, DIM, 0.18)));
+                    let all = ach_list.as_ref().and_then(|l| l.as_ref().ok()).and_then(|p| p.as_ref()).filter(|p| p["achievements"].as_array().is_some_and(|a| !a.is_empty()));
+                    let Some(prog) = all else {
+                        let (head, more) = match &ach_list {
+                            None => (format!("Loading from {ach_src}…"), String::new()),
+                            Some(Err(why)) => (format!("{ach_label} didn't load"), if why.is_empty() { format!("{ach_src} didn't answer.") } else { why.clone() }),
+                            Some(Ok(_)) if ach_src == "RetroAchievements" => ("None for this game yet".into(), "RetroAchievements has no set for this game.".into()),
+                            Some(Ok(_)) => ("None for this game yet".into(), format!("They show once {ach_src} has some for this game.")),
+                        };
+                        v.spawn((Node { margin: UiRect::new(px(6), px(6), px(8), px(0)), ..default() }, text(&head, 600, 17.0, INK)));
+                        if !more.is_empty() {
+                            v.spawn((Node { margin: UiRect::horizontal(px(6)), ..default() }, text(&more, 400, 13.0, DIM)));
+                        }
+                        return;
                     };
-                    let shape = if grid {
-                        Node { flex_direction: FlexDirection::Column, align_items: AlignItems::FlexStart, row_gap: px(20), padding: UiRect::all(px(18)), min_height: px(112), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(14)), overflow: Overflow::clip(), ..default() }
-                    } else {
-                        Node { align_items: AlignItems::Center, column_gap: px(16), padding: UiRect::axes(px(16), px(14)), border_radius: BorderRadius::all(px(14)), overflow: Overflow::clip(), ..default() }
-                    };
-                    let moved = if !row.selected { Val2::ZERO } else if grid { Val2::px(0.0, -3.0) } else { Val2::px(4.0, 0.0) };
-                    items.spawn((shape, BackgroundColor(back), BorderColor::all(if grid { LINE } else { Color::NONE }), UiTransform { translation: moved, ..UiTransform::IDENTITY })).with_children(|item| {
-                        if row.danger && row.selected {
-                            item.spawn((HoldBar, Node { position_type: PositionType::Absolute, left: px(0), top: px(0), bottom: px(0), width: percent(held * 100.0), border: UiRect::right(px(if held > 0.0 { 3 } else { 0 })), ..default() }, BackgroundColor(Color::srgba(0.898, 0.282, 0.302, 0.55)), BorderColor::all(Color::srgb(0.898, 0.282, 0.302))));
-                        }
-                        if row.selected && !grid {
-                            item.spawn((Node { position_type: PositionType::Absolute, left: px(0), top: px(2), bottom: px(2), width: px(4), ..default() }, BackgroundColor(ACCENT)));
-                        }
-                        if let Some(icon) = icons.get(icon_of(&row.id)) {
-                            item.spawn((Node { width: px(24), height: px(24), flex_shrink: 0.0, ..default() }, ImageNode::new(icon.clone()).with_color(if row.selected { DARK } else { DIM.with_alpha(0.85) })));
-                        }
-                        item.spawn(text(&row.label, 500, 17.0, ink));
-                        if !row.sub.is_empty() {
-                            item.spawn((Node { margin: if grid { UiRect::default() } else { UiRect::left(auto()) }, ..default() }, text(&row.sub, 400, 12.0, ink.with_alpha(0.7))));
-                        }
+                    let (state, pct, line) = homemenu::ach_summary(prog, ach_src);
+                    v.spawn(Node { justify_content: JustifyContent::SpaceBetween, margin: UiRect::horizontal(px(6)), ..default() }).with_children(|st| {
+                        st.spawn(text(&state, 600, 16.0, INK));
+                        st.spawn(text(&format!("{pct}%"), 500, 13.0, DIM));
                     });
-                }
-            });
+                    v.spawn((Node { height: px(6), margin: UiRect::horizontal(px(6)), border_radius: BorderRadius::all(px(3)), overflow: Overflow::clip(), ..default() }, BackgroundColor(LINE))).with_children(|bar| {
+                        bar.spawn((Node { width: percent(pct as f32), height: percent(100), ..default() }, BackgroundColor(ACCENT)));
+                    });
+                    v.spawn((Node { margin: UiRect::new(px(6), px(6), px(0), px(6)), ..default() }, text(&line, 400, 12.0, DIM)));
+                    let list = prog["achievements"].as_array().map(Vec::as_slice).unwrap_or_default();
+                    let worth = |a: &serde_json::Value| match prog["unit"].as_str() {
+                        Some("G") => format!("{} G", a["points"]),
+                        Some("trophy") => a["grade"].as_str().filter(|g| !g.is_empty()).unwrap_or("—").to_string(),
+                        _ => format!("{} points", a["points"]),
+                    };
+                    const SHOWN: usize = 7;
+                    let first = sel.saturating_sub(SHOWN / 2).min(list.len().saturating_sub(SHOWN));
+                    for (i, a) in list.iter().enumerate().skip(first).take(SHOWN) {
+                        let (on, earned) = (i == sel, a["earned"] == true);
+                        let ink = if on { DARK } else if earned { INK } else { DIM };
+                        v.spawn((Node { align_items: AlignItems::Center, column_gap: px(12), padding: UiRect::axes(px(14), px(8)), border_radius: BorderRadius::all(px(10)), ..default() }, BackgroundColor(if on { Color::srgba(1.0, 1.0, 1.0, 0.94) } else { Color::NONE }))).with_children(|row| {
+                            row.spawn((Node { width: px(16), flex_shrink: 0.0, ..default() }, text(if earned { "✓" } else { "·" }, 600, 14.0, if on { DARK } else if earned { ACCENT } else { DIM })));
+                            row.spawn((Node { flex_grow: 1.0, min_width: px(0), ..default() }, text(a["title"].as_str().unwrap_or(""), if on { 600 } else { 500 }, 15.0, ink)));
+                            row.spawn(text(&worth(a), 400, 12.0, ink.with_alpha(0.7)));
+                        });
+                    }
+                    if let Some(a) = list.get(sel) {
+                        let mut facts = Vec::new();
+                        if let Some(r) = a["rarity"].as_f64() {
+                            facts.push(format!("{r}% of players"));
+                        }
+                        facts.push(match a["date"].as_str().filter(|_| a["earned"] == true) {
+                            Some(when) => format!("Unlocked {when}"),
+                            None => "Locked".into(),
+                        });
+                        v.spawn((Node { flex_direction: FlexDirection::Column, row_gap: px(4), margin: UiRect::new(px(6), px(6), px(6), px(0)), padding: UiRect::top(px(10)), border: UiRect::top(px(1)), ..default() }, BorderColor::all(LINE))).with_children(|card| {
+                            card.spawn(text(a["desc"].as_str().unwrap_or(""), 400, 13.0, INK));
+                            card.spawn(text(&facts.join(" · "), 400, 12.0, DIM));
+                        });
+                    }
+                });
+            } else {
+                let grid = center && !in_power;
+                let list = if grid {
+                    Node { display: Display::Grid, grid_template_columns: RepeatedGridTrack::flex(3, 1.0), column_gap: px(10), row_gap: px(10), flex_grow: 1.0, ..default() }
+                } else {
+                    Node { flex_direction: FlexDirection::Column, row_gap: px(6), flex_grow: 1.0, ..default() }
+                };
+                p.spawn(list).with_children(|items| {
+                    for row in &rows {
+                        if row.sep_before && !grid {
+                            items.spawn((Node { height: px(1), margin: UiRect::axes(px(6), px(8)), ..default() }, BackgroundColor(LINE)));
+                        }
+                        let (ink, back) = match (row.selected, row.danger) {
+                            (true, true) => (DARK, Color::srgb(1.0, 0.914, 0.914)),
+                            (true, false) => (DARK, Color::srgba(1.0, 1.0, 1.0, 0.94)),
+                            _ => (DIM, Color::NONE),
+                        };
+                        let shape = if grid {
+                            Node { flex_direction: FlexDirection::Column, align_items: AlignItems::FlexStart, row_gap: px(20), padding: UiRect::all(px(18)), min_height: px(112), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(14)), overflow: Overflow::clip(), ..default() }
+                        } else {
+                            Node { align_items: AlignItems::Center, column_gap: px(16), padding: UiRect::axes(px(16), px(14)), border_radius: BorderRadius::all(px(14)), overflow: Overflow::clip(), ..default() }
+                        };
+                        let moved = if !row.selected { Val2::ZERO } else if grid { Val2::px(0.0, -3.0) } else { Val2::px(4.0, 0.0) };
+                        items.spawn((shape, BackgroundColor(back), BorderColor::all(if grid { LINE } else { Color::NONE }), UiTransform { translation: moved, ..UiTransform::IDENTITY })).with_children(|item| {
+                            if row.danger && row.selected {
+                                item.spawn((HoldBar, Node { position_type: PositionType::Absolute, left: px(0), top: px(0), bottom: px(0), width: percent(held * 100.0), border: UiRect::right(px(if held > 0.0 { 3 } else { 0 })), ..default() }, BackgroundColor(Color::srgba(0.898, 0.282, 0.302, 0.55)), BorderColor::all(Color::srgb(0.898, 0.282, 0.302))));
+                            }
+                            if row.selected && !grid {
+                                item.spawn((Node { position_type: PositionType::Absolute, left: px(0), top: px(2), bottom: px(2), width: px(4), ..default() }, BackgroundColor(ACCENT)));
+                            }
+                            if let Some(icon) = icons.get(icon_of(&row.id)) {
+                                item.spawn((Node { width: px(24), height: px(24), flex_shrink: 0.0, ..default() }, ImageNode::new(icon.clone()).with_color(if row.selected { DARK } else { DIM.with_alpha(0.85) })));
+                            }
+                            item.spawn(text(&row.label, 500, 17.0, ink));
+                            if !row.sub.is_empty() {
+                                item.spawn((Node { margin: if grid { UiRect::default() } else { UiRect::left(auto()) }, ..default() }, text(&row.sub, 400, 12.0, ink.with_alpha(0.7))));
+                            }
+                        });
+                    }
+                });
+            }
             p.spawn((Node { column_gap: px(18), padding: UiRect::top(px(16)), margin: UiRect::top(px(16)), border: UiRect::top(px(1)), ..default() }, BorderColor::all(LINE))).with_children(|prompts| {
                 for (button, does) in &foot {
                     prompts.spawn(Node { align_items: AlignItems::Center, column_gap: px(6), ..default() }).with_children(|prompt| {

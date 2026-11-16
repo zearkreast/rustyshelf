@@ -291,10 +291,20 @@ impl Ra {
     /// One game's progress: its totals and every achievement, in the set's order; None for a game the site has
     /// no set for. `force` asks the site again now.
     pub fn progress(&self, shelf: &str, title: &str, force: bool) -> Result<Option<Value>, String> {
+        self.progress_within(shelf, title, if force { 0 } else { 600_000 })
+    }
+
+    /// Whether the site has a set for this game, from its game list as last downloaded (kept a day).
+    pub fn has_set(&self, shelf: &str, title: &str) -> bool {
+        self.game_list(shelf).is_ok_and(|list| match_game(&list, title).is_some())
+    }
+
+    /// `progress`, with a kept copy no older than `max_age_ms`.
+    pub fn progress_within(&self, shelf: &str, title: &str, max_age_ms: u64) -> Result<Option<Value>, String> {
         let list = self.game_list(shelf)?;
         let Some(g) = match_game(&list, title) else { return Ok(None) };
         let user = self.user();
-        let data = self.cached(&format!("game-{}-{}", g.id, self.user_key()), if force { 0 } else { 600_000 }, || self.call("API_GetGameInfoAndUserProgress", &[("g", g.id.to_string()), ("u", user.clone()), ("a", "1".into())], None))?;
+        let data = self.cached(&format!("game-{}-{}", g.id, self.user_key()), max_age_ms, || self.call("API_GetGameInfoAndUserProgress", &[("g", g.id.to_string()), ("u", user.clone()), ("a", "1".into())], None))?;
         let Some(all) = data.get("Achievements").filter(|a| truthy(Some(a))) else { return Err("RetroAchievements sent no achievement list for this game. Try again in a moment.".into()) };
         // (as JavaScript walks an object: its whole-number keys in rising order first)
         let mut listed: Vec<&Value> = match all {
