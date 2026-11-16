@@ -385,35 +385,25 @@ fn xml_whole(xml: &Path) -> bool {
     f.seek(SeekFrom::Start(n.saturating_sub(512))).is_ok() && f.read_to_end(&mut b).is_ok() && String::from_utf8_lossy(&b).trim_end().ends_with("</LaunchBox>")
 }
 
-fn run(cmd: &str, args: &[&str], env: &[(&str, &str)]) -> bool {
-    let mut c = std::process::Command::new(cmd);
-    c.args(args).envs(env.iter().copied()).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
-    #[cfg(windows)]
-    std::os::windows::process::CommandExt::creation_flags(&mut c, 0x0800_0000); // CREATE_NO_WINDOW
-    c.status().is_ok_and(|s| s.success())
-}
-
-/// Unpacks Metadata.xml into a folder of its own and moves it in only when complete: a cut-off unpack leaves nothing
-/// that's later trusted as a fresh one.
+/// Unpacks Metadata.xml through a temporary file moved in only when complete: a cut-off unpack leaves nothing that's
+/// later trusted as a fresh one.
 fn unpack(zip: &Path, cache_dir: &Path) -> Result<(), String> {
-    let tmp = cache_dir.join(format!(".unpack-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&tmp);
-    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
-    let (z, t) = (zip.to_string_lossy().into_owned(), tmp.to_string_lossy().into_owned());
-    let done = if cfg!(windows) {
-        // paths go in through the environment, never into the command text
-        run("tar", &["-xf", &z, "-C", &t, "Metadata.xml"], &[])
-            || run("powershell", &["-NoProfile", "-Command", "Expand-Archive -LiteralPath $env:BS_ZIP -DestinationPath $env:BS_DIR -Force"], &[("BS_ZIP", &z), ("BS_DIR", &t)])
-    } else {
-        // GNU tar can't read a .zip
-        run("unzip", &["-o", "-q", &z, "Metadata.xml", "-d", &t], &[])
-            || run("bsdtar", &["-xf", &z, "-C", &t, "Metadata.xml"], &[])
-            || run("python3", &["-c", "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extract('Metadata.xml', sys.argv[2])", &z, &t], &[])
-    };
-    let from = tmp.join("Metadata.xml");
-    let result = if done && is_file(&from) { std::fs::rename(&from, cache_dir.join("Metadata.xml")).map_err(|e| e.to_string()) } else { Err("Couldn't unpack the LaunchBox database.".to_string()) };
-    let _ = std::fs::remove_dir_all(&tmp);
-    result
+    use std::io::Write;
+    let failed = || "Couldn't unpack the LaunchBox database.".to_string();
+    let mut f = std::fs::File::open(zip).map_err(|_| failed())?;
+    let entry = crate::zip::entries_of(&mut f).map_err(|_| failed())?.into_iter().find(|e| e.name.eq_ignore_ascii_case("Metadata.xml")).ok_or_else(failed)?;
+    let tmp = cache_dir.join(format!("Metadata.xml.{}.tmp", std::process::id()));
+    let done = std::fs::File::create(&tmp)
+        .and_then(|out| {
+            let mut out = std::io::BufWriter::with_capacity(1 << 20, out);
+            crate::zip::unpack(&mut f, &entry, &mut out)?;
+            out.flush()
+        })
+        .and_then(|()| std::fs::rename(&tmp, cache_dir.join("Metadata.xml")));
+    if done.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    done.map_err(|_| failed())
 }
 
 /// The index, downloaded and built if there's none, it's of another format, misses a platform or is over 60 days
@@ -962,6 +952,24 @@ mod wrap_tests {
     use super::*;
 
     #[test]
+    fn the_database_is_unpacked_whole_or_not_at_all() {
+        let tmp = tempfile::tempdir().unwrap();
+        let xml = "<LaunchBox>\n".to_string() + &"  <Game><Name>A game</Name></Game>\n".repeat(2000) + "</LaunchBox>\n";
+        let zip = tmp.path().join("Metadata.zip");
+        std::fs::write(&zip, crate::zip::tests::make(&[("Mame.xml", b"<x/>", true), ("Metadata.xml", xml.as_bytes(), true)])).unwrap();
+        unpack(&zip, tmp.path()).unwrap();
+        assert_eq!(std::fs::read_to_string(tmp.path().join("Metadata.xml")).unwrap(), xml);
+        assert!(xml_whole(&tmp.path().join("Metadata.xml")));
+
+        let other = tempfile::tempdir().unwrap();
+        let cut = std::fs::read(&zip).unwrap();
+        let bad = other.path().join("Metadata.zip");
+        std::fs::write(&bad, &cut[..cut.len() / 2]).unwrap();
+        assert!(unpack(&bad, other.path()).is_err());
+        assert_eq!(std::fs::read_dir(other.path()).unwrap().count(), 1, "nothing but the zip is left");
+    }
+
+    #[test]
     fn a_low_res_picture_is_only_replaced_by_a_clearly_sharper_one() {
         let tmp = tempfile::tempdir().unwrap();
         let pic = |name: &str, w: u32, h: u32| {
@@ -1020,7 +1028,7 @@ mod match_tests {
         let cache = std::env::temp_dir().join(format!("rs-artmatch-{}", std::process::id()));
         let _ = fs::remove_dir_all(&cache);
         fs::create_dir_all(&cache).unwrap();
-        fs::write(cache.join("libretro-ps2.json"), json!({ "at": now(), "names": ["Ratchet Clank (USA)", "Jak and Daxter (USA)"] }).to_string()).unwrap();
+        fs::write(cache.join("libretro-ps2.json"), json!({ "at": crate::now_ms(), "names": ["Ratchet Clank (USA)", "Jak and Daxter (USA)"] }).to_string()).unwrap();
         let (list, ready) = art_matches(&cache, "ps2", "ratchet");
         assert!(!ready);
         assert_eq!(list.iter().map(|m| (m.name.as_str(), m.launchbox)).collect::<Vec<_>>(), [("Ratchet Clank", false)]);
@@ -1054,7 +1062,7 @@ mod index_tests {
 
     fn index_of(dir: &Path, plats: &[String]) {
         let games: serde_json::Map<String, Value> = plats.iter().map(|p| (p.clone(), json!([]))).collect();
-        fs::write(index_file(dir), json!({ "v": IDX_V, "at": now(), "games": games, "images": {} }).to_string()).unwrap();
+        fs::write(index_file(dir), json!({ "v": IDX_V, "at": crate::now_ms(), "games": games, "images": {} }).to_string()).unwrap();
     }
 
     #[test]

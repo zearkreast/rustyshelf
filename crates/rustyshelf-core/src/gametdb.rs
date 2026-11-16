@@ -42,39 +42,11 @@ fn regions_of(region: &str) -> &'static [&'static str] {
     }
 }
 
-fn u16_at(b: &[u8], o: usize) -> usize {
-    b.get(o..o + 2).map_or(0, |s| u16::from_le_bytes([s[0], s[1]]) as usize)
-}
-
-fn u32_at(b: &[u8], o: usize) -> usize {
-    b.get(o..o + 4).map_or(0, |s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]) as usize)
-}
-
 /// The one .xml inside a zip (stored or deflated).
 pub fn xml_of(zip: &[u8]) -> Option<String> {
-    let last = zip.len().checked_sub(22)?;
-    let end = (last.saturating_sub(65_535)..=last).rev().find(|&i| u32_at(zip, i) == 0x0605_4b50)?;
-    let mut o = u32_at(zip, end + 16);
-    for _ in 0..u16_at(zip, end + 10) {
-        if o + 46 > zip.len() || u32_at(zip, o) != 0x0201_4b50 {
-            break;
-        }
-        let (method, size, name_len, extra_len, comment_len, local) = (u16_at(zip, o + 10), u32_at(zip, o + 20), u16_at(zip, o + 28), u16_at(zip, o + 30), u16_at(zip, o + 32), u32_at(zip, o + 42));
-        let name = String::from_utf8_lossy(zip.get(o + 46..o + 46 + name_len)?).to_lowercase();
-        o += 46 + name_len + extra_len + comment_len;
-        if !name.ends_with(".xml") || local + 30 > zip.len() {
-            continue;
-        }
-        let start = local + 30 + u16_at(zip, local + 26) + u16_at(zip, local + 28);
-        let raw = zip.get(start..(start + size).min(zip.len()))?;
-        let bytes = match method {
-            0 => raw.to_vec(),
-            8 => miniz_oxide::inflate::decompress_to_vec_with_limit(raw, 256 << 20).ok()?,
-            _ => Vec::new(),
-        };
-        return Some(String::from_utf8_lossy(&bytes).into_owned());
-    }
-    None
+    let list = crate::zip::entries(zip).ok()?;
+    let e = list.iter().find(|e| e.name.to_lowercase().ends_with(".xml"))?;
+    crate::zip::read(zip, e, 256 << 20).map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 fn between<'a>(text: &'a str, open: &str, close: &str) -> Option<&'a str> {

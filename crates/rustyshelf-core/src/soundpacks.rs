@@ -134,61 +134,7 @@ pub fn guess_where(name: &str) -> Value {
     GUESS.iter().find(|(re, _)| re.is_match(name)).map_or(json!("all"), |(_, id)| json!([id]))
 }
 
-// ---------- a ZIP's own index ----------
-
-fn le16(b: &[u8], at: usize) -> usize {
-    b.get(at..at + 2).map_or(0, |s| u16::from_le_bytes([s[0], s[1]]) as usize)
-}
-
-fn le32(b: &[u8], at: usize) -> usize {
-    b.get(at..at + 4).map_or(0, |s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]) as usize)
-}
-
-struct Entry {
-    name: String,
-    size: usize,
-    method: usize,
-    csize: usize,
-    local: usize,
-}
-
-fn zip_index(b: &[u8]) -> Result<Vec<Entry>, String> {
-    let last = b.len().checked_sub(22).ok_or("That file isn't a ZIP.")?;
-    let end = (last.saturating_sub(65_535)..=last).rev().find(|&i| le32(b, i) == 0x0605_4b50).ok_or("That file isn't a ZIP.")?;
-    let (count, cd_size, cd_off) = (le16(b, end + 10), le32(b, end + 12), le32(b, end + 16));
-    if count == 0xffff || cd_off == 0xffff_ffff {
-        return Err("That ZIP is too big.".into());
-    }
-    if cd_size > 8 << 20 || cd_off + cd_size > b.len() {
-        return Err("That ZIP looks damaged.".into());
-    }
-    let mut out = Vec::new();
-    let mut p = cd_off;
-    for _ in 0..count {
-        if p + 46 > b.len() || le32(b, p) != 0x0201_4b50 {
-            return Err("That ZIP looks damaged.".into());
-        }
-        let (flags, method, csize, size, nl, xl, cl, local) = (le16(b, p + 8), le16(b, p + 10), le32(b, p + 20), le32(b, p + 24), le16(b, p + 28), le16(b, p + 30), le16(b, p + 32), le32(b, p + 42));
-        let raw = b.get(p + 46..p + 46 + nl).unwrap_or_default();
-        let name = if flags & 0x800 != 0 { String::from_utf8_lossy(raw).into_owned() } else { raw.iter().map(|c| *c as char).collect() };
-        out.push(Entry { name, size, method, csize, local });
-        p += 46 + nl + xl + cl;
-    }
-    Ok(out)
-}
-
-fn zip_read(b: &[u8], e: &Entry) -> Option<Vec<u8>> {
-    if le32(b, e.local) != 0x0403_4b50 {
-        return None;
-    }
-    let start = e.local + 30 + le16(b, e.local + 26) + le16(b, e.local + 28);
-    let raw = b.get(start..start.checked_add(e.csize)?)?;
-    match e.method {
-        0 => Some(raw.to_vec()),
-        8 => miniz_oxide::inflate::decompress_to_vec_with_limit(raw, e.size.max(1)).ok(),
-        _ => None,
-    }
-}
+// ---------- a ZIP's entries ----------
 
 /// A ZIP entry's name that stays inside the folder it's unpacked into.
 fn safe_entry(name: &str) -> bool {
@@ -303,7 +249,7 @@ pub fn import_from(app_root: &Path, sources: &[PathBuf], name: Option<&str>) -> 
             }
             let b = std::fs::read(src).map_err(|e| e.to_string())?;
             let (mut pick, mut total) = (Vec::new(), 0u64);
-            for e in zip_index(&b)?.into_iter().filter(|e| !e.name.ends_with('/')) {
+            for e in crate::zip::entries(&b).map_err(|e| e.to_string())?.into_iter().filter(|e| !e.name.ends_with('/')) {
                 let last = e.name.rsplit('/').next().unwrap_or("").to_string();
                 if !safe_entry(&e.name) || e.name.starts_with("__MACOSX/") || last.starts_with('.') {
                     continue;
@@ -314,7 +260,7 @@ pub fn import_from(app_root: &Path, sources: &[PathBuf], name: Option<&str>) -> 
                     }
                     continue;
                 }
-                total += e.size as u64;
+                total += e.size;
                 pick.push(e);
             }
             if pick.len() > MAX_FILES {
@@ -324,7 +270,7 @@ pub fn import_from(app_root: &Path, sources: &[PathBuf], name: Option<&str>) -> 
                 return Err("The sounds in that ZIP are too big (over 50 MB in all).".into());
             }
             for e in pick {
-                if let Some(data) = zip_read(&b, &e) {
+                if let Some(data) = crate::zip::read(&b, &e, e.size as usize) {
                     let n = data.len() as u64;
                     cands.push((e.name.clone(), Source::Bytes(data), n));
                 }

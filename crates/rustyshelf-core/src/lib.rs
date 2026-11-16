@@ -117,3 +117,4 @@ pub mod windowmode;
 pub mod x360;
 pub mod xeniaach;
 pub mod zarchive;
+pub mod zip;
