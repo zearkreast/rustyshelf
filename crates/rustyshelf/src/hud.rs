@@ -119,11 +119,9 @@ pub struct Prompts {
     asking: Option<Mutex<Receiver<Vec<pads::Real>>>>,
 }
 
-// the default font has no ◀ ▶ or ·
-const FONT: &[u8] = include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf");
-
 pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
-    let face = fonts.add(Font::from_bytes(FONT.to_vec()));
+    // the default font has no ◀ ▶ or ·
+    let face = fonts.add(Font::from_bytes(rustyshelf_core::drawn::DEJAVU_BOLD.to_vec()));
     commands.insert_resource(Face(face.clone()));
     let mona = MonaSans(rustyshelf_core::drawn::mona_sans().map(|file| fonts.add(Font::from_bytes(file.to_vec()))));
     let text = |line: Line, weight: u32, size: f32, color: Color, spacing: f32| (line, Text::default(), mona.font(weight, size), TextColor(color), LetterSpacing::Px(spacing * size));

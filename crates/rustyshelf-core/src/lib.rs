@@ -49,9 +49,7 @@ pub mod js;
 pub mod kyty;
 pub mod launch;
 /// The LaunchBox Games Database index, built by the same code as the Electron app's helper.
-#[path = "../../img-tools/src/lbindex.rs"]
-#[allow(clippy::all, dead_code)]
-pub mod lbindex;
+pub use rustyshelf_imgtools::lbindex;
 pub mod library;
 pub mod linuxpc;
 pub mod looks;

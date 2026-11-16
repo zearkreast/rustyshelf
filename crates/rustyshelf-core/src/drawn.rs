@@ -179,7 +179,7 @@ static FONTS: LazyLock<Fonts> = LazyLock::new(|| {
             font(include_bytes!("../assets/fonts/IBMPlexMono-SemiBold.ttf")),
             font(include_bytes!("../assets/fonts/DMSerifDisplay-Italic.ttf")),
         ],
-        wide: font(include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf")),
+        wide: font(DEJAVU_BOLD),
         mona: mona_sans().map(|bytes| {
             let mut f = font(bytes);
             f.set_variation(b"wght", 800.0);
@@ -876,6 +876,10 @@ pub fn lettered(text: &str, lettering: &crate::looks::Lettering, size: f32, fill
 
 /// The room a wordmark's picture keeps round its letters, in the letters' own pixels.
 pub const WORD_ROOM: f32 = 24.0;
+
+/// DejaVu Sans Bold, for the glyphs the other fonts lack (◀ ▶ ·). A static: a const's bytes would be copied into
+/// every crate that uses it.
+pub static DEJAVU_BOLD: &[u8] = include_bytes!("../../img-tools/assets/DejaVuSans-Bold.ttf");
 
 /// Mona Sans, the interface font: one variable file (weights 200-900, widths 75%-125%) for Latin, one for Latin
 /// Extended.
