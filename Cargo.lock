@@ -5793,6 +5793,8 @@ dependencies = [
  "chrono",
  "embed-resource",
  "image",
+ "jni 0.21.1",
+ "ndk-context",
  "rfd",
  "rodio",
  "rustyshelf-core",

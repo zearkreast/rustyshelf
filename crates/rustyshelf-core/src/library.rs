@@ -239,9 +239,12 @@ fn unreachable(dirs: &[String]) -> Vec<String> {
 
 /// A console's games: its folders that answer are read, and a folder that can't be reached (a network drive gone for a
 /// moment) keeps the games it had at the last read, instead of the shelf coming out empty.
-fn reachable_games(c: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &ScanData) -> Vec<Game> {
+fn reachable_games(c: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &ScanData, cfg: &Config, data_dir: &Path) -> Vec<Game> {
     if sc.rom_dirs.is_empty() {
         return Vec::new();
+    }
+    if crate::android::lister().is_some() {
+        return crate::android::scan(c, sc, cfg, data_dir);
     }
     let gone = unreachable(&sc.rom_dirs);
     let mut games = if gone.is_empty() {
@@ -298,6 +301,8 @@ impl Library {
             .iter()
             .map(|c| (c, config.system(c)))
             .filter(|(c, sc)| sc.enabled && !c.standalone && (!sc.emulator.is_empty() || (c.retro && !retroarch.is_empty()) || !sc.rom_dirs.is_empty()))
+            // (Android) only the consoles the Android app has
+            .filter(|(c, _)| crate::android::lister().is_none() || crate::android::system(&c.id).is_some())
             .collect();
         let (mut shelves, steam, (stores, mine)) = std::thread::scope(|s| {
             let steam = s.spawn(|| steam_games(&config));
@@ -305,11 +310,11 @@ impl Library {
             let jobs: Vec<_> = wanted
                 .into_iter()
                 .map(|(c, sc)| {
-                    let (dirs, data) = (lib.dirs_for(&sc, app_root), &data);
+                    let (dirs, data, config, data_dir) = (lib.dirs_for(&sc, app_root), &data, &config, &data_dir);
                     s.spawn(move || Shelf {
                         id: c.id.clone(),
                         name: c.name.clone(),
-                        games: reachable_games(c, &sc, &dirs, data),
+                        games: reachable_games(c, &sc, &dirs, data, config, data_dir),
                         kind: ShelfKind::Console { console: Box::new(c.clone()), config: sc },
                         from: Vec::new(),
                     })

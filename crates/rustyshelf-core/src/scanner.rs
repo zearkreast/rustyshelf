@@ -108,6 +108,8 @@ pub struct Game {
     pub source: Source,
     /// a RomM game: its place once downloaded is `file`
     pub romm: Option<RommRef>,
+    /// (Android) the game's content:// address in the folder the player picked
+    pub doc: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

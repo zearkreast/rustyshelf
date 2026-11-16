@@ -1,5 +1,5 @@
-//! The system's own dialogs and clipboard. The desktop's come from rfd and arboard; Android has neither (its folders
-//! are picked through the Storage Access Framework), so there they answer nothing.
+//! The system's own dialogs and clipboard. The desktop's come from rfd and arboard; on Android a folder is picked
+//! through the Storage Access Framework, and there's no file picker or clipboard yet.
 
 use std::path::PathBuf;
 
@@ -38,9 +38,13 @@ pub fn pick_files(_title: &str) -> Vec<PathBuf> {
     Vec::new()
 }
 
+/// Android's folder picker: the folder is kept with the others picked (data/folders.json), and the path it stands for
+/// is answered.
 #[cfg(target_os = "android")]
 pub fn pick_folder(_title: &str) -> Option<PathBuf> {
-    None
+    let uri = crate::android_saf::pick_folder()?;
+    let data = rustyshelf_core::paths::data_dir(&rustyshelf_core::paths::app_root());
+    rustyshelf_core::android::add_folder(&data, &uri).map(PathBuf::from)
 }
 
 #[cfg(target_os = "android")]

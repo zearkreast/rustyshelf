@@ -4,6 +4,8 @@
 
 #[cfg(target_os = "android")]
 mod android_pad;
+#[cfg(target_os = "android")]
+mod android_saf;
 mod appicon;
 mod background;
 mod boot;
@@ -61,6 +63,7 @@ fn main() {
     if std::env::var_os("SSL_CERT_DIR").is_none() {
         unsafe { std::env::set_var("SSL_CERT_DIR", "/system/etc/security/cacerts") };
     }
+    rustyshelf_core::android::set_lister(android_saf::list);
     run();
 }
 

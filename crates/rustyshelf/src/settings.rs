@@ -1316,7 +1316,8 @@ impl Settings {
                 } else {
                     vec![open("RetroArch", if retroarch.is_empty() { "Not set".into() } else { short(&retroarch) }, "The program every retro console without an emulator of its own runs in", Screen::Emulator(String::new()))]
                 };
-                let mut consoles: Vec<&Console> = systems().consoles.iter().collect();
+                // (Android) only the consoles the Android app has
+                let mut consoles: Vec<&Console> = systems().consoles.iter().filter(|c| rustyshelf_core::android::lister().is_none() || rustyshelf_core::android::system(&c.id).is_some()).collect();
                 let mut hidden = 0;
                 let found_any = consoles.iter().any(|c| self.flag(&["systems", &c.id, "enabled"], true));
                 if self.wizard {

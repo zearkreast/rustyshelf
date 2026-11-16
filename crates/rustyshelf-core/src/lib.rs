@@ -2,6 +2,7 @@
 //! The Electron app's main process does the same in JS (main/*.js); the data files are shared between the two.
 
 pub mod addgames;
+pub mod android;
 pub mod arcade;
 pub mod art;
 pub mod artjob;

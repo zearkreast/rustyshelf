@@ -788,7 +788,9 @@ app is at its first stage: it builds as an APK of its own ("RustyShelf (native)"
 above) and keeps its settings in its own storage. A controller works as on the desktop (its buttons, sticks and a
 D-pad sent as a hat), Android's Back is Esc, and a finger works as in the Android app: a sideways drag along the shelf,
 a tap on the chosen case to play, a swipe in from a side edge (or, off the shelf, a quick swipe left) for Back, a drag
-up or down through Settings. Picking games folders, starting emulators and the Thor's bottom screen aren't in it yet. Hiding the taskbar
+up or down through Settings. Settings shows the consoles the Android app has; a console's Games folders → Add a folder
+opens Android's folder picker, and the folder is read as the Android app reads it (`data/folders.json` keeps what was
+picked). Starting emulators, box art and the Thor's bottom screen aren't in it yet. Hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash
