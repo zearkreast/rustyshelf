@@ -162,7 +162,7 @@ pub fn run() {
             Update,
             (
                 (loading::poll_library, loading::take_reshown).chain(),
-                (loading::recheck_folders, coverpick::make_boxes),
+                (loading::recheck_folders, loading::reread, coverpick::make_boxes),
                 (romm::run, wiimote::run, wiimote::pointer),
                 play::watch_game,
                 phone::run,

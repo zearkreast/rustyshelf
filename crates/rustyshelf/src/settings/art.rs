@@ -109,7 +109,7 @@ impl Settings {
         let art = &c.game.art;
         Some(GameArt {
             sys: c.console.clone(),
-            title: c.game.title.clone(),
+            title: rustyshelf_core::covers::art_name(&self.cfg, &c.game.id).unwrap_or(&c.game.title).to_string(),
             file: c.game.file.clone(),
             region: c.game.region.clone(),
             dir: ArtLibrary::from_config(&config, &self.app_root).dir_for(&config.system(console), &c.game.file, &self.app_root),

@@ -62,7 +62,7 @@ fn box_art_downloads() {
     assert_eq!(games.len(), 2);
     let stages = std::sync::Mutex::new(Vec::new());
     let (wanted, off) = ([Wanted { console, config: &sc, games: games.iter().collect() }], std::sync::atomic::AtomicBool::new(false));
-    let run = Run { art: &art, app_root: &root, cache_dir: &cache, kinds: &["front", "back"], region: "auto", hd: false, explicit: false, cfg: &serde_json::Value::Null };
+    let run = Run { art: &art, app_root: &root, cache_dir: &cache, kinds: &["front", "back"], region: "auto", hd: false, explicit: false, cfg: &serde_json::Value::Null, index_ready_only: false };
     let report = download(&run, &wanted, &|stage, done, total| stages.lock().unwrap().push(format!("{stage} {done}/{total}")), &off);
     println!("{report:?}\n{:?}", stages.lock().unwrap().iter().filter(|s| !s.contains('%')).collect::<Vec<_>>());
     assert_eq!((report.launchbox_error.clone(), report.systems[0].front), (None, 2));

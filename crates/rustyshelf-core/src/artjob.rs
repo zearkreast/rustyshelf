@@ -279,7 +279,8 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
         let current = [art.front.clone(), art.back.clone().filter(|_| !art.made_back), art.spine.clone().filter(|_| !art.made_spine), art.disc.clone()];
         let parts = if sets_mode { PARTS.to_vec() } else { parts_to_redo(bases, after, lock, current.clone().map(|c| c.is_some()), &game.region) };
         if !parts.is_empty() {
-            let g = GameArt { sys: sys.into(), title: game.title.clone(), file: game.file.clone(), region: game.region.clone(), dir: lib.dir_for(&sc, &game.file, app_root), base: art_base(&game.file), current };
+            let title = covers::art_name(cfg, &game.id).unwrap_or(&game.title).to_string();
+            let g = GameArt { sys: sys.into(), title, file: game.file.clone(), region: game.region.clone(), dir: lib.dir_for(&sc, &game.file, app_root), base: art_base(&game.file), current };
             work.push((g, parts));
         }
     }

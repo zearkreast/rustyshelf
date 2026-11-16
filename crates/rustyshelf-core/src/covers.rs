@@ -10,6 +10,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::art::art_base;
 use crate::js;
@@ -40,6 +41,12 @@ pub fn launchbox_platform(console_id: &str) -> Option<&'static str> {
 /// The platforms a PC game's console box is looked up in, newest first: (its short name, LaunchBox's name).
 pub fn pc_box_platforms() -> &'static [(String, String)] {
     &SOURCES.pc_box_plats
+}
+
+/// The name a console game's art is looked up under when it isn't its title (Details → Art match: a ROM hack, a
+/// translation, a mod named after its serial).
+pub fn art_name<'a>(cfg: &'a Value, id: &str) -> Option<&'a str> {
+    cfg["games"][id]["artName"].as_str().map(str::trim).filter(|n| !n.is_empty())
 }
 
 /// Where the box images are served from.
@@ -265,6 +272,10 @@ impl LibretroNames {
 
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
+    }
+
+    pub fn names(&self) -> &[String] {
+        &self.names
     }
 
     /// The names of the first of a title's lookup names that's listed.

@@ -293,6 +293,11 @@ complete yet.
   and disc that belong together (one region's LaunchBox, GameTDB or ScreenScraper scans, the best of each source for
   a region, or the HD set; a back and spine cut from one scan first), puts all four in or none, and undoes it. The
   Complete sets style (a region's, or HD) gives every unlocked game its set, and a game with none its parts one by one.
+- Has Details → Art match for a console game whose file name or serial isn't the original game's (a ROM hack, a
+  translation, a mod): it searches the LaunchBox index already built and libretro's list for the names holding the
+  words typed, and the one chosen is kept with the game (`games.<id>.artName`, as the Electron app keeps it). Its
+  art is fetched again under that name behind the shelf (parts picked in the Art Studio stay), and the Art Studio
+  and Details' info look it up under that name too. Back to automatic goes back to the game's own name.
 - Has the phone companion (Settings → Phone companion): the same page on the phone, served by the same rules as
   the Electron app's server (home-network addresses only, PIN pairing with its lockouts, tokens kept as hashes,
   pictures under random ids) and with the same `data\companion.json`, so a phone paired with one app stays paired

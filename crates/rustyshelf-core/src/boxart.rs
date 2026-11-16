@@ -456,6 +456,8 @@ pub struct Run<'a> {
     pub explicit: bool,
     /// the settings (`config.json`): the consoles' Art Studio styles and the parts locked by hand
     pub cfg: &'a Value,
+    /// only a LaunchBox index already built: none is downloaded for this run
+    pub index_ready_only: bool,
 }
 
 /// A console and the games of it to look at.
@@ -677,10 +679,61 @@ fn gametdb_wrap(map: &serde_json::Map<String, serde_json::Value>, console: &str,
     None
 }
 
+/// A game in the box art databases a game's art can be matched to.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArtMatch {
+    pub name: String,
+    /// LaunchBox's (else libretro's, a front cover only)
+    pub launchbox: bool,
+    /// its box and disc pictures
+    pub pictures: usize,
+}
+
+/// A console's games in the box art databases whose names hold every word of `term`, the closest names first (24 at
+/// most), and whether the LaunchBox index is built. The index is never built for this; libretro's list is fetched
+/// once a week.
+pub fn art_matches(cache_dir: &Path, sys: &str, term: &str) -> (Vec<ArtMatch>, bool) {
+    let mut idx = ready_index(cache_dir);
+    let ready = idx.is_some();
+    let want = crate::lbindex::norm(term);
+    if want.is_empty() {
+        return (Vec::new(), ready);
+    }
+    let words: Vec<&str> = want.split(' ').filter(|w| !w.is_empty()).collect();
+    let fits = |n: &str| words.iter().all(|w| n.contains(w));
+    let mut out: Vec<(String, ArtMatch)> = Vec::new();
+    if let Some(shard) = idx.as_mut().zip(covers::launchbox_platform(sys)).and_then(|(i, p)| i.platform(p)) {
+        for g in shard.games.iter().filter(|g| !g.n.is_empty() && fits(&g.n)) {
+            let pictures = shard.images.get(&g.id).map_or(0, |l| l.iter().filter(|i| i.r#type.starts_with("Box - ") || i.r#type == "Disc").count());
+            let m = ArtMatch { name: g.name.clone(), launchbox: true, pictures };
+            match out.iter_mut().find(|x| x.0 == g.n) {
+                Some(prev) if prev.1.pictures >= pictures => {}
+                Some(prev) => prev.1 = m,
+                None => out.push((g.n.clone(), m)),
+            }
+        }
+    }
+    for n in libretro_names(cache_dir, sys).as_ref().map_or(&[][..], LibretroNames::names) {
+        let title = crate::titles::clean_title(&format!("{n}.png"), true).title;
+        let k = crate::lbindex::norm(&title);
+        if !k.is_empty() && fits(&k) && !out.iter().any(|x| x.0 == k) {
+            out.push((k, ArtMatch { name: title, launchbox: false, pictures: 1 }));
+        }
+    }
+    let rank = |m: &ArtMatch| {
+        let k = crate::lbindex::norm(&m.name);
+        (if k == want { 3 } else if k.starts_with(&want) { 2 } else { 1 }) * 1_000_000 - k.chars().count() as i64 * 10 + m.pictures.min(9) as i64
+    };
+    let mut list: Vec<ArtMatch> = out.into_iter().map(|x| x.1).collect();
+    list.sort_by(|a, b| rank(b).cmp(&rank(a)).then_with(|| a.name.cmp(&b.name)));
+    list.truncate(24);
+    (list, ready)
+}
+
 /// Fetches the parts these games don't have. `progress(console name or what's going on, done, total)` is called as
 /// games finish; setting `cancel` stops after the games in flight.
 pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, usize) + Sync), cancel: &AtomicBool) -> Report {
-    let Run { art, app_root, cache_dir, kinds, region, hd, explicit, cfg } = *run;
+    let Run { art, app_root, cache_dir, kinds, region, hd, explicit, cfg, index_ready_only } = *run;
     let region = if covers::art_region(region).is_some() { region } else { "auto" };
     let want = |k: &str| kinds.contains(&k) || kinds.contains(&format!("redo-{k}").as_str());
     let redo = |k: &str| kinds.contains(&format!("redo-{k}").as_str());
@@ -697,7 +750,9 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
         let style = cfg["art"]["styles"].get(id).filter(|s| js::truthy(Some(s))).map(|_| crate::artstudio::style_for(cfg, id));
         progress(&sys.console.name, 0, sys.games.len());
         let names = if want("front") { libretro_names(cache_dir, id) } else { None };
-        if index.is_none() && report.launchbox_error.is_none() {
+        if index.is_none() && index_ready_only {
+            index = ready_index(cache_dir).map(Mutex::new);
+        } else if index.is_none() && report.launchbox_error.is_none() {
             match launchbox_index(cache_dir, &mut |stage| progress(stage, 0, 0)) {
                 Ok(i) => index = Some(Mutex::new(i)),
                 Err(e) => report.launchbox_error = Some(e),
@@ -709,6 +764,9 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
         let rep = Mutex::new(ConsoleReport { id: id.to_string(), name: sys.console.name.clone(), total: sys.games.len(), ..ConsoleReport::default() });
         let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
         let one = |game: &Game| {
+            // looked up under the name picked in Details → Art match
+            let renamed = covers::art_name(cfg, &game.id).filter(|n| *n != game.title).map(|n| Game { title: n.to_string(), ..game.clone() });
+            let game = renamed.as_ref().unwrap_or(game);
             let (dir, base) = (art.dir_for(sys.config, &game.file, app_root), art_base(&game.file));
             let (mut touched, mut missing) = (false, false);
             // (downloaded once for both the back and the spine, deleted after)
@@ -922,5 +980,43 @@ mod wrap_tests {
         assert!(place_cut(&cut, &art, "Zeta Run (USA)", "-spine", None) && art_file(&art, "Zeta Run (USA)", "-spine").is_some());
         assert!(!place_cut(&[0; 100], &art, "Other", "-spine", None) && art_file(&art, "Other", "-spine").is_none());
         assert_eq!((case_of("n3ds"), case_of("sw2"), case_of("nothing")), ((1.127, 0.112), (0.618, 0.059), (0.711, 0.074)));
+    }
+}
+
+#[cfg(test)]
+mod match_tests {
+    use super::*;
+    use crate::lbindex::{norm, shard_file_name, Game as LbGame, GameImage, ShardFile, ShardsMeta};
+
+    #[test]
+    fn art_matches_from_both_databases() {
+        let cache = std::env::temp_dir().join(format!("rs-artmatch-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&cache);
+        fs::create_dir_all(&cache).unwrap();
+        fs::write(cache.join("libretro-ps2.json"), json!({ "at": now(), "names": ["Ratchet Clank (USA)", "Jak and Daxter (USA)"] }).to_string()).unwrap();
+        let (list, ready) = art_matches(&cache, "ps2", "ratchet");
+        assert!(!ready);
+        assert_eq!(list.iter().map(|m| (m.name.as_str(), m.launchbox)).collect::<Vec<_>>(), [("Ratchet Clank", false)]);
+
+        let plat = covers::launchbox_platform("ps2").unwrap();
+        fs::write(cache.join("launchbox-index.json"), "{}").unwrap();
+        let stamp = cache.join("launchbox-index.json").metadata().unwrap().modified().unwrap().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        fs::write(cache.join("launchbox-shards.json"), serde_json::to_vec(&ShardsMeta { v: IDX_V, at: 0, plats: vec![plat.to_string()], stamp }).unwrap()).unwrap();
+        let game = |id: &str, name: &str| LbGame { id: id.into(), name: name.into(), n: norm(name), overview: None, release: None, year: None, dev: None, pub_: None, genres: None, esrb: None, players: None, coop: None, rating: None, wiki: None, video: None };
+        let img = |kind: &str| GameImage { r#type: kind.into(), region: "North America".into(), file: "x.jpg".into() };
+        let shard = ShardFile {
+            v: IDX_V,
+            plat: plat.into(),
+            games: vec![game("1", "Ratchet & Clank"), game("2", "Ratchet: Deadlocked"), game("3", "Jak II")],
+            images: [("1".to_string(), vec![img("Box - Front"), img("Box - Back"), img("Fanart - Background")])].into(),
+        };
+        fs::write(shard_file_name(&cache, plat), serde_json::to_vec(&shard).unwrap()).unwrap();
+        let (list, ready) = art_matches(&cache, "ps2", "Ratchet");
+        assert!(ready);
+        // the closest names first: the shortest of those that start with the words
+        assert_eq!(list.iter().map(|m| (m.name.as_str(), m.pictures)).collect::<Vec<_>>(), [("Ratchet Clank", 1), ("Ratchet & Clank", 2), ("Ratchet: Deadlocked", 0)]);
+        assert_eq!(art_matches(&cache, "ps2", "clank ratchet").0.len(), 2, "every word, in any order");
+        assert!(art_matches(&cache, "ps2", "  ").0.is_empty());
+        let _ = fs::remove_dir_all(&cache);
     }
 }

@@ -326,7 +326,7 @@ fn covers_count(n: usize) -> String {
 /// A line for the player: on Settings' page while it's open, else over the shelf.
 fn say(settings: &mut crate::settings::Settings, toast: &mut crate::hud::Toast, text: String, now: f32) {
     if settings.open {
-        settings.tell(text);
+        settings.say(text);
     } else {
         (toast.text, toast.until) = (text, now + 5.0);
     }
@@ -774,19 +774,17 @@ pub struct BoxMaker {
     playing: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// the library changed while a run was going
     again: bool,
-    reload: bool,
 }
 
-pub fn make_boxes(mut maker: ResMut<BoxMaker>, base: Res<crate::loading::Base>, playing: Res<crate::play::Playing>, mut refresh: ResMut<crate::loading::Refresh>) {
+pub fn make_boxes(mut maker: ResMut<BoxMaker>, base: Res<crate::loading::Base>, playing: Res<crate::play::Playing>) {
     let maker = &mut *maker;
     let busy = playing.title.is_some();
     maker.playing.store(busy, std::sync::atomic::Ordering::Relaxed);
     if let Some(made) = maker.work.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
         maker.work = None;
-        maker.reload |= made > 0;
-    }
-    if maker.reload && crate::loading::read_again(&mut refresh, &rustyshelf_core::paths::app_root()) {
-        maker.reload = false;
+        if made > 0 {
+            crate::loading::STALE.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
     }
     maker.again |= base.is_changed();
     if !maker.again || maker.work.is_some() || busy {

@@ -179,6 +179,16 @@ fn put_shown(lib: &mut LibraryRes, fresh: Library, cursor: &mut crate::shelf::Cu
 #[derive(Resource, Default)]
 pub struct Refresh(Option<Mutex<Receiver<Library>>>);
 
+/// Set from any thread when what's on disk changed behind the shelf: the library is read again.
+pub static STALE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Reads the library again once something set `STALE`.
+pub fn reread(mut refresh: ResMut<Refresh>) {
+    if STALE.load(std::sync::atomic::Ordering::Relaxed) && read_again(&mut refresh, &rustyshelf_core::paths::app_root()) {
+        STALE.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 impl Refresh {
     /// The library is being read again.
     pub fn busy(&self) -> bool {

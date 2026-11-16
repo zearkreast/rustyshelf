@@ -28,6 +28,7 @@ mod accounts;
 pub use accounts::{AchFrom, AchGame};
 mod addgames;
 mod art;
+mod artmatch;
 mod collections;
 mod deck;
 mod custom;
@@ -116,6 +117,7 @@ enum Screen {
     Art,
     ArtPart,
     ArtSets,
+    ArtMatch,
     /// Settings → System → Kid mode
     Kid,
     /// Settings → Sounds → Sound per console
@@ -312,6 +314,7 @@ pub struct Settings {
     sw2: sw2::Sw2Ui,
     deck: deck::DeckUi,
     art_pick: art::ArtPick,
+    art_match: artmatch::ArtMatchState,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
@@ -431,6 +434,7 @@ impl Default for Settings {
             sw2: Default::default(),
             deck: Default::default(),
             art_pick: Default::default(),
+            art_match: Default::default(),
             kid_open: false,
             tab: 0,
             finding: Default::default(),
@@ -708,11 +712,6 @@ impl Settings {
                 s.cover_asked = Some(crate::coverpick::Ask { term: typed.trim().to_string(), ..ask.clone() });
             }),
         );
-    }
-
-    /// A line shown on Settings' page, from outside Settings.
-    pub fn tell(&mut self, text: String) {
-        (self.note, self.redraw) = (text, true);
     }
 
     pub fn set_cover_state(&mut self, state: crate::coverpick::State) {
@@ -1230,7 +1229,7 @@ impl Settings {
         }
         let mut page = self.screen_page();
         if self.kid_locked() && *screen == Screen::Details {
-            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Collections" | "Manual Studio"));
+            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Art match" | "Collections" | "Manual Studio"));
         }
         page
     }
@@ -2440,6 +2439,7 @@ impl Settings {
                 rows.extend(self.manual_studio_row());
                 if self.can_pick_art() {
                     rows.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
+                    rows.push(self.art_match_row());
                 }
                 // a Steam, store or added game's cover (console games have the Art Studio above)
                 let pc_appid = match &g.source {
@@ -2504,6 +2504,7 @@ impl Settings {
             Screen::ArtPart => self.art_part_page(),
             Screen::Kid => self.kid_page(),
             Screen::ArtSets => self.art_sets_page(),
+            Screen::ArtMatch => self.art_match_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
@@ -2874,6 +2875,7 @@ pub fn input(
     s.poll_sw2();
     s.poll_deck();
     s.poll_art(time.elapsed_secs());
+    s.poll_art_match();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;
