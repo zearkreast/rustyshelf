@@ -1299,6 +1299,10 @@
     "ce DuckStation n'a pas son shader CRT"
    ],
    [
+    "Keep themes moving while you scroll",
+    "Garder les thèmes en mouvement pendant le défilement"
+   ],
+   [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",
     "Pas comme avant cette version : Zeta Run. Réglages → Système peut remettre la copie"
    ],
@@ -4062,6 +4066,10 @@
    [
     "it already uses picture filters of your own",
     "zaten kendi seçtiğin görüntü filtrelerini kullanıyor"
+   ],
+   [
+    "On: a moving theme (Nebula, Rainy Night, Event Horizon and the rest) keeps going while the shelf slides. Off: it pauses until you stop, which keeps scrolling smoothest on a slower PC.",
+    "Açık: hareketli bir tema (Bulutsu, Yağmurlu gece, Olay ufku ve diğerleri) raf kayarken de sürer. Kapalı: sen durana kadar bekler; yavaş bir bilgisayarda kaydırmayı en akıcı hâlde tutar."
    ],
    [
     "Not as before this version: Zeta Run. Settings → System can put the copy back",

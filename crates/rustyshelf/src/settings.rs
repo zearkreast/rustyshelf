@@ -606,6 +606,11 @@ impl Settings {
     }
 
     /// The shelf's colour theme.
+    /// A moving theme keeps moving while the shelf slides (Settings → Look); off, it pauses until the shelf stops.
+    pub fn theme_keeps_moving(&self) -> bool {
+        self.flag(&["ui", "themeKeepMoving"], cfg!(windows))
+    }
+
     pub fn theme(&self) -> String {
         let saved = self.text(&["ui", "theme"]);
         if saved.starts_with("custom-") {
@@ -1712,6 +1717,12 @@ impl Settings {
                         rustyshelf_core::themes::themes().into_iter().map(|t| (t.id, t.name)).chain(self.custom_themes.iter().cloned()).collect(),
                         &self.theme(),
                         "The colour and mood behind your shelves. Close Settings to see it on your shelf. Your own pictures are themes too: each folder in Custom themes, beside RustyShelf, is one.",
+                    ),
+                    self.switch(
+                        "Keep themes moving while you scroll",
+                        &["ui", "themeKeepMoving"],
+                        cfg!(windows),
+                        "On: a moving theme (Nebula, Rainy Night, Event Horizon and the rest) keeps going while the shelf slides. Off: it pauses until you stop, which keeps scrolling smoothest on a slower PC.",
                     ),
                     Row {
                         label: "Custom themes folder".into(),

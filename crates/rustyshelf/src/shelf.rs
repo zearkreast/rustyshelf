@@ -1260,9 +1260,11 @@ pub fn moving(
     lit: Res<Lit>,
     settings: Res<crate::settings::Settings>,
     playing: Res<crate::play::Playing>,
+    cursor: Res<Cursor>,
     mut moving: ResMut<Moving>,
     mut images: ResMut<Assets<Image>>,
     mut behind: Query<(&Behind, &mut ImageNode)>,
+    mut moved: Local<((usize, usize), f32)>,
 ) {
     let Some((_, mut node)) = behind.iter_mut().find(|(which, _)| matches!(which, Behind::Moving)) else { return };
     let theme = settings.theme();
@@ -1290,7 +1292,11 @@ pub fn moving(
         node.color = Color::WHITE;
         moving.image = Some(handle);
     }
-    if moving.busy || playing.title.is_some() || now - moving.last < 1.0 / 30.0 {
+    if moved.0 != (cursor.shelf, cursor.game) {
+        *moved = ((cursor.shelf, cursor.game), now);
+    }
+    let sliding = !settings.theme_keeps_moving() && now - moved.1 < SLIDE;
+    if moving.busy || playing.title.is_some() || sliding || now - moving.last < 1.0 / 30.0 {
         return;
     }
     let part = (MOVING_PIXELS / (stage.w * stage.h)).sqrt().min(1.0);
