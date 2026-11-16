@@ -1217,6 +1217,10 @@ pub struct Moving {
 /// As many pixels as the layer is drawn with at most: a larger window's is drawn smaller and stretched.
 const MOVING_PIXELS: f32 = 1280.0 * 720.0;
 
+fn part_of(stage: &Stage) -> f32 {
+    (MOVING_PIXELS / (stage.w * stage.h)).sqrt().min(1.0)
+}
+
 impl Default for Moving {
     fn default() -> Self {
         let (ask, ticks) = channel::<Tick>();
@@ -1265,6 +1269,7 @@ pub fn moving(
     mut images: ResMut<Assets<Image>>,
     mut behind: Query<(&Behind, &mut ImageNode)>,
     mut moved: Local<((usize, usize), f32)>,
+    mut drawn: Local<Option<(String, (u32, u32), u32)>>,
 ) {
     let Some((_, mut node)) = behind.iter_mut().find(|(which, _)| matches!(which, Behind::Moving)) else { return };
     let theme = settings.theme();
@@ -1296,15 +1301,20 @@ pub fn moving(
         *moved = ((cursor.shelf, cursor.game), now);
     }
     let sliding = !settings.theme_keeps_moving() && now - moved.1 < SLIDE;
-    if moving.busy || playing.title.is_some() || sliding || now - moving.last < 1.0 / 30.0 {
+    let size = ((stage.w * part_of(&stage)).round() as u32, (stage.h * part_of(&stage)).round() as u32);
+    // Reduce motion: one frame of the theme, drawn again only when the theme, size or colour changes
+    let still = (theme.clone(), size, lit.shelf.to_bits());
+    let held_still = settings.reduce_motion() && moving.image.is_some() && *drawn == Some(still.clone());
+    if moving.busy || playing.title.is_some() || sliding || held_still || now - moving.last < 1.0 / 30.0 {
         return;
     }
-    let part = (MOVING_PIXELS / (stage.w * stage.h)).sqrt().min(1.0);
+    *drawn = Some(still);
+    let part = part_of(&stage);
     let tick = Tick {
         theme,
         dt: (now - moving.last).min(0.1),
         hue: lit.shelf,
-        size: ((stage.w * part).round() as u32, (stage.h * part).round() as u32),
+        size,
         scale: part,
         floor: (stage.h * EYE_Y + stage.bh / 2.0 - 10.0) / stage.h,
     };

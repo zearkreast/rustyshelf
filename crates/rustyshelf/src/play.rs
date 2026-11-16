@@ -259,6 +259,8 @@ impl Surprise {
 #[derive(Resource, Default)]
 pub struct Repeat {
     dir: i32,
+    /// when the direction went down
+    since: f32,
     next: f32,
     /// when Y went down on the pad, until it's let go or has been held long enough; and the left stick's click
     y_since: Option<f32>,
@@ -267,8 +269,12 @@ pub struct Repeat {
 
 /// seconds Y is held for a favourite
 const HOLD: f32 = 0.45;
-const FIRST_REPEAT: f32 = 0.35;
-const REPEAT: f32 = 0.08;
+/// A held direction's first repeat, and how soon each next one comes as it's held longer (app.js's pad repeat), in
+/// seconds at Settings → Controls → Scroll speed's Normal.
+const FIRST_REPEAT: f32 = 0.32;
+fn repeat_gap(held_for: f32, pace: f32) -> f32 {
+    (if held_for > 1.4 * pace { 0.045 } else if held_for > 0.7 * pace { 0.075 } else { 0.11 }) * pace
+}
 
 pub fn navigate(
     keys: Res<ButtonInput<KeyCode>>,
@@ -283,7 +289,7 @@ pub fn navigate(
     mut settings: ResMut<crate::settings::Settings>,
     mut exit: MessageWriter<AppExit>,
     mut held: Local<padwatch::Held>,
-    mut sounds: ResMut<crate::sound::Sounds>,
+    (mut sounds, mut rumble): (ResMut<crate::sound::Sounds>, ResMut<crate::rumble::Rumble>),
     mut surprise: ResMut<Surprise>,
     mut slide: ResMut<crate::boot::Slide>,
     covers: Res<crate::shelf::Covers>,
@@ -343,17 +349,13 @@ pub fn navigate(
     let tap = (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32
         - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32;
     let now = time.elapsed_secs();
+    let pace = settings.scroll_pace();
     let mut step = 0;
-    if tap != 0 {
-        repeat.dir = tap;
-        repeat.next = now + FIRST_REPEAT;
-        step = tap;
-    } else if held_x != repeat.dir {
-        repeat.dir = held_x;
-        repeat.next = now + FIRST_REPEAT;
-        step = held_x;
+    if tap != 0 || held_x != repeat.dir {
+        step = if tap != 0 { tap } else { held_x };
+        (repeat.dir, repeat.since, repeat.next) = (step, now, now + FIRST_REPEAT * pace);
     } else if held_x != 0 && now >= repeat.next {
-        repeat.next = now + REPEAT;
+        repeat.next = now + repeat_gap(now - repeat.since, pace);
         step = held_x;
     }
     // a game asked for is the one under the cursor now: nothing moves it first
@@ -368,6 +370,7 @@ pub fn navigate(
         cursor.shelf = (cursor.shelf as i32 + shelf_step).rem_euclid(n_shelves as i32) as usize;
         cursor.land = true;
         sounds.play("shelf", shelf_step);
+        rumble.pulse(0.0, 0.25, 60);
         return;
     }
 
@@ -426,6 +429,7 @@ pub fn navigate(
     if let Some(g) = shelf.games.get(cursor.game).filter(|g| tile(g).is_none() && (keys.just_pressed(KeyCode::KeyH) || y_held)) {
         let on = settings.toggle_favorite(&g.id);
         sounds.play(if on { "toast" } else { "back" }, 1);
+        rumble.pulse(0.0, 0.3, 70);
         toast.text = if on { format!("♥ {} added to favorites", g.title) } else { format!("Removed {} from favorites", g.title) };
         toast.until = now + 3.0;
     }
@@ -477,11 +481,14 @@ pub fn navigate(
             let chance = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos() as usize);
             surprise.pick = Some((shelf.id.clone(), pool[chance % pool.len()]));
             sounds.play("flip", 1);
+            rumble.pulse(0.9, 0.6, 320);
+            rumble.later(0.38, 0.3, 0.6, 180);
         }
         return;
     }
     let Some(g) = shelf.games.get(cursor.game).filter(|_| go) else { return };
     sounds.play("go", 1);
+    rumble.pulse(0.6, 0.3, 140);
     // a game on Home, All or a collection starts as it does on its own shelf
     let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
     match (&own.kind, &g.source) {

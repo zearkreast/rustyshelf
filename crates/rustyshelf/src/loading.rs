@@ -209,7 +209,10 @@ pub fn poll_library(
                     }
                 });
                 refresh.0 = Some(Mutex::new(rx));
-                lib.0 = LibraryState::Ready(shown(&l, &plays.0));
+                let shelves = shown(&l, &plays.0);
+                let open_into = l.config.raw().get("ui").and_then(|u| u.get("openInto")).and_then(|v| v.as_str()).unwrap_or("last").to_string();
+                crate::place::open_into(&open_into, &rustyshelf_core::paths::data_dir(&l.app_root), &shelves, &mut cursor);
+                lib.0 = LibraryState::Ready(shelves);
                 base.0 = Some(l);
             }
             Ok(Err(e)) => lib.0 = LibraryState::Failed(e.to_string()),

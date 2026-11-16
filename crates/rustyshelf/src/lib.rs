@@ -22,10 +22,12 @@ mod loading;
 mod music;
 mod osk;
 mod padwatch;
+mod place;
 mod phone;
 mod play;
 mod reader;
 mod romm;
+mod rumble;
 mod settings;
 mod shelf;
 mod sound;
@@ -130,10 +132,11 @@ pub fn run() {
         .init_resource::<deck::DeckHint>()
         .init_resource::<whatsnew::WhatsNew>()
         .init_resource::<tour::Tour>()
+        .init_resource::<rumble::Rumble>()
         .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup, deck::log_start).chain())
         .init_resource::<background::Background>()
-        .add_systems(Update, (appicon::set, background::run))
+        .add_systems(Update, (appicon::set, background::run, rumble::send, place::keep, settings::apply_scale))
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_plugins(android_input)
         .add_systems(PreUpdate, touch::run.after(bevy::input::InputSystems))

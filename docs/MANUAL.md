@@ -124,6 +124,11 @@ complete yet.
   other stores, the PC games folder, box art downloads and their region, the art library, fullscreen, the quit combo,
   searching again and restoring the emulators' own settings. Everything is saved to `data\config.json` by the rules
   the Electron app's settings go through, so both apps keep reading the same file.
+- Follows Look's Interface size (everything bigger for a TV across the room, and scaled up on its own in a window
+  taller than 1080), Open into (the shelf and game you were on last time, kept in `data\native-place.json`, or Home)
+  and Reduce motion (the moving themes stand still; Follow takes it from Windows' or GNOME's animation switch), and
+  Controls' Scroll speed (how quickly a held direction repeats) and Controller rumble (short pulses as a game starts,
+  the Surprise me case lands, a game is made a favourite or hidden, the shelf changes, and a controller connects).
 - Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and
   emulator options (Settings → the console → Emulator & advanced, which also opens the emulator on its own, holds the
   GameCube startup and Kyty's launcher switch, and the console's own art folder), and the RetroArch core a console

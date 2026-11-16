@@ -216,6 +216,8 @@ enum Pick {
 #[derive(Resource)]
 pub struct Settings {
     pub open: bool,
+    /// controller pulses asked for from Settings' own pages, for `rumble::send`
+    pub pulses: Vec<(f32, f32, u64)>,
     /// the Kid mode PIN was given since Settings opened
     kid_open: bool,
     /// Settings' tab (TABS)
@@ -352,7 +354,7 @@ impl Default for Settings {
         let cfg = Config::load(&paths::data_dir(&app_root)).unwrap_or_default();
         let wizard = !cfg.setup_done();
         let other = if wizard { other_setup(&app_root) } else { None };
-        Settings {
+        let s = Settings {
             open: wizard,
             just_closed: false,
             wizard,
@@ -418,6 +420,7 @@ impl Default for Settings {
             go_to: None,
             toast: rustyshelf_core::keepsetup::take_note(),
             other_setup: other,
+            pulses: Vec::new(),
             bringing: None,
             discord_changed: true,
             sound_changed: true,
@@ -426,7 +429,9 @@ impl Default for Settings {
             reload_music: false,
             romm: Default::default(),
             epic: Default::default(),
-        }
+        };
+        SCALE.store(s.ui_scale().to_bits(), std::sync::atomic::Ordering::Relaxed);
+        s
     }
 }
 
@@ -624,6 +629,36 @@ impl Settings {
         self.text(&["ui", "artRegion"])
     }
 
+    /// Whether the controller gives its short pulses (Settings → Controls → Controller rumble).
+    pub fn rumbles(&self) -> bool {
+        self.flag(&["ui", "rumble"], true)
+    }
+
+    /// How slowly a held direction repeats on the shelf (Settings → Controls → Scroll speed): its pauses are this many
+    /// times the normal ones.
+    pub fn scroll_pace(&self) -> f32 {
+        match self.text(&["ui", "scrollSpeed"]).as_str() {
+            "relaxed" => 1.4,
+            "fast" => 0.7,
+            _ => 1.0,
+        }
+    }
+
+    /// Settings → Look → Reduce motion: On, or Follow the system while the system's animations are off.
+    pub fn reduce_motion(&self) -> bool {
+        match at(&self.cfg, &["ui", "reduceMotion"]) {
+            Some(Value::Bool(on)) => *on,
+            Some(Value::String(s)) if s == "system" => system_reduces_motion(),
+            _ => false,
+        }
+    }
+
+    /// Settings → Look → Interface size: 1, 1.15 or 1.3.
+    pub fn ui_scale(&self) -> f32 {
+        let n = at(&self.cfg, &["ui", "uiScale"]).and_then(Value::as_f64).unwrap_or(1.0);
+        if [1.15, 1.3].contains(&n) { n as f32 } else { 1.0 }
+    }
+
     /// A moving theme keeps moving while the shelf slides (Settings → Look); off, it pauses until the shelf stops.
     pub fn theme_keeps_moving(&self) -> bool {
         self.flag(&["ui", "themeKeepMoving"], cfg!(windows))
@@ -668,6 +703,9 @@ impl Settings {
         } else if matches!(path, ["ui", "music" | "musicLevel" | "theme" | "clock" | "clock24"]) || path[0] == "ra" {
             self.redraw = true;
             // the music and the shelf read these as they go
+        } else if matches!(path, ["ui", "uiScale"]) {
+            SCALE.store(self.ui_scale().to_bits(), std::sync::atomic::Ordering::Relaxed);
+            self.redraw = true;
         } else if matches!(path, ["ui", "builtInSongs"]) {
             self.sound_changed = true;
         } else if let ["ui", key @ ("sound" | "volume" | "soundTheme" | "soundByShelf" | "bootSound" | "bootVolume")] = path {
@@ -735,6 +773,17 @@ impl Settings {
     }
 
     /// A row that switches a setting on and off.
+    /// One of a list of saved values, by its name: Enter and right go on to the next, left back.
+    fn choose(&self, label: &str, path: &'static [&'static str], list: Vec<(Value, &'static str)>, default: Value, hint: &str) -> Row {
+        let now = at(&self.cfg, path).cloned().unwrap_or(default.clone());
+        let i = list.iter().position(|x| x.0 == now).or_else(|| list.iter().position(|x| x.0 == default)).unwrap_or(0);
+        let value = list[i].1.to_string();
+        let values: Vec<Value> = list.into_iter().map(|x| x.0).collect();
+        let turn = move |s: &mut Settings, d: i32| s.set(path, values[(i as i32 + d).rem_euclid(values.len() as i32) as usize].clone());
+        let again = turn.clone();
+        Row { label: label.to_string(), value, hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+    }
+
     fn switch(&self, label: &str, path: &[&str], default: bool, hint: &str) -> Row {
         let (a, b): (Vec<String>, Vec<String>) = (path.iter().map(|p| p.to_string()).collect(), path.iter().map(|p| p.to_string()).collect());
         let flip = move |s: &mut Settings, p: &[String]| s.toggle(&p.iter().map(String::as_str).collect::<Vec<_>>(), default);
@@ -1778,6 +1827,27 @@ impl Settings {
                         "What shows in the top corner of the shelf.",
                     ),
                     toggle("24-hour clock", &["ui", "clock24"], false, "Shows 18:30 instead of 6:30 PM."),
+                    self.choose(
+                        "Interface size",
+                        &["ui", "uiScale"],
+                        vec![(json!(1), "Standard"), (json!(1.15), "Large"), (json!(1.3), "Extra large")],
+                        json!(1),
+                        "Bigger text and buttons for a TV across the room. Large suits most 55\" and bigger TVs at 2–3 m; Extra large very far seating.",
+                    ),
+                    self.choose(
+                        "Open into",
+                        &["ui", "openInto"],
+                        vec![(json!("last"), "Last shelf"), (json!("home"), "Home shelf")],
+                        json!("last"),
+                        "Where RustyShelf goes when it starts: the console shelf you were on last time, or Home (continue playing and favourites).",
+                    ),
+                    self.choose(
+                        "Reduce motion",
+                        &["ui", "reduceMotion"],
+                        vec![(json!(false), "Off"), (json!("system"), if cfg!(windows) { "Follow Windows" } else { "Follow the system" }), (json!(true), "On")],
+                        json!(false),
+                        "On keeps the moving theme backgrounds still (the shelf still slides). Follow takes it from the system's own animation switch.",
+                    ),
                     toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
                     toggle("All games shelf", &["ui", "allShelf"], false, "A shelf with your complete collection in alphabetical order."),
                     toggle("Attract mode", &["ui", "attract"], true, "After a few idle minutes the shelf drifts through your boxes on its own, with the HUD faded, like a store display."),
@@ -2000,6 +2070,14 @@ impl Settings {
                     lead: String::new(),
                     rows: vec![
                         toggle("Quit combo", &["ui", "quitCombo"], true, "Held on the pad, it closes the game and brings the shelf back"),
+                        self.choose(
+                            "Scroll speed",
+                            &["ui", "scrollSpeed"],
+                            vec![(json!("relaxed"), "Relaxed"), (json!("normal"), "Normal"), (json!("fast"), "Fast")],
+                            json!("normal"),
+                            "How quickly the shelf moves when you hold the stick or d-pad.",
+                        ),
+                        toggle("Controller rumble", &["ui", "rumble"], true, "Short pulses as you play: launching a game, the shuffle landing, favouriting or hiding a game, changing shelf."),
                         Row { label: "Buttons".into(), value: COMBOS[at].1.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)), ..Row::default() },
                         {
                             const STYLES: [(&str, &str); 4] = [("auto", "Match my controller"), ("xbox", "Xbox (A B X Y)"), ("ps", "PlayStation (shapes)"), ("nintendo", "Nintendo (B A Y X)")];
@@ -2157,6 +2235,7 @@ impl Settings {
                         hint: "It can be shown again in Settings → Hidden games".into(),
                         press: Some(Box::new(move |s: &mut Settings| {
                             s.flip("hidden", &id3);
+                            s.pulses.push((0.0, 0.25, 60));
                             s.open = false;
                         })),
                         ..Row::default()
@@ -2739,9 +2818,51 @@ fn start_emulator(s: &mut Settings, playing: &mut crate::play::Playing, now: f32
     Some(opened.map(|()| emuname::label(&emulator)).map_err(|e| e.to_string()))
 }
 
-/// A length on Settings' 1920 × 1080 design canvas, scaled to the window.
+/// Settings → Look → Interface size, as `dp` reads it (an f32's bits).
+static SCALE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0x3f80_0000);
+
+/// A length on Settings' 1920 × 1080 design canvas, scaled to the window and the interface size.
 fn dp(px: f32) -> Val {
-    Val::Vh(px / 10.8)
+    Val::Vh(px / 10.8 * f32::from_bits(SCALE.load(std::sync::atomic::Ordering::Relaxed)))
+}
+
+/// Interface size: the pixel-sized parts of every screen through Bevy's `UiScale`, Settings' own through `dp`. The
+/// screens are laid out for a 1080-tall window: a taller one scales them up with it, up to 2× (main.js applyScale).
+pub fn apply_scale(settings: Res<Settings>, windows: Query<&Window, With<bevy::window::PrimaryWindow>>, mut ui: ResMut<UiScale>) {
+    let user = settings.ui_scale();
+    let auto = windows.single().map_or(1.0, |w| ((w.height() / 1080.0 * 100.0).round() / 100.0).clamp(1.0, 2.0));
+    if ui.0 != user * auto {
+        ui.0 = user * auto;
+    }
+    SCALE.store(user.to_bits(), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether the system's own animations are off: Windows' "Animation effects", GNOME's "Animations".
+fn system_reduces_motion() -> bool {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *OFF.get_or_init(|| {
+        #[cfg(windows)]
+        {
+            #[link(name = "user32")]
+            extern "system" {
+                fn SystemParametersInfoW(action: u32, param: u32, out: *mut std::ffi::c_void, ini: u32) -> i32;
+            }
+            const SPI_GETCLIENTAREAANIMATION: u32 = 0x1042;
+            let mut on: i32 = 1;
+            // SAFETY: the action writes one BOOL to `on`
+            let ok = unsafe { SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, (&raw mut on).cast(), 0) };
+            ok != 0 && on == 0
+        }
+        #[cfg(all(unix, not(target_os = "android")))]
+        {
+            std::process::Command::new("gsettings")
+                .args(["get", "org.gnome.desktop.interface", "enable-animations"])
+                .output()
+                .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim() == "false")
+        }
+        #[cfg(not(any(windows, all(unix, not(target_os = "android")))))]
+        false
+    })
 }
 
 /// The sidebar's group of a tab, and whether the tab starts it.
@@ -2966,7 +3087,7 @@ pub fn draw(
     if !s.open {
         return;
     }
-    let font = |weight: u32, size: f32| mona.sized(weight, FontSize::Vh(size / 10.8), &face.0);
+    let font = |weight: u32, size: f32| mona.sized(weight, FontSize::Vh(size / 10.8 * f32::from_bits(SCALE.load(std::sync::atomic::Ordering::Relaxed))), &face.0);
     let wide = |weight: u32, size: f32| TextFont { width: FontWidth::EXPANDED, ..font(weight, size) };
     if let Some(e) = &s.editing {
         e.draw(&mut commands, &font, [s.cap("☰"), s.cap("o"), s.cap("sq"), s.cap("tri")]);
