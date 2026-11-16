@@ -50,6 +50,7 @@ pub mod looks;
 pub mod manualcoll;
 pub mod manuals;
 pub mod manualstudio;
+pub mod moreshots;
 pub mod music;
 pub mod n3ds;
 pub mod net;

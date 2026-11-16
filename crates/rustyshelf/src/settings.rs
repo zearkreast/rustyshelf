@@ -292,6 +292,10 @@ pub struct Settings {
     ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
     /// IGDB's info for the chosen game, asked when Details opened with gaps in it: the game's id and its info filled
     igdb_answer: Option<Mutex<Receiver<(String, rustyshelf_core::info::Info)>>>,
+    /// more screenshots: the games asked for this run, the answer on its way, and what came
+    shots_asked: std::collections::HashSet<String>,
+    shots_answer: Option<Mutex<Receiver<(String, Vec<String>)>>>,
+    more_shots: std::collections::HashMap<String, Vec<String>>,
     /// the achievements last asked for: the game's id, and what came back
     achievements: Option<(String, Result<Option<Value>, String>)>,
     /// the achievements' order: 0 the set's (story first), 1 rarity, 2 points
@@ -395,6 +399,9 @@ impl Default for Settings {
             ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
             ra_answer: None,
             igdb_answer: None,
+            shots_asked: std::collections::HashSet::new(),
+            shots_answer: None,
+            more_shots: std::collections::HashMap::new(),
             achievements: None,
             ach_sort: 0,
             seal_key: rustyshelf_core::seal::key(&paths::env_var),
@@ -675,6 +682,7 @@ impl Settings {
         if screen == Screen::Details {
             self.load_achievements(false);
             self.load_igdb();
+            self.load_more_shots();
         }
         self.stack.push((screen, 0));
         self.cues.push(("open", 1));
@@ -2473,6 +2481,10 @@ pub fn input(
                 let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
                 let emulator = emulator_of(own);
                 s.chosen = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| Chosen { console: own.id.clone(), emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
+                let more = s.chosen.as_ref().and_then(|c| s.more_shots.get(&c.game.id).filter(|m| m.len() > c.game.info.as_ref().map_or(0, |i| i.shots.len())).cloned());
+                if let (Some(more), Some(c)) = (more, s.chosen.as_mut()) {
+                    c.game.info.get_or_insert_with(Default::default).shots = more;
+                }
             }
         }
         if let Some(b) = &base.0 {
@@ -2487,6 +2499,7 @@ pub fn input(
         if first == Screen::Details {
             s.load_achievements(false);
             s.load_igdb();
+            s.load_more_shots();
         }
         if first == Screen::Find {
             if let Some(b) = &base.0 {
@@ -2540,6 +2553,7 @@ pub fn input(
     s.poll_ra();
     s.poll_bringing();
     s.poll_igdb();
+    s.poll_more_shots();
     s.poll_romm();
     s.poll_epic();
     s.poll_moves();

@@ -334,6 +334,7 @@ impl Library {
         let mut infos = crate::info::InfoCache::load(&data_dir.join("boxart-cache"));
         // what IGDB gave, kept from Details' lookups, fills the gaps LaunchBox leaves (nothing is asked here)
         let igdb = crate::igdb::Store::load(&data_dir);
+        let more = crate::moreshots::Index::load(&data_dir);
         for shelf in shelves.iter_mut() {
             for g in shelf.games.iter_mut() {
                 let name = config.game(&g.id).and_then(|o| o.get("artName")).and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or(&g.title);
@@ -342,6 +343,14 @@ impl Library {
                     let mut info = g.info.take().unwrap_or_default();
                     crate::igdb::fill(&mut info, x);
                     g.info = Some(info);
+                }
+                // the screenshots added to LaunchBox's (Details' more screenshots)
+                if g.source == Source::Rom && !g.file.as_os_str().is_empty() {
+                    let base = g.info.as_ref().map(|i| i.shots.clone()).unwrap_or_default();
+                    let all = more.list(&shelf.id, &g.file, &g.title, &base);
+                    if all.len() > base.len() {
+                        g.info.get_or_insert_with(Default::default).shots = all;
+                    }
                 }
                 if let Some(t) = config.game_title(&g.id) {
                     g.title = t.to_string();

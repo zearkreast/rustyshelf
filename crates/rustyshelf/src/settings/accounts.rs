@@ -320,6 +320,43 @@ impl Settings {
         (!exe.is_empty()).then(|| rustyshelf_core::launch::emu_path(&exe, &self.app_root))
     }
 
+    /// More screenshots for the chosen console game when it has fewer than 6: asked once a run, off the frame
+    /// (ScreenScraper with the account, libretro's thumbnails, IGDB with keys).
+    pub(super) fn load_more_shots(&mut self) {
+        let Some(c) = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom && !c.game.file.as_os_str().is_empty()) else { return };
+        let base: Vec<String> = c.game.info.as_ref().map(|i| i.shots.clone()).unwrap_or_default();
+        if base.len() >= 6 || at(&self.cfg, &["ui", "moreShots"]) == Some(&json!(false)) || !self.shots_asked.insert(c.game.id.clone()) {
+            return;
+        }
+        let (sys, file, title, region, id) = (c.console.clone(), c.game.file.clone(), c.game.title.clone(), c.game.region.clone(), c.game.id.clone());
+        let (data, art_region) = (paths::data_dir(&self.app_root), self.text(&["ui", "artRegion"]));
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.shots_answer = Some(Mutex::new(rx));
+        std::thread::spawn(move || {
+            use rustyshelf_core::moreshots::{self, Source};
+            let (ss, ig) = (ScreenScraper::from_settings(&data), rustyshelf_core::igdb::Igdb::from_settings(&data));
+            let cache = data.join("boxart-cache");
+            let lr = moreshots::Libretro { cache_dir: &cache, region: &art_region };
+            let (ss, ig) = (ss.as_ref().map(moreshots::Ss), ig.as_ref().map(|client| moreshots::Igdb { client, data_dir: &data }));
+            let sources: Vec<&dyn Source> = [ss.as_ref().map(|s| s as &dyn Source), Some(&lr as &dyn Source), ig.as_ref().map(|s| s as &dyn Source)].into_iter().flatten().collect();
+            let mut index = moreshots::Index::load(&data);
+            let lb = |u: &str| u.starts_with("https://images.launchbox-app.com/").then(|| rustyshelf_core::net::get(u, std::time::Duration::from_secs(30), 32 << 20, "RustyShelf").ok()).flatten().filter(|r| r.0 == 200).map(|r| r.1);
+            moreshots::top_up(&mut index, &sys, &moreshots::Game { file: &file, title: &title, region: &region }, &base, &sources, &lb);
+            let _ = tx.send((id, index.list(&sys, &file, &title, &base)));
+        });
+    }
+
+    /// The chosen game's screenshots, since the last frame; kept for when its Details opens again.
+    pub(super) fn poll_more_shots(&mut self) {
+        let Some((id, shots)) = self.shots_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        self.shots_answer = None;
+        if let Some(c) = self.chosen.as_mut().filter(|c| c.game.id == id && c.game.info.as_ref().map_or(0, |i| i.shots.len()) < shots.len()) {
+            c.game.info.get_or_insert_with(Default::default).shots = shots.clone();
+            self.redraw = true;
+        }
+        self.more_shots.insert(id, shots);
+    }
+
     /// Asks IGDB for what the chosen console game's info is missing, when there are keys and it's due; what's kept
     /// from before fills the gaps without asking.
     pub(super) fn load_igdb(&mut self) {

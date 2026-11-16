@@ -7,6 +7,7 @@
 //! too: they're kept without (`clean`) and signed again for the download. No address, body or raw error is ever
 //! given back in words. What's found is kept in the data folder's `ss-cache.json`, the Electron app's own file.
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -77,6 +78,11 @@ pub fn system_id(shelf: &str) -> Option<u32> {
 
 /// The media types a part of the box is made from. "box-texture" is the whole wrap (back, spine, front): the
 /// spine is cut from it.
+/// Details' screenshots: the in-game screenshot and the title screen, and what kind each is.
+const SHOT_MEDIA: [(&str, &str); 2] = [("ss", "play"), ("sstitle", "title")];
+/// Details' trailer: the gameplay capture, its "normalized" copy first.
+const VIDEO_MEDIA: [&str; 2] = ["video-normalized", "video"];
+
 fn part_media(part: &str) -> &'static [&'static str] {
     match part {
         "front" => &["box-2D"],
@@ -648,12 +654,18 @@ impl ScreenScraper {
     /// a GameCube or Wii disc's id), then by title through the site's search, taken only on an exact or near
     /// match. `cache_only`: nothing is asked.
     pub fn lookup(&self, shelf: &str, game: &Rom, cache_only: bool) -> Result<Option<Found>, Trouble> {
+        self.lookup_with(shelf, game, cache_only, false)
+    }
+
+    /// `lookup`; with `shots`, a match kept from before screenshots were kept (no 4th field) is asked again.
+    pub fn lookup_with(&self, shelf: &str, game: &Rom, cache_only: bool, shots: bool) -> Result<Option<Found>, Trouble> {
         let Some(sys) = system_id(shelf).filter(|_| !game.file.is_empty()) else { return Ok(None) };
         let meta = fs::metadata(game.file).ok();
         let size = meta.as_ref().filter(|m| m.is_file()).map_or(game.size_bytes, fs::Metadata::len);
         let ck = format!("{shelf}|{}|{size}", game.file.to_lowercase());
         let now = now_ms();
-        let hit = self.cache(|c| c.games.get(&ck).filter(|h| now - js::number(h.get(1)) < if js::truthy(h.get(0)) { HIT_TTL } else { MISS_TTL }).cloned());
+        let stale = |h: &Value| shots && js::truthy(h.get(0)) && !js::truthy(h.get(3)) && !cache_only;
+        let hit = self.cache(|c| c.games.get(&ck).filter(|h| now - js::number(h.get(1)) < if js::truthy(h.get(0)) { HIT_TTL } else { MISS_TTL } && !stale(h)).cloned());
         if let Some(hit) = hit {
             return Ok(js::truthy(hit.get(0)).then(|| Found { id: hit[0].clone(), media: hit.get(2).and_then(Value::as_array).map_or(Vec::new(), |l| l.iter().filter_map(Media::from_json).collect()) }));
         }
@@ -691,7 +703,8 @@ impl ScreenScraper {
             Found { id: if n.is_nan() || n == 0.0 { json!(js::string(jeu.get("id"))) } else { js::num(n) }, media: media_of(&jeu) }
         });
         let kept = match &out {
-            Some(f) => json!([f.id, now_ms(), f.media.iter().map(Media::to_json).collect::<Vec<_>>()]),
+            // 2: screenshots and videos kept too
+            Some(f) => json!([f.id, now_ms(), f.media.iter().map(Media::to_json).collect::<Vec<_>>(), 2]),
             None => json!([0, now_ms()]),
         };
         self.cache(|c| c.games.insert(ck, kept));
@@ -743,6 +756,24 @@ impl ScreenScraper {
             });
         }
         out
+    }
+
+    /// Details' screenshots: one of each kind (the in-game screenshot, the title screen), the best region first, with
+    /// what kind it is ("play", "title"). No account, or one that isn't accepted: none. Busy (a quota, a pause,
+    /// offline): an Err, to be asked again another time.
+    pub fn shots(&self, shelf: &str, game: &Rom) -> Result<Vec<(String, &'static str)>, String> {
+        const REGIONS: [&str; 5] = ["us", "wor", "eu", "ss", "jp"];
+        if !self.configured() || system_id(shelf).is_none() {
+            return Ok(Vec::new());
+        }
+        let hit = match self.lookup_with(shelf, game, false, true) {
+            Ok(Some(hit)) => hit,
+            Ok(None) => return Ok(Vec::new()),
+            Err(t) if matches!(t.code, "nocreds" | "auth") => return Ok(Vec::new()),
+            Err(t) => return Err(t.words),
+        };
+        let rank = |m: &&Media| REGIONS.iter().position(|r| *r == m.region).unwrap_or(REGIONS.len());
+        Ok(SHOT_MEDIA.iter().filter_map(|(kind, what)| hit.media.iter().filter(|m| m.kind == *kind).min_by_key(rank).map(|m| (m.url.clone(), *what))).collect())
     }
 
     /// Fetches a media file (a clean address from `candidates`) to `dest`. An error is the network's, in words.
@@ -809,12 +840,31 @@ type Answer = (Value, Option<Option<i64>>);
 
 /// The pictures an answer lists that a box is made from, at ScreenScraper's own addresses.
 fn media_of(jeu: &Value) -> Vec<Media> {
-    let mut out = Vec::new();
+    let (mut out, mut vids, mut shot_n) = (Vec::new(), Vec::<Media>::new(), HashMap::<String, usize>::new());
     for m in jeu.get("medias").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
         let kind = js::string(m.get("type"));
-        let wanted = ["front", "back", "spine", "disc"].iter().any(|p| part_media(p).contains(&kind.as_str()));
-        if !js::truthy(Some(m)) || !wanted || (js::truthy(m.get("parent")) && m.get("parent") != Some(&json!("jeu"))) {
+        if !js::truthy(Some(m)) || (js::truthy(m.get("parent")) && m.get("parent") != Some(&json!("jeu"))) {
             continue;
+        }
+        // one of each video type, kept apart so the 80 pictures never crowd it out
+        if VIDEO_MEDIA.contains(&kind.as_str()) {
+            if let Some(url) = vids.iter().all(|v| v.kind != kind).then(|| clean(&js::string(m.get("url")))).flatten() {
+                vids.push(Media { kind, region: String::new(), url, ext: ".mp4".into() });
+            }
+            continue;
+        }
+        let shot = SHOT_MEDIA.iter().any(|s| s.0 == kind);
+        let wanted = shot || ["front", "back", "spine", "disc"].iter().any(|p| part_media(p).contains(&kind.as_str()));
+        if !wanted || out.len() >= 80 {
+            continue;
+        }
+        // a few regions of each screenshot: never crowding out the box art
+        if shot {
+            let n = shot_n.entry(kind.clone()).or_default();
+            *n += 1;
+            if *n > 4 {
+                continue;
+            }
         }
         let Some(url) = m.get("url").filter(|u| js::truthy(Some(u))).and_then(|u| clean(&js::string(Some(u)))) else { continue };
         let text = |k: &str| if js::truthy(m.get(k)) { js::string(m.get(k)).to_lowercase() } else { String::new() };
@@ -824,9 +874,7 @@ fn media_of(jeu: &Value) -> Vec<Media> {
             _ => ".png",
         };
         out.push(Media { kind, region: js::slice(&text("region"), 8).to_string(), url, ext: ext.into() });
-        if out.len() >= 80 {
-            break;
-        }
     }
+    out.extend(vids);
     out
 }
