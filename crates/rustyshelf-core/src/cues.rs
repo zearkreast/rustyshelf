@@ -84,7 +84,9 @@ pub fn theme(name: &str) -> &'static Theme {
     let id = match name {
         "glass" | "wood" => "aero",
         "pulse" | "arcade" => "musicbox",
-        "xylo" | "jazz" => "melody",
+        // the Instrument, folded into Melody
+        "xylo" | "jazz" | "instrument" => "melody",
+        other if other.starts_with("instrument:") => "melody",
         other => other,
     };
     THEMES.iter().find(|t| t.id == id).unwrap_or(&THEMES[0])
