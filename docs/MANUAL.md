@@ -790,7 +790,10 @@ D-pad sent as a hat), Android's Back is Esc, and a finger works as in the Androi
 a tap on the chosen case to play, a swipe in from a side edge (or, off the shelf, a quick swipe left) for Back, a drag
 up or down through Settings. Settings shows the consoles the Android app has; a console's Games folders → Add a folder
 opens Android's folder picker, and the folder is read as the Android app reads it (`data/folders.json` keeps what was
-picked). Starting emulators, box art and the Thor's bottom screen aren't in it yet. Hiding the taskbar
+picked). Play starts the game in the console's emulator app as the Android app does (its table of apps and how
+each takes a game, `node scripts/export-android-emulators.js` writes it for the Rust app): the one set for the console,
+else the first of its usual ones that's installed, and the launch is counted. Choosing the emulator app in Settings,
+the time played, box art and the Thor's bottom screen aren't in it yet. Hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash

@@ -1,7 +1,13 @@
 package io.github.rustyshelf.native_;
 
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,6 +30,7 @@ import org.json.JSONObject;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -31,7 +38,8 @@ import java.util.Set;
 /**
  * The shelf: Bevy draws it from librustyshelf.so; this keeps it full screen with the screen on, hands a controller's
  * buttons and sticks to the app itself (src/android_pad.rs), and picks and lists games folders through the Storage
- * Access Framework for it (src/android_saf.rs), as RustyShelfNativePlugin does for the Android app.
+ * Access Framework and starts emulator apps for it (src/android_saf.rs), as RustyShelfNativePlugin does for the
+ * Android app.
  */
 public class MainActivity extends GameActivity {
     static {
@@ -173,6 +181,82 @@ public class MainActivity extends GameActivity {
             return out.toString();
         } catch (Exception e) {
             return "!" + e.getMessage();
+        }
+    }
+
+    // ---------- emulator apps ----------
+
+    /** Every app with a launcher icon, as JSON: [{ pkg, label }]. */
+    public String apps() {
+        PackageManager pm = getPackageManager();
+        List<ResolveInfo> list = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0);
+        Set<String> seen = new HashSet<>();
+        JSONArray a = new JSONArray();
+        try {
+            for (ResolveInfo ri : list) {
+                String pkg = ri.activityInfo.packageName;
+                if (!seen.add(pkg)) continue;
+                JSONObject o = new JSONObject();
+                o.put("pkg", pkg);
+                o.put("label", String.valueOf(ri.loadLabel(pm)));
+                a.put(o);
+            }
+        } catch (Exception ignored) { }
+        return a.toString();
+    }
+
+    /** An app's exported activities, as JSON, to find its game-start screen. */
+    public String activities(String pkg) {
+        JSONArray a = new JSONArray();
+        try {
+            PackageInfo pi = getPackageManager().getPackageInfo(pkg, PackageManager.GET_ACTIVITIES);
+            if (pi.activities != null) for (ActivityInfo ai : pi.activities) if (ai.exported) a.put(ai.name);
+        } catch (PackageManager.NameNotFoundException ignored) { }
+        return a.toString();
+    }
+
+    /** Starts an app as rustyshelf_core::android::Request (JSON) says: "" when it started, else why not. */
+    public String launch(String json) {
+        try {
+            JSONObject r = new JSONObject(json);
+            String pkg = r.getString("pkg"), activity = r.optString("activity"), action = r.optString("action"), category = r.optString("category"), data = r.optString("data");
+            Intent i;
+            if (!activity.isEmpty()) { i = new Intent(); i.setClassName(pkg, activity); }
+            else { i = getPackageManager().getLaunchIntentForPackage(pkg); if (i == null) return "That app can't be opened"; }
+            if (!action.isEmpty()) i.setAction(action);
+            if (!category.isEmpty()) i.addCategory(category);
+            if (!data.isEmpty()) i.setData(Uri.parse(data));
+            JSONObject extras = r.optJSONObject("extras");
+            if (extras != null) for (Iterator<String> it = extras.keys(); it.hasNext(); ) {
+                String k = it.next();
+                Object v = extras.get(k);
+                if (v instanceof Boolean) i.putExtra(k, (Boolean) v);
+                else if (v instanceof Integer) i.putExtra(k, (Integer) v);
+                else if (v instanceof JSONArray) { JSONArray ja = (JSONArray) v; String[] s = new String[ja.length()]; for (int n = 0; n < s.length; n++) s[n] = ja.getString(n); i.putExtra(k, s); }
+                else i.putExtra(k, String.valueOf(v));
+            }
+            // read access for every content:// the emulator is handed, through ClipData so the intent's own data stays as it expects
+            JSONArray grants = r.optJSONArray("grant");
+            ClipData clip = null;
+            if (grants != null) for (int n = 0; n < grants.length(); n++) {
+                Uri u = Uri.parse(grants.getString(n));
+                if (clip == null) clip = ClipData.newRawUri("game", u); else clip.addItem(new ClipData.Item(u));
+            }
+            if (clip != null) { i.setClipData(clip); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); }
+            JSONArray flags = r.optJSONArray("flags");
+            if (flags != null) for (int n = 0; n < flags.length(); n++) {
+                String f = flags.optString(n);
+                if ("clearTask".equals(f)) i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                if ("clearTop".equals(f)) i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            }
+            startActivity(i);
+            return "";
+        } catch (ActivityNotFoundException e) {
+            return "The emulator didn't accept the game";
+        } catch (SecurityException e) {
+            return "Android blocked opening the emulator: " + e.getMessage();
+        } catch (Exception e) {
+            return "Bad launch settings: " + e.getMessage();
         }
     }
 

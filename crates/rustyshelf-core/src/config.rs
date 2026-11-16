@@ -25,7 +25,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SystemConfig {
     pub enabled: bool,
     /// the emulator program; may hold `%VAR%` and `{app}`

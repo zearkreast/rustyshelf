@@ -62,3 +62,60 @@ pub fn pick_folder() -> Option<String> {
         }
     }
 }
+
+// ---------- starting emulator apps ----------
+
+fn call_string(method: &str, sig: &str, args: &[&str]) -> Result<String, String> {
+    with_activity(|env, act| {
+        let strings: Vec<JObject> = args.iter().map(|a| env.new_string(a).map(JObject::from)).collect::<Result<_, _>>()?;
+        let vals: Vec<JValue> = strings.iter().map(JValue::Object).collect();
+        let r = env.call_method(act, method, sig, &vals)?.l()?;
+        string(env, r)
+    })
+    .map(Option::unwrap_or_default)
+}
+
+fn json_list(json: &str) -> Vec<serde_json::Value> {
+    serde_json::from_str::<serde_json::Value>(json).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default()
+}
+
+/// Every app's package.
+fn installed() -> Vec<String> {
+    json_list(&call_string("apps", "()Ljava/lang/String;", &[]).unwrap_or_default()).iter().filter_map(|a| a["pkg"].as_str().map(String::from)).collect()
+}
+
+fn activities(pkg: &str) -> Vec<String> {
+    json_list(&call_string("activities", "(Ljava/lang/String;)Ljava/lang/String;", &[pkg]).unwrap_or_default()).iter().filter_map(|a| a.as_str().map(String::from)).collect()
+}
+
+static STARTED: std::sync::Mutex<Option<(String, std::sync::mpsc::Receiver<Result<(), String>>)>> = std::sync::Mutex::new(None);
+
+/// Starts a console's game in its emulator app, off the frame; `poll` tells how it went.
+pub fn start(console: &rustyshelf_core::systems::Console, sc: &rustyshelf_core::config::SystemConfig, game: &rustyshelf_core::scanner::Game) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let (console, sc, game) = (console.clone(), sc.clone(), game.clone());
+    let id = game.id.clone();
+    std::thread::spawn(move || {
+        let r = rustyshelf_core::android::launch_request(&console, &sc, &game, &installed(), &activities).and_then(|req| {
+            let said = call_string("launch", "(Ljava/lang/String;)Ljava/lang/String;", &[&serde_json::to_string(&req).unwrap_or_default()])?;
+            if said.is_empty() { Ok(()) } else { Err(said) }
+        });
+        let _ = tx.send(r);
+    });
+    *STARTED.lock().unwrap() = Some((id, rx));
+}
+
+/// A game started (its launch counted) or why it didn't.
+pub fn poll(mut toast: bevy::prelude::ResMut<crate::hud::Toast>, mut plays: bevy::prelude::ResMut<crate::play::Plays>, mut sounds: bevy::prelude::ResMut<crate::sound::Sounds>, time: bevy::prelude::Res<bevy::prelude::Time>) {
+    let mut started = STARTED.lock().unwrap();
+    let Some(r) = started.as_ref().and_then(|(_, rx)| rx.try_recv().ok()) else { return };
+    let (id, _) = started.take().unwrap();
+    match r {
+        Ok(()) => plays.0.touch(&id),
+        Err(why) => {
+            toast.text = why;
+            toast.until = time.elapsed_secs() + 6.0;
+            sounds.play("error", 1);
+        }
+    }
+}

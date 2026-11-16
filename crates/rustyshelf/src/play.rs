@@ -563,6 +563,14 @@ pub fn navigate(
                 toast.until = now + 6.0;
             }
         },
+        // Android: the console's emulator app, handed the game as the app wants it
+        #[cfg(target_os = "android")]
+        (ShelfKind::Console { console, config }, Source::Rom) => {
+            crate::android_saf::start(console, config, g);
+            toast.text = format!("Starting {}…", g.title);
+            toast.until = now + 3.0;
+        }
+        #[cfg(not(target_os = "android"))]
         (ShelfKind::Console { console, config }, Source::Rom) => {
             let shelf_file = g.file.to_string_lossy().into_owned();
             let build = match playing.pick.next.take() {

@@ -139,6 +139,152 @@ pub fn add_folder(data_dir: &Path, uri: &str) -> Option<String> {
 /// shared/titles.js skipFile (keep in sync)
 static SKIP_FILE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\b(update|dlc)\b|\[(upd|dlc)\]").unwrap());
 
+// ---------- emulator apps ----------
+
+/// An emulator app the Android app knows how to start (scripts/export-android-emulators.js writes the table).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct Emulator {
+    pub id: String,
+    pub name: String,
+    pub packages: Vec<String>,
+    /// a name pattern for forks and renamed builds ("" for none)
+    #[serde(rename = "match")]
+    pub pattern: String,
+    #[serde(rename = "matchCase")]
+    pub match_case: bool,
+    pub launch: Map<String, Value>,
+    /// a package's own changes to `launch`
+    pub variants: Map<String, Value>,
+    /// the PC stores it starts games from (PC apps only)
+    pub stores: Vec<String>,
+}
+
+impl Emulator {
+    fn matches(&self, pkg: &str) -> bool {
+        !self.pattern.is_empty() && regex::RegexBuilder::new(&self.pattern).case_insensitive(!self.match_case).build().is_ok_and(|r| r.is_match(pkg))
+    }
+}
+
+static EMULATORS: std::sync::LazyLock<Vec<Emulator>> =
+    std::sync::LazyLock::new(|| serde_json::from_str(include_str!("../data/android-emulators.json")).expect("android-emulators.json"));
+
+pub fn emulators() -> &'static [Emulator] {
+    &EMULATORS
+}
+
+/// The emulator a package is: by its packages first, then by name pattern.
+pub fn emu_for(pkg: &str) -> Option<&'static Emulator> {
+    EMULATORS.iter().find(|e| e.packages.iter().any(|p| p == pkg)).or_else(|| EMULATORS.iter().find(|e| e.matches(pkg)))
+}
+
+/// The package in a console's emulator setting: "Dolphin (org.dolphinemu.dolphinemu)", or a bare package name.
+pub fn pkg_of(setting: &str) -> String {
+    static IN_BRACKETS: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"\(([A-Za-z0-9_.]+)\)\s*$").unwrap());
+    static BARE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$").unwrap());
+    if let Some(c) = IN_BRACKETS.captures(setting) {
+        return c[1].to_string();
+    }
+    if BARE.is_match(setting) { setting.to_string() } else { String::new() }
+}
+
+/// The setting for a package, as the Android app writes it: "Dolphin (org.dolphinemu.dolphinemu)".
+pub fn emulator_setting(pkg: &str, label: &str) -> String {
+    format!("{} ({pkg})", emu_for(pkg).map_or(label, |e| e.name.as_str()))
+}
+
+/// The package of an emulator that's installed (`installed`: every app's package).
+pub fn find_installed(emu: &str, installed: &[String]) -> Option<String> {
+    let e = EMULATORS.iter().find(|e| e.id == emu)?;
+    e.packages.iter().find(|p| installed.contains(p)).cloned().or_else(|| installed.iter().find(|p| e.matches(p)).cloned())
+}
+
+/// What MainActivity is asked to start (its launch() reads it as JSON).
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
+pub struct Request {
+    pub pkg: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub activity: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub action: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub category: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub data: String,
+    pub extras: Map<String, Value>,
+    pub flags: Vec<String>,
+    /// content:// addresses the emulator is given read access to
+    pub grant: Vec<String>,
+}
+
+/// The activity to start, from the spec's list (a "*Suffix" matches the end of one of the app's `activities`): an exact
+/// name is tried even when the list doesn't show it (activity lists can hide aliases); "" opens the app's own start screen.
+fn resolve_activity(wanted: &[String], activities: &[String]) -> String {
+    for w in wanted {
+        if let Some(suffix) = w.strip_prefix('*') {
+            if let Some(hit) = activities.iter().find(|a| a.ends_with(suffix)) {
+                return hit.clone();
+            }
+        } else if activities.is_empty() || activities.contains(w) {
+            return w.clone();
+        }
+    }
+    wanted.iter().find(|w| !w.starts_with('*')).cloned().unwrap_or_default()
+}
+
+/// How a console's game is started (android-api.js start): the console's emulator app (else the first of its usual ones
+/// that's installed), its launch spec with the package's own changes, and the game put in as the app wants it.
+/// `activities`: the app's exported activities, asked of Android for the package chosen.
+pub fn launch_request(console: &Console, sc: &SystemConfig, game: &Game, installed: &[String], activities: &dyn Fn(&str) -> Vec<String>) -> Result<Request, String> {
+    let s = system(&console.id).ok_or_else(|| format!("{} isn't on Android yet.", console.name))?;
+    let mut pkg = pkg_of(&sc.emulator);
+    if pkg.is_empty() {
+        pkg = s.emus.iter().find_map(|e| find_installed(e, installed)).unwrap_or_default();
+    }
+    if pkg.is_empty() {
+        return Err(format!("No emulator for {} is installed. Pick one in Settings → {}.", console.name, console.name));
+    }
+    let mut spec = Map::new();
+    spec.insert("action".into(), "android.intent.action.VIEW".into());
+    spec.insert("data".into(), "doc".into());
+    if let Some(e) = emu_for(&pkg) {
+        spec = e.launch.clone();
+        if let Some(Value::Object(v)) = e.variants.get(&pkg) {
+            spec.extend(v.clone());
+        }
+    }
+    let text = |k: &str| spec.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+    let doc = game.doc.clone().unwrap_or_default();
+    let path = game.file.to_string_lossy().into_owned();
+    let core = if s.cores.is_empty() { String::new() } else { format!("/data/data/{pkg}/cores/{}_libretro_android.so", Some(sc.ra_core.as_str()).filter(|c| !c.is_empty()).unwrap_or(s.cores[0])) };
+    let cfg = format!("/storage/emulated/0/Android/data/{pkg}/files/retroarch.cfg");
+    let sub = |v: &Value| -> Value {
+        match v {
+            Value::String(t) => Value::String(t.replace("$SOURCE", "").replace("$DOC", &doc).replace("$PATH", &path).replace("$CORE", &core).replace("$CFG", &cfg)),
+            Value::Object(o) if o.contains_key("bool") => Value::Bool(crate::js::truthy(o.get("bool"))),
+            v => v.clone(),
+        }
+    };
+    let wanted: Vec<String> = spec.get("activity").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
+    let mut req = Request {
+        activity: if wanted.is_empty() { String::new() } else { resolve_activity(&wanted, &activities(&pkg)) },
+        action: text("action"),
+        category: text("category"),
+        data: match text("data").as_str() {
+            "doc" => doc.clone(),
+            "path" => path.clone(),
+            _ => String::new(),
+        },
+        extras: spec.get("extras").and_then(Value::as_object).map(|x| x.iter().map(|(k, v)| (k.clone(), sub(v))).collect()).unwrap_or_default(),
+        flags: spec.get("flags").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(String::from).collect(),
+        pkg,
+        ..Default::default()
+    };
+    if !doc.is_empty() {
+        req.grant.push(doc);
+    }
+    Ok(req)
+}
+
 fn ext_of(name: &str) -> String {
     name.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_default()
 }
@@ -270,6 +416,33 @@ mod tests {
         assert!(game.file.to_string_lossy().ends_with("(Disc 1).cue"));
         assert_eq!(game.doc.as_deref(), Some("content://x/document/primary:ROMs/psx/Game (USA) (Disc 1).cue"));
         assert!(g.iter().any(|x| x.title == "Renamed" && x.id == "psx:/storage/emulated/0/ROMs/psx/Other.chd"));
+    }
+
+    #[test]
+    fn launching() {
+        let c = crate::systems::systems().console("gc").unwrap();
+        let game = Game { file: PathBuf::from("/storage/emulated/0/ROMs/gc/G.rvz"), doc: Some("content://d/G".into()), ..Default::default() };
+        let sc = SystemConfig::default();
+        let none = |_: &str| Vec::<String>::new();
+        assert!(launch_request(c, &sc, &game, &[], &none).unwrap_err().contains("No emulator for GameCube"));
+        let r = launch_request(c, &sc, &game, &["org.dolphinemu.dolphinemu".into()], &|_| vec!["org.dolphinemu.dolphinemu.ui.main.MainActivity".into()]).unwrap();
+        assert_eq!(r.activity, "org.dolphinemu.dolphinemu.ui.main.MainActivity");
+        assert_eq!(r.extras["AutoStartFile"], "content://d/G");
+        assert_eq!(r.category, "android.intent.category.LEANBACK_LAUNCHER");
+        assert_eq!(r.grant, vec!["content://d/G".to_string()]);
+        // a package's own changes: MMJR is started with VIEW and no category
+        let sc = SystemConfig { emulator: "Dolphin (org.dolphinemu.mmjr)".into(), ..Default::default() };
+        let r = launch_request(c, &sc, &game, &[], &none).unwrap();
+        assert_eq!((r.action.as_str(), r.category.as_str()), ("android.intent.action.VIEW", ""));
+        // RetroArch: its core and settings file, and the game's path
+        let snes = crate::systems::systems().console("snes").unwrap();
+        let sc = SystemConfig { emulator: "RetroArch (com.retroarch.aarch64)".into(), ..Default::default() };
+        let r = launch_request(snes, &sc, &game, &[], &none).unwrap();
+        assert_eq!(r.extras["LIBRETRO"], "/data/data/com.retroarch.aarch64/cores/snes9x_libretro_android.so");
+        assert_eq!(r.extras["ROM"], "/storage/emulated/0/ROMs/gc/G.rvz");
+        // a fork found by its name
+        assert_eq!(emu_for("org.citron.something").map(|e| e.id.as_str()), Some("eden"));
+        assert_eq!(pkg_of("Eden (dev.eden.eden_emulator)"), "dev.eden.eden_emulator");
     }
 
     #[test]

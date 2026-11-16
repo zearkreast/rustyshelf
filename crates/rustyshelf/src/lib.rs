@@ -1,6 +1,8 @@
 //! RustyShelf, the native app: the games of every console from the Electron app's settings, on a 3D shelf.
 // Bevy systems take their data as arguments, and queries are types
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
+// (the desktop's launching, emulator setup and boot slide aren't used on Android yet)
+#![cfg_attr(target_os = "android", allow(dead_code, unused_variables, unused_mut))]
 
 #[cfg(target_os = "android")]
 mod android_pad;
@@ -67,10 +69,12 @@ fn main() {
     run();
 }
 
-/// Android's controller and Back key in Bevy's input (nothing elsewhere).
+/// Android's controller and Back key in Bevy's input, and its games started in emulator apps (nothing elsewhere).
 fn android_input(app: &mut App) {
     #[cfg(target_os = "android")]
     app.add_systems(PreUpdate, (android_pad::feed.before(bevy::input::InputSystems), android_pad::back_is_esc.after(bevy::input::InputSystems)));
+    #[cfg(target_os = "android")]
+    app.add_systems(Update, android_saf::poll);
     #[cfg(not(target_os = "android"))]
     let _ = app;
 }

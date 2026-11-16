@@ -1,0 +1,700 @@
+[
+ {
+  "id": "dolphin",
+  "name": "Dolphin",
+  "packages": [
+   "org.dolphinemu.dolphinemu"
+  ],
+  "match": "dolphin",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "org.dolphinemu.dolphinemu.ui.main.TvMainActivity",
+    "*ui.main.MainActivity"
+   ],
+   "action": "android.intent.action.MAIN",
+   "category": "android.intent.category.LEANBACK_LAUNCHER",
+   "extras": {
+    "AutoStartFile": "$DOC"
+   }
+  },
+  "variants": {
+   "org.mm.jr": {
+    "action": "android.intent.action.VIEW",
+    "category": null,
+    "activity": [
+     "org.dolphinemu.dolphinemu.ui.main.MainActivity"
+    ]
+   },
+   "org.dolphinemu.mmjr": {
+    "action": "android.intent.action.VIEW",
+    "category": null,
+    "activity": [
+     "org.dolphinemu.dolphinemu.ui.main.MainActivity"
+    ]
+   },
+   "org.mm.j": {
+    "action": "android.intent.action.VIEW",
+    "category": null,
+    "activity": [
+     "org.dolphinemu.dolphinemu.ui.main.MainActivity"
+    ]
+   },
+   "org.dolphinemu.primehack": {
+    "action": "android.intent.action.VIEW",
+    "category": null,
+    "activity": [
+     "org.dolphinemu.dolphinemu.ui.main.MainActivity"
+    ]
+   }
+  },
+  "stores": []
+ },
+ {
+  "id": "cemu",
+  "name": "Cemu",
+  "packages": [
+   "info.cemu.cemu",
+   "info.cemu.cemu.debug"
+  ],
+  "match": "cemu",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "*emulation.EmulationActivity",
+    "*EmulationActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "eden",
+  "name": "Eden",
+  "packages": [
+   "dev.eden.eden_emulator",
+   "org.citron.citron_emu",
+   "org.sudachi.sudachi_emu",
+   "org.yuzu.yuzu_emu",
+   "org.uzuy.uzuy_emu"
+  ],
+  "match": "eden|citron|sudachi|yuzu|uzuy|sumi|lemon|suyu",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "*activities.EmulationActivity"
+   ],
+   "action": "android.nfc.action.TECH_DISCOVERED",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "ppsspp",
+  "name": "PPSSPP",
+  "packages": [
+   "org.ppsspp.ppssppgold",
+   "org.ppsspp.ppsspp"
+  ],
+  "match": "ppsspp",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "org.ppsspp.ppsspp.PpssppActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": "android.intent.category.DEFAULT",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "nethersx2",
+  "name": "NetherSX2",
+  "packages": [
+   "xyz.aethersx2.android",
+   "xyz.aethersx2.custom"
+  ],
+  "match": "aethersx2|nethersx2",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "xyz.aethersx2.android.EmulationActivity",
+    "*EmulationActivity"
+   ],
+   "action": "android.intent.action.MAIN",
+   "extras": {
+    "bootPath": "$DOC"
+   },
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "armsx2",
+  "name": "ARMSX2",
+  "packages": [
+   "come.nanodata.armsx2",
+   "com.armsx2",
+   "com.armsx2.nightly",
+   "come.nanodata.armsx2.debug"
+  ],
+  "match": "armsx2",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "*.MainActivity",
+    "*.Main"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc",
+   "flags": [
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "play",
+  "name": "Play!",
+  "packages": [
+   "com.virtualapplications.play"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.virtualapplications.play.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "azahar",
+  "name": "Azahar",
+  "packages": [
+   "org.azahar_emu.azahar",
+   "io.github.lime3ds.android",
+   "org.citra.citra_emu",
+   "io.github.mandarine3ds.mandarine",
+   "org.cytrus.cytrus_emu"
+  ],
+  "match": "azahar|lime3ds|citra|mandarine|cytrus|borked3ds",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "*activities.EmulationActivity",
+    "*EmulationActivity"
+   ],
+   "data": "doc",
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "melonds",
+  "name": "melonDS",
+  "packages": [
+   "me.magnum.melonds",
+   "me.magnum.melonds.nightly"
+  ],
+  "match": "melonds",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "me.magnum.melonds.ui.emulator.EmulatorActivity"
+   ],
+   "action": "me.magnum.melonds.LAUNCH_ROM",
+   "extras": {
+    "uri": "$DOC"
+   }
+  },
+  "variants": {
+   "me.magnum.melonds.nightly": {
+    "action": "me.magnum.melonds.nightly.LAUNCH_ROM"
+   }
+  },
+  "stores": []
+ },
+ {
+  "id": "drastic",
+  "name": "DraStic",
+  "packages": [
+   "com.dsemu.drastic"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.dsemu.drastic.DraSticActivity"
+   ],
+   "data": "doc",
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "m64plus",
+  "name": "M64Plus FZ",
+  "packages": [
+   "org.mupen64plusae.v3.fzurita.pro",
+   "org.mupen64plusae.v3.fzurita",
+   "org.mupen64plusae.v3.fzurita.amazon",
+   "org.mupen64plusae.v3.alpha"
+  ],
+  "match": "mupen64plus",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "paulscode.android.mupen64plusae.SplashActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "duckstation",
+  "name": "DuckStation",
+  "packages": [
+   "com.github.stenzek.duckstation"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.github.stenzek.duckstation.EmulationActivity"
+   ],
+   "extras": {
+    "resumeState": {
+     "bool": false
+    },
+    "bootPath": "$DOC"
+   },
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "redream",
+  "name": "Redream",
+  "packages": [
+   "io.recompiled.redream"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "io.recompiled.redream.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "flycast",
+  "name": "Flycast",
+  "packages": [
+   "com.flycast.emulator"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.reicast.emulator.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "yaba",
+  "name": "Yaba Sanshiro 2",
+  "packages": [
+   "org.devmiyax.yabasanshioro2.pro",
+   "org.devmiyax.yabasanshioro2"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "org.uoyabause.android.Yabause"
+   ],
+   "action": "android.intent.action.VIEW",
+   "extras": {
+    "org.uoyabause.android.FileNameUri": "$DOC"
+   },
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "saturnemu",
+  "name": "Saturn.emu",
+  "packages": [
+   "com.explusalpha.SaturnEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "mdemu",
+  "name": "MD.emu",
+  "packages": [
+   "com.explusalpha.MdEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "mastergear",
+  "name": "MasterGear",
+  "packages": [
+   "com.fms.mg"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.fms.emulib.TVActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc",
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "snes9x",
+  "name": "Snes9x EX+",
+  "packages": [
+   "com.explusalpha.Snes9xPlus"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "nesemu",
+  "name": "NES.emu",
+  "packages": [
+   "com.explusalpha.NesEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "myboy",
+  "name": "My Boy!",
+  "packages": [
+   "com.fastemulator.gba"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.fastemulator.gba.EmulatorActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "gbaemu",
+  "name": "GBA.emu",
+  "packages": [
+   "com.explusalpha.GbaEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "pizzagba",
+  "name": "Pizza Boy GBA",
+  "packages": [
+   "it.dbtecno.pizzaboygbapro",
+   "it.dbtecno.pizzaboygba"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "*.MainActivity"
+   ],
+   "extras": {
+    "rom_uri": "$PATH"
+   },
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "myoldboy",
+  "name": "My OldBoy!",
+  "packages": [
+   "com.fastemulator.gbc"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.fastemulator.gbc.EmulatorActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "gbcemu",
+  "name": "GBC.emu",
+  "packages": [
+   "com.explusalpha.GbcEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "pizzagbc",
+  "name": "Pizza Boy GBC",
+  "packages": [
+   "it.dbtecno.pizzaboypro",
+   "it.dbtecno.pizzaboy"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "*.MainActivity"
+   ],
+   "extras": {
+    "rom_uri": "$PATH"
+   },
+   "flags": [
+    "clearTask",
+    "clearTop"
+   ]
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "pceemu",
+  "name": "PCE.emu",
+  "packages": [
+   "com.PceEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "neoemu",
+  "name": "NEO.emu",
+  "packages": [
+   "com.explusalpha.NeoEmu"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.imagine.BaseActivity"
+   ],
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "mame4d",
+  "name": "MAME4droid",
+  "packages": [
+   "com.seleuco.mame4d2024",
+   "com.seleuco.mame4droid"
+  ],
+  "match": "",
+  "matchCase": false,
+  "launch": {
+   "activity": [
+    "com.seleuco.mame4droid.MAME4droid"
+   ],
+   "action": "android.intent.action.VIEW",
+   "data": "doc"
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "retroarch",
+  "name": "RetroArch",
+  "packages": [
+   "com.retroarch.aarch64",
+   "com.retroarch",
+   "com.retroarch.ra32"
+  ],
+  "match": "^com\\.retroarch",
+  "matchCase": true,
+  "launch": {
+   "activity": [
+    "com.retroarch.browser.retroactivity.RetroActivityFuture"
+   ],
+   "extras": {
+    "ROM": "$PATH",
+    "LIBRETRO": "$CORE",
+    "CONFIGFILE": "$CFG"
+   }
+  },
+  "variants": {},
+  "stores": []
+ },
+ {
+  "id": "gamenative",
+  "name": "GameNative",
+  "packages": [
+   "app.gamenative",
+   "app.gamenative.gold"
+  ],
+  "match": "^app\\.gamenative",
+  "matchCase": true,
+  "launch": {
+   "activity": [
+    "app.gamenative.MainActivity",
+    "*.MainActivity"
+   ],
+   "action": "app.gamenative.LAUNCH_GAME",
+   "category": "android.intent.category.DEFAULT",
+   "extras": {
+    "app_id": "$APPID",
+    "game_source": "$SOURCE"
+   }
+  },
+  "variants": {},
+  "stores": [
+   "STEAM",
+   "EPIC",
+   "GOG",
+   "AMAZON",
+   "CUSTOM_GAME"
+  ]
+ },
+ {
+  "id": "droiddeck",
+  "name": "DroidDeck",
+  "packages": [
+   "com.droiddeck.launcher"
+  ],
+  "match": "^com\\.droiddeck\\.launcher",
+  "matchCase": true,
+  "launch": {
+   "activity": [
+    "*.FrontEndActivity"
+   ],
+   "action": "com.droiddeck.launcher.LAUNCH_GAME",
+   "category": "android.intent.category.DEFAULT",
+   "extras": {
+    "app_id": "$APPID"
+   }
+  },
+  "variants": {},
+  "stores": [
+   "STEAM"
+  ]
+ }
+]
