@@ -522,6 +522,7 @@ pub fn top(
     }
     let wanted = if id.is_empty() { String::new() } else { marks.want(&id, &name, stage.w) };
     if id.is_empty() {
+        shown.0.clear();
         if let Ok((mut image, _)) = word.single_mut() {
             image.color = Color::NONE;
         }
