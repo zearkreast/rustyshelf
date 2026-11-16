@@ -783,7 +783,7 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, and opening the case in Inspect (its disc and its manual inside). On Android the native
+rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio's Repair, and opening the case in Inspect (its disc and its manual inside). On Android the native
 app is at its first stage: it builds as an APK of its own ("RustyShelf (native)", which installs beside the Android app
 above) and keeps its settings in its own storage. A controller works as on the desktop (its buttons, sticks and a
 D-pad sent as a hat), Android's Back is Esc, and a finger works as in the Android app: a sideways drag along the shelf,
