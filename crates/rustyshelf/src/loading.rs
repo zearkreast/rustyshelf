@@ -179,6 +179,13 @@ fn put_shown(lib: &mut LibraryRes, fresh: Library, cursor: &mut crate::shelf::Cu
 #[derive(Resource, Default)]
 pub struct Refresh(Option<Mutex<Receiver<Library>>>);
 
+impl Refresh {
+    /// The library is being read again.
+    pub fn busy(&self) -> bool {
+        self.0.is_some()
+    }
+}
+
 /// A games folder that was out of reach is looked at again every minute; back, the library is read again behind the
 /// shelf.
 pub fn recheck_folders(time: Res<Time>, mut next: Local<f32>, base: Res<Base>, mut refresh: ResMut<Refresh>) {

@@ -83,7 +83,7 @@ fn steam_art(appid: &str, name: &str) -> [String; 3] {
 pub struct CoverOption {
     pub label: String,
     pub sub: String,
-    /// "yours", "steam", "steamstore" or "steamgriddb"
+    /// "yours", "steam", "steamstore", "console" or "steamgriddb"
     pub source: &'static str,
     /// a small copy to show, on disk
     pub thumb: PathBuf,
@@ -95,6 +95,103 @@ enum Take {
     File(PathBuf),
     /// the sharpest first
     Urls(Vec<String>),
+    Box(ConsoleBox),
+}
+
+/// A console release of a PC game's title, with its box's pictures in LaunchBox's image store.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConsoleBox {
+    /// "ps5", "xsx", "ps4", "xone" or "sw"
+    pub plat: String,
+    /// LaunchBox's name for the console
+    pub platform: String,
+    pub name: String,
+    pub url: String,
+    pub back: String,
+    pub spine: String,
+}
+
+/// The boxes of a title's console releases, newest console first, from the LaunchBox index already built (never
+/// downloaded for this).
+pub fn console_boxes(data: &Path, title: &str, region: &str) -> Vec<ConsoleBox> {
+    use crate::covers;
+    let Some(mut idx) = crate::boxart::ready_index(&data.join("boxart-cache")).filter(|_| !title.is_empty()) else { return Vec::new() };
+    let url = |im: &crate::lbindex::GameImage| format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file));
+    let mut out = Vec::new();
+    for (plat, platform) in covers::pc_box_platforms() {
+        let Some(shard) = idx.platform(platform) else { continue };
+        let names: Vec<&str> = shard.games.iter().map(|g| g.n.as_str()).collect();
+        let fronts = |i: usize| shard.images.get(&shard.games[i].id).map_or(0, |l| l.iter().filter(|im| im.r#type == "Box - Front").count());
+        let Some(hit) = covers::match_name(&names, title, &fronts).map(|i| &shard.games[i]) else { continue };
+        let all = shard.images.get(&hit.id).map_or(&[][..], Vec::as_slice);
+        let first = |kind: &str| covers::pick_images(all, kind, region).first().map(|im| url(im));
+        let Some(front) = first("Box - Front") else { continue };
+        out.push(ConsoleBox { plat: plat.clone(), platform: platform.clone(), name: hit.name.clone(), url: front, back: first("Box - Back").unwrap_or_default(), spine: first("Box - Spine").unwrap_or_default() });
+    }
+    out
+}
+
+/// Keeps one part of a game's console box ("" the front, "back" or "spine") in `data/pc-console-covers`; the front
+/// with where it came from and its console beside it.
+pub fn save_console(data: &Path, id: &str, bytes: &[u8], from: &str, part: &str, plat: &str) -> Result<PathBuf, String> {
+    let dir = data.join("pc-console-covers");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let base = dir.join(safe_id(id)).display().to_string();
+    let dash = if part.is_empty() { "" } else { "-" };
+    let f = PathBuf::from(format!("{base}{dash}{part}.jpg"));
+    let tmp = PathBuf::from(format!("{}.tmp", f.display()));
+    std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, &f)).map_err(|e| e.to_string())?;
+    if part.is_empty() {
+        std::fs::write(format!("{base}.from"), from).map_err(|e| e.to_string())?;
+        if !plat.is_empty() {
+            std::fs::write(format!("{base}.plat"), plat).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(f)
+}
+
+/// A console box part with its console's band at the top painted over with a PC one, as a JPEG.
+fn rebranded(bytes: &[u8], plat: &str, part: &str) -> Option<Vec<u8>> {
+    let img = rustyshelf_imgtools::rebrand::rebrand(&image::load_from_memory(bytes).ok()?, plat, part)?;
+    let mut out = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 92).encode_image(&img.into_rgb8()).ok()?;
+    Some(out)
+}
+
+fn download(url: &str) -> Option<Vec<u8>> {
+    crate::net::get_bytes(url, std::time::Duration::from_secs(15), 25_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b))
+}
+
+/// Each of these PC games (id, title) without a box or a chosen cover in the box of its newest console release.
+/// `go_on` is asked before each game. Returns how many were made.
+pub fn make_console_boxes(data: &Path, games: &[(&str, &str)], region: &str, go_on: &dyn Fn() -> bool) -> usize {
+    // the games with no console release, looked up once per run
+    static NONE: LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> = LazyLock::new(Default::default);
+    let mut made = 0;
+    for (id, title) in games {
+        let none = NONE.lock().is_ok_and(|n| n.contains(*id));
+        if id.is_empty() || title.is_empty() || none || cover(data, id).is_some() || console_cover(data, id, "").is_some() {
+            continue;
+        }
+        if !go_on() {
+            break;
+        }
+        let Some(b) = console_boxes(data, title, region).into_iter().next() else {
+            if let Ok(mut n) = NONE.lock() {
+                n.insert(id.to_string());
+            }
+            continue;
+        };
+        // the front last: it's what says the game is done
+        for (part, url) in [("back", &b.back), ("spine", &b.spine), ("", &b.url)] {
+            let Some(pic) = Some(url).filter(|u| !u.is_empty()).and_then(|u| download(u)).and_then(|raw| rebranded(&raw, &b.plat, part)) else { continue };
+            if save_console(data, id, &pic, &format!("{} {}", b.platform, b.url), part, &b.plat).is_ok() && part.is_empty() {
+                made += 1;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+    made
 }
 
 /// The covers offered for a game, and whether there's a SteamGridDB key (posters come only with one).
@@ -147,7 +244,7 @@ fn thumbs(data: &Path, wanted: Vec<Vec<String>>) -> Vec<Option<PathBuf>> {
 /// The covers offered for a game (`id`; a Steam game's `appid`; its `title`, or a title typed in when `term`):
 /// the one chosen now, Steam's own (a Steam game's, else the store's games of that name), and up to 24 SteamGridDB
 /// posters with a key. Their thumbnails are fetched first, so this takes a while: off the frame.
-pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bool, sg: Option<&crate::steamgrid::SteamGrid>) -> Options {
+pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bool, region: &str, sg: Option<&crate::steamgrid::SteamGrid>) -> Options {
     let mut list = Vec::new();
     let mine = cover(data, id);
     if let Some(f) = &mine {
@@ -164,9 +261,15 @@ pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bo
         Some(_) => Vec::new(),
         None => crate::pcgames::steam_search(title, !term),
     };
+    let boxes = console_boxes(data, title, region);
     let posters = sg.filter(|g| g.enabled()).map(|g| g.posters(&crate::steamgrid::Game { appid: appid.unwrap_or(""), title, names: &[title.to_string()] })).unwrap_or_default();
     let posters: Vec<_> = posters.into_iter().take(24).collect();
-    let wanted: Vec<Vec<String>> = apps.iter().map(|(a, _)| steam_art(a, "library_600x900.jpg")[..2].to_vec()).chain(posters.iter().map(|p| vec![p.thumb.clone().unwrap_or_else(|| p.url.clone())])).collect();
+    let wanted: Vec<Vec<String>> = apps
+        .iter()
+        .map(|(a, _)| steam_art(a, "library_600x900.jpg")[..2].to_vec())
+        .chain(boxes.iter().map(|b| vec![b.url.clone()]))
+        .chain(posters.iter().map(|p| vec![p.thumb.clone().unwrap_or_else(|| p.url.clone())]))
+        .collect();
     let got = thumbs(data, wanted);
     for ((a, name), t) in apps.iter().zip(&got) {
         let Some(t) = t else { continue };
@@ -174,7 +277,11 @@ pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bo
         let sub = if name.is_empty() { "From Steam's store".to_string() } else { format!("{name} on Steam") };
         list.push(CoverOption { label: "Steam's cover".into(), sub, source: "steamstore", thumb: t.clone(), take: Take::Urls(urls) });
     }
-    for (p, t) in posters.iter().zip(&got[apps.len()..]) {
+    for (b, t) in boxes.iter().zip(&got[apps.len()..]) {
+        let Some(t) = t else { continue };
+        list.push(CoverOption { label: format!("{} box", b.platform), sub: "Physical console release".into(), source: "console", thumb: t.clone(), take: Take::Box(b.clone()) });
+    }
+    for (p, t) in posters.iter().zip(&got[apps.len() + boxes.len()..]) {
         let Some(t) = t else { continue };
         let label = if p.style.is_empty() { "SteamGridDB".to_string() } else { format!("SteamGridDB · {}", p.style_name()) };
         let sub = if p.author.is_empty() { String::new() } else { format!("by {}", p.author) };
@@ -184,24 +291,52 @@ pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bo
 }
 
 /// Makes one of the offered covers the game's chosen one: downloaded (the sharpest that comes) and kept in
-/// `data/pc-covers`.
+/// `data/pc-covers`. A console box brings its back and spine, and the case of its console.
 pub fn choose(data: &Path, id: &str, option: &CoverOption) -> Result<PathBuf, String> {
+    const FAILED: &str = "Couldn't download that cover. Check the connection and try again.";
     let (bytes, from) = match &option.take {
+        Take::Box(b) => {
+            let front = download(&b.url).ok_or(FAILED)?;
+            let dest = keep(data, id, &front, &b.url)?;
+            let base = data.join("pc-covers").join(safe_id(id)).display().to_string();
+            let from = format!("{} {}", b.platform, b.url);
+            std::fs::write(format!("{base}.plat"), &b.plat).and_then(|()| std::fs::write(format!("{base}.from"), &from)).map_err(|e| e.to_string())?;
+            if save_console(data, id, &front, &from, "", &b.plat).is_ok() {
+                for (part, url) in [("back", &b.back), ("spine", &b.spine)] {
+                    let Some(raw) = Some(url).filter(|u| !u.is_empty()).and_then(|u| download(u)) else { continue };
+                    let pic = if part == "spine" { rebranded(&raw, &b.plat, part).unwrap_or(raw) } else { raw };
+                    let _ = save_console(data, id, &pic, &format!("{} {url}", b.platform), part, &b.plat);
+                }
+            }
+            return Ok(dest);
+        }
         Take::File(f) => (std::fs::read(f).map_err(|e| e.to_string())?, f.display().to_string()),
         Take::Urls(urls) => urls
             .iter()
-            .find_map(|u| crate::net::get_bytes(u, std::time::Duration::from_secs(15), 25_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b)).map(|b| (b, u.clone())))
-            .ok_or("Couldn't download that cover. Check the connection and try again.")?,
+            .find_map(|u| download(u).map(|b| (b, u.clone())))
+            .ok_or(FAILED)?,
     };
+    keep(data, id, &bytes, &from)
+}
+
+/// Keeps a picture as the game's chosen cover in place of any chosen before.
+fn keep(data: &Path, id: &str, bytes: &[u8], from: &str) -> Result<PathBuf, String> {
     let dir = data.join("pc-covers");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let base = dir.join(safe_id(id)).display().to_string();
-    let dest = PathBuf::from(format!("{base}.{}", ext_of(&from, &bytes)));
+    let dest = PathBuf::from(format!("{base}.{}", ext_of(from, bytes)));
     let tmp = PathBuf::from(format!("{}.tmp", dest.display()));
-    std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
     clear(data, id);
     std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
     Ok(dest)
+}
+
+/// SteamGridDB's top poster for a game that downloads, made its chosen cover. None when there's none.
+pub fn use_best(data: &Path, id: &str, title: &str, sg: &crate::steamgrid::SteamGrid) -> Option<PathBuf> {
+    let names = [title.to_string()];
+    let posters = sg.posters(&crate::steamgrid::Game { appid: "", title, names: &names });
+    posters.iter().take(3).find_map(|p| download(&p.url).and_then(|b| keep(data, id, &b, &p.url).ok()))
 }
 
 /// The store's own cover of a game, downloaded once (`data/pc-covers-auto`).
@@ -403,18 +538,62 @@ mod picker_tests {
         let jpeg = [0xff, 0xd8, 0xff, 0xe0, 0, 16, b'J', b'F', b'I', b'F', 0, 1, 1, 0];
         std::fs::write(data.join("steam-art").join("1063660_cover.jpg"), jpeg).unwrap();
         // Steam's cover kept here: offered, and no store search for a Steam game that has it
-        let o = options(&data, "steam-1063660", Some("1063660"), "Bendy and the Dark Revival", false, None);
+        let o = options(&data, "steam-1063660", Some("1063660"), "Bendy and the Dark Revival", false, "auto", None);
         assert_eq!(o.list.iter().map(|c| (c.source, c.label.as_str())).collect::<Vec<_>>(), [("steam", "Steam's cover")]);
         assert!(!o.chosen && !o.steamgriddb);
         let dest = choose(&data, "steam-1063660", &o.list[0]).unwrap();
         assert_eq!(cover(&data, "steam-1063660"), Some(dest.clone()));
         assert_eq!(std::fs::read(&dest).unwrap(), jpeg);
         // the pick is offered first next time, and going back takes it away
-        let o = options(&data, "steam-1063660", Some("1063660"), "Bendy and the Dark Revival", false, None);
+        let o = options(&data, "steam-1063660", Some("1063660"), "Bendy and the Dark Revival", false, "auto", None);
         assert_eq!(o.list[0].source, "yours");
         assert!(o.chosen);
         clear(&data, "steam-1063660");
         assert_eq!(cover(&data, "steam-1063660"), None);
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A LaunchBox index of one PS5 game, as `boxart::ready_index` reads it.
+    fn index_with(data: &Path, name: &str) {
+        use crate::lbindex::{norm, shard_file_name, Game, GameImage, ShardFile, ShardsMeta};
+        let cache = data.join("boxart-cache");
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(cache.join("launchbox-index.json"), "{}").unwrap();
+        let stamp = cache.join("launchbox-index.json").metadata().unwrap().modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        let plats: Vec<String> = crate::covers::pc_box_platforms().iter().map(|p| p.1.clone()).collect();
+        std::fs::write(cache.join("launchbox-shards.json"), serde_json::to_vec(&ShardsMeta { v: 8, at: 0, plats: plats.clone(), stamp }).unwrap()).unwrap();
+        let img = |kind: &str, region: &str, file: &str| GameImage { r#type: kind.into(), region: region.into(), file: file.into() };
+        let game = Game { id: "7".into(), name: name.into(), n: norm(name), overview: None, release: None, year: None, dev: None, pub_: None, genres: None, esrb: None, players: None, coop: None, rating: None, wiki: None, video: None };
+        let images = [("7".to_string(), vec![img("Box - Front", "Japan", "jp front.jpg"), img("Box - Front", "North America", "na front.jpg"), img("Box - Back", "North America", "na back.jpg")])].into();
+        let ps5 = &plats[0];
+        let shard = ShardFile { v: 8, plat: ps5.clone(), games: vec![game], images };
+        std::fs::write(shard_file_name(&cache, ps5), serde_json::to_vec(&shard).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn console_boxes_from_the_index() {
+        let data = std::env::temp_dir().join(format!("rs-pcbox-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        assert!(console_boxes(&data, "Bendy and the Dark Revival", "auto").is_empty(), "no index, no boxes");
+        index_with(&data, "Bendy and the Dark Revival");
+        let found = console_boxes(&data, "Bendy and the Dark Revival", "auto");
+        assert_eq!(found.len(), 1);
+        let b = &found[0];
+        assert_eq!((b.plat.as_str(), b.name.as_str()), ("ps5", "Bendy and the Dark Revival"));
+        assert_eq!((b.url.as_str(), b.back.as_str(), b.spine.as_str()), ("https://images.launchbox-app.com/na%20front.jpg", "https://images.launchbox-app.com/na%20back.jpg", ""));
+        assert_eq!(console_boxes(&data, "Bendy and the Dark Revival", "jpn")[0].url, "https://images.launchbox-app.com/jp%20front.jpg");
+        assert!(console_boxes(&data, "Cuphead", "auto").is_empty());
+
+        // a box kept gives the case of its console while no cover is chosen
+        save_console(&data, "custom-bendy", b"front", &format!("{} {}", b.platform, b.url), "", &b.plat).unwrap();
+        save_console(&data, "custom-bendy", b"back", "", "back", &b.plat).unwrap();
+        assert_eq!(console_cover(&data, "custom-bendy", "back"), Some(data.join("pc-console-covers/custom-bendy-back.jpg")));
+        assert_eq!(console_plat(&data, "custom-bendy").as_deref(), Some("ps5"));
+        // made already, or a cover chosen: nothing is looked up or downloaded
+        std::fs::create_dir_all(data.join("pc-covers")).unwrap();
+        std::fs::write(data.join("pc-covers/custom-other.png"), b"x").unwrap();
+        let none = make_console_boxes(&data, &[("custom-bendy", "Bendy and the Dark Revival"), ("custom-other", "Bendy and the Dark Revival"), ("custom-cup", "Cuphead")], "auto", &|| true);
+        assert_eq!(none, 0);
         let _ = std::fs::remove_dir_all(&data);
     }
 }

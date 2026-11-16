@@ -85,9 +85,12 @@ complete yet.
 - Shows the apps Quiver Launcher installed and the programs you added by hand on the Custom shelf, Quiver's ports and
   recompilations on the Ports & Recomps shelf, or on the PC shelf or a console's shelf when you moved them there, and starts them in their own folder (with Windows' administrator prompt
   for a program that asks for it).
-- Gives a PC game the cover you chose in the Electron app, else its console box when Settings → PC games → Console box
-  art is on, else the store's cover, a picture in the game's own folder, or the cover of the Steam game with the same
-  name.
+- Gives a PC game the cover you chose, else its console box when Settings → PC games → Console box art is on, else
+  the store's cover, a picture in the game's own folder, or the cover of the Steam game with the same name. With
+  Console box art on, the boxes not made yet are made behind the shelf, one game at a time and never while a game
+  runs: the front of the newest console release the LaunchBox index has (PS5, Xbox Series X|S, PS4, Xbox One,
+  Switch), with its back and spine where they're scanned, the console's band painted over with a PC one
+  (`data/pc-console-covers`). Only an index already built is used: box art downloads build it.
 - Shows the Media shelf's apps (Stremio, Nuvio) and starts them.
 - Keeps the play history the Electron app keeps (`data\history.json`): a console game's launches and time in it, a PC
   game's or an app's launches. An emulator that closes within five seconds wasn't a play, and the shelf says so.
@@ -134,9 +137,16 @@ complete yet.
   springs over, a pressed row gives a little, a page comes in from just below (Details from the right) and the whole
   fades in and out. Reduce motion keeps only the fades, quicker.
 - Changes a Steam, store or added game's cover from Details → Box art: a grid of covers to choose from — Steam's
-  own (a Steam game's, else the Steam store's games of that name), SteamGridDB's posters with a key — and tiles to
-  search under another name, use a picture of yours, or go back to the automatic cover (`data/pc-covers`, as the
-  Electron app keeps it). The covers' thumbnails are kept in `data/pc-cover-cache`.
+  own (a Steam game's, else the Steam store's games of that name), the boxes of its console releases (a box chosen
+  brings its back and spine, and its console's case), SteamGridDB's posters with a key — and tiles to search under
+  another name, use a picture of yours, or go back to the automatic cover (`data/pc-covers`, as the Electron app
+  keeps it). The covers' thumbnails are kept in `data/pc-cover-cache`.
+- Shows every PC game's cover in a gallery (Settings → PC games and apps → PC game covers, or Box art & media → PC
+  games), each with where it comes from (your pick, its console box, the store's box art, Steam's art, or a
+  made-up case); choosing one opens its cover picker, and the gallery comes back when it closes.
+- Settings → Custom games → Covers, for the custom games without a cover of their own: Choose covers one by one
+  (a picker for each, with Skip; B stops), Use the best cover for each (SteamGridDB's top cover, with a key), and
+  Undo the covers just found.
 - Has the Electron app's two panels over the shelf: the Sort panel (G, or Menu held), a card at the top with the
   order and the filter as rows of chips, applied as they change; and the quick menu (Menu, Tab, or a finger held on
   the shelf), sliding in at the right while the shelf steps aside, with the chosen game, its Favorite / Details /

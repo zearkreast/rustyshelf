@@ -68,6 +68,7 @@ impl Settings {
             press: Some(Box::new(|s: &mut Settings| s.pick(Pick::CustomGame, "Choose the game's program", false))),
             step: None,
         });
+        rows.extend(self.cover_rows());
         for (i, c) in list.iter().enumerate() {
             let text = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("");
             let (title, shelf) = (text("title"), text("shelf"));
@@ -91,6 +92,56 @@ impl Settings {
             lead: "Recomps, PC ports and any other program. Each goes on the Custom shelf, or on Ports & Recomps, PC or a console's shelf if you choose its Platform. Quiver Launcher's ports and recomps go on Ports & Recomps, its other games on Custom.".into(),
             rows,
         }
+    }
+
+    /// Covers for the custom games without one: they never get one by themselves, as their names often match an
+    /// unrelated game.
+    fn cover_rows(&self) -> Vec<Row> {
+        use crate::coverpick::Job;
+        let state = self.cover_state;
+        let none = |s: &mut Settings| s.note = "Every custom game has a cover already".into();
+        let mut rows = vec![
+            Row {
+                label: "Choose covers one by one".into(),
+                value: match state.missing {
+                    None => "Looking…".into(),
+                    Some(0) => "Every game has one".into(),
+                    Some(n) => format!("{n} game{} without a cover", if n == 1 { "" } else { "s" }),
+                },
+                hint: "Goes through every custom game without a cover of its own: SteamGridDB's covers for each (with a free SteamGridDB key, Settings → Accounts & services) or a picture of yours. A uses one, Skip moves on, B stops.".into(),
+                press: Some(Box::new(move |s: &mut Settings| {
+                    if state.missing == Some(0) {
+                        none(s);
+                    } else if s.shut() {
+                        s.cover_job = Some(Job::OneByOne);
+                    }
+                })),
+                step: None,
+            },
+            Row {
+                label: "Use the best cover for each".into(),
+                value: if state.busy { "Finding covers…" } else { "Needs a SteamGridDB key" }.into(),
+                hint: "Picks SteamGridDB's top cover for every custom game without one, in one go. A recomp can share its name with another game: look them over, and Undo puts them all back.".into(),
+                press: Some(Box::new(move |s: &mut Settings| {
+                    if state.missing == Some(0) {
+                        none(s);
+                    } else if !state.busy {
+                        s.cover_job = Some(Job::Best);
+                    }
+                })),
+                step: None,
+            },
+        ];
+        if state.undo > 0 {
+            rows.push(Row {
+                label: format!("Undo the {} covers just found", state.undo),
+                value: "Undo".into(),
+                hint: "Puts back the made-up cases those games had before.".into(),
+                press: Some(Box::new(|s: &mut Settings| s.cover_job = Some(Job::Undo))),
+                step: None,
+            });
+        }
+        rows
     }
 
     pub(super) fn custom_game_page(&self, i: usize) -> Page {

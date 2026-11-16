@@ -331,6 +331,7 @@ pub fn update(
     mut lines: Query<(&mut Text, &mut TextFont, &Line)>,
     mut info: Query<(&mut Node, &mut Visibility), (With<Info>, Without<NoticePill>)>,
     mut pill: Query<&mut Node, (With<NoticePill>, Without<Info>)>,
+    picker: Res<crate::coverpick::CoverPick>,
 ) {
     let [mut tag, mut count, mut counter, mut title, mut note] = [const { String::new() }; 5];
     let mut under: Vec<String> = Vec::new();
@@ -442,7 +443,7 @@ pub fn update(
             node.top = top;
         }
         // (the quick menu takes the game's line away as the shelf steps aside)
-        seen.set_if_neq(if settings.open || settings.panels.is_open() { Visibility::Hidden } else { Visibility::Inherited });
+        seen.set_if_neq(if settings.open || settings.panels.is_open() || picker.is_open() { Visibility::Hidden } else { Visibility::Inherited });
     }
 }
 
@@ -606,6 +607,7 @@ pub fn hints(
     mut styled: Local<Option<(String, pads::Glyphs)>>,
     mut shown: Local<Option<(bool, pads::Glyphs, bool)>>,
     inspect: Res<crate::shelf::Inspect>,
+    picker: Res<crate::coverpick::CoverPick>,
 ) {
     // the phone's remote isn't a controller of its own: the prompts stay those of the pad there is
     let own = |name: Option<&Name>| name.is_none_or(|n| n.as_str() != crate::phone::REMOTE);
@@ -646,7 +648,7 @@ pub fn hints(
     }
     let Ok((bar, mut seen)) = bar.single_mut() else { return };
     let any = matches!(&lib.0, LibraryState::Ready(l) if !l.shelves.is_empty());
-    seen.set_if_neq(if settings.open || settings.panels.is_open() || inspect.on || !any { Visibility::Hidden } else { Visibility::Inherited });
+    seen.set_if_neq(if settings.open || settings.panels.is_open() || picker.is_open() || inspect.on || !any { Visibility::Hidden } else { Visibility::Inherited });
     let now = (prompts.pad, settings.glyphs(), settings.swap());
     if *shown == Some(now) {
         return;

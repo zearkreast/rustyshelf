@@ -226,6 +226,10 @@ pub struct Settings {
     pub motion: motion::SettingsMotion,
     /// a game's cover picker asked for (from Details, or after a search typed here)
     pub cover_asked: Option<crate::coverpick::Ask>,
+    /// one of the cover tools asked for from Settings' pages
+    pub cover_job: Option<crate::coverpick::Job>,
+    /// what Custom games → Covers says
+    cover_state: crate::coverpick::State,
     /// Settings was opened only to type something in: it closes when that's done
     edit_alone: bool,
     /// the Sort panel and the quick menu over the shelf
@@ -416,6 +420,8 @@ impl Default for Settings {
             console_shelves: Vec::new(),
             motion: Default::default(),
             cover_asked: None,
+            cover_job: None,
+            cover_state: Default::default(),
             edit_alone: false,
             panels: Default::default(),
             then_art: false,
@@ -702,6 +708,17 @@ impl Settings {
                 s.cover_asked = Some(crate::coverpick::Ask { term: typed.trim().to_string(), ..ask.clone() });
             }),
         );
+    }
+
+    /// A line shown on Settings' page, from outside Settings.
+    pub fn tell(&mut self, text: String) {
+        (self.note, self.redraw) = (text, true);
+    }
+
+    pub fn set_cover_state(&mut self, state: crate::coverpick::State) {
+        if self.cover_state != state {
+            (self.cover_state, self.redraw) = (state, true);
+        }
     }
 
     /// Settings opened on Accounts & services (a service's key asked for from outside Settings).
@@ -1795,6 +1812,7 @@ impl Settings {
                     },
                     toggle("Console box art", &["pc", "consoleBox"], false, "A PC game in the box of its console release, where there is one"),
                     open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
+                    gallery_row("PC game covers", "Every PC game's cover and where it comes from (your pick, Epic's box art, Steam's, or a made-up case). Pick a game to change it. Also in Box art."),
                 ];
                 if cfg!(target_os = "linux") {
                     rows.extend(self.linux_pc_rows());
@@ -1851,6 +1869,8 @@ impl Settings {
                 // the first run asks just the one question; the rest shows once downloads are on
                 if self.wizard && !self.flag(&["ui", "autoCovers"], false) {
                     rows.truncate(1);
+                } else if !self.wizard {
+                    rows.push(gallery_row("PC games", "Every PC game's cover as the shelf shows it, and where it comes from: your pick, the store's box art (Epic), Steam's art, or a made-up case. Pick a game to change its cover."));
                 }
                 if self.wizard {
                     rows.push(next(Screen::Done));
@@ -3122,6 +3142,21 @@ fn step_of(stack: &[(Screen, usize)]) -> usize {
             _ => None,
         })
         .unwrap_or(1)
+}
+
+/// Opens the PC games' cover gallery.
+fn gallery_row(label: &str, hint: &str) -> Row {
+    Row {
+        label: label.into(),
+        value: "Open".into(),
+        hint: hint.into(),
+        press: Some(Box::new(|s: &mut Settings| {
+            if s.shut() {
+                s.cover_job = Some(crate::coverpick::Job::Gallery);
+            }
+        })),
+        step: None,
+    }
 }
 
 /// A heading in capitals, as the language writes them: Turkish has a dotted capital İ for i, and I for ı.

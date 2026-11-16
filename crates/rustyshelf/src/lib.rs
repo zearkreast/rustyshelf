@@ -148,6 +148,7 @@ pub fn run() {
         .init_resource::<tour::Tour>()
         .init_resource::<rumble::Rumble>()
         .init_resource::<coverpick::CoverPick>()
+        .init_resource::<coverpick::BoxMaker>()
         .add_plugins((music::plugin, frames::plugin))
         .add_systems(Last, settings_on_disk)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup, deck::log_start).chain())
@@ -161,7 +162,7 @@ pub fn run() {
             Update,
             (
                 (loading::poll_library, loading::take_reshown).chain(),
-                loading::recheck_folders,
+                (loading::recheck_folders, coverpick::make_boxes),
                 (romm::run, wiimote::run, wiimote::pointer),
                 play::watch_game,
                 phone::run,
