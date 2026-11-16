@@ -672,6 +672,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 - Reads the MIDI files in the Songs folder as songs for the Melody voice, as the Electron app does (the top line as
   the tune, the bass under it as the chords), with or without the built-in songs.
 - Shows what you're playing on Discord, when Settings → Display has it on with your Discord application id.
+- On Linux, adds itself to Steam as a non-Steam game (Settings → System → Add RustyShelf to Steam: Steam closes and
+  opens again, its old list is backed up first), so it starts from Steam and Game Mode with the controller as a
+  gamepad. On a Steam Deck in Desktop Mode, started outside Steam, the shelf says so once and offers to do it. Holding
+  Select + Start closes a running game.
 - Has the shelf's menu (G, or Menu on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.

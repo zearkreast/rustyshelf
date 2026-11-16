@@ -29,6 +29,7 @@ pub use accounts::{AchFrom, AchGame};
 mod addgames;
 mod art;
 mod collections;
+mod deck;
 mod custom;
 mod find;
 mod kid;
@@ -293,6 +294,7 @@ pub struct Settings {
     packs: Vec<rustyshelf_core::soundpacks::Pack>,
     storage: storage::Storage,
     sw2: sw2::Sw2Ui,
+    deck: deck::DeckUi,
     art_pick: art::ArtPick,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
@@ -403,6 +405,7 @@ impl Default for Settings {
             packs: Vec::new(),
             storage: Default::default(),
             sw2: Default::default(),
+            deck: Default::default(),
             art_pick: Default::default(),
             kid_open: false,
             tab: 0,
@@ -2050,7 +2053,7 @@ impl Settings {
             Screen::System => Page {
                 title: "System".into(),
                 lead: format!("RustyShelf {}  ·  {}", env!("CARGO_PKG_VERSION"), short(&self.app_root.to_string_lossy())),
-                rows: vec![
+                rows: self.deck_rows().into_iter().chain([
                     Row {
                         label: if self.looking.is_some() { "Looking…" } else { "Find emulators and games again" }.into(),
                         hint: "Fills in what isn't set yet; nothing you chose is changed".into(),
@@ -2068,8 +2071,7 @@ impl Settings {
                         })),
                         ..Row::default()
                     },
-                ]
-                .into_iter()
+                ])
                 .chain([open("Kid mode", on_off(self.kid_on()), "A PIN for Settings, and only the shelves you choose", Screen::Kid)])
                 .chain(rustyshelf_core::keepsetup::safety_list(&paths::data_dir(&self.app_root)).first().map(|(_, m)| {
                     let from = m["version"].as_str().unwrap_or("").to_string();
@@ -2562,6 +2564,7 @@ pub fn input(
         s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
         s.console_shelves = base.0.as_ref().map(|b| b.shelves.iter().filter(|sh| matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()).map(|sh| (sh.id.clone(), sh.name.clone())).collect()).unwrap_or_default();
         s.load_bios_needs();
+        s.load_deck();
         s.open = true;
         s.changed = false;
         s.rearranged = false;
@@ -2619,6 +2622,7 @@ pub fn input(
     s.poll_trophies();
     s.poll_storage();
     s.poll_sw2();
+    s.poll_deck();
     s.poll_art(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {

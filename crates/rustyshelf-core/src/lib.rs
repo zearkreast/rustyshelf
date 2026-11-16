@@ -82,6 +82,7 @@ pub mod spreads;
 pub mod steam;
 pub mod steamach;
 pub mod steamart;
+pub mod steamdeck;
 pub mod steamgrid;
 pub mod storage;
 pub mod synth;

@@ -9,6 +9,7 @@ mod background;
 mod boot;
 mod card;
 mod cheevos;
+mod deck;
 mod home;
 mod hud;
 mod idle;
@@ -94,10 +95,11 @@ fn main() {
         .init_resource::<romm::Sync>()
         .init_resource::<wiimote::Remote>()
         .init_resource::<card::Card>()
+        .init_resource::<deck::DeckHint>()
         .init_resource::<whatsnew::WhatsNew>()
         .init_resource::<tour::Tour>()
         .add_plugins(music::plugin)
-        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup).chain())
+        .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup, deck::log_start).chain())
         .init_resource::<background::Background>()
         .add_systems(Update, (appicon::set, background::run))
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
@@ -111,7 +113,7 @@ fn main() {
                 phone::run,
                 idle::run,
                 home::run,
-                (card::run, play::pick_build, whatsnew::run, tour::run).chain(),
+                (card::run, play::pick_build, whatsnew::run, deck::run, tour::run).chain(),
                 reader::run,
                 shelf::inspect,
                 settings::input,
