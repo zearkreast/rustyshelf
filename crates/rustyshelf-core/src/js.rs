@@ -279,7 +279,6 @@ fn number_of(s: &str) -> f64 {
     t.parse().unwrap_or(f64::NAN)
 }
 
-/// JS `Math.round`: a half goes up.
 /// `new Date(ms).toISOString()`, for ms since 1970.
 pub fn iso_string(ms: i64) -> String {
     let (days, rest) = (ms.div_euclid(86_400_000), ms.rem_euclid(86_400_000));
@@ -293,6 +292,12 @@ pub fn iso_string(ms: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.{:03}Z", rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60, rest % 1000)
 }
 
+/// JS `Date.now()`: milliseconds since 1970, as a number.
+pub fn date_now() -> f64 {
+    crate::now_ms() as f64
+}
+
+/// JS `Math.round`: a half goes up.
 pub fn round(n: f64) -> f64 {
     (n + 0.5).floor()
 }

@@ -12,6 +12,8 @@ use std::sync::Mutex;
 
 use serde_json::{json, Value};
 
+use crate::files::write_atomic;
+
 /// What's made by you: in every safety copy, and brought over.
 pub const STATE_FILES: [&str; 10] = ["config.json", "history.json", "art-provenance.json", "manual-studio.json", "manual-auto.json", "manual-rejects.json", "emu-setup.json", "romm-local.json", "romm-device.json", "companion.json"];
 /// Your sound packs' and custom themes' own files: in the safety copy.
@@ -31,16 +33,7 @@ const MAX_JSON: u64 = 16 << 20;
 
 fn read_json(f: &Path) -> Option<Value> {
     std::fs::metadata(f).ok().filter(|m| m.is_file() && m.len() <= MAX_JSON)?;
-    serde_json::from_slice(&std::fs::read(f).ok()?).ok()
-}
-
-fn write_atomic(f: &Path, text: &str) -> std::io::Result<()> {
-    if let Some(d) = f.parent() {
-        std::fs::create_dir_all(d)?;
-    }
-    let tmp = f.with_extension(format!("tmp-{}", std::process::id()));
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(&tmp, f)
+    crate::files::read_json(f)
 }
 
 fn same_path(a: &Path, b: &Path) -> bool {
@@ -99,7 +92,7 @@ pub fn safety_copy(data_dir: &Path, app_root: &Path, version: &str, now: f64) ->
         copy(&src, format!("app/{rel}"))?;
     }
     let n = files.len();
-    write_atomic(&dir.join("manifest.json"), &crate::js::stringify_indented(&json!({ "app": "RustyShelf", "kind": "safety", "version": version, "at": now, "files": files }), 1))?;
+    write_atomic(&dir.join("manifest.json"), crate::js::stringify_indented(&json!({ "app": "RustyShelf", "kind": "safety", "version": version, "at": now, "files": files }), 1))?;
     for old in safety_list(data_dir).into_iter().skip(KEEP) {
         let _ = std::fs::remove_dir_all(&old.0);
     }
@@ -151,7 +144,7 @@ pub fn check_after_update(data_dir: &Path, app_root: &Path, version: &str) -> Op
         problems.push(p.to_string());
     }
     m["checked"] = json!(version);
-    let _ = write_atomic(&dir.join("manifest.json"), &crate::js::stringify_indented(&m, 1));
+    let _ = write_atomic(&dir.join("manifest.json"), crate::js::stringify_indented(&m, 1));
     Some((from, problems, fixed))
 }
 
@@ -171,7 +164,7 @@ fn pending_begin(data_dir: &Path) -> std::io::Result<PathBuf> {
 fn pending_commit(data_dir: &Path, meta: Value) -> std::io::Result<()> {
     let mut meta = meta;
     meta["at"] = json!(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64));
-    write_atomic(&pending_dir(data_dir).join("ready.json"), &meta.to_string())
+    write_atomic(&pending_dir(data_dir).join("ready.json"), meta.to_string())
 }
 
 fn move_tree(from: &Path, to: &Path) -> usize {
@@ -268,7 +261,7 @@ pub fn note_run(file: &Path, me: &Install) -> std::io::Result<()> {
     list.sort_by(|a, b| b.last_run.total_cmp(&a.last_run));
     list.truncate(8);
     let rows: Vec<Value> = list.iter().map(|x| json!({ "dataDir": x.data_dir.to_string_lossy(), "appRoot": x.app_root.to_string_lossy(), "version": x.version, "lastRun": x.last_run })).collect();
-    write_atomic(file, &crate::js::stringify_indented(&json!({ "installs": rows }), 1))
+    write_atomic(file, crate::js::stringify_indented(&json!({ "installs": rows }), 1))
 }
 
 fn setup_done(data_dir: &Path) -> bool {

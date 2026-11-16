@@ -345,13 +345,7 @@ fn set_preset(f: &str, reference: &str) -> std::io::Result<bool> {
     if Path::new(f).symlink_metadata().is_ok() {
         return Ok(false);
     }
-    if let Some(d) = Path::new(f).parent() {
-        std::fs::create_dir_all(d)?;
-    }
-    let tmp = format!("{f}.tmp");
-    std::fs::write(&tmp, format!("{}\n", preset_text(reference))).and_then(|()| std::fs::rename(&tmp, f)).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })?;
+    crate::files::write_atomic(Path::new(f), format!("{}\n", preset_text(reference)))?;
     Ok(true)
 }
 
@@ -437,13 +431,7 @@ pub fn set_cfg_or_drop(f: &str, want: &[(String, Option<String>)]) -> std::io::R
             std::fs::copy(f, &bak)?;
         }
     }
-    if let Some(d) = Path::new(f).parent() {
-        std::fs::create_dir_all(d)?;
-    }
-    let tmp = format!("{f}.tmp");
-    std::fs::write(&tmp, format!("{}{nl}", lines.join(nl))).and_then(|()| std::fs::rename(&tmp, f)).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })?;
+    crate::files::write_atomic(Path::new(f), format!("{}{nl}", lines.join(nl)))?;
     Ok(true)
 }
 
@@ -791,11 +779,7 @@ impl Setup<'_> {
     }
 
     fn save_manifest(&self, m: Map<String, Value>) {
-        let f = self.manifest_file();
-        let tmp = f.with_extension("json.tmp");
-        if std::fs::write(&tmp, js::stringify_indented(&Value::Object(m), 1)).is_ok() {
-            let _ = std::fs::rename(&tmp, &f);
-        }
+        let _ = crate::files::write_atomic(&self.manifest_file(), js::stringify_indented(&Value::Object(m), 1));
     }
 
     fn key_of(kind: Kind, exe: &str) -> String {

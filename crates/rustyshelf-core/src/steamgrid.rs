@@ -7,7 +7,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, LazyLock, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -142,10 +142,6 @@ pub struct SteamGrid {
     fetch: Fetch,
 }
 
-fn now_ms() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 fn appid_of(game: &Game) -> Option<String> {
     let id = game.appid;
     ((1..=10).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_string())
@@ -221,7 +217,7 @@ impl SteamGrid {
     /// Writes the cache, without what's gone stale and the oldest of too many.
     fn save(&self) {
         let text = self.cache(|c| {
-            let now = now_ms();
+            let now = crate::js::date_now();
             c.ids.retain(|_, v| now - js::number(v.get(1)) <= ID_TTL);
             c.lists.retain(|_, v| now - js::number(v.get(0)) <= LIST_TTL);
             let trim = |m: &mut Map<String, Value>, most: usize, at: usize| {
@@ -237,10 +233,7 @@ impl SteamGrid {
             trim(&mut c.lists, MAX_LISTS, 0);
             json!({ "ids": c.ids, "lists": c.lists }).to_string()
         });
-        let tmp = self.file.with_extension("json.tmp");
-        if fs::write(&tmp, text).is_ok() {
-            let _ = fs::rename(&tmp, &self.file);
-        }
+        let _ = crate::files::write_atomic(&self.file, text);
     }
 
     /// One API path's "data"; None when there's no such game or nothing was found. `key`: the one to use instead
@@ -254,7 +247,7 @@ impl SteamGrid {
         if key.is_empty() {
             return Err(Trouble::NoKey);
         }
-        if now_ms() < paused_until {
+        if crate::js::date_now() < paused_until {
             return Err(Trouble::Rate);
         }
         {
@@ -277,7 +270,7 @@ impl SteamGrid {
                 // the pause the site asks for, in seconds: half a minute to ten minutes
                 let asked = r.retry_after.as_deref().map_or(f64::NAN, |a| js::number(Some(&json!(a))));
                 let secs = if asked.is_nan() || asked == 0.0 { 60.0 } else { asked }.clamp(30.0, 600.0);
-                self.state.lock().unwrap().paused_until = now_ms() + secs * 1000.0;
+                self.state.lock().unwrap().paused_until = crate::js::date_now() + secs * 1000.0;
                 Err(Trouble::Rate)
             }
             404 => Ok(None),
@@ -301,7 +294,7 @@ impl SteamGrid {
             return Ok(0);
         }
         let ck = appid.as_ref().map_or_else(|| format!("title:{}", title.to_lowercase()), |a| format!("steam:{a}"));
-        let now = now_ms();
+        let now = crate::js::date_now();
         let hit = self.cache(|c| c.ids.get(&ck).map(|h| (js::number(h.get(0)), js::number(h.get(1)))));
         if let Some((id, at)) = hit {
             if now - at < if id != 0.0 { ID_TTL } else { MISS_TTL } {
@@ -326,19 +319,19 @@ impl SteamGrid {
                 }
             }
         }
-        self.cache(|c| c.ids.insert(ck, json!([id, now_ms()])));
+        self.cache(|c| c.ids.insert(ck, json!([id, crate::js::date_now()])));
         self.save();
         Ok(id)
     }
 
     /// A list of the cache, or what `ask` gives for it, kept a day.
     fn list(&self, ck: String, ask: impl FnOnce() -> Result<Vec<Value>, Trouble>) -> Result<Vec<Value>, Trouble> {
-        let now = now_ms();
+        let now = crate::js::date_now();
         if let Some(Value::Array(list)) = self.cache(|c| c.lists.get(&ck).filter(|h| now - js::number(h.get(0)) < LIST_TTL).and_then(|h| h.get(1).cloned())) {
             return Ok(list);
         }
         let list = ask()?;
-        self.cache(|c| c.lists.insert(ck, json!([now_ms(), list])));
+        self.cache(|c| c.lists.insert(ck, json!([crate::js::date_now(), list])));
         self.save();
         Ok(list)
     }
@@ -446,7 +439,7 @@ mod tests {
             let sg = SteamGrid::with(tmp.path(), Box::new(move |_, _| Ok(Reply { status: 429, retry_after: asked.map(str::to_string), body: Vec::new() })));
             sg.set_key("made-up-key");
             assert_eq!(sg.api("/search/autocomplete/x", None), Err(Trouble::Rate));
-            let left = (sg.state.lock().unwrap().paused_until - now_ms()) / 1000.0;
+            let left = (sg.state.lock().unwrap().paused_until - crate::js::date_now()) / 1000.0;
             assert!((left - secs).abs() < 2.0, "{asked:?}: {left}");
         }
     }

@@ -28,10 +28,6 @@ fn about(group: &str) -> &'static str {
     }
 }
 
-fn now_ms() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 /// The day (UTC) of a time in ms since 1970, as "November 21, 1999".
 pub(super) fn day(ms: u64) -> String {
     let z = (ms / 86_400_000) as i64 + 719_468;
@@ -102,7 +98,7 @@ impl AtLaunch {
     pub fn run(&self, exe: &Path) -> Option<Vec<String>> {
         let setup = Setup { data_dir: self.data_dir.clone(), app_root: self.app_root.clone(), var: &paths::env_var };
         let root = self.app_root.clone();
-        setup.at_launch(exe, &move |e: &str| launch::emu_path(e, &root), &self.pending, self.resume, &self.opts, now_ms())
+        setup.at_launch(exe, &move |e: &str| launch::emu_path(e, &root), &self.pending, self.resume, &self.opts, rustyshelf_core::now_ms())
     }
 }
 
@@ -231,7 +227,7 @@ impl Settings {
         }
         let emulators: Vec<String> = systems().consoles.iter().filter(|c| self.flag(&["systems", &c.id, "enabled"], true)).map(|c| self.text(&["systems", &c.id, "emulator"])).collect();
         let root = self.app_root.clone();
-        let r = self.setup().auto(&emulators, &move |e: &str| launch::emu_path(e, &root), &self.list(&["emuSetup", "pending"]), self.flag(&["emuSetup", "resume"], false), &self.options(), now_ms());
+        let r = self.setup().auto(&emulators, &move |e: &str| launch::emu_path(e, &root), &self.list(&["emuSetup", "pending"]), self.flag(&["emuSetup", "resume"], false), &self.options(), rustyshelf_core::now_ms());
         self.set_pending(r.pending);
         let mut lines = Vec::new();
         if !r.done.is_empty() {
@@ -256,7 +252,7 @@ impl Settings {
         }
         let mut info = Info { console: id.to_string(), exe: exe.clone(), no: None, status: None, pending: false, preset: "", core: None, bios: None };
         let setup = self.setup();
-        let status = if emu.is_empty() { None } else { setup.status(&exe, now_ms()).filter(|_| emusetup::ON) };
+        let status = if emu.is_empty() { None } else { setup.status(&exe, rustyshelf_core::now_ms()).filter(|_| emusetup::ON) };
         match status {
             None if emu.is_empty() => info.no = Some(("Choose this console's emulator first".into(), String::new())),
             None if !emusetup::ON => info.no = Some(("RustyShelf can't set this emulator up yet".into(), "Windows only for now".into())),
@@ -423,7 +419,7 @@ impl Settings {
                 hint: format!("Applies the switches above to {name}. Your files are backed up first."),
                 press: Some(Box::new(move |s: &mut Settings| {
                     let on = s.setup.on.clone();
-                    let r = s.setup().apply(&exe, &on, &s.options(), now_ms());
+                    let r = s.setup().apply(&exe, &on, &s.options(), rustyshelf_core::now_ms());
                     s.load_setup(&console);
                     s.note = match (r.ok, r.applied.is_empty()) {
                         (true, false) => format!("{name} set up: {}", names(&r.applied)),

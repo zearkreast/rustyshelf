@@ -75,10 +75,6 @@ fn title_of(title: &str) -> String {
     BRACKETS.replace_all(title, "").replace(['"', '\\'], "").trim().to_string()
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 /// How a request goes out: the address, its headers and body → the status and the answer.
 pub type Fetch = Box<dyn Fn(&str, &[(&str, &str)], &str) -> Result<(u16, Vec<u8>), String> + Send + Sync>;
 
@@ -157,18 +153,18 @@ impl Igdb {
 
     /// The keys were turned down a moment ago.
     pub fn is_refused(&self) -> bool {
-        self.state.lock().unwrap().refused.as_ref().is_some_and(|(pair, at)| now_ms() - at < REFUSED && *pair == self.pair())
+        self.state.lock().unwrap().refused.as_ref().is_some_and(|(pair, at)| crate::js::date_now() - at < REFUSED && *pair == self.pair())
     }
 
     fn refuse(&self) -> Trouble {
         let mut s = self.state.lock().unwrap();
-        (s.token, s.refused) = (None, Some((self.pair(), now_ms())));
+        (s.token, s.refused) = (None, Some((self.pair(), crate::js::date_now())));
         refused()
     }
 
     fn token(&self, fresh: bool) -> Result<String, Trouble> {
         let pair = self.pair();
-        if let Some((t, _, _)) = self.state.lock().unwrap().token.as_ref().filter(|(_, p, until)| !fresh && *p == pair && now_ms() < *until) {
+        if let Some((t, _, _)) = self.state.lock().unwrap().token.as_ref().filter(|(_, p, until)| !fresh && *p == pair && crate::js::date_now() < *until) {
             return Ok(t.clone());
         }
         if self.is_refused() {
@@ -186,7 +182,7 @@ impl Igdb {
         let tok = j["access_token"].as_str().filter(|t| !t.is_empty()).ok_or_else(|| busy("Twitch gave no token"))?.to_string();
         let life = j["expires_in"].as_f64().filter(|s| *s > 0.0).unwrap_or(3600.0);
         let mut s = self.state.lock().unwrap();
-        (s.token, s.refused) = (Some((tok.clone(), pair, now_ms() + (life - 300.0).max(60.0) * 1000.0)), None);
+        (s.token, s.refused) = (Some((tok.clone(), pair, crate::js::date_now() + (life - 300.0).max(60.0) * 1000.0)), None);
         Ok(tok)
     }
 
@@ -197,7 +193,7 @@ impl Igdb {
         }
         // one request at a time, at least GAP apart
         let mut last = LAST.lock().unwrap();
-        let wait = (*last + GAP).saturating_sub(now_ms() as u64);
+        let wait = (*last + GAP).saturating_sub(crate::js::date_now() as u64);
         if wait > 0 {
             std::thread::sleep(Duration::from_millis(wait));
         }
@@ -213,7 +209,7 @@ impl Igdb {
             }
             Ok(answer)
         })();
-        *last = now_ms() as u64;
+        *last = crate::js::date_now() as u64;
         drop(last);
         let (status, b) = asked?;
         if status == 429 || status >= 500 {
@@ -234,7 +230,7 @@ impl Igdb {
         if t.is_empty() || !self.ready() {
             return Ok(None);
         }
-        let (now, key) = (now_ms(), format!("{sys}|{}", t.to_lowercase()));
+        let (now, key) = (crate::js::date_now(), format!("{sys}|{}", t.to_lowercase()));
         {
             let mut s = self.state.lock().unwrap();
             s.memo.retain(|_, (at, _)| now - *at < MEMO);
@@ -388,12 +384,7 @@ impl Store {
     }
 
     pub fn save(&self) -> std::io::Result<()> {
-        if let Some(d) = self.file.parent() {
-            std::fs::create_dir_all(d)?;
-        }
-        let tmp = self.file.with_extension(format!("{}.tmp", std::process::id()));
-        std::fs::write(&tmp, json!({ "v": 1, "games": self.games }).to_string())?;
-        std::fs::rename(&tmp, &self.file)
+        crate::files::write_atomic(&self.file, json!({ "v": 1, "games": self.games }).to_string())
     }
 }
 
@@ -402,9 +393,9 @@ impl Store {
 pub fn lookup_info(client: Option<&Igdb>, data_dir: &Path, sys: &str, file: &Path, title: &str, info: &mut Info) -> bool {
     let key = crate::gamekey::game_key(sys, file, title);
     let mut store = Store::load(data_dir);
-    if let Some(c) = client.filter(|c| c.ready() && !c.is_refused() && store.due(&key, now_ms())) {
+    if let Some(c) = client.filter(|c| c.ready() && !c.is_refused() && store.due(&key, crate::js::date_now())) {
         if let Ok(Some(found)) = c.lookup(sys, title) {
-            store.put(&key, found.hit.as_ref(), now_ms());
+            store.put(&key, found.hit.as_ref(), crate::js::date_now());
             let _ = store.save();
         }
     }
@@ -461,7 +452,7 @@ mod tests {
         let mut info = Info::default();
         assert!(lookup_info(Some(&c), tmp.path(), "snes", Path::new("Super Metroid.sfc"), "Super Metroid", &mut info));
         let store = Store::load(tmp.path());
-        assert!(store.get("snes|super metroid.sfc").is_some() && !store.due("snes|super metroid.sfc", now_ms()));
+        assert!(store.get("snes|super metroid.sfc").is_some() && !store.due("snes|super metroid.sfc", crate::js::date_now()));
         // kept: found again without keys
         let mut again = Info::default();
         assert!(lookup_info(None, tmp.path(), "snes", Path::new("Super Metroid.sfc"), "", &mut again) && again.genres.is_some());

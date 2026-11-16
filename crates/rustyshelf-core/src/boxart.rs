@@ -43,10 +43,6 @@ fn user_agent() -> String {
     format!("RustyShelf/{}", crate::VERSION)
 }
 
-fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 fn ext_forms() -> Vec<String> {
     ART_EXT.iter().flat_map(|e| [e.to_string(), e.to_uppercase()]).collect()
 }
@@ -112,7 +108,7 @@ fn same_path(a: &Path, b: &Path) -> bool {
 
 /// A stamp for a replaced picture's name: the time, to the millisecond, with dashes.
 pub(crate) fn art_stamp() -> String {
-    let ms = now();
+    let ms = crate::now_ms();
     let (days, rest) = ((ms / 86_400_000) as i64, ms % 86_400_000);
     // civil date from days since 1970 (Howard Hinnant's algorithm)
     let z = days + 719_468;
@@ -296,7 +292,7 @@ pub fn libretro_names(cache_dir: &Path, console_id: &str) -> Option<LibretroName
     let file = cache_dir.join(format!("libretro-{console_id}.json"));
     let strings = |v: &Value| v.as_array().map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>());
     let cached: Option<Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
-    if let Some(names) = cached.as_ref().filter(|c| now() as f64 - js::number(c.get("at")) < 7.0 * DAY).and_then(|c| strings(&c["names"])) {
+    if let Some(names) = cached.as_ref().filter(|c| crate::now_ms() as f64 - js::number(c.get("at")) < 7.0 * DAY).and_then(|c| strings(&c["names"])) {
         return Some(LibretroNames::new(names));
     }
     let url = format!("https://thumbnails.libretro.com/{}/Named_Boxarts/", js::encode_uri_component(sys));
@@ -308,7 +304,7 @@ pub fn libretro_names(cache_dir: &Path, console_id: &str) -> Option<LibretroName
     let names: Vec<String> = HREF.captures_iter(&html).filter_map(|m| js::decode_uri_component(&m[1])).map(|n| n[..n.len() - 4].to_string()).collect();
     // an empty page (a layout change, an error page) isn't worth remembering for a week
     if !names.is_empty() {
-        let _ = std::fs::create_dir_all(cache_dir).and_then(|()| std::fs::write(&file, json!({ "at": now(), "names": names }).to_string()));
+        let _ = std::fs::create_dir_all(cache_dir).and_then(|()| std::fs::write(&file, json!({ "at": crate::now_ms(), "names": names }).to_string()));
     }
     Some(LibretroNames::new(names))
 }
@@ -435,7 +431,7 @@ fn index_with(cache_dir: &Path, need: Option<&str>, progress: &mut dyn FnMut(&st
     let (zip, xml, idx) = (cache_dir.join("Metadata.zip"), cache_dir.join("Metadata.xml"), index_file(cache_dir));
     let plats = all_platforms();
     // LaunchBox's PC games only when asked for: the Electron app builds the shared index without them
-    let fresh = |m: &ShardsMeta| m.v == IDX_V && now() as f64 - (m.at as f64) < IDX_DAYS * DAY && plats.iter().map(String::as_str).chain(need).all(|p| m.plats.iter().any(|x| x == p));
+    let fresh = |m: &ShardsMeta| m.v == IDX_V && crate::now_ms() as f64 - (m.at as f64) < IDX_DAYS * DAY && plats.iter().map(String::as_str).chain(need).all(|p| m.plats.iter().any(|x| x == p));
     if let Some(m) = ensure_shards(cache_dir).filter(|m| fresh(m)) {
         let _ = std::fs::remove_file(&xml);
         return Ok(Index::of(cache_dir, m));
@@ -879,7 +875,7 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
                 if !ok && (old.is_none() || poster_old) && matches!(key, "front" | "back") && crate::wikiart::has(id) && !stopped() {
                     let lower = reg.to_lowercase();
                     let wiki_region = if lower.contains("eur") { "eur" } else if lower.contains("jpn") || lower.contains("japan") { "jpn" } else { "usa" };
-                    if let Some(w) = crate::wikiart::find(cache_dir, id, &covers::lookup_names(&game.title), key, wiki_region, now() as f64, &crate::wikiart::ask) {
+                    if let Some(w) = crate::wikiart::find(cache_dir, id, &covers::lookup_names(&game.title), key, wiki_region, crate::now_ms() as f64, &crate::wikiart::ask) {
                         ok = matches!(fetch_into(&w.url, &dir, &base, suffix, &format!(".{}", w.ext), None, false), Fetched::Placed);
                     }
                 }

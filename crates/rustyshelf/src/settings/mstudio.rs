@@ -27,10 +27,6 @@ pub(super) struct MStudio {
     working: Option<(String, Mutex<Receiver<Result<(usize, bool), String>>>)>,
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 fn lang_name(l: &str) -> &str {
     match l {
         "en" => "English",
@@ -67,7 +63,7 @@ impl Settings {
         let (tx, rx) = channel();
         let game = g.clone();
         std::thread::spawn(move || {
-            let (found, offline) = ms::search(&Online, &data, &game, &skip, now_ms());
+            let (found, offline) = ms::search(&Online, &data, &game, &skip, rustyshelf_core::js::date_now());
             // three checked at a time
             let next = std::sync::atomic::AtomicUsize::new(0);
             let tx = Mutex::new(tx);
@@ -106,13 +102,13 @@ impl Settings {
             self.say("That's the manual in use.".into());
             return;
         }
-        self.manual_studio_work("Downloading and putting it in place…", move |data, g| ms::apply(&Online, data, g, &c, r.as_ref(), now_ms()));
+        self.manual_studio_work("Downloading and putting it in place…", move |data, g| ms::apply(&Online, data, g, &c, r.as_ref(), rustyshelf_core::js::date_now()));
     }
 
     /// Your own PDF as the chosen game's manual (from the file picker).
     pub(super) fn own_manual(&mut self, file: &std::path::Path) {
         let file = file.to_path_buf();
-        self.manual_studio_work("Turning your PDF into pages…", move |data, g| ms::own(data, g, &file, now_ms()));
+        self.manual_studio_work("Turning your PDF into pages…", move |data, g| ms::own(data, g, &file, rustyshelf_core::js::date_now()));
     }
 
     /// What the search and a manual being put in came to since the last frame.

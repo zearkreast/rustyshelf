@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
@@ -28,10 +28,6 @@ static STATE: Mutex<State> = Mutex::new(State { file: None, loaded: None, saving
 
 fn lock() -> std::sync::MutexGuard<'static, State> {
     STATE.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
 /// The record is kept in this data folder from now on.
@@ -100,7 +96,7 @@ pub fn flush() {
     let Some(p) = s.loaded.as_mut() else { return };
     let n = p["files"].as_object().map_or(0, Map::len) + p["base"].as_object().map_or(0, Map::len);
     // pictures long gone (moved to replaced, games removed): a check of every file, so at most every 6 h
-    let prune = n > 80_000 && now_ms().saturating_sub(pruned) > 6 * 3_600_000;
+    let prune = n > 80_000 && crate::now_ms().saturating_sub(pruned) > 6 * 3_600_000;
     if prune {
         for m in ["files", "base"] {
             if let Some(m) = p.get_mut(m).and_then(Value::as_object_mut) {
@@ -110,13 +106,10 @@ pub fn flush() {
     }
     let text = Value::Object(p.clone()).to_string();
     if prune {
-        s.pruned = now_ms();
+        s.pruned = crate::now_ms();
     }
     drop(s);
-    let tmp = PathBuf::from(format!("{}.tmp", file.display()));
-    if std::fs::write(&tmp, text).is_ok() {
-        let _ = std::fs::rename(&tmp, &file);
-    }
+    let _ = crate::files::write_atomic(&file, text);
 }
 
 /// This picture is on record with this origin ("auto" for one RustyShelf downloaded, "own" for the user's pick…).

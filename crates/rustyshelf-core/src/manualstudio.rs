@@ -279,11 +279,7 @@ impl Db {
     }
 
     pub fn save(&self) -> Result<(), String> {
-        if let Some(d) = self.file.parent() {
-            fs::create_dir_all(d).map_err(|e| e.to_string())?;
-        }
-        let tmp = PathBuf::from(format!("{}.tmp", self.file.display()));
-        fs::write(&tmp, Value::Object(self.all.clone()).to_string()).and_then(|()| fs::rename(&tmp, &self.file)).map_err(|e| e.to_string())
+        crate::files::write_atomic(&self.file, Value::Object(self.all.clone()).to_string()).map_err(|e| e.to_string())
     }
 
     fn part(&mut self, k: &str) -> &mut Map<String, Value> {

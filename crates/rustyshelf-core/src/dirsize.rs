@@ -13,10 +13,6 @@ use crate::js;
 
 const WEEK: f64 = 7.0 * 24.0 * 3_600_000.0;
 
-fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 /// A folder's own modification time in ms; None when it isn't there.
 fn mtime_of(dir: &str) -> Option<u64> {
     Path::new(dir).metadata().ok()?.modified().ok()?.duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis() as u64)
@@ -75,7 +71,7 @@ impl DirSizes {
         }
         let Some(m) = mtime_of(dir) else { return false };
         match self.cache.get(dir) {
-            Some(c) => js::number(c.get("mtime")) != m as f64 || now() as f64 - js::number(c.get("at")) > WEEK,
+            Some(c) => js::number(c.get("mtime")) != m as f64 || crate::now_ms() as f64 - js::number(c.get("at")) > WEEK,
             None => true,
         }
     }
@@ -90,12 +86,9 @@ impl DirSizes {
             let Some(m) = mtime_of(dir) else { continue };
             let bytes = measure(dir);
             changed |= self.cache.get(dir).and_then(|c| c.get("bytes")).and_then(Value::as_f64) != Some(bytes as f64);
-            self.cache.insert(dir.clone(), json!({ "bytes": bytes, "mtime": m, "at": now() }));
+            self.cache.insert(dir.clone(), json!({ "bytes": bytes, "mtime": m, "at": crate::now_ms() }));
         }
-        let tmp = self.file.with_extension("json.tmp");
-        if std::fs::write(&tmp, Value::Object(self.cache.clone()).to_string()).is_ok() {
-            let _ = std::fs::rename(&tmp, &self.file);
-        }
+        let _ = crate::files::write_atomic(&self.file, Value::Object(self.cache.clone()).to_string());
         changed
     }
 }

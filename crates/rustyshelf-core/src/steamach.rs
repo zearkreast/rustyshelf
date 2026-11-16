@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 
 use regex::Regex;
 use serde_json::{json, Value};
@@ -27,10 +27,6 @@ fn online(url: &str) -> Result<(u16, Option<Value>), String> {
         Err(true) => Err("Steam took too long to answer.".into()),
         Err(false) => Err("Steam couldn't be reached.".into()),
     }
-}
-
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
 /// "2026-01-02 10:00:00" (UTC) for seconds since 1970; null for 0.
@@ -139,7 +135,7 @@ impl SteamAch {
     fn cached<E>(&self, name: &str, max_age_ms: u64, fetch: impl FnOnce() -> Result<Value, E>) -> Result<Value, E> {
         let name: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
         let file = self.dir.join(format!("{name}.json"));
-        let now = now_ms();
+        let now = crate::now_ms();
         let fresh = |at: u64| now.saturating_sub(at) < max_age_ms;
         if let Some((_, d)) = self.mem.lock().unwrap().get(&name).filter(|m| fresh(m.0)) {
             return Ok(d.clone());

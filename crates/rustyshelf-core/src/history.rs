@@ -4,7 +4,6 @@
 //! Electron app reads and writes the same file.
 
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
@@ -31,10 +30,6 @@ pub struct History {
     file: PathBuf,
     games: Vec<(String, Played)>,
     open: Option<Open>,
-}
-
-fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
 /// JS `+v || 0`, as a whole number.
@@ -68,7 +63,7 @@ impl History {
                 }
                 Ok(_) => {}
                 Err(_) => {
-                    let _ = std::fs::copy(&file, format!("{}.corrupt-{}", file.display(), now()));
+                    let _ = std::fs::copy(&file, format!("{}.corrupt-{}", file.display(), crate::now_ms()));
                 }
             }
         }
@@ -93,13 +88,7 @@ impl History {
     /// Through a temporary file: a crash or a power cut mid-write can't wipe the history.
     fn save(&self) {
         let o: Map<String, Value> = self.games.iter().map(|(k, p)| (k.clone(), json!({ "count": p.count, "ms": p.ms, "last": p.last }))).collect();
-        let tmp = PathBuf::from(format!("{}.tmp", self.file.display()));
-        if let Some(d) = self.file.parent() {
-            let _ = std::fs::create_dir_all(d);
-        }
-        if std::fs::write(&tmp, Value::Object(o).to_string()).is_ok() {
-            let _ = std::fs::rename(&tmp, &self.file);
-        }
+        let _ = crate::files::write_atomic(&self.file, Value::Object(o).to_string());
     }
 
     fn count(&mut self, id: &str, at: u64) -> (String, (u64, u64)) {
@@ -114,7 +103,7 @@ impl History {
 
     /// A game the shelf starts and waits for: the launch is counted now, its time when it ends.
     pub fn start(&mut self, id: &str) {
-        self.start_at(id, now());
+        self.start_at(id, crate::now_ms());
     }
 
     fn start_at(&mut self, id: &str, at: u64) {
@@ -124,7 +113,7 @@ impl History {
 
     /// A game its store looks after (Steam, a store's launcher) or that isn't waited for: the launch, no time.
     pub fn touch(&mut self, id: &str) {
-        self.count(id, now());
+        self.count(id, crate::now_ms());
     }
 
     /// The launch never started, or the emulator closed right away: the play is taken back off, "last played" too.
@@ -142,7 +131,7 @@ impl History {
 
     /// The game closed: its time is added.
     pub fn end(&mut self) {
-        self.end_at(now());
+        self.end_at(crate::now_ms());
     }
 
     fn end_at(&mut self, at: u64) {

@@ -54,10 +54,6 @@ fn rank(kind: &str) -> Option<usize> {
     ["play", "title", "fan"].iter().position(|k| *k == kind)
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 /// `more-shots/index.json`: `{ v: 1, games: { key: { s: [[file (relative), source, kind, sha1, dhash]], t: { source:
 /// at }, b: { url: [sha1, dhash] }, w } } }`.
 pub struct Index {
@@ -74,10 +70,7 @@ impl Index {
     }
 
     pub fn save(&self) -> std::io::Result<()> {
-        std::fs::create_dir_all(&self.dir)?;
-        let (file, tmp) = (self.dir.join("index.json"), self.dir.join(format!("index.json.{}.tmp", std::process::id())));
-        std::fs::write(&tmp, json!({ "v": 1, "games": self.games }).to_string())?;
-        std::fs::rename(&tmp, file)
+        crate::files::write_atomic(&self.dir.join("index.json"), json!({ "v": 1, "games": self.games }).to_string())
     }
 
     /// The game's added screenshots, as files.
@@ -102,7 +95,7 @@ impl Index {
             return false;
         }
         let e = self.games.get(&key);
-        sources.iter().any(|s| s.ready() && due(e, s.id(), now_ms()))
+        sources.iter().any(|s| s.ready() && due(e, s.id(), crate::js::date_now()))
     }
 }
 
@@ -172,7 +165,7 @@ pub fn top_up(index: &mut Index, sys: &str, game: &Game, base: &[String], source
     if base.len() + count(&e) >= WANT {
         return;
     }
-    let now = now_ms();
+    let now = crate::js::date_now();
     let (mut cands, mut asked): (Vec<(Cand, &dyn Source)>, Vec<&'static str>) = (Vec::new(), Vec::new());
     for src in sources {
         if !src.ready() || !due(Some(&e), src.id(), now) {
@@ -332,7 +325,7 @@ impl Source for Igdb<'_> {
     fn find(&self, sys: &str, game: &Game) -> Result<Vec<Cand>, String> {
         let Some(found) = self.client.lookup(sys, game.title).map_err(|t| t.why)? else { return Ok(Vec::new()) };
         let mut store = crate::igdb::Store::load(self.data_dir);
-        store.put(&crate::gamekey::game_key(sys, game.file, game.title), found.hit.as_ref(), now_ms());
+        store.put(&crate::gamekey::game_key(sys, game.file, game.title), found.hit.as_ref(), crate::js::date_now());
         let _ = store.save();
         Ok(found.shot_hit.as_ref().map_or(Vec::new(), crate::igdb::shots_of).into_iter().take(MAX).map(|url| Cand { url, kind: "play" }).collect())
     }

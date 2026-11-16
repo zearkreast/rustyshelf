@@ -14,11 +14,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::channel;
 use std::sync::{Arc, LazyLock, Mutex};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde_json::{json, Value};
 
+use crate::files::{read_json, write_atomic};
 use crate::js;
 use crate::pcgames::slug;
 
@@ -40,23 +41,6 @@ fn is_exec(p: &Path) -> bool {
     {
         p.is_file()
     }
-}
-
-fn read_json(f: &Path) -> Option<Value> {
-    serde_json::from_slice(&std::fs::read(f).ok()?).ok()
-}
-
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
-fn write_atomic(f: &Path, text: &str) -> std::io::Result<()> {
-    if let Some(d) = f.parent() {
-        std::fs::create_dir_all(d)?;
-    }
-    let tmp = PathBuf::from(format!("{}.tmp", f.display()));
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(&tmp, f)
 }
 
 /// A program on the PATH.
@@ -368,7 +352,7 @@ pub fn umu_id(data_dir: &Path, store: &str, codename: &str) -> Option<String> {
     let k = format!("{store}:{codename}");
     if let Some(e) = ids.get(&k) {
         let id = js::filled(e.get("id")).map(str::to_string);
-        if id.is_some() || now_ms().saturating_sub(e.get("at").and_then(Value::as_u64).unwrap_or(0)) < 7 * 86_400_000 {
+        if id.is_some() || crate::now_ms().saturating_sub(e.get("at").and_then(Value::as_u64).unwrap_or(0)) < 7 * 86_400_000 {
             return id;
         }
     }
@@ -377,7 +361,7 @@ pub fn umu_id(data_dir: &Path, store: &str, codename: &str) -> Option<String> {
         let x = if j.is_array() { j.get(0).cloned() } else { Some(j) }?;
         js::str_of(x.get("umu_id")).filter(|i| ID.is_match(i)).map(str::to_string)
     });
-    ids[&k] = json!({ "id": id, "at": now_ms() });
+    ids[&k] = json!({ "id": id, "at": crate::now_ms() });
     let _ = std::fs::write(&file, ids.to_string());
     id
 }
@@ -607,7 +591,7 @@ fn library_file(data_dir: &Path) -> PathBuf {
 /// How long ago the Epic library was last read (ms); None for never.
 pub fn library_age(data_dir: &Path) -> Option<u64> {
     let at = read_json(&library_file(data_dir))?.get("at")?.as_u64()?;
-    Some(now_ms().saturating_sub(at))
+    Some(crate::now_ms().saturating_sub(at))
 }
 
 /// Every game the account owns, as last read from Epic, installed or not.
@@ -660,7 +644,7 @@ pub fn epic_library(bin: &Path, data_dir: &Path) -> Result<Vec<Owned>, String> {
     if epic_account(data_dir).is_none() {
         return Err(signed_out());
     }
-    let _ = write_atomic(&library_file(data_dir), &json!({ "at": now_ms(), "games": games }).to_string());
+    let _ = write_atomic(&library_file(data_dir), json!({ "at": crate::now_ms(), "games": games }).to_string());
     let have: std::collections::HashSet<String> = epic_installed(data_dir).into_iter().map(|g| g.app_name).collect();
     Ok(games
         .iter()

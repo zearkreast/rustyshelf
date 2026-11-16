@@ -12,7 +12,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, LazyLock, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, UNIX_EPOCH};
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -355,13 +355,9 @@ pub struct ScreenScraper {
     fetch: Fetch,
 }
 
-fn now_ms() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 /// Until a minute into the next day by UTC, when the day's quota starts again.
 fn next_utc_day() -> f64 {
-    let now = now_ms();
+    let now = crate::js::date_now();
     ((now / DAY).floor() + 1.0) * DAY - now + 60_000.0
 }
 
@@ -439,7 +435,7 @@ impl ScreenScraper {
     pub fn standing(&self) -> Standing {
         let (c, s) = (self.creds(), self.state.lock().unwrap());
         let configured = !c.user.is_empty() && !c.pass.is_empty();
-        Standing { configured, enabled: configured && c.sig() != s.bad_sig, paused: if now_ms() < s.paused_until { s.pause_why } else { "" }, threads: s.max_threads, dev_login: c.has_dev() }
+        Standing { configured, enabled: configured && c.sig() != s.bad_sig, paused: if crate::js::date_now() < s.paused_until { s.pause_why } else { "" }, threads: s.max_threads, dev_login: c.has_dev() }
     }
 
     /// A clean media address with the account in it, for the download.
@@ -475,7 +471,7 @@ impl ScreenScraper {
     /// Writes the cache, without what's gone stale and the first written of too many.
     fn save(&self) {
         let text = self.cache(|c| {
-            let now = now_ms();
+            let now = crate::js::date_now();
             c.games.retain(|_, v| now - js::number(v.get(1)) <= if js::truthy(v.get(0)) { HIT_TTL } else { MISS_TTL });
             let trim = |m: &mut Map<String, Value>, most: usize| {
                 if m.len() > most {
@@ -494,7 +490,7 @@ impl ScreenScraper {
 
     fn pause(&self, ms: f64, why: &'static str) {
         let mut s = self.state.lock().unwrap();
-        s.paused_until = s.paused_until.max(now_ms() + ms);
+        s.paused_until = s.paused_until.max(crate::js::date_now() + ms);
         s.pause_why = why;
     }
 
@@ -505,7 +501,7 @@ impl ScreenScraper {
             *busy += 1;
         }
         let wait = {
-            let (mut s, now) = (self.state.lock().unwrap(), now_ms());
+            let (mut s, now) = (self.state.lock().unwrap(), crate::js::date_now());
             let at = now.max(s.last_at + s.spacing);
             s.last_at = at;
             at - now
@@ -590,7 +586,7 @@ impl ScreenScraper {
         }
         {
             let s = self.state.lock().unwrap();
-            if now_ms() < s.paused_until {
+            if crate::js::date_now() < s.paused_until {
                 return Err(trouble(if s.pause_why.is_empty() { "rate" } else { s.pause_why }, pause_words(s.pause_why)));
             }
         }
@@ -663,7 +659,7 @@ impl ScreenScraper {
         let meta = fs::metadata(game.file).ok();
         let size = meta.as_ref().filter(|m| m.is_file()).map_or(game.size_bytes, fs::Metadata::len);
         let ck = format!("{shelf}|{}|{size}", game.file.to_lowercase());
-        let now = now_ms();
+        let now = crate::js::date_now();
         let stale = |h: &Value| shots && js::truthy(h.get(0)) && !js::truthy(h.get(3)) && !cache_only;
         let hit = self.cache(|c| c.games.get(&ck).filter(|h| now - js::number(h.get(1)) < if js::truthy(h.get(0)) { HIT_TTL } else { MISS_TTL } && !stale(h)).cloned());
         if let Some(hit) = hit {
@@ -704,8 +700,8 @@ impl ScreenScraper {
         });
         let kept = match &out {
             // 2: screenshots and videos kept too
-            Some(f) => json!([f.id, now_ms(), f.media.iter().map(Media::to_json).collect::<Vec<_>>(), 2]),
-            None => json!([0, now_ms()]),
+            Some(f) => json!([f.id, crate::js::date_now(), f.media.iter().map(Media::to_json).collect::<Vec<_>>(), 2]),
+            None => json!([0, crate::js::date_now()]),
         };
         self.cache(|c| c.games.insert(ck, kept));
         self.save();
@@ -782,7 +778,7 @@ impl ScreenScraper {
             return Ok(Got::Missing);
         }
         // without an account, or with a refused one: not "missing", which would hide the picture for a week
-        if !self.enabled() || now_ms() < self.state.lock().unwrap().paused_until {
+        if !self.enabled() || crate::js::date_now() < self.state.lock().unwrap().paused_until {
             return Ok(Got::Busy);
         }
         let Some(signed) = self.sign(url) else { return Ok(Got::Missing) };

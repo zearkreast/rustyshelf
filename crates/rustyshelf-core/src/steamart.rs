@@ -20,10 +20,6 @@ const MONTH: f64 = 30.0 * 86_400_000.0;
 /// A cover the CDN doesn't have, or info the store doesn't give, is asked for again after a week.
 const RETRY: f64 = 7.0 * 86_400_000.0;
 
-fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 /// Is this download a picture? PNG, JPEG, WebP, GIF, BMP or AVIF / HEIF, by its first bytes. A 200 that isn't one (a
 /// Wi-Fi sign-in page, a CDN error page) is never saved as a cover: a saved picture is trusted for good.
 pub fn is_image(b: &[u8]) -> bool {
@@ -133,7 +129,7 @@ fn fetch_info(appid: &str) -> Option<Value> {
     let j = crate::net::get_json(&format!("https://store.steampowered.com/api/appdetails?appids={appid}&l=english"), Duration::from_secs(20)).ok()?;
     let app = j.get(appid);
     let Some(d) = app.filter(|a| js::truthy(a.get("success"))).and_then(|a| a.get("data")).filter(|d| js::truthy(Some(d))) else {
-        return Some(json!({ "ok": false, "at": now() }));
+        return Some(json!({ "ok": false, "at": crate::now_ms() }));
     };
     let (iso, year) = release_date(&js::text(d.get("release_date").and_then(|r| r.get("date"))));
     let joined = |k: &str, sep: &str, of: &dyn Fn(&Value) -> String| d.get(k).and_then(Value::as_array).map(|a| a.iter().map(of).collect::<Vec<_>>().join(sep)).unwrap_or_default();
@@ -152,7 +148,7 @@ fn fetch_info(appid: &str) -> Option<Value> {
         .collect();
     let mut e = Map::new();
     e.insert("ok".into(), json!(true));
-    e.insert("at".into(), json!(now()));
+    e.insert("at".into(), json!(crate::now_ms()));
     if let Some(name) = d.get("name") {
         e.insert("name".into(), name.clone());
     }
@@ -256,7 +252,7 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
     let missed = |name: &str| dir.join(format!("{name}.noart"));
     let recently_missed = |name: &str| {
         let at = missed(name).metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok());
-        at.is_some_and(|t| (now() as f64 - t.as_millis() as f64) < RETRY)
+        at.is_some_and(|t| (crate::now_ms() as f64 - t.as_millis() as f64) < RETRY)
     };
     let remember = |name: &str| {
         let _ = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(missed(name), b""));
@@ -300,7 +296,7 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
             // (before v2 an entry had no long description)
             Some(old) => {
                 let ok = js::truthy(old.get("ok"));
-                now() as f64 - js::number(old.get("at")) > (if ok { MONTH } else { RETRY }) || (ok && old.get("v").is_none())
+                crate::now_ms() as f64 - js::number(old.get("at")) > (if ok { MONTH } else { RETRY }) || (ok && old.get("v").is_none())
             }
             None => true,
         };
@@ -317,10 +313,7 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
         }
     }
     if !need.is_empty() {
-        let tmp = data_dir.join("steam-info.json.tmp");
-        if std::fs::create_dir_all(data_dir).and_then(|()| std::fs::write(&tmp, Value::Object(info).to_string())).is_ok() {
-            let _ = std::fs::rename(&tmp, &info_file);
-        }
+        let _ = crate::files::write_atomic(&info_file, Value::Object(info).to_string());
     }
     (covers, other)
 }

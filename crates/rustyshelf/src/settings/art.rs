@@ -102,10 +102,6 @@ struct Restyle {
     ended: Mutex<Receiver<String>>,
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 /// A part's name; the disc is named for what the console's games come on (a cartridge, a UMD, a floppy disk).
 fn part_name(part: &str, sys: &str) -> &'static str {
     match part {
@@ -258,7 +254,7 @@ impl Settings {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
             drop(earlier);
-            let _ = tx.send(artjob::restyle(&app_root, &cfg, &id, &bases, &after, now_ms(), &mine));
+            let _ = tx.send(artjob::restyle(&app_root, &cfg, &id, &bases, &after, rustyshelf_core::js::date_now(), &mine));
         });
         self.art_pick.restyles.push(Restyle { sys: sys.to_string(), job, ended: Mutex::new(rx) });
     }
@@ -293,9 +289,9 @@ impl Settings {
             std::thread::spawn(move || {
                 let _ = stx.send(slow.cands(&late, part, ask));
             });
-            let quick = remote.quick(&game, part, &region, ask, now_ms());
+            let quick = remote.quick(&game, part, &region, ask, rustyshelf_core::js::date_now());
             let ranked = |remote: Vec<Cand>| -> Vec<Cand> {
-                let list = Studio::new(&data).list_for(&game, part, remote, now_ms());
+                let list = Studio::new(&data).list_for(&game, part, remote, rustyshelf_core::js::date_now());
                 // the best for the console's style first
                 let shown: Vec<Cand> = studio::shown(&list).cloned().collect();
                 let ctx = Ctx { style: &style, game_region: &game.region, sharp: None };
@@ -363,7 +359,7 @@ impl Settings {
             let (st, mut remote) = (Studio::new(&data), Remote::new(&data, &game.sys));
             let region = style["region"].as_str().unwrap_or("usa");
             let ask = Ask { wiki: true, posters: false, ss_cache_only: false };
-            let lists = studio::PARTS.map(|part| st.list_for(&game, part, remote.cands(&game, part, region, ask, now_ms()), now_ms()));
+            let lists = studio::PARTS.map(|part| st.list_for(&game, part, remote.cands(&game, part, region, ask, rustyshelf_core::js::date_now()), rustyshelf_core::js::date_now()));
             let _ = tx.send(artjob::build_sets(&style, &game.region, &lists));
         });
         let last = self.art_pick.last_set.take().filter(|l| l.0 == studio::lock_key(&g.sys, &g.file));
@@ -378,11 +374,11 @@ impl Settings {
         let work: Box<dyn FnOnce(&Studio, &mut GameArt) -> SetPlaced + Send> = match at {
             Some(i) => {
                 let Some(set) = self.art_pick.sets.get(i).cloned() else { return };
-                Box::new(move |st, g| st.apply_set(g, &set, now_ms()).map(|done| (g.clone(), Some((set, done)))))
+                Box::new(move |st, g| st.apply_set(g, &set, rustyshelf_core::js::date_now()).map(|done| (g.clone(), Some((set, done)))))
             }
             None => {
                 let Some((_, done, _)) = self.art_pick.last_set.clone() else { return };
-                Box::new(move |st, g| st.revert_parts(g, &done, now_ms()).map(|()| (g.clone(), None)))
+                Box::new(move |st, g| st.revert_parts(g, &done, rustyshelf_core::js::date_now()).map(|()| (g.clone(), None)))
             }
         };
         let (tx, rx) = channel();
@@ -437,8 +433,8 @@ impl Settings {
     fn place_art(&mut self, key: Option<String>) {
         let chosen = key.as_ref().and_then(|k| self.art_pick.list.iter().find(|c| c.key == *k)).cloned();
         self.place_with(key, move |st, g, part| match &chosen {
-            Some(c) => st.apply(g, part, c, now_ms()),
-            None => st.undo(g, part, now_ms()).map(|()| true),
+            Some(c) => st.apply(g, part, c, rustyshelf_core::js::date_now()),
+            None => st.undo(g, part, rustyshelf_core::js::date_now()).map(|()| true),
         });
     }
 
@@ -446,7 +442,7 @@ impl Settings {
     /// of the whole box.
     pub(super) fn own_art(&mut self, file: &Path, cut: bool) {
         let file = file.to_path_buf();
-        self.place_with(Some("own".into()), move |st, g, part| st.own(g, part, &file, cut, now_ms()).map(|()| true));
+        self.place_with(Some("own".into()), move |st, g, part| st.own(g, part, &file, cut, rustyshelf_core::js::date_now()).map(|()| true));
     }
 
     /// Changes the open part's picture off the frame; `key` is what the part is then locked as.
@@ -518,7 +514,7 @@ impl Settings {
                     let key = studio::lock_key(&g.sys, &g.file);
                     let before = self.cfg["art"]["locks"][key.as_str()].clone();
                     for (p, c) in studio::PARTS.iter().zip(&set.parts) {
-                        self.lock_part(&g, p, json!({ "look": "exact", "key": c.key, "at": now_ms() }));
+                        self.lock_part(&g, p, json!({ "look": "exact", "key": c.key, "at": rustyshelf_core::js::date_now() }));
                     }
                     self.art_now(&g);
                     self.say(if done.changed.is_empty() { "That set is in use already.".into() } else { format!("{} is in use now; the shelf shows it when Settings closes.", set.label) });
@@ -595,7 +591,7 @@ impl Settings {
                 Ok((g, moved)) => {
                     let to_style = key.as_deref() == Some("shelf");
                     // kept as chosen by hand: the automatic art check leaves this part alone
-                    let mut lock = json!({ "look": "exact", "at": now_ms() });
+                    let mut lock = json!({ "look": "exact", "at": rustyshelf_core::js::date_now() });
                     if let Some(key) = &key {
                         lock["key"] = json!(key);
                     }
@@ -655,7 +651,7 @@ impl Settings {
         let (tx, rx) = channel();
         let key = c.key.clone();
         std::thread::spawn(move || {
-            let file = local.or_else(|| Studio::new(&data).fetch_cand(&c, &sys, now_ms()).ok().flatten());
+            let file = local.or_else(|| Studio::new(&data).fetch_cand(&c, &sys, rustyshelf_core::js::date_now()).ok().flatten());
             let picture = file.and_then(|f| image::ImageReader::open(f).ok()?.with_guessed_format().ok()?.decode().ok()).map(|img| {
                 let img = if img.height() > PREVIEW { img.resize(u32::MAX, PREVIEW, image::imageops::FilterType::Triangle) } else { img };
                 let rgba = img.into_rgba8();
@@ -792,7 +788,7 @@ impl Settings {
         let mut e = self.cfg["art"]["locks"][key.as_str()].as_object().cloned().unwrap_or_default();
         if !js::truthy(e.get("all")) {
             let sig: serde_json::Map<String, Value> = studio::PARTS.iter().filter(|p| !js::truthy(e.get(**p))).map(|p| (p.to_string(), json!(artjob::look_sig(&style, p, &g.region)))).collect();
-            e.insert("all".into(), json!({ "at": now_ms(), "sig": sig }));
+            e.insert("all".into(), json!({ "at": rustyshelf_core::js::date_now(), "sig": sig }));
             self.set(&["art", "locks", &key], Value::Object(e));
             self.say(format!("{title}: locked as it is"));
             return;

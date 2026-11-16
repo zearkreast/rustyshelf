@@ -653,10 +653,7 @@ impl Studio {
         let mut m = self.missing();
         m.retain(|_, at| js::number(Some(at)) > now - MISS_MS);
         m.insert(url.to_string(), js::num(now));
-        let (file, tmp) = (self.data_dir.join("art-missing.json"), self.data_dir.join("art-missing.json.tmp"));
-        if std::fs::write(&tmp, Value::Object(m).to_string()).is_ok() {
-            let _ = std::fs::rename(&tmp, &file);
-        }
+        let _ = crate::files::write_atomic(&self.data_dir.join("art-missing.json"), Value::Object(m).to_string());
     }
 
     /// The list for one part of a game: the picture in use, the sources' (`remote`, with what's known of the ones

@@ -14,6 +14,7 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::art::resolve;
+use crate::files::{read_json, write_atomic};
 use crate::js;
 use crate::paths::{is_dir, is_file};
 use crate::scanner::read_dir_sorted;
@@ -56,11 +57,6 @@ pub struct PcGame {
     pub cover_url: String,
 }
 
-fn read_json(f: &Path) -> Option<Value> {
-    let t = String::from_utf8_lossy(&std::fs::read(f).ok()?).into_owned();
-    serde_json::from_str(t.strip_prefix('\u{feff}').unwrap_or(&t)).ok()
-}
-
 pub fn slug(s: &str) -> String {
     slug_or(s, "game")
 }
@@ -78,10 +74,6 @@ pub fn slug_or(s: &str, empty: &str) -> String {
     } else {
         t.to_string()
     }
-}
-
-fn now_ms() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
 fn https(v: Option<&Value>) -> String {
@@ -601,7 +593,7 @@ pub fn xbox_games(data_dir: &Path) -> Vec<PcGame> {
     if !cfg!(windows) {
         return Vec::new();
     }
-    xbox_games_with(data_dir, xbox_scan(&xbox_roots()), ask_families, now_ms())
+    xbox_games_with(data_dir, xbox_scan(&xbox_roots()), ask_families, crate::now_ms())
 }
 
 /// Settings → PC games: which stores are on (each on unless switched off).
@@ -1200,7 +1192,7 @@ pub fn steam_search(term: &str, exact: bool) -> Vec<(String, String)> {
         return Vec::new();
     }
     let k = t.to_lowercase();
-    let memo = MEMO.lock().ok().and_then(|m| m.get(&k).filter(|(at, _)| now_ms().saturating_sub(*at) < 600_000).map(|e| e.1.clone()));
+    let memo = MEMO.lock().ok().and_then(|m| m.get(&k).filter(|(at, _)| crate::now_ms().saturating_sub(*at) < 600_000).map(|e| e.1.clone()));
     let items = match memo {
         Some(i) => i,
         None => {
@@ -1215,7 +1207,7 @@ pub fn steam_search(term: &str, exact: bool) -> Vec<(String, String)> {
                 if m.len() > 200 {
                     m.clear();
                 }
-                m.insert(k, (now_ms(), items.clone()));
+                m.insert(k, (crate::now_ms(), items.clone()));
             }
             items
         }
@@ -1236,7 +1228,7 @@ pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {
     let (mut matched, mut asked, mut seen) = (0, 0, HashSet::new());
     for t in titles.iter().filter(|t| !t.is_empty() && seen.insert(t.as_str())) {
         let k = t.to_lowercase();
-        if map.get(&k).is_some_and(|e| js::truthy(e.get("id")) || (now_ms() as f64 - js::number(e.get("at"))) < WEEK) {
+        if map.get(&k).is_some_and(|e| js::truthy(e.get("id")) || (crate::now_ms() as f64 - js::number(e.get("at"))) < WEEK) {
             continue;
         }
         asked += 1;
@@ -1247,15 +1239,12 @@ pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {
         // offline or rate-limited: tried again next time
         let Ok(r) = crate::net::get_json(&url, Duration::from_secs(12)) else { break };
         let hit = steam_hit(r.get("items").and_then(Value::as_array).map_or(&[][..], Vec::as_slice), t);
-        map.insert(k, serde_json::json!({ "id": js::num(hit.unwrap_or(0.0)), "at": now_ms() }));
+        map.insert(k, serde_json::json!({ "id": js::num(hit.unwrap_or(0.0)), "at": crate::now_ms() }));
         matched += u32::from(hit.is_some());
         std::thread::sleep(Duration::from_millis(400));
     }
     if asked > 0 {
-        let tmp = data_dir.join("pc-steam.json.tmp");
-        if std::fs::create_dir_all(data_dir).and_then(|()| std::fs::write(&tmp, Value::Object(map).to_string())).is_ok() {
-            let _ = std::fs::rename(&tmp, &file);
-        }
+        let _ = write_atomic(&file, Value::Object(map).to_string());
     }
     matched
 }

@@ -8,6 +8,11 @@ pub const VERSION: &str = match option_env!("RUSTYSHELF_VERSION") {
     _ => env!("CARGO_PKG_VERSION"),
 };
 
+/// Milliseconds since 1970 (JS `Date.now()`).
+pub fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+}
+
 pub mod addgames;
 pub mod android;
 pub mod arcade;
@@ -32,6 +37,7 @@ pub mod emucfg;
 pub mod emuname;
 pub mod emusetup;
 pub mod epicdl;
+pub mod files;
 pub mod gamekey;
 pub mod gamelist;
 pub mod find;

@@ -149,19 +149,15 @@ struct Watched {
     store: &'static str,
 }
 
-fn now_ms() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 impl Watched {
     fn start(spec: Spec, store: &'static str) -> Watched {
         let (tx, events) = channel();
         let (close, asked) = channel::<u64>();
         std::thread::spawn(move || {
             let mut world = gamewatch::System;
-            let mut w = gamewatch::Watch::new(spec, now_ms(), std::process::id());
+            let mut w = gamewatch::Watch::new(spec, rustyshelf_core::now_ms(), std::process::id());
             while let Some(due) = w.due() {
-                let now = now_ms();
+                let now = rustyshelf_core::now_ms();
                 let mut events = match asked.try_recv() {
                     Ok(force_after) => w.close(&mut world, now, force_after),
                     Err(TryRecvError::Empty) => Vec::new(),

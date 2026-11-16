@@ -8,7 +8,6 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 
@@ -112,10 +111,6 @@ pub fn parse(xml: &str, types: &[&str]) -> (Map<String, Value>, usize) {
     (map, n)
 }
 
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 fn kept_file(cache_dir: &Path, console: &str) -> PathBuf {
     cache_dir.join(format!("gametdb-{console}.json"))
 }
@@ -126,7 +121,7 @@ pub fn index(cache_dir: &Path, console: &str) -> Option<Map<String, Value>> {
     let (zip, _, types) = db(console)?;
     let file = kept_file(cache_dir, console);
     let kept = fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()).filter(|j| j["v"] == V && j["map"].is_object());
-    let (now, map_of) = (now_ms(), |j: &Value| j["map"].as_object().cloned().unwrap_or_default());
+    let (now, map_of) = (crate::now_ms(), |j: &Value| j["map"].as_object().cloned().unwrap_or_default());
     if let Some(j) = &kept {
         let fresh = |key: &str, age: u64| j[key].as_u64().is_some_and(|at| now.saturating_sub(at) < age);
         if fresh("at", WEEK_MS) || fresh("tried", DAY_MS) {

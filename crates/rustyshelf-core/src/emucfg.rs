@@ -96,14 +96,8 @@ fn write_ini(f: &str, text: &str, ini: &Ini) -> std::io::Result<()> {
             std::fs::copy(f, &bak)?;
         }
     }
-    if let Some(d) = Path::new(f).parent() {
-        std::fs::create_dir_all(d)?;
-    }
-    let tmp = format!("{f}.tmp");
     let body = if ini.bom { format!("\u{feff}{text}") } else { text.to_string() };
-    std::fs::write(&tmp, body).and_then(|()| std::fs::rename(&tmp, f)).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })
+    crate::files::write_atomic(Path::new(f), body)
 }
 
 /// A settings file of an emulator's own written again: its one-time backup made first, then a temporary file takes

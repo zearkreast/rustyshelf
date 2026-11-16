@@ -578,10 +578,7 @@ impl Memo {
     }
 
     pub fn save(&self) {
-        let tmp = PathBuf::from(format!("{}.tmp", self.file.display()));
-        if fs::write(&tmp, Value::Object(self.seen.clone()).to_string()).is_ok() {
-            let _ = fs::rename(&tmp, &self.file);
-        }
+        let _ = crate::files::write_atomic(&self.file, Value::Object(self.seen.clone()).to_string());
     }
 
     /// What the collections changed lately, the newest first: `{ title, system, at, upgraded, oldW, w, pages,

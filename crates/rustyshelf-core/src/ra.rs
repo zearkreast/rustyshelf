@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde_json::{json, Map, Value};
 use sha1::{Digest, Sha1};
@@ -130,10 +130,6 @@ fn over_the_net(url: &str) -> Result<Value, String> {
     }
 }
 
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 /// The site's answer when it should be a list: some failures come with 200 and an object that says why.
 fn need(v: &Value) -> Result<&Vec<Value>, String> {
     v.as_array().ok_or_else(|| match v.get("message").and_then(Value::as_str).filter(|m| !m.is_empty()) {
@@ -237,7 +233,7 @@ impl Ra {
     fn cached(&self, name: &str, max_age_ms: u64, fetch: impl FnOnce() -> Result<Value, String>) -> Result<Value, String> {
         let name: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
         let file = self.dir.join(format!("{name}.json"));
-        let now = now_ms();
+        let now = crate::now_ms();
         let fresh = |at: u64| now.saturating_sub(at) < max_age_ms;
         if let Some((_, data)) = self.kept.lock().unwrap().get(&name).filter(|k| fresh(k.0)) {
             return Ok(data.clone());

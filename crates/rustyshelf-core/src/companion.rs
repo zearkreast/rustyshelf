@@ -16,7 +16,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -36,10 +36,6 @@ const THUMB_H: [u32; 6] = [180, 360, 480, 720, 1080, 1600];
 
 fn re(pattern: &str) -> Regex {
     Regex::new(pattern).unwrap()
-}
-
-fn now_ms() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
 }
 
 fn random(n: usize) -> Vec<u8> {
@@ -647,11 +643,7 @@ impl Companion {
 
     fn save(&self, inner: &Inner) {
         let phones: Vec<Value> = inner.phones.iter().map(|p| json!({ "id": p.id, "name": p.name, "hash": p.hash, "added": js::num(p.added), "seen": js::num(p.seen) })).collect();
-        let tmp = PathBuf::from(format!("{}.{}.tmp", self.store.display(), std::process::id()));
-        let written = self.store.parent().map_or(Ok(()), fs::create_dir_all).and_then(|()| fs::write(&tmp, json!({ "enabled": inner.enabled, "port": inner.port, "phones": phones }).to_string())).and_then(|()| fs::rename(&tmp, &self.store));
-        if written.is_err() {
-            let _ = fs::remove_file(&tmp);
-        }
+        let _ = crate::files::write_atomic(&self.store, json!({ "enabled": inner.enabled, "port": inner.port, "phones": phones }).to_string());
     }
 
     fn oid(&self, kind: &str, of: &str) -> String {
@@ -759,7 +751,7 @@ impl Companion {
     /// A few requests a second from an address is plenty for a remote; bursts are let through (opening the
     /// library loads many covers).
     fn allow(&self, inner: &mut Inner, ip: &str, cost: f64) -> bool {
-        let now = now_ms();
+        let now = crate::js::date_now();
         if !inner.buckets.contains_key(ip) && inner.buckets.len() > 256 {
             inner.buckets.clear();
         }
@@ -821,8 +813,8 @@ impl Companion {
             return Some(refuse(404, "Not found."));
         }
         let Some(phone) = self.phone_of(inner, req) else { return Some(refuse(401, "Pair this phone first.")) };
-        if now_ms() - inner.phones[phone].seen > 600_000.0 {
-            inner.phones[phone].seen = now_ms();
+        if crate::js::date_now() - inner.phones[phone].seen > 600_000.0 {
+            inner.phones[phone].seen = crate::js::date_now();
             self.save(inner);
         }
         if get {
@@ -929,7 +921,7 @@ impl Companion {
             Ok(o) => o,
             Err(no) => return no,
         };
-        let now = now_ms();
+        let now = crate::js::date_now();
         if now < inner.lock_until {
             return answer(429, json!({ "error": "Too many wrong PINs. Try again in a few minutes.", "retry": js::num(((inner.lock_until - now) / 1000.0).ceil()) }), &[]);
         }
@@ -1013,7 +1005,7 @@ impl Companion {
     pub fn state(&self) -> State {
         let inner = self.inner.lock().unwrap();
         let on = inner.bound.is_some();
-        let lock = (inner.lock_until - now_ms()).max(0.0);
+        let lock = (inner.lock_until - crate::js::date_now()).max(0.0);
         State {
             enabled: inner.enabled,
             on,
