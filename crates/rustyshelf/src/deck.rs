@@ -18,7 +18,7 @@ use crate::loading::LibraryRes;
 use crate::play::Playing;
 use crate::settings::Settings;
 
-const ICON: &[u8] = include_bytes!("../../../renderer/app-icon.png");
+const ICON: &[u8] = include_bytes!("../assets/app-icon.png");
 
 /// Adds RustyShelf to Steam off the frame (Steam closes and opens again): what to say once it's done. `card`: asked from
 /// the shelf's card, which words it for a Deck.

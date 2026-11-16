@@ -1,8 +1,8 @@
-// The Electron app's pretend RomM server (linux/ci/fake-romm.js), run for tests/romm.rs: prints its address, then
+// The pretend RomM server (fake-romm.js), run for tests/romm.rs: prints its address, then
 // answers one JSON line per command read from stdin.
 'use strict';
 const path = require('path');
-const fake = require(path.join(__dirname, '..', '..', '..', 'linux', 'ci', 'fake-romm.js'));
+const fake = require(path.join(__dirname, 'fake-romm.js'));
 const readline = require('readline');
 
 (async () => {

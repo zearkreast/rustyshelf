@@ -15,9 +15,9 @@ pub struct Dict {
     cache: Mutex<HashMap<String, Option<String>>>,
 }
 
-const FR: &str = include_str!("../../../renderer/i18n-fr.js");
-const TR: &str = include_str!("../../../renderer/i18n-tr.js");
-const PT: &str = include_str!("../../../renderer/i18n-pt-data.js");
+const FR: &str = include_str!("../assets/i18n/i18n-fr.js");
+const TR: &str = include_str!("../assets/i18n/i18n-tr.js");
+const PT: &str = include_str!("../assets/i18n/i18n-pt-data.js");
 
 /// The languages there's a dictionary for, by `ui.language`.
 pub const LANGS: [&str; 3] = ["fr", "tr", "pt"];

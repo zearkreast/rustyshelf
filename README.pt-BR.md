@@ -3,8 +3,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="renderer/brand/rustyshelf-logo-dark.svg">
-  <img src="renderer/brand/rustyshelf-logo-light.svg" alt="RustyShelf" width="520">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/rustyshelf-logo-dark.svg">
+  <img src="docs/brand/rustyshelf-logo-light.svg" alt="RustyShelf" width="520">
 </picture>
 
 **Sua biblioteca de jogos como uma estante para navegar do sofá.**
@@ -14,89 +14,29 @@
 [![Licença: GPL v3](https://img.shields.io/badge/licen%C3%A7a-GPL--3.0-blue)](LICENSE)
 [![Plataformas: Windows, Linux, Android](https://img.shields.io/badge/plataformas-Windows%20%C2%B7%20Linux%20%C2%B7%20Android-informational)](#instalação)
 [![Build/release check](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml/badge.svg)](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml)
-[![Electron](https://img.shields.io/badge/app-Electron-47848F?logo=electron&logoColor=white)](docs/MANUAL.md#run-from-source)
-[![Rust + Bevy](https://img.shields.io/badge/reescrita-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](#versão-nativa-em-rust)
+[![Rust + Bevy](https://img.shields.io/badge/app-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](docs/MANUAL.md#run-from-source)
 
 </div>
 
-Jogos de console emulados, jogos da Steam e outros jogos de PC e aplicativos de streaming ficam lado a lado como caixas de
-verdade em uma estante 3D. Puxe uma, abra a caixa, leia o manual, veja o disco entrar e jogue, tudo com um só controle.
+Jogos de console emulados, jogos da Steam e outros jogos de PC ficam lado a lado como caixas de verdade em uma estante,
+e se jogam com um só controle.
 
-## O que ele faz
-
-- **Uma estante 3D de caixas de verdade.** Cada jogo fica na caixa do seu console, com frente, lombada e verso. Vire a
-  caixa, tire-a da estante, abra, retire o disco, leia o manual.
-- **Um controle para tudo.** Navegue, inicie um jogo, pause, salve e carregue estados, tire uma captura de tela e volte
-  para a estante sem tocar no teclado.
-- **Jogos de console pelos seus emuladores.** Dolphin, Cemu, Eden, PPSSPP, PCSX2, RPCS3, shadPS4, Vita3K, xemu, Xenia,
-  Azahar e RetroArch para os sistemas retrô. O RustyShelf os encontra, ou você indica onde estão.
-- **Jogos de PC na mesma estante.** Steam, Epic Games, GOG Galaxy, Ubisoft Connect, o app da EA, Xbox / Game Pass e uma
-  pasta em que cada subpasta é um jogo. No Linux, jogos de Windows rodam com Wine ou Proton, sem a Steam.
-- **Capas e manuais encontrados para você.** Frentes, versos, lombadas, rótulos de disco, descrições e manuais vêm de
-  bancos de dados abertos. O Art Studio e o Manual Studio permitem escolher entre versões, parte por parte.
-- **Um museu da sua coleção.** Cada sistema em uma parede de estantes, cada caixa no tamanho real, com quatro tipos de
-  iluminação.
-- **Extras.** RetroAchievements e conquistas da Steam, um aplicativo de celular que funciona como controle remoto,
-  dezoito temas de cores e os seus próprios, modo de demonstração, música de menu e seus próprios modelos 3D de console.
-- **Privado.** Sem contas, sem anúncios, sem telemetria. Tudo o que ele salva fica na própria pasta.
-
-A interface está disponível em inglês, português do Brasil, francês e turco.
+> **Esta branch é o aplicativo nativo, em Rust.** É uma alpha, ainda incompleta. O aplicativo Electron a partir do qual
+> ele é reescrito (e o seu aplicativo Android, feito com Capacitor) está na branch
+> [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron). Os dois leem as mesmas configurações
+> e os mesmos dados, então o que for configurado em um funciona no outro. O museu continua só no Electron.
 
 ## Instalação
 
-Baixe a versão mais recente na [página de releases](https://github.com/zearkreast/rustyshelf/releases), quando houver uma
-publicada. Até lá, [execute a partir do código-fonte](docs/MANUAL.md#run-from-source).
-
-| Plataforma | Arquivo | Como |
-|---|---|---|
-| **Windows** | `RustyShelf-<versão>-windows-portable.exe` | Coloque-o em uma pasta só dele e dê dois cliques. Se o Windows avisar sobre um fornecedor desconhecido, escolha **Mais informações → Executar assim mesmo**. |
-| **Linux** | `RustyShelf-<versão>-linux.AppImage` | Rode `chmod +x` uma vez e depois inicie. As configurações ficam em `~/RustyShelf`. |
-| **Android** | `RustyShelf-<versão>-android.apk` | Abra o arquivo no aparelho e permita a instalação quando o Android perguntar. |
-
-Na primeira execução, o assistente de configuração oferece **Find automatically**: ele procura seus emuladores e pastas de
-jogos, você confere cada sistema e então escolhe **Open RustyShelf**.
-
-## Controles
-
-| Ação | Teclado | Controle Xbox / PlayStation |
-|---|---|---|
-| Mover pela estante | ← → | Direcional / analógico esquerdo |
-| Trocar de estante | ↑ ↓ | LT / RT |
-| Jogar / abrir | Enter | A / Xis |
-| Voltar | Esc | B / Círculo |
-| Virar a caixa | F | Y / Triângulo |
-| Detalhes | I | X / Quadrado |
-| Inspecionar | V | Clique do analógico direito |
-| Museu | M | Segurar View / Back |
-| Configurações | S | Start |
-| Menu Home durante um jogo | | Guide, ou segurar View / Back |
-
-A lista completa está no [manual](docs/MANUAL.md#controls).
-
-## Versão nativa em Rust
-
-O RustyShelf está sendo reescrito como um aplicativo nativo em Rust, em `crates/`, com [Bevy](https://bevy.org/). Ele lê as
-mesmas configurações e dados do aplicativo Electron, então o que for configurado em um funciona no outro. Ainda não é um
-substituto: instale e use o aplicativo Electron. O manual lista [o que já funciona](docs/MANUAL.md#native-rust-version).
+As alphas para Windows e Android estão na [página de releases](https://github.com/zearkreast/rustyshelf/releases). Ou
+execute a partir do código-fonte:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
 ```
 
-## Documentação
-
-O [manual](docs/MANUAL.md) cobre tudo em detalhes (em inglês):
-
-- [Suas pastas](docs/MANUAL.md#your-folders): como os jogos são encontrados e notas por sistema
-- [Na estante](docs/MANUAL.md#on-the-shelf): Inspecionar, Detalhes, Home, ordenação, o museu, modo de demonstração
-- [Durante um jogo](docs/MANUAL.md#while-a-game-runs): o menu Home, estados salvos, os atalhos de cada emulador
-- [Capas e manuais](docs/MANUAL.md#box-art-and-manuals) e [jogos de PC](docs/MANUAL.md#pc-games)
-- [Configurações](docs/MANUAL.md#settings) e [extras](docs/MANUAL.md#extras): aplicativo de celular, conquistas, seus próprios modelos 3D
-- [Privacidade](docs/MANUAL.md#privacy): cada serviço que ele acessa, quando e o que envia
-- [Para desenvolvedores](docs/MANUAL.md#for-developers): testes e builds de release
-- [Solução de problemas](docs/MANUAL.md#troubleshooting)
-
-As notas sobre o Steam Deck estão em [docs/STEAM-DECK.md](docs/STEAM-DECK.md).
+O [manual](docs/MANUAL.md) (em inglês) lista [o que já funciona](docs/MANUAL.md#what-works), a compilação para Android e
+os [controles](docs/MANUAL.md#controls).
 
 ## De onde vem o RustyShelf
 

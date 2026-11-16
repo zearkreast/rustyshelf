@@ -1,7 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the consoles of
 // Boxshelf's main/systems.js, as RustyShelf has it.
-//! Every shelf the launcher knows about. The definitions are main/systems.js's, exported to JSON by
-//! scripts/export-systems.js (run it after changing systems.js).
+//! Every shelf the launcher knows about, from the Electron app's main/systems.js.
 
 use std::sync::LazyLock;
 

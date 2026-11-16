@@ -1,11 +1,7 @@
 # RustyShelf: the check that runs on every push to rustyshelf. It reads the pushed commit's message
-# (scripts/release-version.js) and decides one of four things:
-#   none     a normal commit: this run finishes here, nothing else runs
-#   build    "For build…" → calls build.yml: the Windows, Linux and Android builds, kept as the run's downloads
-#   release  "For version A.B.C" → calls release.yml: the same builds, then a GitHub release vA.B.C.0
-#   alpha    "For alpha" → calls alpha.yml: the native Rust app (crates/) for Windows and Android, as a prerelease vA.B.C-alpha.N
-# The version is A.B.C.DDDD (DDDD the build of A.B.C). Desktop builds carry it as A.B.C+DDDD (npm and electron-builder
-# take that form) and show it as A.B.C.DDDD; Android as its versionName, with a versionCode that grows with every build.
+# (scripts/release-version.js): "For alpha" calls alpha.yml, the native app (crates/) for Windows and Android as a
+# prerelease vA.B.C-alpha.N; anything else builds nothing. The Electron app's "For build" and "For version" builds are on
+# the archive/electron branch.
 name: Build/release check
 
 on:
@@ -45,7 +41,7 @@ jobs:
           git fetch --tags --force --quiet
           git tag -l 'v*' > "$RUNNER_TEMP/tags.txt"
           CARGO=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version *= *"\(.*\)"/\1/p' Cargo.toml)
-          node scripts/release-version.js "$MSG" "$RUNNER_TEMP/tags.txt" "$(node -p "require('./package.json').version")" "$CARGO" | tee -a "$GITHUB_OUTPUT"
+          node scripts/release-version.js "$MSG" "$RUNNER_TEMP/tags.txt" "" "$CARGO" | tee -a "$GITHUB_OUTPUT"
 
       - name: Summary
         env:
@@ -54,34 +50,10 @@ jobs:
           REASON: ${{ steps.v.outputs.reason }}
         run: |
           case "$KIND" in
-            release) echo "### Release RustyShelf $VERSION: builds, then the release" >> "$GITHUB_STEP_SUMMARY" ;;
-            build) echo "### Build RustyShelf $VERSION: builds, kept as this run's downloads" >> "$GITHUB_STEP_SUMMARY" ;;
+            release|build) echo "### Nothing to build: the Electron app's builds are on the archive/electron branch" >> "$GITHUB_STEP_SUMMARY" ;;
             alpha) echo "### Alpha of the native app $VERSION: the Windows and Android builds, then a prerelease" >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo "### Nothing to build: $REASON" >> "$GITHUB_STEP_SUMMARY" ;;
           esac
-
-  build:
-    name: Build
-    needs: check
-    if: needs.check.outputs.kind == 'build'
-    uses: ./.github/workflows/build.yml
-    secrets: inherit # (RustyShelf issue 26: the ScreenScraper developer login)
-    with:
-      version: ${{ needs.check.outputs.version }}
-      semver: ${{ needs.check.outputs.semver }}
-      code: ${{ needs.check.outputs.code }}
-
-  release:
-    name: Release
-    needs: check
-    if: needs.check.outputs.kind == 'release'
-    uses: ./.github/workflows/release.yml
-    with:
-      version: ${{ needs.check.outputs.version }}
-      semver: ${{ needs.check.outputs.semver }}
-      code: ${{ needs.check.outputs.code }}
-      tag: ${{ needs.check.outputs.tag }}
-      notes: ${{ github.event.head_commit.message }}
 
   alpha:
     name: Alpha

@@ -593,16 +593,16 @@ pub struct Companion {
 
 // the phone's page, as the Electron app serves it
 static PAGE: [(&str, &str, &[u8]); 5] = [
-    ("/", "text/html; charset=utf-8", include_bytes!("../../../renderer/companion/index.html")),
-    ("/app.js", "text/javascript; charset=utf-8", include_bytes!("../../../renderer/companion/app.js")),
-    ("/app.css", "text/css; charset=utf-8", include_bytes!("../../../renderer/companion/app.css")),
-    ("/icon.svg", "image/svg+xml", include_bytes!("../../../renderer/companion/icon.svg")),
-    ("/manifest.json", "application/manifest+json", include_bytes!("../../../renderer/companion/manifest.json")),
+    ("/", "text/html; charset=utf-8", include_bytes!("../assets/companion/index.html")),
+    ("/app.js", "text/javascript; charset=utf-8", include_bytes!("../assets/companion/app.js")),
+    ("/app.css", "text/css; charset=utf-8", include_bytes!("../assets/companion/app.css")),
+    ("/icon.svg", "image/svg+xml", include_bytes!("../assets/companion/icon.svg")),
+    ("/manifest.json", "application/manifest+json", include_bytes!("../assets/companion/manifest.json")),
 ];
 static FONTS: [(&str, &[u8]); 3] = [
-    ("/font/lexend-400.woff2", include_bytes!("../../../renderer/fonts/lexend-latin-400-normal.woff2")),
-    ("/font/lexend-600.woff2", include_bytes!("../../../renderer/fonts/lexend-latin-600-normal.woff2")),
-    ("/font/lexend-800.woff2", include_bytes!("../../../renderer/fonts/lexend-latin-800-normal.woff2")),
+    ("/font/lexend-400.woff2", include_bytes!("../assets/companion/font/lexend-latin-400-normal.woff2")),
+    ("/font/lexend-600.woff2", include_bytes!("../assets/companion/font/lexend-latin-600-normal.woff2")),
+    ("/font/lexend-800.woff2", include_bytes!("../assets/companion/font/lexend-latin-800-normal.woff2")),
 ];
 
 fn truthy_text(v: Option<&Value>) -> String {

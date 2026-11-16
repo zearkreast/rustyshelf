@@ -24,7 +24,7 @@ struct Sources {
     pc_box_plats: Vec<(String, String)>,
 }
 
-/// main/covers.js LIBRETRO, LAUNCHBOX and PC_BOX_PLATS (scripts/export-systems.js writes the file).
+/// main/covers.js LIBRETRO, LAUNCHBOX and PC_BOX_PLATS.
 static SOURCES: LazyLock<Sources> = LazyLock::new(|| serde_json::from_str(include_str!("../data/art-sources.json")).expect("art-sources.json"));
 
 /// A console's folder in libretro's thumbnail library.

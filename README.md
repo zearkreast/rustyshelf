@@ -3,8 +3,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="renderer/brand/rustyshelf-logo-dark.svg">
-  <img src="renderer/brand/rustyshelf-logo-light.svg" alt="RustyShelf" width="520">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/rustyshelf-logo-dark.svg">
+  <img src="docs/brand/rustyshelf-logo-light.svg" alt="RustyShelf" width="520">
 </picture>
 
 **Your game library as a shelf you browse from the couch.**
@@ -14,89 +14,48 @@
 [![Licence: GPL v3](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
 [![Platforms: Windows, Linux, Android](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20Linux%20%C2%B7%20Android-informational)](#install)
 [![Build/release check](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml/badge.svg)](https://github.com/zearkreast/rustyshelf/actions/workflows/build-release-check.yml)
-[![Electron](https://img.shields.io/badge/app-Electron-47848F?logo=electron&logoColor=white)](docs/MANUAL.md#run-from-source)
-[![Rust + Bevy](https://img.shields.io/badge/rewrite-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](#native-rust-version)
+[![Rust + Bevy](https://img.shields.io/badge/app-Rust%20%2B%20Bevy-CE422B?logo=rust&logoColor=white)](docs/MANUAL.md#run-from-source)
 
 </div>
 
-Emulated console games, Steam and other PC games, and streaming apps all stand side by side as real boxes on a 3D shelf.
-Pull one out, open the case, read the manual, watch the disc go in, and play, all with one controller.
+Emulated console games, Steam and other PC games all stand side by side as real boxes on a shelf, played with one
+controller.
+
+> **This branch is the native app, in Rust.** It's an alpha, not complete yet. The Electron app it is rewritten from (and
+> its Android app, made with Capacitor) is on the [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron)
+> branch. Both read the same settings and data, so a setup made in either works in both. The Museum stays Electron-only.
 
 ## What it does
 
-- **A 3D shelf of real boxes.** Every game stands in its console's own case, with front, spine and back. Flip it, lift it
-  out, open it, take the disc out, read the manual.
-- **One controller for everything.** Browse, start a game, pause it, save and load states, take a screenshot and come back
-  to the shelf without touching a keyboard.
-- **Console games through your emulators.** Dolphin, Cemu, Eden, PPSSPP, PCSX2, RPCS3, shadPS4, Vita3K, xemu, Xenia, Azahar,
-  and RetroArch for the retro systems. RustyShelf finds them, or you point it at them.
+- **A shelf of real boxes.** Every game stands in its console's own case, with front, spine and back. Turn it round or
+  hold it up and turn it freely.
+- **One controller for everything.** Browse, start a game, open the Home menu over it and come back to the shelf without
+  touching a keyboard.
+- **Console games through your emulators.** RustyShelf finds them, or you point it at them.
 - **PC games on the same shelf.** Steam, Epic Games, GOG Galaxy, Ubisoft Connect, the EA app, Xbox / Game Pass, and a folder
-  where every sub-folder is a game. On Linux, Windows games run through Wine or Proton without Steam.
-- **Box art and manuals found for you.** Fronts, backs, spines, disc labels, descriptions and manuals come from open
-  databases. The Art Studio and the Manual Studio let you choose between versions, part by part.
-- **A museum of your collection.** Every system on a wall of shelves, each case at its real size, with four kinds of
-  lighting.
-- **Extras.** RetroAchievements and Steam achievements, a phone companion that works as a remote, eighteen colour themes
-  and your own, attract mode, menu music, and your own 3D console models.
+  where every sub-folder is a game.
+- **Box art and manuals found for you**, with the Art Studio and the Manual Studio to choose between versions.
+- **Extras.** RetroAchievements and Steam achievements, a phone companion that works as a remote, colour themes and your
+  own, attract mode and menu music.
 - **Private.** No accounts, no ads, no telemetry. Everything it saves stays in its own folder.
 
-The interface is in English, Brazilian Portuguese, French and Turkish.
+The manual lists [what works so far](docs/MANUAL.md#what-works) and what isn't in it yet.
 
 ## Install
 
-Get the newest build from the [releases page](https://github.com/zearkreast/rustyshelf/releases), once a release is out.
-Until then, [run it from source](docs/MANUAL.md#run-from-source).
-
-| Platform | File | How |
-|---|---|---|
-| **Windows** | `RustyShelf-<version>-windows-portable.exe` | Put it in a folder of its own and double-click it. If Windows warns about an unknown publisher, choose **More info → Run anyway**. |
-| **Linux** | `RustyShelf-<version>-linux.AppImage` | `chmod +x` it once, then start it. Settings are kept in `~/RustyShelf`. |
-| **Android** | `RustyShelf-<version>-android.apk` | Open the file on the device and allow the install when Android asks. |
-
-On first start, the setup wizard offers **Find automatically**: it looks for your emulators and game folders, you look over
-each system, then choose **Open RustyShelf**.
-
-## Controls
-
-| Action | Keyboard | Xbox / PlayStation pad |
-|---|---|---|
-| Move along the shelf | ← → | D-pad / left stick |
-| Switch shelf | ↑ ↓ | LT / RT |
-| Play / open | Enter | A / Cross |
-| Back | Esc | B / Circle |
-| Flip the box | F | Y / Triangle |
-| Details | I | X / Square |
-| Inspect | V | Right stick click |
-| Museum | M | Hold View / Back |
-| Settings | S | Start |
-| Home menu while a game runs | | Guide, or hold View / Back |
-
-The [manual](docs/MANUAL.md#controls) has the full list.
-
-## Native Rust version
-
-RustyShelf is being rewritten as a native app in Rust, in `crates/`, with [Bevy](https://bevy.org/). It reads the same
-settings and data as the Electron app, so a setup made in either works in both. It isn't a replacement yet: install and use
-the Electron app. The manual lists [what works so far](docs/MANUAL.md#native-rust-version).
+Alphas for Windows and Android are on the [releases page](https://github.com/zearkreast/rustyshelf/releases). Or run it
+from source:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
 ```
 
+The [manual](docs/MANUAL.md#run-from-source) has the Android build and the [controls](docs/MANUAL.md#controls).
+
 ## Documentation
 
-The [manual](docs/MANUAL.md) covers everything in detail:
-
-- [Your folders](docs/MANUAL.md#your-folders) and how games are found, with notes per system
-- [On the shelf](docs/MANUAL.md#on-the-shelf): Inspect, Details, Home, sorting, the museum, attract mode
-- [While a game runs](docs/MANUAL.md#while-a-game-runs): the Home menu, save states, each emulator's hotkeys
-- [Box art and manuals](docs/MANUAL.md#box-art-and-manuals) and [PC games](docs/MANUAL.md#pc-games)
-- [Settings](docs/MANUAL.md#settings) and [Extras](docs/MANUAL.md#extras): phone companion, achievements, your own 3D models
-- [Privacy](docs/MANUAL.md#privacy): every service it contacts, when, and what it sends
-- [For developers](docs/MANUAL.md#for-developers): tests and release builds
-- [Troubleshooting](docs/MANUAL.md#troubleshooting)
-
-Steam Deck notes are in [docs/STEAM-DECK.md](docs/STEAM-DECK.md).
+The [manual](docs/MANUAL.md) covers what works, how to run it from source, the controls, the tests and the release
+builds.
 
 ## Where RustyShelf comes from
 
@@ -114,7 +73,7 @@ Boxshelf's work, by its author. What the forks added is tagged **[fork]** in the
 [Super Mario Wiki](https://www.mariowiki.com).
 **Manuals:** [Internet Archive](https://archive.org) collections and [GamesDatabase.org](https://www.gamesdatabase.org).
 Box art and manuals are © their publishers.
-**Fonts:** SIL Open Font License (see `renderer\fonts\LICENSES`; the Rust app's copies and their licences are in `crates\rustyshelf-core\assets\fonts`).
+**Fonts:** SIL Open Font License (see `crates/rustyshelf-core/assets/fonts`).
 **PC games:** [legendary](https://github.com/derrod/legendary) and [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher).
 **Bundled libraries** and their licences: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
@@ -127,8 +86,8 @@ Box art and manuals are © their publishers.
 - [supalii](https://github.com/supalii) made, in [their Boxshelf fork](https://github.com/supalii/boxshelf-source), custom
   games' own settings pages with a Platform (Custom, PC or any console's shelf) and launch arguments, the Xbox One shelf for
   PC ports, automatic SteamGridDB posters for PC games without a cover, hiding the Open emulator and Surprise me tiles, and
-  `docs/LOCALIZATION.md`. These came into RustyShelf on top of Boxshelf beta.10.
-- The Linux start script's idea of finishing Electron's unpacking comes from wouldja's boxshelf-linux.
+  the Electron app's localization guide. These came into RustyShelf on top of Boxshelf beta.10.
+- The Electron app's Linux start script's idea of finishing Electron's unpacking comes from wouldja's boxshelf-linux.
 
 <!-- fork-survey credits: made by `node scripts/fork-survey.js --credits` from the commit history; edits here are replaced -->
 

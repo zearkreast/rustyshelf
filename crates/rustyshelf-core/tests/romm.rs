@@ -1,4 +1,4 @@
-//! The RomM client against the Electron app's pretend server (linux/ci/fake-romm.js, through romm-server.js), as
+//! The RomM client against the Electron app's pretend server (tests/fake-romm.js, through romm-server.js), as
 //! linux/ci/romm-test.js runs main/romm.js against it. Skipped where node isn't installed.
 
 use std::io::{BufRead, BufReader, Write};

@@ -2,7 +2,7 @@
 // themes in Boxshelf's renderer/app.js and renderer/themes-extra.js, as RustyShelf has them.
 //! The shelf's colour themes: each paints the backdrop behind the shelf, as the CSS the Electron app gives its own
 //! backdrop (painted here by `cssbg`), and picks the hue of the glow under the chosen case. The pictures Boxshelf
-//! beta.14's themes are made of come from `data/themes-14.json` (scripts/export-themes-14.js); those themes are still
+//! beta.14's themes are made of come from `data/themes-14.json`; those themes are still
 //! pictures here.
 
 use std::collections::HashMap;

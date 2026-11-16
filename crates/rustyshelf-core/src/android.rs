@@ -141,7 +141,7 @@ static SKIP_FILE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|
 
 // ---------- emulator apps ----------
 
-/// An emulator app the Android app knows how to start (scripts/export-android-emulators.js writes the table).
+/// An emulator app the Android app knows how to start.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Emulator {
     pub id: String,

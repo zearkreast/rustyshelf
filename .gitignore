@@ -1,5 +1,5 @@
 # Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): most of this file is Boxshelf's
-# .gitignore; modified for RustyShelf (its own start script is allowed).
+# .gitignore; modified for RustyShelf.
 # RustyShelf uses an ALLOWLIST: everything is ignored, then only the app's own source is added back.
 # This keeps emulators, ROMs, BIOS, saves, art, manuals, magazines, music, console models, builds and
 # personal data out of the repo, even when new folders appear next to the app.
@@ -9,34 +9,19 @@
 
 # 2. Add back the app source
 !/.gitignore
-!/package.json
-!/package-lock.json
-!/main.js
-!/preload.js
-!/preload-home.js
-!/preload-wum.js
-!/main/
-!/renderer/
 !/docs/
-!/shared/
-!/android-app/
-!/linux/
 !/scripts/
-!/release-extras/
 !/.github/
 !/README.md
 !/README.*.md
 !/LICENSE
 !/THIRD-PARTY-NOTICES.md
-!/*.bat
-!/start-rustyshelf.sh
 !/Cargo.toml
 !/Cargo.lock
 !/crates/
 
 # 3. Never commit these, even inside allowed folders
 target/
-main/bin/
 node_modules/
 dist/
 *.log
@@ -97,11 +82,3 @@ HANDOFF.md
 .claude/
 .cursor/
 .mcp.json
-# the 3D PC model isn't part of the public source (its origin isn't recorded)
-renderer/models/*.glb
-# (RustyShelf issue 27) its own keep cases are part of the source: built from renderer/models/src/keepcases.py (Blender),
-# they were caught by the rule above and never reached a build, so every release fell back to the coded case
-!renderer/models/case-*.glb
-# (RustyShelf issue 26) the ScreenScraper developer login CI writes from secrets: never in git
-main/ss-dev.json
-android-app/android/app/src/main/assets/ss-dev.json

@@ -160,7 +160,7 @@ impl Worker {
 }
 
 /// RustyShelf's icon, where Discord can fetch it: the picture when there's no cover, and the small one beside a cover.
-const ICON: &str = "https://raw.githubusercontent.com/zearkreast/rustyshelf/rustyshelf/renderer/app-icon.png";
+const ICON: &str = "https://raw.githubusercontent.com/zearkreast/rustyshelf/rustyshelf/crates/rustyshelf/assets/app-icon.png";
 
 /// What Discord shows: the game's title, the shelf (or store) it's from, the time it began, and `image` (an https
 /// address) its cover. Keep in sync with main/presence.js setGame.

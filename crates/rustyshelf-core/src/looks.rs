@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the table is
 // Boxshelf's (renderer/app.js STYLE and WORDMARKS, renderer/systems-extra.js), as RustyShelf has it.
 //! Each shelf's looks: the shape and colours of its games' cases, the backdrop's tint, its name on the shelf. The
-//! table is `data/looks.json`, written from the Electron app's own by scripts/export-systems.js.
+//! table is `data/looks.json`, from the Electron app's own.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;

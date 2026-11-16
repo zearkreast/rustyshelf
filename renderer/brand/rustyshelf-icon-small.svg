@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="RustyShelf">
-<rect width="512" height="512" rx="112" fill="#a23b1e"/>
-<g transform="translate(48.5 76.0)" fill="none" stroke="#fff4ea" stroke-width="74" stroke-linejoin="round"><path d="M37,360 V93 A56 56 0 0 1 93,37 H100 A56 56 0 0 1 156,93 V124 A56 56 0 0 1 100,180 H37"/><path d="M104,180 L166.78,277.59 Q196,323 250,323 H322 A56 56 0 0 0 378,267 V236 A56 56 0 0 0 322,180 H316 A56 56 0 0 1 260,124 V93 A56 56 0 0 1 316,37 H415"/></g>
-</svg>
