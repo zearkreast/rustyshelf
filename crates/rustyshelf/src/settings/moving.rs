@@ -76,7 +76,7 @@ impl Settings {
             let mut say = |p: &Progress| *told.lock().unwrap() = p.clone();
             if what == "export" {
                 let install = Install { app_root, data_dir, cfg, art_dirs, art_lib };
-                dataexport::export_all(&install, &folder, env!("CARGO_PKG_VERSION"), &asked, &mut |_, _, _| {}, &mut say).map(|r| {
+                dataexport::export_all(&install, &folder, rustyshelf_core::VERSION, &asked, &mut |_, _, _| {}, &mut say).map(|r| {
                     let all = format!("{} in {} files", crate::hud::size(r.bytes), count(r.files));
                     if r.updated { format!("Export brought up to date: {} new or changed files copied. {all}, in {}", count(r.copied.copied), r.dir.display()) } else { format!("Exported {all} to {}", r.dir.display()) }
                 })

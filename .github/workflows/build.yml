@@ -43,6 +43,7 @@ jobs:
         env:
           RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
           RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+          RUSTYSHELF_VERSION: ${{ inputs.version }}
         run: cargo build --release --locked -p rustyshelf
       - name: Make the AppImage
         env:
@@ -87,6 +88,7 @@ jobs:
         env:
           RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
           RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+          RUSTYSHELF_VERSION: ${{ inputs.version }}
         run: cargo build --release --locked -p rustyshelf
       - name: Name it for the build
         shell: bash
@@ -128,6 +130,7 @@ jobs:
         env:
           RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
           RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+          RUSTYSHELF_VERSION: ${{ inputs.version }}
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           cargo ndk -t arm64-v8a -P 26 -o crates/rustyshelf/android/app/src/main/jniLibs build --release --locked -p rustyshelf --lib

@@ -41,7 +41,7 @@ impl Settings {
             label,
             value,
             // the releases are the Electron app's until this one has its own
-            hint: format!("Asks RustyShelf's releases page on GitHub which version is newest. This is the Rust rewrite, {}; nothing is downloaded or installed.", env!("CARGO_PKG_VERSION")),
+            hint: format!("Asks RustyShelf's releases page on GitHub which version is newest. This is the Rust rewrite, {}; nothing is downloaded or installed.", rustyshelf_core::VERSION),
             press: Some(Box::new(move |s: &mut Settings| {
                 if let Some(page) = &page {
                     if let Err(e) = rustyshelf_core::launch::open_link(page) {
@@ -55,7 +55,7 @@ impl Settings {
                 let (tx, rx) = channel();
                 s.update.asking = Some(Mutex::new(rx));
                 std::thread::spawn(move || {
-                    let _ = tx.send(updates::check(env!("CARGO_PKG_VERSION")));
+                    let _ = tx.send(updates::check(rustyshelf_core::VERSION));
                 });
                 s.redraw = true;
             })),

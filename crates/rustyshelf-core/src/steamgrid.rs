@@ -38,7 +38,7 @@ pub struct Reply {
 pub type Fetch = Box<dyn Fn(&str, &str) -> Result<Reply, bool> + Send + Sync>;
 
 fn over_the_net(url: &str, key: &str) -> Result<Reply, bool> {
-    let (agent, bearer) = (format!("RustyShelf/{}", env!("CARGO_PKG_VERSION")), format!("Bearer {key}"));
+    let (agent, bearer) = (format!("RustyShelf/{}", crate::VERSION), format!("Bearer {key}"));
     let headers = [("Authorization", bearer.as_str()), ("User-Agent", agent.as_str()), ("Accept", "application/json")];
     let (status, retry_after, body) = crate::net::ask(url, &headers, Duration::from_secs(8), 4_000_000)?;
     Ok(Reply { status, retry_after, body })

@@ -119,7 +119,7 @@ pub fn match_game<'a>(list: &'a [Listed], title: &str) -> Option<&'a Listed> {
 pub type Fetch = Box<dyn Fn(&str) -> Result<Value, String> + Send + Sync>;
 
 fn over_the_net(url: &str) -> Result<Value, String> {
-    let agent = format!("RustyShelf/{}", env!("CARGO_PKG_VERSION"));
+    let agent = format!("RustyShelf/{}", crate::VERSION);
     let (status, body) = crate::net::get(url, Duration::from_secs(20), 8_000_000, &agent)?;
     match status {
         200 => serde_json::from_slice(&body).map_err(|_| "RetroAchievements sent an answer RustyShelf couldn't read. Try again in a moment.".to_string()),

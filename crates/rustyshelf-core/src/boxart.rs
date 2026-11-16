@@ -40,7 +40,7 @@ pub const KINDS: [(&str, &str); 4] = [("front", ""), ("back", "-back"), ("spine"
 const REPLACED: &str = "replaced";
 
 fn user_agent() -> String {
-    format!("RustyShelf/{}", env!("CARGO_PKG_VERSION"))
+    format!("RustyShelf/{}", crate::VERSION)
 }
 
 fn now() -> u64 {

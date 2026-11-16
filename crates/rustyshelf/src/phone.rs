@@ -93,7 +93,7 @@ impl Host for Bridge {
         !self.shared.lock().unwrap().account.1.is_empty() && ra::console_id(shelf).is_some()
     }
     fn version(&self) -> String {
-        env!("CARGO_PKG_VERSION").into()
+        rustyshelf_core::VERSION.into()
     }
 }
 

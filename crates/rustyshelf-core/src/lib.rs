@@ -1,6 +1,13 @@
 //! RustyShelf without a screen: the consoles, the settings, the games folders and their box art, launching a game.
 //! The Electron app's main process does the same in JS (main/*.js); the data files are shared between the two.
 
+/// This build's version: the release's own (`0.2.0-alpha.6`, `0.2.0.3`), which CI passes in as `RUSTYSHELF_VERSION`,
+/// or else the workspace's.
+pub const VERSION: &str = match option_env!("RUSTYSHELF_VERSION") {
+    Some(v) if !v.is_empty() => v,
+    _ => env!("CARGO_PKG_VERSION"),
+};
+
 pub mod addgames;
 pub mod android;
 pub mod arcade;

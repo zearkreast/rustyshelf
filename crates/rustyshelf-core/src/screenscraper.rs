@@ -210,7 +210,7 @@ fn rom_type(file: &str, is_dir: bool) -> &'static str {
 pub type Fetch = Box<dyn Fn(&str, bool) -> Result<(u16, Vec<u8>), bool> + Send + Sync>;
 
 fn over_the_net(url: &str, media: bool) -> Result<(u16, Vec<u8>), bool> {
-    let agent = format!("RustyShelf/{}", env!("CARGO_PKG_VERSION"));
+    let agent = format!("RustyShelf/{}", crate::VERSION);
     let (status, _, body) = if media {
         crate::net::ask(url, &[("User-Agent", agent.as_str())], Duration::from_secs(45), 30_000_000)?
     } else {

@@ -1334,7 +1334,7 @@ impl Settings {
     /// Brings the other RustyShelf's setup over (with its downloads too, `extras`), then starts again to put it in.
     fn bring_over(&mut self, extras: bool) {
         let Some(from) = self.other_setup.clone().filter(|_| self.bringing.is_none()) else { return };
-        let to = rustyshelf_core::keepsetup::Install { data_dir: paths::data_dir(&self.app_root), app_root: self.app_root.clone(), version: env!("CARGO_PKG_VERSION").into(), last_run: 0.0 };
+        let to = rustyshelf_core::keepsetup::Install { data_dir: paths::data_dir(&self.app_root), app_root: self.app_root.clone(), version: rustyshelf_core::VERSION.into(), last_run: 0.0 };
         let (tx, rx) = channel();
         let stage = std::sync::Arc::new(Mutex::new("Starting…".to_string()));
         let at = stage.clone();
@@ -2246,7 +2246,7 @@ impl Settings {
             }
             Screen::System => Page {
                 title: "System".into(),
-                lead: format!("RustyShelf {}  ·  {}", env!("CARGO_PKG_VERSION"), short(&self.app_root.to_string_lossy())),
+                lead: format!("RustyShelf {}  ·  {}", rustyshelf_core::VERSION, short(&self.app_root.to_string_lossy())),
                 rows: self.deck_rows().into_iter().chain([
                     Row {
                         label: if self.looking.is_some() { "Looking…" } else { "Find emulators and games again" }.into(),
@@ -3575,7 +3575,7 @@ pub fn draw(
                             });
                         }
                         side.spawn(Node { flex_grow: 1.0, ..default() });
-                        side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 14.0), TextColor(S_FAINT)));
+                        side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", rustyshelf_core::VERSION)), font(500, 14.0), TextColor(S_FAINT)));
                     });
                     card.spawn(Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, ..default() }).with_children(|main| {
                         main.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_height: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(46.0), dp(46.0), dp(46.0), dp(10.0)), ..default() })).with_children(|pg| {
@@ -3633,7 +3633,7 @@ pub fn draw(
                     });
                 }
                 side.spawn(Node { flex_grow: 1.0, ..default() });
-                side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 13.0), TextColor(S_FAINT)));
+                side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", rustyshelf_core::VERSION)), font(500, 13.0), TextColor(S_FAINT)));
             });
             p.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_width: px(0), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(48.0), dp(48.0), dp(44.0), dp(120.0)), ..default() })).with_children(|pg| {
                 let eyebrow = if root { t(group_of(tab).0) } else { String::new() };

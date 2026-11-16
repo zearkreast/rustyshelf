@@ -104,3 +104,18 @@ pub fn check(current: &str) -> Result<Newest, String> {
     }
     Ok(newest(&serde_json::from_slice(&body).map_err(|_| "unreadable answer".to_string())?, current))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn an_alpha_sees_the_next_alpha_and_a_build_the_next_build() {
+        let list = |tag: &str| json!([{ "tag_name": tag, "html_url": "u", "body": "", "assets": [] }]);
+        assert!(newest(&list("v0.2.0-alpha.7"), "0.2.0-alpha.6").newer);
+        assert!(!newest(&list("v0.2.0-alpha.6"), "0.2.0-alpha.6").newer);
+        assert!(newest(&list("v0.2.0.4"), "0.2.0.3").newer);
+        assert!(newest(&list("v0.2.0.0"), "0.2.0-alpha.6").newer);
+    }
+}
