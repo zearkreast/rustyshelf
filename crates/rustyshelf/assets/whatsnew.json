@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.1.0-alpha.5", "name": "0.1.0 alpha 5", "date": "2026-11-16", "title": "Android, shelves of your own and more screenshots",
+    "highlights": [
+      "The native app on Android, as an APK of its own",
+      "Shelves of your own, and automatic shelves that fill themselves",
+      "A game's Status: Not started, Playing, Finished or Abandoned",
+      "More screenshots and game info, looked up in the background",
+      "The running game's achievements in the Home menu"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Android", "An APK beside the Windows exe: games folders picked through Android's own folder picker, games started in the console's emulator app, a controller, Back and touch."],
+        ["Shelves of your own", "Settings → Collections makes a shelf, searches games to put on it, renames and deletes it. A shelf can fill itself with a Status, genre or console, or the games never played."],
+        ["Automatic shelves", "Recently played, Most played, Playing, Finished, Never played and one per big genre, after Home."],
+        ["A game's Status", "Details sets Not started, Playing, Finished or Abandoned."],
+        ["Add to…", "Details puts a game on another console's shelf, PC, Custom or one of your own; it still starts with its own emulator."],
+        ["Hidden games in Find", "Games taken off their shelves are listed after the rest, to put back."],
+        ["Ports & recomps folder", "Settings → PC games: every folder in it is a game on the Ports & Recomps shelf."],
+        ["More screenshots", "Up to 12 for a console game, from ScreenScraper, libretro and IGDB, topped up in the background while nothing runs."],
+        ["Achievements in the Home menu", "Over a running game: RetroAchievements, Xbox 360's from Xenia or PS3's trophies from RPCS3."],
+        ["Wii U e-manuals", "Made into manual pages from the games' own files."],
+        ["Set up for me's Picture", "Screen shape, sharp pixels and a Retro TV look for each emulator that has them."],
+        ["Switch 2 builds", "Play asks which build to start in; Settings → Switch 2 → Emulators lists them."],
+        ["Needs attention", "An emulator that needs a BIOS it hasn't got, and IGDB for more screenshots."],
+        ["Sound packs' own music", "Plays under the shelves the pack is the sound for."],
+        ["Smoother scrolling", "Settings → Look → Keep themes moving while you scroll can pause a moving theme while the shelf slides."]
+      ] }
+    ]
+  },
+  {
     "version": "0.1.0-alpha.4", "name": "0.1.0 alpha 4", "date": "2026-11-16", "title": "Settings in tabs, the Wii remote, your own sounds and seventeen themes",
     "highlights": [
       "Alpha 3 no longer hangs at a white window on Windows",
