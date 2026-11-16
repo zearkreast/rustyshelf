@@ -59,6 +59,8 @@ pub(super) struct ArtPick {
     last_set: Option<(String, SetDone, Value)>,
     /// the consoles being restyled, and how each run ends
     restyles: Vec<Restyle>,
+    /// when a restyle's progress was last drawn
+    shown_at: f32,
     /// per console, every style its shelf may still partly show (a restyle stopped leaves some games in the one
     /// before)
     stale: std::collections::HashMap<String, Vec<Value>>,
@@ -402,8 +404,9 @@ impl Settings {
                 Err(_) => {}
             }
         }
-        if !self.art_pick.restyles.is_empty() && self.stack.last().is_some_and(|p| matches!(&p.0, Screen::Console(_))) {
-            self.redraw = true;
+        // the progress shows four times a second, not every frame
+        if !self.art_pick.restyles.is_empty() && self.stack.last().is_some_and(|p| matches!(&p.0, Screen::Console(_))) && now - self.art_pick.shown_at >= 0.25 {
+            (self.redraw, self.art_pick.shown_at) = (true, now);
         }
         for (i, msg) in ended.into_iter().rev() {
             let r = self.art_pick.restyles.remove(i);

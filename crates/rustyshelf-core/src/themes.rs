@@ -519,6 +519,11 @@ fn wash(id: &str) -> f32 {
     }
 }
 
+/// Whether the chosen game's cover shows in a theme's backdrop at all.
+pub fn washes(id: &str) -> bool {
+    wash(id_of(id)) > 0.0
+}
+
 /// The chosen game's own picture behind the shelf in the Artwork theme (red, green and blue a pixel, and its
 /// size): wide art fills the screen; a cover stands at the right, faint, over the theme's wash.
 pub enum Art<'a> {

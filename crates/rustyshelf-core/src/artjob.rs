@@ -249,7 +249,8 @@ fn summary(changed: usize, total: usize, not_found: usize, failed: usize, net_er
 
 /// Whether a part was locked after `t0` (a pick made while the restyle runs wins over it), or the whole game is.
 fn locked_now(data_dir: &Path, key: &str, part: &str, t0: f64) -> bool {
-    let cfg: Value = std::fs::read(data_dir.join("config.json")).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null);
+    let file = data_dir.join("config.json");
+    let cfg: Value = crate::settings::pending(&file).or_else(|| std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok())).unwrap_or(Value::Null);
     let e = &cfg["art"]["locks"][key];
     js::truthy(e.get("all")) || e.get(part).is_some_and(|l| js::number(l.get("at")) > t0)
 }

@@ -113,6 +113,7 @@ pub struct Reshow(pub bool);
 /// Shows the shelves again from the library as it was read, the cursor staying on its shelf and its game where
 /// they're still shown.
 pub fn reshow(lib: &mut LibraryRes, base: &Library, history: &rustyshelf_core::history::History, cursor: &mut crate::shelf::Cursor) {
+    let _span = crate::frames::span("reshow");
     let keep = match &lib.0 {
         LibraryState::Ready(l) => l.shelves.get(cursor.shelf).map(|s| (s.id.clone(), s.games.get(cursor.game).map(|g| g.id.clone()))),
         _ => None,
@@ -249,6 +250,9 @@ pub struct Decoded {
     pub path: PathBuf,
     /// None: the file couldn't be read or isn't a picture
     pub image: Option<(u32, u32, Vec<u8>)>,
+    /// a cover's colour and its few-pixel swatch for the backdrop, worked out here rather than on the frame
+    pub hue: Option<f32>,
+    pub swatch: Option<std::sync::Arc<Vec<u8>>>,
 }
 
 /// A picture for a case: one on disk, or one drawn for a game that has none.
@@ -320,7 +324,13 @@ impl ArtLoader {
             thread::spawn(move || loop {
                 let Ok(art) = req_rx.lock().unwrap().recv() else { return };
                 let image = art.make();
-                if done_tx.send(Decoded { path: art.key(), image }).is_err() {
+                // a spine's or a back's colours are never asked for
+                let cover = !matches!(art, Art::Back { .. } | Art::Spine { .. });
+                let (hue, swatch) = match &image {
+                    Some((w, h, data)) if cover => (crate::shelf::hue_of(*w, *h, data), Some(std::sync::Arc::new(rustyshelf_core::themes::swatch(*w, *h, data)))),
+                    _ => (None, None),
+                };
+                if done_tx.send(Decoded { path: art.key(), image, hue, swatch }).is_err() {
                     return;
                 }
             });

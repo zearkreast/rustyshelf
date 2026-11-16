@@ -68,6 +68,8 @@ impl Settings {
         if self.moves.running.is_some() {
             return;
         }
+        // an export copies the file, an import replaces it: the settings are on disk first
+        rustyshelf_core::settings::flush();
         let (control, progress) = (Arc::new(Control::default()), Arc::new(Mutex::new(Progress::default())));
         let (asked, told) = (control.clone(), progress.clone());
         let done = self.on_install(move |app_root, data_dir, cfg, art_dirs, art_lib| {
@@ -104,6 +106,7 @@ impl Settings {
     /// System page is up.
     pub(super) fn poll_moves(&mut self) {
         if self.moves.restart_at.is_some_and(|at| Instant::now() >= at) {
+            rustyshelf_core::settings::flush();
             if let Ok(exe) = std::env::current_exe() {
                 let _ = std::process::Command::new(exe).args(std::env::args_os().skip(1)).spawn();
             }

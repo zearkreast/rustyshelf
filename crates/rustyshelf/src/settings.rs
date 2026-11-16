@@ -149,6 +149,7 @@ fn other_setup(app_root: &Path) -> Option<rustyshelf_core::keepsetup::Install> {
 
 /// Starts RustyShelf again (a change waiting in data\.pending goes in as it starts).
 fn restart() {
+    rustyshelf_core::settings::flush();
     if let Ok(exe) = std::env::current_exe() {
         let _ = std::process::Command::new(exe).args(std::env::args_os().skip(1)).spawn();
     }
@@ -670,6 +671,12 @@ impl Settings {
         if [1.15, 1.3].contains(&n) { n as f32 } else { 1.0 }
     }
 
+    /// Settings or Details is up and hides the shelf entirely: what's behind needn't be drawn or kept moving. (The
+    /// shelf menu and the first run's card leave the shelf in view.)
+    pub fn covers_shelf(&self) -> bool {
+        self.open && !self.wizard && self.editing.is_none() && !(self.stack.len() == 1 && self.stack[0].0 == Screen::Shelf)
+    }
+
     /// A moving theme keeps moving while the shelf slides (Settings → Look); off, it pauses until the shelf stops.
     pub fn theme_keeps_moving(&self) -> bool {
         self.flag(&["ui", "themeKeepMoving"], cfg!(windows))
@@ -696,9 +703,12 @@ impl Settings {
     }
 
     fn save(&mut self) {
+        let _span = crate::frames::span("save");
         let Some(cfg) = Config::from_value(&self.cfg) else { return };
         self.cfg = Value::Object(cfg.raw().clone());
-        if let Err(e) = cfg.save(&paths::data_dir(&self.app_root)) {
+        // (written on a thread of its own: the file and antivirus never hold up a frame)
+        rustyshelf_core::settings::write_soon(&paths::data_dir(&self.app_root).join("config.json"), self.cfg.clone());
+        if let Some(e) = rustyshelf_core::settings::write_errors().pop() {
             self.note = format!("The settings couldn't be saved ({e}).");
         }
         self.redraw = true;
@@ -2788,60 +2798,67 @@ pub fn input(
 
     // Find a game takes what's typed as the title
     let typing = s.stack.last().is_some_and(|p| p.0 == Screen::Find) && s.find_type(&typed, ctrl, shift);
-    let page = s.page();
-    let n = page.rows.len();
     let now = time.elapsed_secs();
     let held = {
         let k = keys.pressed(KeyCode::ArrowDown) as i32 - keys.pressed(KeyCode::ArrowUp) as i32;
         let p = pads.iter().map(|p| { let v = -(p.left_stick().y + p.dpad().y); if v > 0.5 { 1 } else if v < -0.5 { -1 } else { 0 } }).find(|&d| d != 0).unwrap_or(0);
         if k != 0 { k } else { p }
     };
-    // a tap can start and end within one frame, so it's never seen as held
-    let tap = (keys.just_pressed(KeyCode::ArrowDown) || pad(GamepadButton::DPadDown)) as i32 - (keys.just_pressed(KeyCode::ArrowUp) || pad(GamepadButton::DPadUp)) as i32;
-    let mut move_by = 0;
-    if tap != 0 {
-        s.repeat = (tap, now + 0.35);
-        move_by = tap;
-    } else if held != s.repeat.0 {
-        s.repeat = (held, now + 0.35);
-        move_by = held;
-    } else if held != 0 && now >= s.repeat.1 {
-        s.repeat.1 = now + 0.08;
-        move_by = held;
-    }
-    let jump = [(KeyCode::Home, -(n as i32)), (KeyCode::End, n as i32), (KeyCode::PageUp, -(WINDOW as i32)), (KeyCode::PageDown, WINDOW as i32)];
-    if let Some((_, by)) = jump.iter().find(|(k, _)| keys.just_pressed(*k)) {
-        move_by = *by;
-    }
-    if move_by != 0 && n > 0 {
-        let at = &mut s.stack.last_mut().expect("a page").1;
-        let was = *at;
-        *at = (*at as i32 + move_by).clamp(0, n as i32 - 1) as usize;
-        if *at != was {
-            s.cues.push(("tick", move_by.signum()));
+    // the page's rows (and what they do) are only made on a frame with something to do with them
+    let quiet = keys.get_just_pressed().next().is_none() && pads.iter().all(|p| p.get_just_pressed().next().is_none()) && held == 0 && s.repeat.0 == 0 && !typing;
+    'keys: {
+        if quiet {
+            break 'keys;
         }
-        s.asked.clear();
-        s.note.clear();
-        s.redraw = true;
-    }
-    let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
-    let tab_by = (keys.just_pressed(KeyCode::PageDown) || keys.just_pressed(KeyCode::BracketRight) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::PageUp) || keys.just_pressed(KeyCode::BracketLeft) || pad(GamepadButton::LeftTrigger)) as i32;
-    if tab_by != 0 && !typing && s.stack.len() == 1 && s.stack.last().is_some_and(|p| p.0 == Screen::Root) && !s.kid_locked() {
-        s.tab_step(tab_by);
-        return;
-    }
-    let side = (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32;
-    if side != 0 {
-        if let Some(step) = page.rows.get(at).and_then(|r| r.step.as_ref()) {
-            step(&mut s, side);
+        let page = s.page();
+        let n = page.rows.len();
+        // a tap can start and end within one frame, so it's never seen as held
+        let tap = (keys.just_pressed(KeyCode::ArrowDown) || pad(GamepadButton::DPadDown)) as i32 - (keys.just_pressed(KeyCode::ArrowUp) || pad(GamepadButton::DPadUp)) as i32;
+        let mut move_by = 0;
+        if tap != 0 {
+            s.repeat = (tap, now + 0.35);
+            move_by = tap;
+        } else if held != s.repeat.0 {
+            s.repeat = (held, now + 0.35);
+            move_by = held;
+        } else if held != 0 && now >= s.repeat.1 {
+            s.repeat.1 = now + 0.08;
+            move_by = held;
         }
-    } else if typing {
-    } else if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(confirm) {
-        if let Some(press) = page.rows.get(at).and_then(|r| r.press.as_ref()) {
-            press(&mut s);
+        let jump = [(KeyCode::Home, -(n as i32)), (KeyCode::End, n as i32), (KeyCode::PageUp, -(WINDOW as i32)), (KeyCode::PageDown, WINDOW as i32)];
+        if let Some((_, by)) = jump.iter().find(|(k, _)| keys.just_pressed(*k)) {
+            move_by = *by;
         }
-    } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) || pad(GamepadButton::Select))) {
-        s.back();
+        if move_by != 0 && n > 0 {
+            let at = &mut s.stack.last_mut().expect("a page").1;
+            let was = *at;
+            *at = (*at as i32 + move_by).clamp(0, n as i32 - 1) as usize;
+            if *at != was {
+                s.cues.push(("tick", move_by.signum()));
+            }
+            s.asked.clear();
+            s.note.clear();
+            s.redraw = true;
+        }
+        let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
+        let tab_by = (keys.just_pressed(KeyCode::PageDown) || keys.just_pressed(KeyCode::BracketRight) || pad(GamepadButton::RightTrigger)) as i32 - (keys.just_pressed(KeyCode::PageUp) || keys.just_pressed(KeyCode::BracketLeft) || pad(GamepadButton::LeftTrigger)) as i32;
+        if tab_by != 0 && !typing && s.stack.len() == 1 && s.stack.last().is_some_and(|p| p.0 == Screen::Root) && !s.kid_locked() {
+            s.tab_step(tab_by);
+            return;
+        }
+        let side = (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32;
+        if side != 0 {
+            if let Some(step) = page.rows.get(at).and_then(|r| r.step.as_ref()) {
+                step(&mut s, side);
+            }
+        } else if typing {
+        } else if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(confirm) {
+            if let Some(press) = page.rows.get(at).and_then(|r| r.press.as_ref()) {
+                press(&mut s);
+            }
+        } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) || pad(GamepadButton::Select))) {
+            s.back();
+        }
     }
 
     if let Some(opened) = start_emulator(&mut s, &mut playing, time.elapsed_secs()) {
@@ -3194,6 +3211,7 @@ pub fn draw(
     }
     let (Some(face), Some(mona)) = (face, mona) else { return };
     s.redraw = false;
+    let _span = crate::frames::span("settings redraw");
     for e in &old {
         commands.entity(e).despawn();
     }

@@ -69,7 +69,11 @@ fn str_of<'a>(v: Option<&'a Value>, default: &'a str) -> &'a str {
 impl Config {
     /// No file yet is a fresh setup: every value is its default.
     pub fn load(data_dir: &Path) -> Result<Config, LoadError> {
-        let text = match fs::read_to_string(data_dir.join("config.json")) {
+        let file = data_dir.join("config.json");
+        if let Some(Value::Object(raw)) = crate::settings::pending(&file) {
+            return Ok(Config { raw });
+        }
+        let text = match fs::read_to_string(&file) {
             Ok(t) => t,
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Config::default()),
             Err(e) => return Err(LoadError::Io(e)),

@@ -15,6 +15,7 @@ mod card;
 mod cheevos;
 mod deck;
 mod dialog;
+mod frames;
 mod home;
 mod hud;
 mod idle;
@@ -81,6 +82,15 @@ fn android_input(app: &mut App) {
     let _ = app;
 }
 
+/// The settings written in the background are on disk before the app ends or Android sets it aside.
+fn settings_on_disk(mut exit: MessageReader<AppExit>, mut life: MessageReader<bevy::window::AppLifecycle>) {
+    let ending = exit.read().count() > 0;
+    let leaving = life.read().any(|l| matches!(l, bevy::window::AppLifecycle::WillSuspend));
+    if ending || leaving {
+        rustyshelf_core::settings::flush();
+    }
+}
+
 pub fn run() {
     paths::quiet_drive_errors();
     // before anything reads the settings: a waiting change put in, a new version's safety copy
@@ -122,6 +132,7 @@ pub fn run() {
         .init_resource::<boot::Slide>()
         .init_resource::<cheevos::Cheevos>()
         .init_resource::<hud::Prompts>()
+        .init_resource::<hud::Wordmarks>()
         .init_resource::<settings::Settings>()
         .init_resource::<home::Home>()
         .init_resource::<reader::Reader>()
@@ -133,7 +144,8 @@ pub fn run() {
         .init_resource::<whatsnew::WhatsNew>()
         .init_resource::<tour::Tour>()
         .init_resource::<rumble::Rumble>()
-        .add_plugins(music::plugin)
+        .add_plugins((music::plugin, frames::plugin))
+        .add_systems(Last, settings_on_disk)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup, deck::log_start).chain())
         .init_resource::<background::Background>()
         .add_systems(Update, (appicon::set, background::run, rumble::send, place::keep, settings::apply_scale))

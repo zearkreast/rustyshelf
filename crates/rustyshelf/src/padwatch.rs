@@ -205,6 +205,7 @@ pub fn front_self() {
 
 /// Puts the PC to sleep ("sleep"), restarts it ("restart") or shuts it down ("shutdown").
 pub fn power(kind: &str) {
+    rustyshelf_core::settings::flush();
     info!("Power: {kind}");
     #[cfg(windows)]
     {

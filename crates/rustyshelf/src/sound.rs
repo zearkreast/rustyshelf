@@ -47,6 +47,8 @@ fn decode(file: &PathBuf) -> Option<(u32, Vec<f32>, Vec<f32>, f32)> {
 
 #[derive(Resource)]
 pub struct Sounds {
+    /// where RustyShelf lives, for the packs' files
+    root: std::path::PathBuf,
     state: cues::Sound,
     on: bool,
     volume: f32,
@@ -91,7 +93,7 @@ impl Default for Sounds {
         });
         let mut state = cues::Sound::default();
         state.set_songs(rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root()).0, true, 0.0);
-        Sounds { state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: HashMap::new(), packs: Vec::new(), pack: None, last_pack_tick: 0.0, ducked: None }
+        Sounds { root: rustyshelf_core::paths::app_root(), state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: HashMap::new(), packs: Vec::new(), pack: None, last_pack_tick: 0.0, ducked: None }
     }
 }
 
@@ -102,7 +104,7 @@ impl Sounds {
             return;
         }
         let now = self.started.elapsed().as_secs_f64() * 1000.0;
-        if let Some(file) = self.pack.as_ref().and_then(|p| Some((p, p.file_for(soundpacks::moment_of(name)?)?))).and_then(|(p, f)| soundpacks::file_of(&rustyshelf_core::paths::app_root(), p, f)) {
+        if let Some(file) = self.pack.as_ref().and_then(|p| Some((p, p.file_for(soundpacks::moment_of(name)?)?))).and_then(|(p, f)| soundpacks::file_of(&self.root, p, f)) {
             // held scrolling sends a tick every few ms: one recording at a time
             if name == "tick" && now - self.last_pack_tick < 40.0 {
                 return;
@@ -125,7 +127,7 @@ impl Sounds {
     /// The music file of the pack playing on this shelf, when it has one.
     pub fn pack_music(&self) -> Option<std::path::PathBuf> {
         let p = self.pack.as_ref()?;
-        soundpacks::file_of(&rustyshelf_core::paths::app_root(), p, p.file_for("music")?)
+        soundpacks::file_of(&self.root, p, p.file_for("music")?)
     }
 
     /// The sound the shelf plays: a voice, or a pack (and Aero for what it has no file for).

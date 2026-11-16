@@ -280,6 +280,8 @@ pub struct Covers {
     hues: HashMap<PathBuf, f32>,
     /// a cover shrunk to a few pixels, for the backdrop
     swatches: HashMap<PathBuf, Arc<Vec<u8>>>,
+    /// pictures decoded and not yet put on their cases
+    landing: std::collections::VecDeque<crate::loading::Decoded>,
 }
 
 impl Covers {
@@ -353,7 +355,7 @@ const SLIDE_CURVE: [f32; 4] = [0.22, 0.9, 0.25, 1.0];
 const TURN_CURVE: [f32; 4] = [0.3, 0.95, 0.25, 1.0];
 
 /// The most colourful bright colour of a picture seen 12 pixels across, as a hue (app.js hueOf).
-fn hue_of(w: u32, h: u32, rgba: &[u8]) -> Option<f32> {
+pub fn hue_of(w: u32, h: u32, rgba: &[u8]) -> Option<f32> {
     let (mut best, mut most) = (None, -1.0);
     for cy in 0..12 {
         for cx in 0..12 {
@@ -472,7 +474,22 @@ pub struct Kit {
     heart: Handle<StandardMaterial>,
     cloud: Handle<StandardMaterial>,
     /// the case the plastic and the light were painted for
-    made_for: (f32, f32),
+    made_for: (f32, f32, f32),
+    /// the plastic and the light for each size of case met so far
+    painted: HashMap<(u32, u32, u32), CaseLight>,
+    /// the heart and the cloud have their pictures
+    marks: bool,
+}
+
+/// The pictures that light a case of one size: the plastic's sheen, the band of glare, the light inside the chosen
+/// cover's edges, the spines' curve and the floor's strip.
+#[derive(Clone)]
+struct CaseLight {
+    plastic: Handle<Image>,
+    glare: Handle<Image>,
+    rim: Handle<Image>,
+    shade: [Handle<Image>; 3],
+    strip: Handle<Image>,
 }
 
 /// A custom theme's picture for the backdrop: its file, how much darker it's made, whether it's softened, how
@@ -665,7 +682,9 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
         mirror: meshes.add(mirror()),
         heart: clear(&mut materials, Color::WHITE),
         cloud: clear(&mut materials, Color::WHITE),
-        made_for: (0.0, 0.0),
+        made_for: (0.0, 0.0, 0.0),
+        painted: HashMap::new(),
+        marks: false,
     });
 }
 
@@ -705,39 +724,58 @@ pub fn measure(
             size: UVec2::new(w * 100, h * 100),
         });
     }
-    if kit.made_for != (now.bw, now.bh) {
-        kit.made_for = (now.bw, now.bh);
+    if kit.made_for != (now.bw, now.bh, now.bd) {
+        kit.made_for = (now.bw, now.bh, now.bd);
         // the cases standing wear the old size's light
         cursor.built = None;
-        let plastic = overlay(
-            &mut images,
-            "linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 18%,transparent 34%),linear-gradient(90deg,rgba(0,0,0,.14),transparent 10%,transparent 88%,rgba(0,0,0,.18))",
-            now.bw,
-            now.bh,
-        );
-        for m in &kit.plastic {
-            if let Some(mut m) = materials.get_mut(m) {
-                m.base_color_texture = Some(plastic.clone());
-            }
-        }
-        kit.glare = overlay(&mut images, &glare_css(now.bw, now.bh), now.bw * 1.2, now.bh);
-        let mut wear = |m: &Handle<StandardMaterial>, image: Handle<Image>| {
-            if let Some(mut m) = materials.get_mut(m) {
-                m.base_color_texture = Some(image);
+        // (painted once for each size of case: shelves of the same case shape share them)
+        let key = (now.bw.round() as u32, now.bh.round() as u32, now.bd.round() as u32);
+        let painted = match kit.painted.get(&key) {
+            Some(p) => p.clone(),
+            None => {
+                let _span = crate::frames::span("case light");
+                let p = CaseLight {
+                    plastic: overlay(
+                        &mut images,
+                        "linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 18%,transparent 34%),linear-gradient(90deg,rgba(0,0,0,.14),transparent 10%,transparent 88%,rgba(0,0,0,.18))",
+                        now.bw,
+                        now.bh,
+                    ),
+                    glare: overlay(&mut images, &glare_css(now.bw, now.bh), now.bw * 1.2, now.bh),
+                    rim: picture(&mut images, rim_picture(now.bw, now.bh)),
+                    // the curve of a spine, as style.css and setup.css shade it (.f-left::after chosen and not, .f-right::after)
+                    shade: [
+                        "linear-gradient(90deg,rgba(0,0,0,.15),rgba(255,255,255,.14) 45%,rgba(0,0,0,.2))",
+                        "linear-gradient(90deg,rgba(0,0,0,.35),rgba(255,255,255,.06) 45%,rgba(0,0,0,.25))",
+                        "linear-gradient(90deg,rgba(0,0,0,.25),rgba(255,255,255,.06) 55%,rgba(0,0,0,.35))",
+                    ]
+                    .map(|css| overlay(&mut images, css, now.bd, 8.0)),
+                    strip: overlay(&mut images, "linear-gradient(180deg,rgba(255,255,255,.08),transparent 80%)", 8.0, now.bh * 0.38),
+                };
+                kit.painted.insert(key, p.clone());
+                p
             }
         };
-        wear(&kit.rim, picture(&mut images, rim_picture(now.bw, now.bh)));
-        wear(&kit.heart, picture(&mut images, rustyshelf_core::drawn::heart(104)));
-        wear(&kit.cloud, picture(&mut images, rustyshelf_core::drawn::cloud(104)));
-        // the curve of a spine, as style.css and setup.css shade it (.f-left::after chosen and not, .f-right::after)
-        for (m, css) in kit.shade.iter().zip([
-            "linear-gradient(90deg,rgba(0,0,0,.15),rgba(255,255,255,.14) 45%,rgba(0,0,0,.2))",
-            "linear-gradient(90deg,rgba(0,0,0,.35),rgba(255,255,255,.06) 45%,rgba(0,0,0,.25))",
-            "linear-gradient(90deg,rgba(0,0,0,.25),rgba(255,255,255,.06) 55%,rgba(0,0,0,.35))",
-        ]) {
-            wear(m, overlay(&mut images, css, now.bd, 8.0));
+        let mut wear = |m: &Handle<StandardMaterial>, image: &Handle<Image>| {
+            if let Some(mut m) = materials.get_mut(m) {
+                m.base_color_texture = Some(image.clone());
+            }
+        };
+        for m in &kit.plastic {
+            wear(m, &painted.plastic);
         }
-        wear(&kit.strip, overlay(&mut images, "linear-gradient(180deg,rgba(255,255,255,.08),transparent 80%)", 8.0, now.bh * 0.38));
+        kit.glare = painted.glare.clone();
+        wear(&kit.rim, &painted.rim);
+        for (m, image) in kit.shade.iter().zip(&painted.shade) {
+            wear(m, image);
+        }
+        wear(&kit.strip, &painted.strip);
+        // (the same at every size)
+        if !kit.marks {
+            kit.marks = true;
+            wear(&kit.heart, &picture(&mut images, rustyshelf_core::drawn::heart(104)));
+            wear(&kit.cloud, &picture(&mut images, rustyshelf_core::drawn::cloud(104)));
+        }
     }
 }
 
@@ -812,6 +850,7 @@ pub fn build_shelf(
     if cursor.built == Some(cursor.shelf) || library.shelves.is_empty() || stage.bh <= 0.0 {
         return;
     }
+    let _span = crate::frames::span("shelf build");
     for e in &old {
         commands.entity(e).despawn();
     }
@@ -828,7 +867,10 @@ pub fn build_shelf(
 
     let plain = |m: &mut Assets<StandardMaterial>, c: Color| m.add(StandardMaterial { base_color: c, unlit: true, alpha_mode: if c.alpha() < 1.0 { AlphaMode::Blend } else { AlphaMode::Opaque }, ..default() });
     let mut cases: HashMap<String, [Handle<StandardMaterial>; 2]> = HashMap::new();
-    for (i, g) in shelf.games.iter().enumerate() {
+    // nearest the chosen case first: its neighbours' pictures are asked for (and land) before the far end's
+    let mut order: Vec<usize> = (0..shelf.games.len()).collect();
+    order.sort_by_key(|&i| i.abs_diff(cursor.game));
+    for (i, g) in order.into_iter().map(|i| (i, &shelf.games[i])) {
         // on Home, All or a collection each game keeps its own shelf's case; one added to another shelf takes that one's
         let own = shelf.from.get(i).filter(|_| matches!(shelf.kind, rustyshelf_core::library::ShelfKind::Mixed)).and_then(|id| library.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
         let look = looks::look_for(&own.id, g);
@@ -960,12 +1002,17 @@ pub fn apply_covers(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut slots: Query<&mut Slot>,
 ) {
-    for d in loader.finished() {
-        if let Some((w, h, data)) = &d.image {
-            if let Some(hue) = hue_of(*w, *h, data) {
-                covers.hues.insert(d.path.clone(), hue);
-            }
-            covers.swatches.insert(d.path.clone(), Arc::new(themes::swatch(*w, *h, data)));
+    covers.landing.extend(loader.finished());
+    // a shelf's worth of pictures lands over a few frames rather than all in one
+    let start = std::time::Instant::now();
+    let mut count = 0;
+    while let Some(d) = covers.landing.pop_front() {
+        count += 1;
+        if let Some(hue) = d.hue {
+            covers.hues.insert(d.path.clone(), hue);
+        }
+        if let Some(swatch) = d.swatch {
+            covers.swatches.insert(d.path.clone(), swatch);
         }
         let done = d.image.map(|(w, h, data)| (images.add(to_image(w, h, data)), w as f32 / h as f32));
         for sheet in covers.waiting.remove(&d.path).unwrap_or_default() {
@@ -979,6 +1026,13 @@ pub fn apply_covers(
             }
         }
         covers.loaded.insert(d.path, done);
+        // (each is a texture for the GPU to take in this frame too)
+        if start.elapsed() > LANDING || count >= LANDING_MOST {
+            break;
+        }
+    }
+    if count > 0 {
+        crate::frames::note(format!("{count} pictures landed"));
     }
     for mut s in slots.iter_mut().filter(|s| s.index == cursor.game && !s.late.is_empty()) {
         for (art, sheet) in std::mem::take(&mut s.late) {
@@ -986,6 +1040,11 @@ pub fn apply_covers(
         }
     }
 }
+
+/// how long a frame spends putting decoded pictures on cases
+const LANDING: std::time::Duration = std::time::Duration::from_millis(2);
+/// and how many it puts on at most
+const LANDING_MOST: usize = 6;
 
 /// Where a case stands when `chosen` is the chosen one (app.js place()).
 fn place(index: usize, chosen: usize, stage: &Stage) -> Place {
@@ -1011,10 +1070,13 @@ pub fn arrange(
     mut either: Query<(&Either, &mut MeshMaterial3d<StandardMaterial>)>,
     mut worn: Query<(&mut Visibility, Has<Rim>), (With<OnChosen>, Without<Slot>)>,
     inspect: Res<Inspect>,
+    settings: Res<crate::settings::Settings>,
     mut rim: Local<Option<Eased>>,
 ) {
     let now = time.elapsed_secs();
     let held = inspect.held.now(now, HOLD_UP, EASE);
+    // under an opaque Settings or Details nothing of the shelf is drawn
+    let covered = settings.covers_shelf();
     // out as Inspect picks the case up, back once it's set down
     let rim = rim.get_or_insert(Eased::at(1.0));
     let glow = rim.now(now, RIM_FADE, EASE).clamp(0.0, 1.0);
@@ -1032,16 +1094,20 @@ pub fn arrange(
         } else if to != s.to {
             (s.from, s.to, s.since) = (here(&s), to, now);
         }
+        let in_view = s.index.abs_diff(cursor.game) <= IN_VIEW;
+        seen.set_if_neq(if in_view && !covered { Visibility::Visible } else { Visibility::Hidden });
+        // (a case out of sight keeps its slide going above, and is placed and lit again once it's back)
+        if !in_view || covered {
+            continue;
+        }
         let at = here(&s);
-        t.translation = Vec3::new(at.x, 0.0, at.z);
-        t.rotation = Quat::from_rotation_y(at.ry.to_radians());
-        t.scale = Vec3::splat(stage.bh);
+        let mut placed = Transform { translation: Vec3::new(at.x, 0.0, at.z), rotation: Quat::from_rotation_y(at.ry.to_radians()), scale: Vec3::splat(stage.bh) };
         if chosen && held > 0.0 {
             // up from its place into the hand: nearer, a little higher, facing the eye
-            t.translation = t.translation.lerp(Vec3::new(0.0, stage.bh * 0.13, stage.bw * (1.75 + (inspect.zoom - 1.0) * 1.6)), held);
-            t.rotation = Quat::from_rotation_y((at.ry * (1.0 - held)).to_radians());
+            placed.translation = placed.translation.lerp(Vec3::new(0.0, stage.bh * 0.13, stage.bw * (1.75 + (inspect.zoom - 1.0) * 1.6)), held);
+            placed.rotation = Quat::from_rotation_y((at.ry * (1.0 - held)).to_radians());
         }
-        seen.set_if_neq(if s.index.abs_diff(cursor.game) <= IN_VIEW { Visibility::Visible } else { Visibility::Hidden });
+        t.set_if_neq(placed);
 
         let film = s.dim.now(now, 0.45, EASE);
         s.dim.head_for(if chosen { 0.0 } else if inspect.on { 0.72 } else { 0.34 }, film, now);
@@ -1056,18 +1122,25 @@ pub fn arrange(
         }
         // the band of light slides with the case's angle and place
         let slide = (-at.ry / 110.0 - at.x / (stage.bw * 7.0)) * 0.8325;
-        if let Some(mut m) = materials.get_mut(&s.glare) {
-            m.uv_transform = bevy::math::Affine2::from_scale_angle_translation(Vec2::new(1.0 / 1.2, 1.0), 0.0, Vec2::new(0.1 / 1.2 - slide, 0.0));
-            m.base_color = Color::srgba(1.0, 1.0, 1.0, if chosen { 1.0 } else { 0.55 });
+        let (uv, tint) = (bevy::math::Affine2::from_scale_angle_translation(Vec2::new(1.0 / 1.2, 1.0), 0.0, Vec2::new(0.1 / 1.2 - slide, 0.0)), Color::srgba(1.0, 1.0, 1.0, if chosen { 1.0 } else { 0.55 }));
+        // (written only when it changes: every write has the material prepared again for the GPU)
+        if materials.get(&s.glare).is_some_and(|m| m.uv_transform != uv || m.base_color != tint) {
+            if let Some(mut m) = materials.get_mut(&s.glare) {
+                (m.uv_transform, m.base_color) = (uv, tint);
+            }
         }
 
         let angle = s.turn.now(now, TURN, TURN_CURVE);
         s.turn.head_for(if chosen && cursor.flipped { 180.0 } else { 0.0 }, angle, now);
         for child in children.iter() {
             let Ok((mut turn, parts)) = turning.get_mut(child) else { continue };
-            turn.rotation = Quat::from_rotation_y(angle.to_radians());
-            if chosen && held > 0.0 {
-                turn.rotation = Quat::from_euler(EulerRot::XYZ, (inspect.pitch * held).to_radians(), (angle + inspect.yaw * held).to_radians(), 0.0);
+            let rotation = if chosen && held > 0.0 {
+                Quat::from_euler(EulerRot::XYZ, (inspect.pitch * held).to_radians(), (angle + inspect.yaw * held).to_radians(), 0.0)
+            } else {
+                Quat::from_rotation_y(angle.to_radians())
+            };
+            if turn.rotation != rotation {
+                turn.rotation = rotation;
             }
             for part in parts.iter() {
                 if let Ok((looks, mut m)) = either.get_mut(part) {
@@ -1110,6 +1183,7 @@ pub fn backdrop(
     mut lit_in: ResMut<Lit>,
     slots: Query<&Slot>,
     mut behind: Query<(&Behind, &mut ImageNode, &mut Node)>,
+    mut moved: Local<((usize, usize), f32)>,
 ) {
     let LibraryState::Ready(library) = &lib.0 else { return };
     let (Some(shelf), Ok(window)) = (library.shelves.get(cursor.shelf), window.single()) else { return };
@@ -1117,6 +1191,9 @@ pub fn backdrop(
         return;
     }
     let now = time.elapsed_secs();
+    if moved.0 != (cursor.shelf, cursor.game) {
+        *moved = ((cursor.shelf, cursor.game), now);
+    }
     let mut theme = settings.theme();
     // a custom theme: its picture, or its own picture for this shelf; one that's gone is Spectrum
     let custom = customs.list.iter().find(|c| c.0.id == theme);
@@ -1145,16 +1222,32 @@ pub fn backdrop(
     let part = if themes::fine(&theme) || wall.is_some() || art.as_ref().is_some_and(|a| a.1 != OwnArt::Soft) { window.scale_factor().min(1.5) } else { 0.25 };
     // (a picture doesn't change with the shelf's colour or the chosen cover)
     let (sh_now, own_now, cover) = if wall.is_some() { (0.0, 0.0, Default::default()) } else { ((sh * 2.0).round() / 2.0, f64::from(own), cover) };
+    // (a theme without the cover's wash isn't painted again for another cover)
+    let cover = if themes::washes(&theme) || art.is_some() { cover } else { Default::default() };
     let wanted = Wanted { theme: theme.clone(), sh: sh_now, hue: own_now, wall, cover, art, stage: *stage, pixels: ((stage.w * part).round().max(2.0) as u32, (stage.h * part).round().max(2.0) as u32) };
-    if back.asked.as_ref() != Some(&wanted) {
+    // while the cases slide past, only once they stop
+    let settled = now - moved.1 > 0.12 || back.asked.is_none();
+    if settled && !settings.covers_shelf() && back.asked.as_ref() != Some(&wanted) {
         back.asked = Some(wanted.clone());
         let _ = back.ask.send(wanted);
     }
     let newest = back.done.lock().ok().and_then(|done| done.try_iter().last());
     if let Some(p) = newest {
-        // the picture that was fading in becomes the one underneath
-        let fresh = picture(&mut images, p);
+        crate::frames::note(format!("backdrop {}×{}", p.width, p.height));
+        // the picture that was fading in becomes the one underneath, and the new one is written over the one that
+        // was underneath (two textures, reused, rather than a new one each time)
         let was = behind.iter().find(|(which, ..)| matches!(which, Behind::New)).map(|(_, image, _)| image.image.clone());
+        let under = behind.iter().find(|(which, ..)| matches!(which, Behind::Old)).map(|(_, image, _)| image.image.clone());
+        let spare = under.filter(|u| back.shown && Some(u) != was.as_ref() && images.get(u).is_some_and(|i| i.width() == p.width && i.height() == p.height));
+        let fresh = match spare {
+            Some(h) => {
+                if let Some(mut image) = images.get_mut(&h) {
+                    image.data = Some(p.rgba);
+                }
+                h
+            }
+            None => picture(&mut images, p),
+        };
         for (which, mut image, _) in &mut behind {
             match (which, &was) {
                 (Behind::Old, Some(was)) if back.shown => (image.image, image.color) = (was.clone(), Color::WHITE),
@@ -1212,6 +1305,8 @@ pub struct Moving {
     busy: bool,
     last: f32,
     image: Option<Handle<Image>>,
+    /// the image is sampled as pixels (Arcade)
+    pixels: bool,
 }
 
 /// As many pixels as the layer is drawn with at most: a larger window's is drawn smaller and stretched.
@@ -1253,7 +1348,7 @@ impl Default for Moving {
                 }
             }
         });
-        Moving { ask, done: Mutex::new(done), busy: false, last: 0.0, image: None }
+        Moving { ask, done: Mutex::new(done), busy: false, last: 0.0, image: None, pixels: false }
     }
 }
 
@@ -1281,21 +1376,34 @@ pub fn moving(
     let frame = moving.done.lock().ok().and_then(|done| done.try_iter().last());
     if let Some(p) = frame {
         moving.busy = false;
-        let mut image = Image::new(
-            bevy::render::render_resource::Extent3d { width: p.width, height: p.height, depth_or_array_layers: 1 },
-            bevy::render::render_resource::TextureDimension::D2,
-            p.rgba,
-            bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::RENDER_WORLD,
-        );
         // Arcade is made of pixels
-        if theme == "arcade" {
-            image.sampler = bevy::image::ImageSampler::nearest();
+        let pixels = theme == "arcade";
+        // the same picture written over (one texture, reused), else a new one
+        let same = moving.image.as_ref().and_then(|h| images.get(h)).is_some_and(|i| i.width() == p.width && i.height() == p.height) && moving.pixels == pixels;
+        let kept = moving.image.clone().filter(|_| same);
+        match kept {
+            Some(h) => {
+                if let Some(mut image) = images.get_mut(&h) {
+                    image.data = Some(p.rgba);
+                }
+            }
+            None => {
+                let mut image = Image::new(
+                    bevy::render::render_resource::Extent3d { width: p.width, height: p.height, depth_or_array_layers: 1 },
+                    bevy::render::render_resource::TextureDimension::D2,
+                    p.rgba,
+                    bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+                    RenderAssetUsages::RENDER_WORLD,
+                );
+                if pixels {
+                    image.sampler = bevy::image::ImageSampler::nearest();
+                }
+                let handle = images.add(image);
+                node.image = handle.clone();
+                (moving.image, moving.pixels) = (Some(handle), pixels);
+            }
         }
-        let handle = images.add(image);
-        node.image = handle.clone();
         node.color = Color::WHITE;
-        moving.image = Some(handle);
     }
     if moved.0 != (cursor.shelf, cursor.game) {
         *moved = ((cursor.shelf, cursor.game), now);
@@ -1305,7 +1413,7 @@ pub fn moving(
     // Reduce motion: one frame of the theme, drawn again only when the theme, size or colour changes
     let still = (theme.clone(), size, lit.shelf.to_bits());
     let held_still = settings.reduce_motion() && moving.image.is_some() && *drawn == Some(still.clone());
-    if moving.busy || playing.title.is_some() || sliding || held_still || now - moving.last < 1.0 / 30.0 {
+    if moving.busy || playing.title.is_some() || settings.covers_shelf() || sliding || held_still || now - moving.last < 1.0 / 30.0 {
         return;
     }
     *drawn = Some(still);

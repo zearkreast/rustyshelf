@@ -24,6 +24,7 @@ pub struct Cheevos {
     shelves: HashMap<String, Value>,
     asking: Option<Mutex<Receiver<Answer>>>,
     account: (String, String),
+    checked: f32,
     /// a game running: when it started; and when it ended, until what it unlocked has been asked for
     started: Option<f32>,
     ended: Option<(f32, f32)>,
@@ -47,10 +48,14 @@ pub fn run(
     mut c: ResMut<Cheevos>,
 ) {
     let now = time.elapsed_secs();
-    let account = settings.ra_account();
-    if account != c.account {
-        c.account = account.clone();
-        c.shelves.clear();
+    // (the key is kept sealed: opened once a second, not every frame)
+    if now - c.checked >= 1.0 {
+        c.checked = now;
+        let account = settings.ra_account();
+        if account != c.account {
+            c.account = account;
+            c.shelves.clear();
+        }
     }
     if let Some(answer) = c.asking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
         c.asking = None;
@@ -78,9 +83,10 @@ pub fn run(
         }
         _ => {}
     }
-    if account.1.is_empty() || c.asking.is_some() {
+    if c.account.1.is_empty() || c.asking.is_some() {
         return;
     }
+    let account = c.account.clone();
     let ask = |work: Box<dyn FnOnce(&ra::Ra) -> Answer + Send>| {
         let (site, (user, key)) = (settings.ra(), account.clone());
         let (tx, rx) = channel();

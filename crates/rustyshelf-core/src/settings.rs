@@ -849,6 +849,79 @@ pub fn fallback() -> Value {
     cfg
 }
 
+/// Settings written off the caller's thread (`write_soon`): the newest copy waiting and the one being written. This
+/// process reads them in place of the file until they're on disk (`pending`), so nothing here sees an older one.
+#[derive(Default)]
+struct Background {
+    next: Option<(std::path::PathBuf, Value)>,
+    writing: Option<(std::path::PathBuf, Value)>,
+    asked: u64,
+    done: u64,
+    errors: Vec<String>,
+}
+
+static BACKGROUND: LazyLock<(std::sync::Mutex<Background>, std::sync::Condvar)> = LazyLock::new(|| {
+    std::thread::spawn(|| {
+        let (lock, wake) = &*BACKGROUND;
+        loop {
+            let Ok(mut bg) = lock.lock() else { return };
+            while bg.next.is_none() {
+                bg = match wake.wait(bg) {
+                    Ok(b) => b,
+                    Err(_) => return,
+                };
+            }
+            let job = bg.next.take();
+            bg.writing = job.clone();
+            let seq = bg.asked;
+            drop(bg);
+            let result = job.as_ref().map(|(file, cfg)| write(file, cfg));
+            let Ok(mut bg) = lock.lock() else { return };
+            if let Some(Err(e)) = result {
+                bg.errors.push(e.to_string());
+            }
+            (bg.writing, bg.done) = (None, seq);
+            wake.notify_all();
+        }
+    });
+    (std::sync::Mutex::new(Background::default()), std::sync::Condvar::new())
+});
+
+/// Writes the settings on a thread of their own, the newest copy only: a caller that changes them often never waits
+/// on the disk (or on antivirus holding the file).
+pub fn write_soon(file: &Path, cfg: Value) {
+    let (lock, wake) = &*BACKGROUND;
+    if let Ok(mut bg) = lock.lock() {
+        bg.next = Some((file.to_path_buf(), cfg));
+        bg.asked += 1;
+        wake.notify_all();
+    }
+}
+
+/// The settings for `file` not on disk yet, newest first.
+pub fn pending(file: &Path) -> Option<Value> {
+    let bg = BACKGROUND.0.lock().ok()?;
+    bg.next.iter().chain(bg.writing.iter()).find(|(f, _)| f == file).map(|(_, v)| v.clone())
+}
+
+/// Waits until every copy asked for is on disk: before the file is read by another program or copied, and before
+/// the app ends.
+pub fn flush() {
+    let (lock, wake) = &*BACKGROUND;
+    let Ok(mut bg) = lock.lock() else { return };
+    while bg.done < bg.asked {
+        bg = match wake.wait(bg) {
+            Ok(b) => b,
+            Err(_) => return,
+        };
+    }
+}
+
+/// Why the background writes failed since the last call.
+pub fn write_errors() -> Vec<String> {
+    BACKGROUND.0.lock().map(|mut bg| std::mem::take(&mut bg.errors)).unwrap_or_default()
+}
+
 /// Writes the settings through a temporary file, flushed before it takes the real one's place: a crash or a power cut
 /// leaves the old file or the new one, never a cut-off one.
 pub fn write(file: &Path, cfg: &Value) -> std::io::Result<()> {
@@ -881,4 +954,27 @@ pub fn write(file: &Path, cfg: &Value) -> std::io::Result<()> {
     put().inspect_err(|_| {
         let _ = std::fs::remove_file(&tmp);
     })
+}
+
+#[cfg(test)]
+mod background_tests {
+    use super::*;
+
+    #[test]
+    fn the_newest_copy_is_the_one_written() {
+        let dir = std::env::temp_dir().join(format!("rs-bgwrite-{}", std::process::id()));
+        let file = dir.join("config.json");
+        for n in 0..50 {
+            write_soon(&file, json!({ "n": n, "ui": {}, "systems": {} }));
+        }
+        // read back before it's on disk: this process sees the newest
+        let seen = crate::config::Config::load(&dir).ok().and_then(|c| c.raw().get("n").cloned());
+        assert_eq!(seen, Some(json!(49)));
+        flush();
+        assert!(pending(&file).is_none());
+        let on_disk: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+        assert_eq!(on_disk["n"], 49);
+        assert!(write_errors().is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

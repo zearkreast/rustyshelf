@@ -441,6 +441,44 @@ pub fn update(
     }
 }
 
+/// The consoles' names lettered in their colours, painted off the frame: every shelf's once the library is in, so a
+/// shelf change only shows a picture that's ready.
+#[derive(Resource)]
+pub struct Wordmarks {
+    ask: std::sync::mpsc::Sender<(String, String, String, f32)>,
+    done: Mutex<Receiver<(String, rustyshelf_core::drawn::Picture)>>,
+    made: std::collections::HashMap<String, Handle<Image>>,
+    asked: std::collections::HashSet<String>,
+    /// the window width the pictures were asked for
+    width: f32,
+}
+
+impl Default for Wordmarks {
+    fn default() -> Self {
+        let (ask, todo) = channel::<(String, String, String, f32)>();
+        let (finished, done) = channel();
+        std::thread::spawn(move || {
+            while let Ok((key, id, name, w)) = todo.recv() {
+                let p = rustyshelf_core::drawn::wordmark(looks::wordmark(&id).map_or(name.as_str(), |w| w.0), looks::lettering(&id), w, 2.0);
+                if finished.send((key, p)).is_err() {
+                    return;
+                }
+            }
+        });
+        Wordmarks { ask, done: Mutex::new(done), made: Default::default(), asked: Default::default(), width: 0.0 }
+    }
+}
+
+impl Wordmarks {
+    fn want(&mut self, id: &str, name: &str, w: f32) -> String {
+        let key = format!("{id}|{name}|{w}");
+        if self.asked.insert(key.clone()) {
+            let _ = self.ask.send((key.clone(), id.to_string(), name.to_string(), w));
+        }
+        key
+    }
+}
+
 /// The console's name lettered in its colours, and the consoles' tabs with the chosen one on white.
 pub fn top(
     mut commands: Commands,
@@ -455,6 +493,7 @@ pub fn top(
     mut tab: Query<(&Tab, &mut BackgroundColor, &Children)>,
     mut ink: Query<&mut TextColor>,
     mut shown: Local<(String, String)>,
+    mut marks: ResMut<Wordmarks>,
 ) {
     let (names, id, name): (Vec<String>, String, String) = match &lib.0 {
         LibraryState::Ready(l) if !l.shelves.is_empty() => {
@@ -463,18 +502,35 @@ pub fn top(
         }
         _ => Default::default(),
     };
-    let wanted = format!("{id}|{name}|{}", stage.w);
-    if shown.0 != wanted {
-        shown.0 = wanted;
+    if let (LibraryState::Ready(l), true) = (&lib.0, marks.width != stage.w && stage.w > 0.0) {
+        marks.width = stage.w;
+        // the shelf in view first, then the rest
+        marks.want(&id, &name, stage.w);
+        for s in &l.shelves {
+            marks.want(&s.id, &s.name, stage.w);
+        }
+    }
+    let came: Vec<_> = marks.done.lock().map(|d| d.try_iter().collect()).unwrap_or_default();
+    for (key, p) in came {
+        marks.made.insert(key, images.add(to_image(p.width, p.height, p.rgba)));
+    }
+    let wanted = if id.is_empty() { String::new() } else { marks.want(&id, &name, stage.w) };
+    if id.is_empty() {
+        if let Ok((mut image, _)) = word.single_mut() {
+            image.color = Color::NONE;
+        }
+    } else if shown.0 != wanted {
         if let Ok((mut image, mut node)) = word.single_mut() {
-            if id.is_empty() {
-                image.color = Color::NONE;
-            } else {
-                let p = rustyshelf_core::drawn::wordmark(looks::wordmark(&id).map_or(name.as_str(), |w| w.0), looks::lettering(&id), stage.w, 2.0);
-                // the glow's room round the letters hangs outside the bar's own lines
-                (node.width, node.height, node.margin) = (px(p.width as f32 / 2.0), px(p.height as f32 / 2.0), UiRect::all(px(-rustyshelf_core::drawn::WORD_ROOM)));
-                image.image = images.add(to_image(p.width, p.height, p.rgba));
-                image.color = Color::WHITE;
+            match marks.made.get(&wanted).and_then(|h| Some((h.clone(), images.get(h)?.size()))) {
+                Some((handle, size)) => {
+                    shown.0 = wanted;
+                    // the glow's room round the letters hangs outside the bar's own lines
+                    (node.width, node.height, node.margin) = (px(size.x as f32 / 2.0), px(size.y as f32 / 2.0), UiRect::all(px(-rustyshelf_core::drawn::WORD_ROOM)));
+                    image.image = handle;
+                    image.color = Color::WHITE;
+                }
+                // (not painted yet: nothing rather than the last shelf's name)
+                None => image.color = Color::NONE,
             }
         }
     }
@@ -542,6 +598,7 @@ pub fn hints(
     gamepads: Query<(Entity, &Gamepad, Option<&Name>)>,
     mut prompts: ResMut<Prompts>,
     mut bar: Query<(Entity, &mut Visibility), With<Hints>>,
+    mut styled: Local<Option<(String, pads::Glyphs)>>,
     mut shown: Local<Option<(bool, pads::Glyphs, bool)>>,
     inspect: Res<crate::shelf::Inspect>,
 ) {
@@ -571,7 +628,13 @@ pub fn hints(
     }
     // (before any press, the first controller there is)
     if let Some((_, pad, name)) = prompts.in_use.and_then(|e| gamepads.get(e).ok()).or_else(|| gamepads.iter().find(|(_, _, n)| own(*n))) {
-        let style = pads::style_of(&pad_id(pad, name), &prompts.real);
+        // (the name is matched once per controller, not every frame)
+        let id = pad_id(pad, name);
+        if styled.as_ref().is_none_or(|s| s.0 != id) {
+            let style = pads::style_of(&id, &prompts.real);
+            *styled = Some((id, style));
+        }
+        let style = styled.as_ref().map_or(settings.pad_auto, |s| s.1);
         if settings.pad_auto != style {
             settings.pad_auto = style;
         }
