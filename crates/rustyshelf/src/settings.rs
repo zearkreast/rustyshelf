@@ -2272,7 +2272,15 @@ impl Settings {
                         step: Some(Box::new(move |s: &mut Settings, _| s.flip("favorites", &id2))),
                     });
                 }
-                rows.push(open("Settings", String::new(), "", Screen::Root));
+                // Settings as S opens it, with its tabs: not a page under the menu
+                rows.push(Row {
+                    label: "Settings".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        s.stack = vec![(Screen::Root, 0)];
+                        s.redraw = true;
+                    })),
+                    ..Row::default()
+                });
                 Page { title: "Shelf".into(), lead: String::new(), rows }
             }
             Screen::Details => {
