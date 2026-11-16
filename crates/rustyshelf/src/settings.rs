@@ -2806,8 +2806,155 @@ fn surface() -> (BackgroundColor, BackgroundGradient) {
     )
 }
 
+/// How a page is laid out, as the Electron app has that screen.
+#[derive(Clone, Copy, PartialEq)]
+enum Look {
+    /// a sidebar of the tabs, the page and a card for the chosen row
+    Settings,
+    /// the case on the left, the game's name, Play and the rest on the right
+    Details,
+    /// a panel over the shelf
+    Menu,
+    /// a card in the middle with the steps down its side
+    Setup,
+}
+
+/// The first run's steps, and the one a page belongs to.
+const STEPS: [&str; 5] = ["Welcome", "Your consoles", "PC games", "Box art", "Done"];
+
+fn step_of(stack: &[(Screen, usize)]) -> usize {
+    stack
+        .iter()
+        .rev()
+        .find_map(|p| match p.0 {
+            Screen::Welcome => Some(0),
+            Screen::Consoles => Some(1),
+            Screen::Pc => Some(2),
+            Screen::BoxArt => Some(3),
+            Screen::Done => Some(4),
+            _ => None,
+        })
+        .unwrap_or(1)
+}
+
+/// The row's label without the dashes a section's heading row has round it.
+fn bare(label: &str) -> &str {
+    label.trim_matches(|c: char| c == '—' || c == ' ')
+}
+
+fn heading(label: &str) -> bool {
+    label.starts_with("— ")
+}
+
+type Fonts<'a> = &'a dyn Fn(u32, f32) -> TextFont;
+
+/// The page's rows from `first`, `count` of them, on hairlines; the chosen one lit.
+fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, first: usize, count: usize, at: usize, width: f32, font: Fonts, t: &dyn Fn(&str) -> String) {
+    let n = page.rows.len();
+    pg.spawn(Node { height: dp(18.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, max_width: dp(width), ..default() }).with_children(|m| {
+        if first > 0 {
+            m.spawn((Text::new("▲"), font(500, 13.0), TextColor(S_FAINT)));
+        }
+    });
+    for (i, row) in page.rows.iter().enumerate().skip(first).take(count) {
+        let chosen = i == at;
+        let head = heading(&row.label);
+        let value = if LANGUAGES.iter().any(|l| l.1 == row.value) { row.value.clone() } else { t(&row.value) };
+        let toggle = matches!(row.value.as_str(), "On" | "Off");
+        let mut line = pg.spawn((
+            Node {
+                max_width: dp(width),
+                min_height: dp(62.0),
+                flex_shrink: 0.0,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceBetween,
+                column_gap: dp(24.0),
+                padding: UiRect::horizontal(dp(18.0)),
+                border: if chosen { UiRect::all(dp(2.0)) } else { UiRect::bottom(px(1)) },
+                border_radius: BorderRadius::all(dp(if chosen { 14.0 } else { 0.0 })),
+                ..default()
+            },
+            BorderColor::all(if head { Color::NONE } else { S_LINE }),
+        ));
+        if chosen {
+            line.insert(lit());
+        }
+        line.with_children(|r| {
+            if head && !chosen {
+                r.spawn((Text::new(t(bare(&row.label)).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
+                return;
+            }
+            r.spawn((Text::new(t(bare(&row.label))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 })));
+            r.spawn(Node { align_items: AlignItems::Center, column_gap: dp(12.0), flex_shrink: 0.0, ..default() }).with_children(|v| {
+                if row.step.is_some() && !toggle && chosen {
+                    v.spawn((Text::new("‹"), font(500, 22.0), TextColor(S_DIM)));
+                }
+                if !value.is_empty() {
+                    v.spawn((Text::new(value.clone()), font(if chosen && !toggle { 600 } else { 500 }, 21.0), TextColor(if chosen { S_INK } else { S_DIM })));
+                }
+                if toggle {
+                    let on = row.value == "On";
+                    v.spawn((
+                        Node { width: dp(52.0), height: dp(30.0), padding: UiRect::all(dp(3.0)), justify_content: if on { JustifyContent::FlexEnd } else { JustifyContent::FlexStart }, border_radius: BorderRadius::MAX, ..default() },
+                        BackgroundColor(if on { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.14) }),
+                        children![(Node { width: dp(24.0), height: dp(24.0), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::WHITE))],
+                    ));
+                } else if row.step.is_some() && chosen {
+                    v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_INK)));
+                } else if row.press.is_some() {
+                    v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_FAINT)));
+                }
+            });
+        });
+    }
+    pg.spawn(Node { height: dp(18.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, max_width: dp(width), ..default() }).with_children(|m| {
+        if first + count < n {
+            m.spawn((Text::new("▼"), font(500, 13.0), TextColor(S_FAINT)));
+        }
+    });
+}
+
+/// The pill of keys along the bottom.
+fn key_bar(p: &mut ChildSpawnerCommands, keys: &[(Vec<String>, String)], font: Fonts) {
+    p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), left: px(0), right: px(0), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
+        bar.spawn((
+            Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
+            BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
+            BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
+        ))
+        .with_children(|b| {
+            for (caps, label) in keys {
+                key_hint(b, font, caps, label);
+            }
+        });
+    });
+}
+
+/// The card saying what the chosen row does.
+fn info_card(p: &mut ChildSpawnerCommands, title: Option<String>, text: &str, font: Fonts) {
+    p.spawn((
+        Node { flex_direction: FlexDirection::Column, row_gap: dp(12.0), padding: UiRect::all(dp(26.0)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(dp(22.0)), ..default() },
+        BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.012)),
+        BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.06)),
+    ))
+    .with_children(|card| {
+        if let Some(title) = title {
+            card.spawn((Text::new(title), font(700, 28.0), TextColor(S_INK)));
+        }
+        card.spawn((Text::new(text.to_string()), font(400, 19.5), TextColor(S_INK2)));
+    });
+}
+
 /// Draws the page again when it changed.
-pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Face>>, mona: Option<Res<crate::hud::MonaSans>>, old: Query<Entity, With<SettingsUi>>, mut images: ResMut<Assets<Image>>) {
+pub fn draw(
+    mut commands: Commands,
+    mut s: ResMut<Settings>,
+    face: Option<Res<Face>>,
+    mona: Option<Res<crate::hud::MonaSans>>,
+    covers: Res<crate::shelf::Covers>,
+    old: Query<Entity, With<SettingsUi>>,
+    mut images: ResMut<Assets<Image>>,
+) {
     if !s.redraw {
         return;
     }
@@ -2819,11 +2966,23 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
     if !s.open {
         return;
     }
+    let font = |weight: u32, size: f32| mona.sized(weight, FontSize::Vh(size / 10.8), &face.0);
+    let wide = |weight: u32, size: f32| TextFont { width: FontWidth::EXPANDED, ..font(weight, size) };
     if let Some(e) = &s.editing {
-        e.draw(&mut commands, &|weight, size| mona.sized(weight, FontSize::Vh(size / 10.8), &face.0), [s.cap("☰"), s.cap("o"), s.cap("sq"), s.cap("tri")]);
+        e.draw(&mut commands, &font, [s.cap("☰"), s.cap("o"), s.cap("sq"), s.cap("tri")]);
         return;
     }
     let page = s.page();
+    let screen = s.stack.last().map(|p| p.0.clone());
+    let look = if s.wizard {
+        Look::Setup
+    } else if screen == Some(Screen::Details) && s.chosen.is_some() {
+        Look::Details
+    } else if screen == Some(Screen::Shelf) && s.stack.len() == 1 {
+        Look::Menu
+    } else {
+        Look::Settings
+    };
     let root = s.stack.first().is_some_and(|p| p.0 == Screen::Root) && !s.wizard && !s.kid_locked();
     let tabs = root && s.stack.len() == 1;
     let link = s.pairing_link().or_else(|| s.romm_link());
@@ -2837,21 +2996,18 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
     let preview = s.art_preview(&mut images);
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
-    let first = if n <= WINDOW { 0 } else { at.saturating_sub(WINDOW / 2).min(n - WINDOW) };
-    let font = |weight: u32, size: f32| mona.sized(weight, FontSize::Vh(size / 10.8), &face.0);
-    let wide = |weight: u32, size: f32| TextFont { width: FontWidth::EXPANDED, ..font(weight, size) };
+    let window = match look {
+        Look::Details => 7,
+        Look::Setup => 9,
+        _ => WINDOW,
+    };
+    let first = if n <= window { 0 } else { at.saturating_sub(window / 2).min(n - window) };
     let lang = s.text(&["ui", "language"]);
     let t = |text: &str| rustyshelf_core::i18n::tr(&lang, text);
     let chosen_row = page.rows.get(at);
     let hint = t(&if s.note.is_empty() { chosen_row.map(|r| r.hint.clone()).unwrap_or_default() } else { s.note.clone() });
+    let card_title = chosen_row.filter(|_| s.note.is_empty()).map(|r| t(bare(&r.label)));
     let tab = TABS[s.tab % TABS.len()];
-    let eyebrow = if s.wizard {
-        t("Welcome to RustyShelf")
-    } else if root {
-        t(group_of(tab).0)
-    } else {
-        String::new()
-    };
     let style = (s.glyphs(), s.swap());
     let (ok, back) = (rustyshelf_core::pads::button_word(true, style.0, style.1), rustyshelf_core::pads::button_word(false, style.0, style.1));
     let mut keys: Vec<(Vec<String>, String)> = vec![
@@ -2866,143 +3022,224 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
     if tabs {
         keys.push((vec!["PgUp".into(), "PgDn".into()], t("Section")));
     }
-    let sidebar = root || s.wizard;
-    commands
-        .spawn((
-            SettingsUi,
-            Node { width: percent(100), height: percent(100), position_type: PositionType::Absolute, ..default() },
-            surface(),
-            GlobalZIndex(10),
-        ))
-        .with_children(|p| {
-            if sidebar {
-                p.spawn((
-                    Node { width: dp(if s.wizard { 360.0 } else { 400.0 }), height: percent(100), flex_shrink: 0.0, flex_direction: FlexDirection::Column, row_gap: dp(4.0), padding: UiRect::new(dp(48.0), dp(22.0), dp(44.0), dp(40.0)), border: UiRect::right(px(1)), ..default() },
-                    BackgroundColor(S_SIDE),
-                    BorderColor::all(S_LINE),
+    let mut ui = commands.spawn((SettingsUi, Node { width: percent(100), height: percent(100), position_type: PositionType::Absolute, ..default() }, GlobalZIndex(10)));
+    if look == Look::Menu {
+        ui.insert(BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.35)));
+    } else {
+        ui.insert(surface());
+    }
+    ui.with_children(|p| match look {
+        Look::Menu => {
+            p.spawn(Node { position_type: PositionType::Absolute, top: dp(96.0), left: px(0), right: px(0), justify_content: JustifyContent::Center, ..default() }).with_children(|wrap| {
+                wrap.spawn((
+                    Node { width: dp(860.0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(28.0), dp(28.0), dp(24.0), dp(18.0)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(dp(22.0)), ..default() },
+                    BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.86)),
+                    BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
+                    BoxShadow(vec![ShadowStyle { color: Color::srgba(0.0, 0.0, 0.0, 0.5), x_offset: px(0), y_offset: dp(24.0), spread_radius: dp(-8.0), blur_radius: dp(60.0) }]),
                 ))
-                .with_children(|side| {
-                    if s.wizard {
+                .with_children(|panel| {
+                    panel.spawn((Node { margin: UiRect::bottom(dp(8.0)), ..default() }, Text::new(t("Arrange your shelves").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
+                    row_list(panel, &page, first, window, at, 804.0, &font, &t);
+                    if !hint.is_empty() {
+                        panel.spawn((Node { margin: UiRect::top(dp(6.0)), ..default() }, Text::new(hint.clone()), font(400, 17.0), TextColor(S_DIM)));
+                    }
+                });
+            });
+            key_bar(p, &keys, &font);
+        }
+        Look::Details => {
+            let c = s.chosen.as_ref().expect("a chosen game");
+            let g = &c.game;
+            // the case, where the shelf had it
+            p.spawn(Node { width: percent(42), height: percent(100), flex_shrink: 0.0, justify_content: JustifyContent::Center, align_items: AlignItems::Center, padding: UiRect::bottom(dp(60.0)), ..default() }).with_children(|left| {
+                let glow = BoxShadow(vec![
+                    ShadowStyle { color: S_ACC.with_alpha(0.35), x_offset: px(0), y_offset: px(0), spread_radius: dp(2.0), blur_radius: dp(70.0) },
+                    ShadowStyle { color: Color::srgba(0.0, 0.0, 0.0, 0.6), x_offset: px(0), y_offset: dp(40.0), spread_radius: dp(-20.0), blur_radius: dp(80.0) },
+                ]);
+                let frame = Node { padding: UiRect::all(dp(8.0)), border: UiRect::all(dp(2.0)), border_radius: BorderRadius::all(dp(6.0)), ..default() };
+                let case = (BackgroundColor(Color::srgb(0.078, 0.078, 0.094)), BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.7)), glow);
+                match covers.of(g, &c.console) {
+                    Some(cover) => {
+                        left.spawn((frame, case)).with_children(|f| {
+                            f.spawn((Node { height: dp(560.0), border_radius: BorderRadius::all(dp(2.0)), ..default() }, ImageNode::new(cover)));
+                        });
+                    }
+                    None => {
+                        left.spawn((Node { width: dp(400.0), height: dp(560.0), justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..frame }, case)).with_children(|f| {
+                            f.spawn((Text::new(g.title.clone()), wide(800, 34.0), TextColor(S_INK), TextLayout::justify(Justify::Center)));
+                        });
+                    }
+                }
+            });
+            p.spawn(Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(px(0), dp(96.0), dp(110.0), dp(110.0)), ..default() }).with_children(|right| {
+                let system = systems().console(&c.console).map_or(c.console.clone(), |x| x.name.clone());
+                right.spawn((Text::new(system.to_uppercase()), font(700, 16.0), TextColor(S_ACC2)));
+                right.spawn((Node { margin: UiRect::vertical(dp(10.0)), ..default() }, Text::new(g.title.clone()), wide(800, 76.0), TextColor(S_INK)));
+                let info = g.info.as_ref();
+                let chips: Vec<String> = [
+                    info.and_then(|i| i.year.clone().or_else(|| i.release.as_ref().map(|r| r.chars().take(4).collect()))),
+                    info.and_then(|i| i.genres.as_ref().and_then(|x| x.split(';').next().map(|x| x.trim().to_string()))),
+                    info.and_then(|i| i.rating).map(|r| format!("★ {r:.1}")),
+                    Some(g.region.clone()).filter(|r| !r.is_empty()),
+                    Some(g.ext.to_uppercase()).filter(|e| !e.is_empty()),
+                ]
+                .into_iter()
+                .flatten()
+                .collect();
+                right.spawn(Node { column_gap: dp(10.0), margin: UiRect::bottom(dp(26.0)), flex_wrap: FlexWrap::Wrap, ..default() }).with_children(|row| {
+                    for chip in &chips {
+                        row.spawn((
+                            Node { padding: UiRect::axes(dp(14.0), dp(6.0)), border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
+                            BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.2)),
+                            BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.04)),
+                            children![(Text::new(chip.clone()), font(500, 17.0), TextColor(S_INK2))],
+                        ));
+                    }
+                });
+                // Play, the first row, as the big button
+                let play = page.rows.first().filter(|r| r.label == "Play");
+                let rest = usize::from(play.is_some());
+                if let Some(row) = play {
+                    let on = at == 0;
+                    let mut b = right.spawn((
+                        Node { width: dp(300.0), height: dp(84.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, align_items: AlignItems::Center, column_gap: dp(14.0), border: UiRect::all(dp(3.0)), border_radius: BorderRadius::all(dp(16.0)), margin: UiRect::bottom(dp(22.0)), ..default() },
+                        BackgroundColor(if on { S_ACC } else { S_ACC.with_alpha(0.35) }),
+                        BorderColor::all(if on { Color::WHITE } else { Color::NONE }),
+                    ));
+                    if on {
+                        b.insert(BoxShadow(vec![ShadowStyle { color: S_ACC.with_alpha(0.6), x_offset: px(0), y_offset: dp(12.0), spread_radius: dp(-6.0), blur_radius: dp(40.0) }]));
+                    }
+                    b.with_children(|b| {
+                        b.spawn((Text::new("▶"), font(700, 24.0), TextColor(Color::WHITE)));
+                        b.spawn((Text::new(t(&row.label)), font(700, 28.0), TextColor(Color::WHITE)));
+                    });
+                }
+                let about = info.and_then(|i| i.overview.clone().or_else(|| i.about.clone())).map(|o| o.lines().next().unwrap_or_default().chars().take(320).collect::<String>());
+                let text = if at >= rest && !hint.is_empty() { Some(hint.clone()) } else { about };
+                if let Some(text) = text.filter(|x| !x.is_empty()) {
+                    right.spawn((Node { max_width: dp(860.0), margin: UiRect::bottom(dp(18.0)), ..default() }, Text::new(text), font(400, 21.0), TextColor(S_INK2)));
+                }
+                right.spawn((Node { margin: UiRect::vertical(dp(6.0)), ..default() }, Text::new(t("More").to_uppercase()), font(700, 15.0), TextColor(S_DIM)));
+                let more = n.saturating_sub(rest);
+                let count = window.min(more);
+                let first = if more <= window { rest } else { rest + (at.max(rest) - rest).saturating_sub(window / 2).min(more - window) };
+                row_list(right, &page, first, count, at, 860.0, &font, &t);
+            });
+            key_bar(p, &keys, &font);
+        }
+        Look::Setup => {
+            let step = step_of(&s.stack);
+            p.spawn(Node { width: percent(100), height: percent(100), justify_content: JustifyContent::Center, align_items: AlignItems::Center, padding: UiRect::all(dp(48.0)), ..default() }).with_children(|wrap| {
+                wrap.spawn((
+                    Node { width: dp(1420.0), height: percent(100), max_width: percent(100), border: UiRect::all(px(1)), border_radius: BorderRadius::all(dp(28.0)), overflow: Overflow::clip(), ..default() },
+                    BackgroundColor(Color::srgba(0.031, 0.035, 0.055, 0.92)),
+                    BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.09)),
+                    BoxShadow(vec![ShadowStyle { color: Color::srgba(0.0, 0.0, 0.0, 0.55), x_offset: px(0), y_offset: dp(30.0), spread_radius: dp(-10.0), blur_radius: dp(80.0) }]),
+                ))
+                .with_children(|card| {
+                    card.spawn((
+                        Node { width: dp(312.0), flex_shrink: 0.0, flex_direction: FlexDirection::Column, row_gap: dp(6.0), padding: UiRect::new(dp(22.0), dp(22.0), dp(44.0), dp(30.0)), border: UiRect::right(px(1)), ..default() },
+                        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.25)),
+                        BorderColor::all(S_LINE),
+                    ))
+                    .with_children(|side| {
                         side.spawn(Node { margin: UiRect::left(dp(14.0)), ..default() }).with_children(|b| {
                             b.spawn((Text::new("Rusty"), wide(800, 40.0), TextColor(S_RUSTY)));
                             b.spawn((Text::new("Shelf"), wide(800, 40.0), TextColor(S_INK)));
                         });
-                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(8.0), dp(18.0)), ..default() }, Text::new(t("Setup").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
-                        return;
-                    }
-                    side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), px(0), dp(18.0)), ..default() }, Text::new(t("Settings").to_uppercase()), font(800, 15.0), TextColor(S_DIM)));
-                    for (i, name) in TABS.iter().enumerate() {
-                        if let (group, true) = group_of(name) {
-                            side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(14.0), dp(6.0)), ..default() }, Text::new(t(group).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
+                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(8.0), dp(22.0)), ..default() }, Text::new(t("Setup").to_uppercase()), font(700, 15.0), TextColor(S_DIM)));
+                        for (i, name) in STEPS.iter().enumerate() {
+                            let on = i == step;
+                            side.spawn((
+                                Node { height: dp(46.0), flex_shrink: 0.0, align_items: AlignItems::Center, justify_content: JustifyContent::SpaceBetween, padding: UiRect::horizontal(dp(14.0)), border_radius: BorderRadius::all(dp(12.0)), ..default() },
+                                BackgroundColor(if on { Color::srgba(1.0, 1.0, 1.0, 0.06) } else { Color::NONE }),
+                            ))
+                            .with_children(|it| {
+                                if on {
+                                    it.spawn((Node { position_type: PositionType::Absolute, left: dp(-10.0), top: dp(11.0), bottom: dp(11.0), width: dp(4.0), border_radius: BorderRadius::all(dp(4.0)), ..default() }, BackgroundColor(S_ACC)));
+                                }
+                                it.spawn((Text::new(t(name)), font(500, 19.0), TextColor(if on { S_INK } else { S_DIM })));
+                                let dot = if i < step { Color::srgb(0.271, 0.831, 0.514) } else { Color::srgba(1.0, 1.0, 1.0, 0.3) };
+                                it.spawn((Node { width: dp(9.0), height: dp(9.0), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(dot)));
+                            });
                         }
-                        let on = i == s.tab % TABS.len();
-                        let mut item = side.spawn((
-                            Node { height: dp(46.0), flex_shrink: 0.0, align_items: AlignItems::Center, padding: UiRect::horizontal(dp(18.0)), border: UiRect::all(dp(2.0)), border_radius: BorderRadius::all(dp(14.0)), ..default() },
-                            BackgroundColor(if on { Color::srgba(1.0, 1.0, 1.0, 0.06) } else { Color::NONE }),
-                            BorderColor::all(Color::NONE),
-                        ));
-                        if on && tabs {
-                            item.insert(lit());
-                        }
-                        item.with_children(|it| {
-                            if on {
-                                it.spawn((Node { position_type: PositionType::Absolute, left: dp(-18.0), top: dp(10.0), bottom: dp(10.0), width: dp(4.0), border_radius: BorderRadius::all(dp(4.0)), ..default() }, BackgroundColor(S_ACC)));
+                        side.spawn(Node { flex_grow: 1.0, ..default() });
+                        side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 14.0), TextColor(S_FAINT)));
+                    });
+                    card.spawn(Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, ..default() }).with_children(|main| {
+                        main.spawn(Node { flex_grow: 1.0, min_height: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(46.0), dp(46.0), dp(46.0), dp(10.0)), ..default() }).with_children(|pg| {
+                            pg.spawn((Text::new(t("Welcome to RustyShelf").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
+                            pg.spawn((Node { margin: UiRect::top(dp(8.0)), ..default() }, Text::new(t(&page.title)), wide(800, 46.0), TextColor(S_INK)));
+                            if !page.lead.is_empty() {
+                                pg.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(16.0)), max_width: dp(860.0), ..default() }, Text::new(t(&page.lead)), font(400, 19.0), TextColor(S_DIM)));
                             }
-                            it.spawn((Text::new(t(name)), font(500, 21.0), TextColor(if on { S_INK } else { S_DIM })));
+                            row_list(pg, &page, first, window, at, 860.0, &font, &t);
                         });
-                    }
-                    side.spawn(Node { flex_grow: 1.0, ..default() });
-                    side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 13.0), TextColor(S_FAINT)));
+                        main.spawn((
+                            Node { min_height: dp(84.0), flex_shrink: 0.0, align_items: AlignItems::Center, column_gap: dp(22.0), padding: UiRect::horizontal(dp(46.0)), border: UiRect::top(px(1)), ..default() },
+                            BorderColor::all(S_LINE),
+                        ))
+                        .with_children(|foot| {
+                            let say = if hint.is_empty() { String::new() } else { hint.clone() };
+                            foot.spawn((Node { flex_grow: 1.0, min_width: px(0), ..default() }, Text::new(say), font(400, 17.0), TextColor(S_DIM)));
+                            for (caps, label) in &keys {
+                                key_hint(foot, &font, caps, label);
+                            }
+                        });
+                    });
                 });
-            }
-            // the page
-            p.spawn(Node { flex_grow: 1.0, min_width: px(0), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(if sidebar { 48.0 } else { 120.0 }), dp(48.0), dp(44.0), dp(120.0)), ..default() }).with_children(|pg| {
+            });
+        }
+        Look::Settings => {
+            p.spawn((
+                Node { width: dp(400.0), height: percent(100), flex_shrink: 0.0, flex_direction: FlexDirection::Column, row_gap: dp(4.0), padding: UiRect::new(dp(48.0), dp(22.0), dp(44.0), dp(40.0)), border: UiRect::right(px(1)), ..default() },
+                BackgroundColor(S_SIDE),
+                BorderColor::all(S_LINE),
+            ))
+            .with_children(|side| {
+                side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), px(0), dp(18.0)), ..default() }, Text::new(t("Settings").to_uppercase()), font(800, 15.0), TextColor(S_DIM)));
+                if !root {
+                    return;
+                }
+                for (i, name) in TABS.iter().enumerate() {
+                    if let (group, true) = group_of(name) {
+                        side.spawn((Node { margin: UiRect::new(dp(14.0), px(0), dp(14.0), dp(6.0)), ..default() }, Text::new(t(group).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
+                    }
+                    let on = i == s.tab % TABS.len();
+                    let mut item = side.spawn((
+                        Node { height: dp(46.0), flex_shrink: 0.0, align_items: AlignItems::Center, padding: UiRect::horizontal(dp(18.0)), border: UiRect::all(dp(2.0)), border_radius: BorderRadius::all(dp(14.0)), ..default() },
+                        BackgroundColor(if on { Color::srgba(1.0, 1.0, 1.0, 0.06) } else { Color::NONE }),
+                        BorderColor::all(Color::NONE),
+                    ));
+                    if on && tabs {
+                        item.insert(lit());
+                    }
+                    item.with_children(|it| {
+                        if on {
+                            it.spawn((Node { position_type: PositionType::Absolute, left: dp(-18.0), top: dp(10.0), bottom: dp(10.0), width: dp(4.0), border_radius: BorderRadius::all(dp(4.0)), ..default() }, BackgroundColor(S_ACC)));
+                        }
+                        it.spawn((Text::new(t(name)), font(500, 21.0), TextColor(if on { S_INK } else { S_DIM })));
+                    });
+                }
+                side.spawn(Node { flex_grow: 1.0, ..default() });
+                side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 13.0), TextColor(S_FAINT)));
+            });
+            p.spawn(Node { flex_grow: 1.0, min_width: px(0), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(48.0), dp(48.0), dp(44.0), dp(120.0)), ..default() }).with_children(|pg| {
+                let eyebrow = if root { t(group_of(tab).0) } else { String::new() };
                 if !eyebrow.is_empty() {
                     pg.spawn((Text::new(eyebrow.to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
                 }
                 pg.spawn((Node { margin: UiRect::top(dp(6.0)), ..default() }, Text::new(if tabs { t(tab) } else { t(&page.title) }), wide(800, 52.0), TextColor(S_INK)));
-                if !page.lead.is_empty() {
-                    pg.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(20.0)), max_width: dp(820.0), ..default() }, Text::new(t(&page.lead)), font(400, 20.0), TextColor(S_DIM)));
-                } else {
+                if page.lead.is_empty() {
                     pg.spawn(Node { height: dp(20.0), ..default() });
+                } else {
+                    pg.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(20.0)), max_width: dp(820.0), ..default() }, Text::new(t(&page.lead)), font(400, 20.0), TextColor(S_DIM)));
                 }
-                pg.spawn(Node { height: dp(18.0), justify_content: JustifyContent::Center, max_width: dp(800.0), ..default() }).with_children(|m| {
-                    if first > 0 {
-                        m.spawn((Text::new("▲"), font(500, 13.0), TextColor(S_FAINT)));
-                    }
-                });
-                for (i, row) in page.rows.iter().enumerate().skip(first).take(WINDOW) {
-                    let chosen = i == at;
-                    let head = row.label.starts_with("— ") || row.label.starts_with("— ");
-                    let value = if LANGUAGES.iter().any(|l| l.1 == row.value) { row.value.clone() } else { t(&row.value) };
-                    let toggle = matches!(row.value.as_str(), "On" | "Off");
-                    let mut line = pg.spawn((
-                        Node {
-                            max_width: dp(800.0),
-                            min_height: dp(62.0),
-                            flex_shrink: 0.0,
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::SpaceBetween,
-                            column_gap: dp(24.0),
-                            padding: UiRect::horizontal(dp(18.0)),
-                            border: if chosen { UiRect::all(dp(2.0)) } else { UiRect::bottom(px(1)) },
-                            border_radius: BorderRadius::all(dp(if chosen { 14.0 } else { 0.0 })),
-                            ..default()
-                        },
-                        BorderColor::all(if head { Color::NONE } else { S_LINE }),
-                    ));
-                    if chosen {
-                        line.insert(lit());
-                    }
-                    line.with_children(|r| {
-                        if head && !chosen {
-                            let name = row.label.trim_matches(|c: char| c == '—' || c == ' ');
-                            r.spawn((Text::new(t(name).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
-                            return;
-                        }
-                        r.spawn((Text::new(t(row.label.trim_matches(|c: char| c == '—' || c == ' '))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 })));
-                        r.spawn(Node { align_items: AlignItems::Center, column_gap: dp(12.0), flex_shrink: 0.0, ..default() }).with_children(|v| {
-                            if row.step.is_some() && !toggle && chosen {
-                                v.spawn((Text::new("‹"), font(500, 22.0), TextColor(S_DIM)));
-                            }
-                            if !value.is_empty() {
-                                v.spawn((Text::new(value.clone()), font(if chosen && !toggle { 600 } else { 500 }, 21.0), TextColor(if chosen { S_INK } else { S_DIM })));
-                            }
-                            if toggle {
-                                let on = row.value == "On";
-                                v.spawn((
-                                    Node { width: dp(52.0), height: dp(30.0), padding: UiRect::all(dp(3.0)), justify_content: if on { JustifyContent::FlexEnd } else { JustifyContent::FlexStart }, border_radius: BorderRadius::MAX, ..default() },
-                                    BackgroundColor(if on { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.14) }),
-                                    children![(Node { width: dp(24.0), height: dp(24.0), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::WHITE))],
-                                ));
-                            } else if row.step.is_some() && chosen {
-                                v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_INK)));
-                            } else if row.press.is_some() {
-                                v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_FAINT)));
-                            }
-                        });
-                    });
-                }
-                pg.spawn(Node { height: dp(18.0), justify_content: JustifyContent::Center, max_width: dp(800.0), ..default() }).with_children(|m| {
-                    if first + WINDOW < n {
-                        m.spawn((Text::new("▼"), font(500, 13.0), TextColor(S_FAINT)));
-                    }
-                });
+                row_list(pg, &page, first, window, at, 800.0, &font, &t);
             });
-            // what the chosen row does
             p.spawn(Node { width: dp(470.0), flex_shrink: 0.0, flex_direction: FlexDirection::Column, row_gap: dp(20.0), padding: UiRect::new(px(0), dp(48.0), dp(155.0), dp(120.0)), ..default() }).with_children(|info| {
-                if let Some(row) = chosen_row.filter(|_| !hint.is_empty()) {
-                    info.spawn((
-                        Node { flex_direction: FlexDirection::Column, row_gap: dp(12.0), padding: UiRect::all(dp(26.0)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(dp(22.0)), ..default() },
-                        BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.012)),
-                        BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.06)),
-                    ))
-                    .with_children(|card| {
-                        if s.note.is_empty() {
-                            card.spawn((Text::new(t(row.label.trim_matches(|c: char| c == '—' || c == ' '))), font(700, 28.0), TextColor(S_INK)));
-                        }
-                        card.spawn((Text::new(hint.clone()), font(400, 19.5), TextColor(S_INK2)));
-                    });
+                if !hint.is_empty() {
+                    info_card(info, card_title.clone(), &hint, &font);
                 }
                 if let Some(preview) = preview {
                     info.spawn((Node { height: dp(420.0), align_self: AlignSelf::Center, ..default() }, ImageNode::new(preview)));
@@ -3014,20 +3251,9 @@ pub fn draw(mut commands: Commands, mut s: ResMut<Settings>, face: Option<Res<Fa
                     ));
                 }
             });
-            // the keys
-            p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), width: percent(100), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
-                bar.spawn((
-                    Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
-                    BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
-                    BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
-                ))
-                .with_children(|b| {
-                    for (caps, label) in &keys {
-                        key_hint(b, &font, caps, label);
-                    }
-                });
-            });
-        });
+            key_bar(p, &keys, &font);
+        }
+    });
 }
 
 #[cfg(test)]
