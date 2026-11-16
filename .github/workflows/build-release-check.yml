@@ -3,7 +3,7 @@
 #   none     a normal commit: this run finishes here, nothing else runs
 #   build    "For build…" → calls build.yml: the Windows, Linux and Android builds, kept as the run's downloads
 #   release  "For version A.B.C" → calls release.yml: the same builds, then a GitHub release vA.B.C.0
-#   alpha    "For alpha" → calls alpha.yml: the native Rust app (crates/) for Windows, as a prerelease vA.B.C-alpha.N
+#   alpha    "For alpha" → calls alpha.yml: the native Rust app (crates/) for Windows and Android, as a prerelease vA.B.C-alpha.N
 # The version is A.B.C.DDDD (DDDD the build of A.B.C). Desktop builds carry it as A.B.C+DDDD (npm and electron-builder
 # take that form) and show it as A.B.C.DDDD; Android as its versionName, with a versionCode that grows with every build.
 name: Build/release check
@@ -56,7 +56,7 @@ jobs:
           case "$KIND" in
             release) echo "### Release RustyShelf $VERSION: builds, then the release" >> "$GITHUB_STEP_SUMMARY" ;;
             build) echo "### Build RustyShelf $VERSION: builds, kept as this run's downloads" >> "$GITHUB_STEP_SUMMARY" ;;
-            alpha) echo "### Alpha of the native app $VERSION: the Windows build, then a prerelease" >> "$GITHUB_STEP_SUMMARY" ;;
+            alpha) echo "### Alpha of the native app $VERSION: the Windows and Android builds, then a prerelease" >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo "### Nothing to build: $REASON" >> "$GITHUB_STEP_SUMMARY" ;;
           esac
 

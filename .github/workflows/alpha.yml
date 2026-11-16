@@ -1,4 +1,4 @@
-# An alpha of the native Rust app (crates/rustyshelf): built for Windows, published as a GitHub prerelease
+# An alpha of the native Rust app (crates/rustyshelf): built for Windows and Android, published as a GitHub prerelease
 # vA.B.C-alpha.N, never as the latest release (that stays the Electron app's). Called by build-release-check.yml for a
 # "For alpha" commit.
 name: Alpha
@@ -57,9 +57,55 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  android:
+    name: Android APK (native app)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Rust toolchain
+        run: |
+          rustup update stable --no-self-update && rustup default stable
+          rustup target add aarch64-linux-android
+          cargo install cargo-ndk --locked
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: alpha-android-${{ hashFiles('Cargo.lock') }}
+          restore-keys: alpha-android-
+      - name: Build the app's library
+        env:
+          RUSTYSHELF_SS_DEV_ID: ${{ secrets.SS_DEV_ID }}
+          RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          cargo ndk -t arm64-v8a -P 26 -o crates/rustyshelf/android/app/src/main/jniLibs build --release --locked -p rustyshelf --lib
+      # (signed with the debug key, as the Capacitor app's APK is: installable by hand)
+      - name: Build the APK
+        working-directory: crates/rustyshelf/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace -PrsVersionName="${{ inputs.version }}" -PrsVersionCode="${{ github.run_number }}"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          mv app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/RustyShelf-native-${{ inputs.version }}-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpha-android
+          path: out/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
   publish:
     name: Publish the prerelease
-    needs: windows
+    needs: [windows, android]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
