@@ -1,6 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
-// Boxshelf's main/pccovers.js (cover, autoCover, fetchAuto, fillMissing, folderCover, consoleCover, consolePlat), as
-// RustyShelf has it.
+// Boxshelf's main/pccovers.js (cover, autoCover, fetchAuto, fillMissing, folderCover, consoleCover, consolePlat,
+// options, use, reset), as RustyShelf has it.
 //! A PC game's cover files in the data folder, and a picture found in the game's own folder.
 
 use std::path::{Path, PathBuf};
@@ -44,9 +44,162 @@ pub fn own(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
     let base = dir.join(safe_id(id)).display().to_string();
     let (dest, tmp) = (PathBuf::from(format!("{base}.{ext}")), PathBuf::from(format!("{base}.{ext}.tmp")));
     std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
+    clear(data, id);
+    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    Ok(dest)
+}
+
+/// Takes away the cover chosen for a game: its automatic one is shown again.
+pub fn clear(data: &Path, id: &str) {
+    let base = data.join("pc-covers").join(safe_id(id)).display().to_string();
     for gone in ["jpg", "png", "webp", "plat", "from"] {
         let _ = std::fs::remove_file(format!("{base}.{gone}"));
     }
+}
+
+/// A picture's kind by its first bytes, else by the address it came from.
+fn ext_of(url: &str, b: &[u8]) -> String {
+    static NAMED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(png|webp|jpe?g)(?:$|\?)").unwrap());
+    if b.starts_with(&[0x89, b'P']) {
+        "png".into()
+    } else if b.get(8..12) == Some(b"WEBP") {
+        "webp".into()
+    } else {
+        NAMED.captures(url).map_or("jpg".into(), |c| c[1].to_lowercase().replace("jpeg", "jpg"))
+    }
+}
+
+/// Steam's public store art of an app, from the hosts that have it (steamart.rs asset).
+fn steam_art(appid: &str, name: &str) -> [String; 3] {
+    [
+        format!("https://shared.steamstatic.com/store_item_assets/steam/apps/{appid}/{name}"),
+        format!("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}/{name}"),
+        format!("https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/{name}"),
+    ]
+}
+
+/// A cover offered for a game.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CoverOption {
+    pub label: String,
+    pub sub: String,
+    /// "yours", "steam", "steamstore" or "steamgriddb"
+    pub source: &'static str,
+    /// a small copy to show, on disk
+    pub thumb: PathBuf,
+    take: Take,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Take {
+    File(PathBuf),
+    /// the sharpest first
+    Urls(Vec<String>),
+}
+
+/// The covers offered for a game, and whether there's a SteamGridDB key (posters come only with one).
+#[derive(Debug, Default)]
+pub struct Options {
+    pub list: Vec<CoverOption>,
+    pub steamgriddb: bool,
+    pub chosen: bool,
+}
+
+/// A thumbnail fetched once into `data/pc-cover-cache` (a picture only, through a temporary name), by its address.
+fn thumb(data: &Path, url: &str) -> Option<PathBuf> {
+    use sha1::Digest;
+    let dir = data.join("pc-cover-cache");
+    let name: String = sha1::Sha1::digest(url.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>().chars().take(24).collect();
+    let base = dir.join(&name).display().to_string();
+    if let Some(had) = ["jpg", "png", "webp"].iter().map(|e| PathBuf::from(format!("{base}.{e}"))).find(|f| is_file(f)) {
+        return Some(had);
+    }
+    let b = crate::net::get_bytes(url, std::time::Duration::from_secs(10), 15_000_000).ok()??;
+    if !crate::steamart::is_image(&b) {
+        return None;
+    }
+    std::fs::create_dir_all(&dir).ok()?;
+    let dest = PathBuf::from(format!("{base}.{}", ext_of(url, &b)));
+    let tmp = PathBuf::from(format!("{}.tmp", dest.display()));
+    std::fs::write(&tmp, &b).and_then(|()| std::fs::rename(&tmp, &dest)).ok()?;
+    Some(dest)
+}
+
+/// The first of these addresses whose thumbnail could be had, for each, fetched a few at a time.
+fn thumbs(data: &Path, wanted: Vec<Vec<String>>) -> Vec<Option<PathBuf>> {
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let got: Vec<std::sync::Mutex<Option<PathBuf>>> = wanted.iter().map(|_| std::sync::Mutex::new(None)).collect();
+    std::thread::scope(|s| {
+        for _ in 0..4 {
+            s.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let Some(urls) = wanted.get(i) else { return };
+                let t = urls.iter().find_map(|u| thumb(data, u));
+                if let Ok(mut g) = got[i].lock() {
+                    *g = t;
+                }
+            });
+        }
+    });
+    got.into_iter().map(|g| g.into_inner().ok().flatten()).collect()
+}
+
+/// The covers offered for a game (`id`; a Steam game's `appid`; its `title`, or a title typed in when `term`):
+/// the one chosen now, Steam's own (a Steam game's, else the store's games of that name), and up to 24 SteamGridDB
+/// posters with a key. Their thumbnails are fetched first, so this takes a while: off the frame.
+pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bool, sg: Option<&crate::steamgrid::SteamGrid>) -> Options {
+    let mut list = Vec::new();
+    let mine = cover(data, id);
+    if let Some(f) = &mine {
+        list.push(CoverOption { label: "Your choice now".into(), sub: "Chosen before".into(), source: "yours", thumb: f.clone(), take: Take::File(f.clone()) });
+    }
+    let appid = appid.filter(|_| !term);
+    let local = appid.map(|a| data.join("steam-art").join(format!("{a}_cover.jpg"))).filter(|f| is_file(f));
+    if let Some(f) = &local {
+        list.push(CoverOption { label: "Steam's cover".into(), sub: "From your Steam library".into(), source: "steam", thumb: f.clone(), take: Take::File(f.clone()) });
+    }
+    // Steam's store cover: a Steam game's own when it isn't kept here, else the Steam games of that name
+    let apps: Vec<(String, String)> = match appid {
+        Some(a) if local.is_none() => vec![(a.to_string(), String::new())],
+        Some(_) => Vec::new(),
+        None => crate::pcgames::steam_search(title, !term),
+    };
+    let posters = sg.filter(|g| g.enabled()).map(|g| g.posters(&crate::steamgrid::Game { appid: appid.unwrap_or(""), title, names: &[title.to_string()] })).unwrap_or_default();
+    let posters: Vec<_> = posters.into_iter().take(24).collect();
+    let wanted: Vec<Vec<String>> = apps.iter().map(|(a, _)| steam_art(a, "library_600x900.jpg")[..2].to_vec()).chain(posters.iter().map(|p| vec![p.thumb.clone().unwrap_or_else(|| p.url.clone())])).collect();
+    let got = thumbs(data, wanted);
+    for ((a, name), t) in apps.iter().zip(&got) {
+        let Some(t) = t else { continue };
+        let urls = [steam_art(a, "library_600x900_2x.jpg"), steam_art(a, "library_600x900.jpg")].concat();
+        let sub = if name.is_empty() { "From Steam's store".to_string() } else { format!("{name} on Steam") };
+        list.push(CoverOption { label: "Steam's cover".into(), sub, source: "steamstore", thumb: t.clone(), take: Take::Urls(urls) });
+    }
+    for (p, t) in posters.iter().zip(&got[apps.len()..]) {
+        let Some(t) = t else { continue };
+        let label = if p.style.is_empty() { "SteamGridDB".to_string() } else { format!("SteamGridDB · {}", p.style_name()) };
+        let sub = if p.author.is_empty() { String::new() } else { format!("by {}", p.author) };
+        list.push(CoverOption { label, sub, source: "steamgriddb", thumb: t.clone(), take: Take::Urls(vec![p.url.clone()]) });
+    }
+    Options { list, steamgriddb: sg.is_some_and(|g| g.enabled()), chosen: mine.is_some() }
+}
+
+/// Makes one of the offered covers the game's chosen one: downloaded (the sharpest that comes) and kept in
+/// `data/pc-covers`.
+pub fn choose(data: &Path, id: &str, option: &CoverOption) -> Result<PathBuf, String> {
+    let (bytes, from) = match &option.take {
+        Take::File(f) => (std::fs::read(f).map_err(|e| e.to_string())?, f.display().to_string()),
+        Take::Urls(urls) => urls
+            .iter()
+            .find_map(|u| crate::net::get_bytes(u, std::time::Duration::from_secs(15), 25_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b)).map(|b| (b, u.clone())))
+            .ok_or("Couldn't download that cover. Check the connection and try again.")?,
+    };
+    let dir = data.join("pc-covers");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let base = dir.join(safe_id(id)).display().to_string();
+    let dest = PathBuf::from(format!("{base}.{}", ext_of(&from, &bytes)));
+    let tmp = PathBuf::from(format!("{}.tmp", dest.display()));
+    std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
+    clear(data, id);
     std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
     Ok(dest)
 }
@@ -234,5 +387,34 @@ mod poster_tests {
         assert_eq!(fill_missing(t.path(), &games, &sg), (1, 0));
         assert_eq!(*asked.lock().unwrap(), ["Omega%20Quest"]);
         assert_eq!(fetch_auto(t.path(), "bare", "http://example.org/a.jpg"), None);
+    }
+}
+
+#[cfg(test)]
+mod picker_tests {
+    use super::*;
+
+    #[test]
+    fn choosing_and_going_back() {
+        let data = std::env::temp_dir().join(format!("rs-pccover-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        std::fs::create_dir_all(data.join("steam-art")).unwrap();
+        // a JPEG's first bytes are enough to be taken for one
+        let jpeg = [0xff, 0xd8, 0xff, 0xe0, 0, 16, b'J', b'F', b'I', b'F', 0, 1, 1, 0];
+        std::fs::write(data.join("steam-art").join("1063660_cover.jpg"), jpeg).unwrap();
+        // Steam's cover kept here: offered, and no store search for a Steam game that has it
+        let o = options(&data, "steam-1063660", Some("1063660"), "Bendy and the Dark Revival", false, None);
+        assert_eq!(o.list.iter().map(|c| (c.source, c.label.as_str())).collect::<Vec<_>>(), [("steam", "Steam's cover")]);
+        assert!(!o.chosen && !o.steamgriddb);
+        let dest = choose(&data, "steam-1063660", &o.list[0]).unwrap();
+        assert_eq!(cover(&data, "steam-1063660"), Some(dest.clone()));
+        assert_eq!(std::fs::read(&dest).unwrap(), jpeg);
+        // the pick is offered first next time, and going back takes it away
+        let o = options(&data, "steam-1063660", Some("1063660"), "Bendy and the Dark Revival", false, None);
+        assert_eq!(o.list[0].source, "yours");
+        assert!(o.chosen);
+        clear(&data, "steam-1063660");
+        assert_eq!(cover(&data, "steam-1063660"), None);
+        let _ = std::fs::remove_dir_all(&data);
     }
 }

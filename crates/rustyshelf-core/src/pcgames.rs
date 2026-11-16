@@ -1181,6 +1181,42 @@ fn steam_hit(items: &[Value], title: &str) -> Option<f64> {
     Some(js::number(hit.get("id")))
 }
 
+/// The Steam games of a name in Steam's store (its id and name), three at most: with `exact`, only those named just
+/// so (a name can be shared). Bundles, soundtracks, demos and the like are left out. Asked again after 10 minutes.
+pub fn steam_search(term: &str, exact: bool) -> Vec<(String, String)> {
+    static NOT_GAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\b(soundtrack|ost|artbook|art book|demo|dlc|season pass|expansion pass|wallpapers?|supporter pack|bundle)\b").unwrap());
+    static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{1,10}$").unwrap());
+    type Found = Vec<(String, String)>;
+    static MEMO: LazyLock<std::sync::Mutex<HashMap<String, (u64, Found)>>> = LazyLock::new(Default::default);
+    let t: String = term.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(120).collect();
+    if t.is_empty() {
+        return Vec::new();
+    }
+    let k = t.to_lowercase();
+    let memo = MEMO.lock().ok().and_then(|m| m.get(&k).filter(|(at, _)| now_ms().saturating_sub(*at) < 600_000).map(|e| e.1.clone()));
+    let items = match memo {
+        Some(i) => i,
+        None => {
+            let url = format!("https://store.steampowered.com/api/storesearch/?term={}&l=english&cc=US", js::encode_uri_component(&t));
+            let Ok(r) = crate::net::get_json(&url, Duration::from_secs(8)) else { return Vec::new() };
+            let items: Vec<(String, String)> = r
+                .get("items")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter(|x| x.get("type").and_then(Value::as_str) != Some("sub")).map(|x| (js::string(x.get("id")), js::text(x.get("name")))).filter(|(id, name)| ID.is_match(id) && !name.is_empty() && !NOT_GAME.is_match(name)).map(|(id, name)| (id, name.chars().take(120).collect())).collect())
+                .unwrap_or_default();
+            if let Ok(mut m) = MEMO.lock() {
+                if m.len() > 200 {
+                    m.clear();
+                }
+                m.insert(k, (now_ms(), items.clone()));
+            }
+            items
+        }
+    };
+    let want = norm(&t);
+    items.into_iter().filter(|(_, name)| !exact || norm(name) == want).take(3).collect()
+}
+
 /// Asks Steam's store for the titles not matched yet (at most 40 a run, a pause between), and keeps the answers in
 /// `data/pc-steam.json`; a miss is tried again after a week. Returns how many were matched.
 pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {

@@ -120,6 +120,10 @@ impl Settings {
             Some(false) => {}
             None => self.editing = Some(e),
         }
+        // (opened only for this: done or not, Settings goes)
+        if keep.is_some() && std::mem::take(&mut self.edit_alone) {
+            self.shut();
+        }
     }
 }
 

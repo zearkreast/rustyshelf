@@ -222,6 +222,10 @@ pub struct Settings {
     pub open: bool,
     /// what's moving on the screens, kept between their rebuilds
     pub motion: motion::SettingsMotion,
+    /// a game's cover picker asked for (from Details, or after a search typed here)
+    pub cover_asked: Option<crate::coverpick::Ask>,
+    /// Settings was opened only to type something in: it closes when that's done
+    edit_alone: bool,
     /// controller pulses asked for from Settings' own pages, for `rumble::send`
     pub pulses: Vec<(f32, f32, u64)>,
     /// the Kid mode PIN was given since Settings opened
@@ -405,6 +409,8 @@ impl Default for Settings {
             genres: Vec::new(),
             console_shelves: Vec::new(),
             motion: Default::default(),
+            cover_asked: None,
+            edit_alone: false,
             order_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
@@ -673,6 +679,29 @@ impl Settings {
     /// shelf menu and the first run's card leave the shelf in view.)
     pub fn covers_shelf(&self) -> bool {
         self.open && self.motion.faded_in && !self.wizard && !(self.stack.len() == 1 && self.stack[0].0 == Screen::Shelf)
+    }
+
+    /// Settings opened only to type the name a cover is searched under; the picker comes back with what was typed.
+    pub fn search_cover(&mut self, ask: crate::coverpick::Ask) {
+        let had = if ask.term.is_empty() { ask.title.clone() } else { ask.term.clone() };
+        (self.open, self.just_closed, self.edit_alone) = (true, false, true);
+        self.stack = vec![(Screen::Root, 0)];
+        self.edit(
+            "Search for a cover",
+            "The name to look covers up under, on Steam's store and SteamGridDB.",
+            had,
+            Box::new(move |s: &mut Settings, typed: String| {
+                s.cover_asked = Some(crate::coverpick::Ask { term: typed.trim().to_string(), ..ask.clone() });
+            }),
+        );
+    }
+
+    /// Settings opened on Accounts & services (a service's key asked for from outside Settings).
+    pub fn open_account(&mut self) {
+        (self.open, self.just_closed) = (true, false);
+        self.stack = vec![(Screen::Root, 0)];
+        self.tab = TABS.iter().position(|t| *t == "Accounts").unwrap_or(0);
+        self.redraw = true;
     }
 
     /// A moving theme keeps moving while the shelf slides (Settings → Look); off, it pauses until the shelf stops.
@@ -2404,6 +2433,25 @@ impl Settings {
                 rows.extend(self.manual_studio_row());
                 if self.can_pick_art() {
                     rows.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
+                }
+                // a Steam, store or added game's cover (console games have the Art Studio above)
+                let pc_appid = match &g.source {
+                    Source::Steam { appid, .. } => Some(Some(appid.clone())),
+                    Source::Pc(_) => Some(None),
+                    _ => None,
+                };
+                if let Some(appid) = pc_appid {
+                    let ask = crate::coverpick::Ask { id: g.id.clone(), appid, title: g.title.clone(), term: String::new() };
+                    rows.push(Row {
+                        label: "Box art".into(),
+                        value: "Change".into(),
+                        hint: "Choose another cover: Steam's own, SteamGridDB's posters, or a picture of yours.".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            s.cover_asked = Some(ask.clone());
+                            s.shut();
+                        })),
+                        ..Row::default()
+                    });
                 }
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());

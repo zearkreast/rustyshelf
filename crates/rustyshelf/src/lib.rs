@@ -12,6 +12,7 @@ mod appicon;
 mod background;
 mod boot;
 mod card;
+mod coverpick;
 mod cheevos;
 mod deck;
 mod dialog;
@@ -145,12 +146,13 @@ pub fn run() {
         .init_resource::<whatsnew::WhatsNew>()
         .init_resource::<tour::Tour>()
         .init_resource::<rumble::Rumble>()
+        .init_resource::<coverpick::CoverPick>()
         .add_plugins((music::plugin, frames::plugin))
         .add_systems(Last, settings_on_disk)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup, deck::log_start).chain())
         .init_resource::<background::Background>()
         .add_systems(Update, (appicon::set, background::run, rumble::send, place::keep, settings::apply_scale))
-        .add_systems(PostUpdate, settings::motion::measure.after(bevy::ui::UiSystems::Layout))
+        .add_systems(PostUpdate, (settings::motion::measure, coverpick::scroll).after(bevy::ui::UiSystems::Layout))
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_plugins(android_input)
         .add_systems(PreUpdate, touch::run.after(bevy::input::InputSystems))
@@ -164,7 +166,7 @@ pub fn run() {
                 phone::run,
                 idle::run,
                 home::run,
-                (card::run, play::pick_build, whatsnew::run, deck::run, tour::run).chain(),
+                (card::run, coverpick::run, coverpick::animate, play::pick_build, whatsnew::run, deck::run, tour::run).chain(),
                 reader::run,
                 shelf::inspect,
                 settings::input,

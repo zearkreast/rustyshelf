@@ -285,6 +285,13 @@ pub struct Covers {
 }
 
 impl Covers {
+    /// Lets go of a picture whose file has changed: it's read again the next time it's wanted.
+    pub fn forget(&mut self, path: &std::path::Path) {
+        self.loaded.remove(path);
+        self.hues.remove(path);
+        self.swatches.remove(path);
+    }
+
     /// A game's cover as it's on the shelf `own`, once it's loaded.
     pub fn of(&self, g: &rustyshelf_core::scanner::Game, own: &str) -> Option<Handle<Image>> {
         let key = cover_of(g, own, &looks::look_for(own, g)).0.key();

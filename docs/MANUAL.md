@@ -133,6 +133,10 @@ complete yet.
   list scrolls to keep the chosen row in view (▲ / ▼ when there's more), a value slides in on ← / →, a switch's knob
   springs over, a pressed row gives a little, a page comes in from just below (Details from the right) and the whole
   fades in and out. Reduce motion keeps only the fades, quicker.
+- Changes a Steam, store or added game's cover from Details → Box art: a grid of covers to choose from — Steam's
+  own (a Steam game's, else the Steam store's games of that name), SteamGridDB's posters with a key — and tiles to
+  search under another name, use a picture of yours, or go back to the automatic cover (`data/pc-covers`, as the
+  Electron app keeps it). The covers' thumbnails are kept in `data/pc-cover-cache`.
 - Has Settings → Shelf → Console order: each shelf moves up (←) or down (→) the list, and the shelves along the top
   follow at once (`ui.shelfOrder`, which the Electron app reads too); Reset puts RustyShelf's own order back.
 - Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and
