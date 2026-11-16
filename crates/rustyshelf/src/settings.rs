@@ -218,6 +218,10 @@ enum Pick {
 #[derive(Resource)]
 pub struct Settings {
     pub open: bool,
+    /// rows the list draws fewer than its usual number, so it ends above the pill of keys (`fit_rows`), and the
+    /// page and window size that's for
+    cut: usize,
+    cut_for: Option<(Screen, Vec2)>,
     /// controller pulses asked for from Settings' own pages, for `rumble::send`
     pub pulses: Vec<(f32, f32, u64)>,
     /// the Kid mode PIN was given since Settings opened
@@ -400,6 +404,8 @@ impl Default for Settings {
             every_console: false,
             genres: Vec::new(),
             console_shelves: Vec::new(),
+            cut: 0,
+            cut_for: None,
             order_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
@@ -3049,6 +3055,7 @@ fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, first: usize, count: usi
         let value = if LANGUAGES.iter().any(|l| l.1 == row.value) { row.value.clone() } else { t(&row.value) };
         let toggle = matches!(row.value.as_str(), "On" | "Off");
         let mut line = pg.spawn((
+            ListedRow,
             Node {
                 max_width: dp(width),
                 min_height: dp(62.0),
@@ -3101,10 +3108,42 @@ fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, first: usize, count: usi
     });
 }
 
+/// A row of the list on screen.
+#[derive(Component)]
+pub struct ListedRow;
+
+/// The pill of keys along the bottom.
+#[derive(Component)]
+pub struct KeyBar;
+
+/// Once laid out: a list that runs under the pill of keys (a long title, a big interface size) is drawn again a row
+/// shorter, until it ends above it. A new page or window size starts from the usual number again.
+pub fn fit_rows(mut s: ResMut<Settings>, windows: Query<&Window, With<bevy::window::PrimaryWindow>>, rows: Query<(&ComputedNode, &UiGlobalTransform), With<ListedRow>>, bar: Query<(&ComputedNode, &UiGlobalTransform), With<KeyBar>>) {
+    if !s.open {
+        return;
+    }
+    let size = windows.single().map_or(Vec2::ZERO, Window::size);
+    let page = s.stack.last().map(|p| p.0.clone());
+    if s.cut_for.as_ref().map(|f| (&f.0, f.1)) != page.as_ref().map(|p| (p, size)) {
+        s.cut_for = page.map(|p| (p, size));
+        if s.cut > 0 {
+            (s.cut, s.redraw) = (0, true);
+        }
+        return;
+    }
+    let Ok((bar, at)) = bar.single() else { return };
+    let top = at.translation.y - bar.size().y / 2.0;
+    let (count, lowest) = rows.iter().fold((0, f32::MIN), |(c, m), (n, at)| (c + 1, m.max(at.translation.y + n.size().y / 2.0)));
+    if count > 1 && lowest > top && !s.redraw {
+        (s.cut, s.redraw) = (s.cut + 1, true);
+    }
+}
+
 /// The pill of keys along the bottom.
 fn key_bar(p: &mut ChildSpawnerCommands, keys: &[(Vec<String>, String)], font: Fonts) {
     p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), left: px(0), right: px(0), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
         bar.spawn((
+            KeyBar,
             Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
             BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
             BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
@@ -3187,7 +3226,9 @@ pub fn draw(
         Look::Details => 7,
         Look::Setup => 9,
         _ => WINDOW,
-    };
+    }
+    .saturating_sub(s.cut)
+    .max(1);
     let first = if n <= window { 0 } else { at.saturating_sub(window / 2).min(n - window) };
     let lang = s.text(&["ui", "language"]);
     let t = |text: &str| rustyshelf_core::i18n::tr(&lang, text);
