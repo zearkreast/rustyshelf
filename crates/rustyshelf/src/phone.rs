@@ -247,7 +247,9 @@ pub fn run(
         // the router can hand this PC another address, or the network arrive after the app started
         if state.enabled && now >= phone.next_network {
             phone.next_network = now + 30.0;
-            phone.companion.follow_network();
+            // finding the address can try a few hundred sockets
+            let companion = phone.companion.clone();
+            std::thread::spawn(move || companion.follow_network());
         }
         if state.on {
             let (enabled, _, swap, glyphs) = settings.home_menu();

@@ -28,7 +28,57 @@ pub struct LibraryRes(pub LibraryState);
 
 /// Every game the library holds, as it was read: what the shown shelves are made from.
 #[derive(Resource, Default)]
-pub struct Base(pub Option<Library>);
+pub struct Base(pub Option<std::sync::Arc<Library>>);
+
+/// Makes the shown shelves again on a worker, as doing it copies the whole library. An answer to an older ask, or
+/// to a library since read again, is dropped.
+#[derive(Resource)]
+pub struct Reshower {
+    ask: Sender<(u64, std::sync::Arc<Library>, rustyshelf_core::history::History)>,
+    done: Mutex<Receiver<(u64, Library)>>,
+    asked: u64,
+}
+
+impl Default for Reshower {
+    fn default() -> Self {
+        let (ask, jobs) = channel::<(u64, std::sync::Arc<Library>, rustyshelf_core::history::History)>();
+        let (finished, done) = channel();
+        thread::spawn(move || {
+            while let Ok(mut job) = jobs.recv() {
+                while let Ok(newer) = jobs.try_recv() {
+                    job = newer;
+                }
+                if finished.send((job.0, shown(&job.1, &job.2))).is_err() {
+                    return;
+                }
+            }
+        });
+        Reshower { ask, done: Mutex::new(done), asked: 0 }
+    }
+}
+
+impl Reshower {
+    /// Asks for the shelves to be shown again from `base`.
+    pub fn ask(&mut self, base: &std::sync::Arc<Library>, history: &rustyshelf_core::history::History) {
+        self.asked += 1;
+        let _ = self.ask.send((self.asked, base.clone(), history.clone()));
+    }
+
+    /// Drops any answer in flight: the library it came from has been replaced.
+    pub fn forget(&mut self) {
+        self.asked += 1;
+    }
+}
+
+/// Puts the worker's newest shelves in place.
+pub fn take_reshown(mut lib: ResMut<LibraryRes>, mut cursor: ResMut<crate::shelf::Cursor>, re: Res<Reshower>) {
+    let Some((n, fresh)) = re.done.lock().ok().and_then(|d| d.try_iter().last()) else { return };
+    if n != re.asked {
+        return;
+    }
+    let _span = crate::frames::span("reshown");
+    put_shown(&mut lib, fresh, &mut cursor);
+}
 
 /// The library with each shelf's hidden games and the ones the filter leaves out gone, the rest in the order chosen
 /// (the settings' `ui.sort`, `ui.filter`, `ui.favorites`, `ui.hidden`).
@@ -110,15 +160,12 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
 #[derive(Resource, Default)]
 pub struct Reshow(pub bool);
 
-/// Shows the shelves again from the library as it was read, the cursor staying on its shelf and its game where
-/// they're still shown.
-pub fn reshow(lib: &mut LibraryRes, base: &Library, history: &rustyshelf_core::history::History, cursor: &mut crate::shelf::Cursor) {
-    let _span = crate::frames::span("reshow");
+/// Puts shelves shown again in place, the cursor staying on its shelf and its game where they're still shown.
+fn put_shown(lib: &mut LibraryRes, fresh: Library, cursor: &mut crate::shelf::Cursor) {
     let keep = match &lib.0 {
         LibraryState::Ready(l) => l.shelves.get(cursor.shelf).map(|s| (s.id.clone(), s.games.get(cursor.game).map(|g| g.id.clone()))),
         _ => None,
     };
-    let fresh = shown(base, history);
     if let Some((shelf, game)) = keep {
         cursor.shelf = fresh.shelves.iter().position(|s| s.id == shelf).unwrap_or(cursor.shelf.min(fresh.shelves.len().saturating_sub(1)));
         let games = fresh.shelves.get(cursor.shelf).map_or(&[][..], |s| s.games.as_slice());
@@ -189,10 +236,11 @@ pub fn poll_library(
     mut refresh: ResMut<Refresh>,
     mut again: ResMut<Reshow>,
     mut cursor: ResMut<crate::shelf::Cursor>,
+    mut re: ResMut<Reshower>,
 ) {
     if std::mem::take(&mut again.0) {
         if let (Some(b), LibraryState::Ready(_)) = (&base.0, &lib.0) {
-            reshow(&mut lib, b, &plays.0, &mut cursor);
+            re.ask(b, &plays.0);
         }
     }
     if let LibraryState::Loading(rx) = &lib.0 {
@@ -214,7 +262,8 @@ pub fn poll_library(
                 let open_into = l.config.raw().get("ui").and_then(|u| u.get("openInto")).and_then(|v| v.as_str()).unwrap_or("last").to_string();
                 crate::place::open_into(&open_into, &rustyshelf_core::paths::data_dir(&l.app_root), &shelves, &mut cursor);
                 lib.0 = LibraryState::Ready(shelves);
-                base.0 = Some(l);
+                base.0 = Some(std::sync::Arc::new(l));
+                re.forget();
             }
             Ok(Err(e)) => lib.0 = LibraryState::Failed(e.to_string()),
             Err(std::sync::mpsc::TryRecvError::Empty) => {}
@@ -226,7 +275,8 @@ pub fn poll_library(
     match fresh {
         Some(Ok(fresh)) => {
             let l = shown(&fresh, &plays.0);
-            base.0 = Some(fresh);
+            base.0 = Some(std::sync::Arc::new(fresh));
+            re.forget();
             // the same shelf and game stay under the cursor where they still exist
             let at = |lib: &Library| lib.shelves.get(cursor.shelf).map(|s| (s.id.clone(), s.games.get(cursor.game).map(|g| g.id.clone())));
             let was = match &lib.0 {
@@ -319,7 +369,8 @@ impl ArtLoader {
         let (req_tx, req_rx) = channel::<Art>();
         let (done_tx, done_rx) = channel();
         let req_rx = std::sync::Arc::new(Mutex::new(req_rx));
-        for _ in 0..thread::available_parallelism().map_or(2, |n| n.get().clamp(2, 6)) {
+        // a third of the cores, so art never crowds out the frame
+        for _ in 0..thread::available_parallelism().map_or(2, |n| (n.get() / 3).clamp(2, 4)) {
             let (req_rx, done_tx) = (req_rx.clone(), done_tx.clone());
             thread::spawn(move || loop {
                 let Ok(art) = req_rx.lock().unwrap().recv() else { return };

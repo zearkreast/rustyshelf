@@ -607,7 +607,18 @@ impl Canvas {
             }
         };
         let stride = self.width as usize;
-        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+        // at most half the cores paint at once, across every caller, so the frame and the GPU's thread keep theirs
+        static BUSY: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let budget = (std::thread::available_parallelism().map_or(1, |n| n.get()) / 2).max(1);
+        let big = (bottom - top) * (right - left) >= 65_536;
+        let threads = if big { budget.saturating_sub(BUSY.load(std::sync::atomic::Ordering::Relaxed)).max(1) } else { 1 };
+        if threads == 1 {
+            for (j, line) in self.px[top * stride..bottom * stride].chunks_exact_mut(stride).enumerate() {
+                row(top + j, line);
+            }
+            return;
+        }
+        BUSY.fetch_add(threads, std::sync::atomic::Ordering::Relaxed);
         let rows_each = (bottom - top).div_ceil(threads).max(1);
         std::thread::scope(|s| {
             for (i, band) in self.px[top * stride..bottom * stride].chunks_mut(stride * rows_each).enumerate() {
@@ -619,6 +630,7 @@ impl Canvas {
                 });
             }
         });
+        BUSY.fetch_sub(threads, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Lays a small picture (`pw` × `ph`, red, green and blue a pixel) over what's there, stretched smoothly to

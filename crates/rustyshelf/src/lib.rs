@@ -115,6 +115,7 @@ pub fn run() {
         .init_resource::<loading::Refresh>()
         .init_resource::<loading::Base>()
         .init_resource::<loading::Reshow>()
+        .init_resource::<loading::Reshower>()
         .insert_resource(loading::ArtLoader::start())
         .init_resource::<shelf::Cursor>()
         .init_resource::<shelf::Covers>()
@@ -159,7 +160,7 @@ pub fn run() {
         .add_systems(
             Update,
             (
-                loading::poll_library,
+                (loading::poll_library, loading::take_reshown).chain(),
                 loading::recheck_folders,
                 (romm::run, wiimote::run, wiimote::pointer),
                 play::watch_game,

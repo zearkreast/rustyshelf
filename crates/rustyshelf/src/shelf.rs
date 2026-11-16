@@ -282,7 +282,13 @@ pub struct Covers {
     swatches: HashMap<PathBuf, Arc<Vec<u8>>>,
     /// pictures decoded and not yet put on their cases
     landing: std::collections::VecDeque<crate::loading::Decoded>,
+    /// the ask count at each picture's last ask
+    used: HashMap<PathBuf, u64>,
+    asks: u64,
 }
+
+/// decoded pictures kept at most (a cover is about 0.7 MB of video memory)
+const KEPT: usize = 900;
 
 impl Covers {
     /// Lets go of a picture whose file has changed: it's read again the next time it's wanted.
@@ -301,6 +307,8 @@ impl Covers {
     /// Puts a picture on a sheet: at once when it's loaded, else when it arrives.
     pub fn want(&mut self, art: Art, sheet: Sheet, loader: &ArtLoader, materials: &mut Assets<StandardMaterial>) {
         let key = art.key();
+        self.asks += 1;
+        self.used.insert(key.clone(), self.asks);
         match self.loaded.get(&key) {
             Some(Some((img, aspect))) => show(materials, &sheet, img, *aspect),
             Some(None) => {}
@@ -1058,6 +1066,15 @@ pub fn apply_covers(
     }
     if count > 0 {
         crate::frames::note(format!("{count} pictures landed"));
+    }
+    // a picture a case still wears stays on the card: its material holds it
+    if covers.loaded.len() > KEPT {
+        let mut by_age: Vec<(u64, PathBuf)> = covers.loaded.keys().map(|k| (covers.used.get(k).copied().unwrap_or(0), k.clone())).collect();
+        by_age.sort_unstable_by_key(|x| x.0);
+        for (_, k) in by_age.into_iter().take(KEPT / 4) {
+            covers.loaded.remove(&k);
+            covers.used.remove(&k);
+        }
     }
     for mut s in slots.iter_mut().filter(|s| s.index == cursor.game && !s.late.is_empty()) {
         for (art, sheet) in std::mem::take(&mut s.late) {

@@ -2663,7 +2663,7 @@ pub fn input(
     mut playing: ResMut<crate::play::Playing>,
     mut typed: MessageReader<bevy::input::keyboard::KeyboardInput>,
     mut toast: ResMut<crate::hud::Toast>,
-    adapter: Option<Res<bevy::render::renderer::RenderAdapterInfo>>,
+    (adapter, mut re): (Option<Res<bevy::render::renderer::RenderAdapterInfo>>, ResMut<loading::Reshower>),
 ) {
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
     let (confirm, back) = s.confirm();
@@ -2692,9 +2692,9 @@ pub fn input(
         // a favourite made on the shelf
         if s.rearranged {
             s.rearranged = false;
-            if let (Some(b), Some(cfg)) = (base.0.as_mut(), Config::from_value(&s.cfg)) {
-                b.config = cfg;
-                loading::reshow(&mut lib, b, &plays.0, &mut cursor);
+            if let (Some(b), Some(cfg)) = (base.0.as_mut(), s.config_now()) {
+                std::sync::Arc::make_mut(b).config = cfg;
+                re.ask(b, &plays.0);
             }
         }
         if let Some(failed) = start_emulator(&mut s, &mut playing, time.elapsed_secs()).and_then(Result::err) {
@@ -2969,9 +2969,9 @@ pub fn input(
         *cursor = Cursor::default();
     } else if s.rearranged {
         s.rearranged = false;
-        if let (Some(b), Some(cfg)) = (base.0.as_mut(), Config::from_value(&s.cfg)) {
-            b.config = cfg;
-            loading::reshow(&mut lib, b, &plays.0, &mut cursor);
+        if let (Some(b), Some(cfg)) = (base.0.as_mut(), s.config_now()) {
+            std::sync::Arc::make_mut(b).config = cfg;
+            re.ask(b, &plays.0);
         }
     }
 }

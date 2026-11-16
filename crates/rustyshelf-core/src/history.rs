@@ -18,7 +18,7 @@ pub struct Played {
     pub last: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Open {
     id: String,
     at: u64,
@@ -26,7 +26,7 @@ struct Open {
     prev: Option<(u64, u64)>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct History {
     file: PathBuf,
     games: Vec<(String, Played)>,
