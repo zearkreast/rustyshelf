@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.2.0-alpha.6", "name": "0.2.0 alpha 6", "date": "2026-11-16", "title": "The Electron app's look",
+    "highlights": [
+      "Settings in the Electron app's look: a sidebar of tabs, a card that says what each row does",
+      "Details with the game's case beside it and a big Play button",
+      "The shelf's menu as a panel over the shelf",
+      "The first run as a card with its steps down the side"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Settings", "A sidebar of the tabs in their groups, the page's title and lead, rows with switches, a card saying what the chosen row does, and the keys in a pill. The on-screen keyboard shares the look."],
+        ["Details", "The game's case on the left; its console, name, chips and a big Play button on the right, with the rest of its rows under them."],
+        ["The shelf's menu", "A panel over the shelf (G)."],
+        ["The first run", "A card in the middle with its steps down the side and the keys along its foot."]
+      ] },
+      { "h": "Changed", "items": [
+        ["0.2.0", "RustyShelf is now the native app. The Electron app is kept on its own branch, archive/electron, and its releases stay where they are."]
+      ] }
+    ]
+  },
+  {
     "version": "0.1.0-alpha.5", "name": "0.1.0 alpha 5", "date": "2026-11-16", "title": "Android, shelves of your own and more screenshots",
     "highlights": [
       "The native app on Android, as an APK of its own",

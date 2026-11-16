@@ -7,7 +7,8 @@
 //                                    newest version released
 //   "For build 2.12.4" / "2.12.4.x" → the next build of that version (its first is .0); the number after it is only a reference
 //   "For alpha"                    → an alpha of the native Rust app (crates/), A.B.C-alpha.N: A.B.C the Cargo workspace's
-//                                    version, N one more than its alphas tagged before; published as a prerelease
+//                                    version, N one more than the highest alpha tagged before, of any version (0.1.0-alpha.5
+//                                    → 0.2.0-alpha.6); published as a prerelease
 //   neither                        → no build
 // With a Cargo version given, "For version" and "For build" must name that version.
 // The phrases can be anywhere in the message, in any case. "For build" counts only as a phrase of its own (followed by a
@@ -37,8 +38,8 @@ function decide(message, tagLines, pkgVersion, cargoVersion) {
   if (ALPHA_RE.test(msg)) {
     const base = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(cargoVersion || '').trim());
     if (!base) return { build: false, error: 'no version in Cargo.toml for the alpha' };
-    const v = base[0], esc = v.replace(/\./g, '\\.'), re = new RegExp(`^v${esc}-alpha\\.(\\d+)$`);
-    const n = (tagLines || []).map(t => re.exec(String(t).trim())).filter(Boolean).reduce((a, x) => Math.max(a, +x[1]), 0) + 1;
+    const v = base[0];
+    const n = (tagLines || []).map(t => /^v\d+\.\d+\.\d+-alpha\.(\d+)$/.exec(String(t).trim())).filter(Boolean).reduce((a, x) => Math.max(a, +x[1]), 0) + 1;
     return { build: true, kind: 'alpha', version: `${v}-alpha.${n}`, reason: `alpha ${n} of the native app ${v}` };
   }
   const cargo = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(cargoVersion || '').trim());
