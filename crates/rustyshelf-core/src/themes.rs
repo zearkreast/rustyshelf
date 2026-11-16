@@ -1,8 +1,10 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from the
-// themes in Boxshelf's renderer/app.js and renderer/themes-extra.js, as RustyShelf has them.
+// themes in Boxshelf's renderer/app.js and renderer/themes-extra.js, as RustyShelf has them. Pastel Pop is from
+// ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported
+// from its renderer/themes-extra.js.
 //! The shelf's colour themes: each paints the backdrop behind the shelf, as the CSS the Electron app gives its own
 //! backdrop (painted here by `cssbg`), and picks the hue of the glow under the chosen case. The pictures Boxshelf
-//! beta.14's themes are made of come from `data/themes-14.json`; those themes are still
+//! beta.14's themes and Pastel Pop are made of come from `data/themes-14.json`; those themes are still
 //! pictures here.
 
 use std::collections::HashMap;
@@ -119,6 +121,7 @@ pub fn halo(id: &str, sh: f64, song: Option<f64>) -> f64 {
         "storm" => pull(sh, 222.0, 0.4),
         "fireflies" => pull(sh, 75.0, 0.35),
         "desertnight" => pull(sh, 230.0, 0.35),
+        "pastelpop" => pull(sh, 290.0, 0.3),
         _ => sh,
     }
 }
@@ -376,6 +379,16 @@ pub fn tint(id: &str, sh: f64, hue: f64, song: Option<f64>) -> String {
             "linear-gradient(180deg,#02040f 0%,#060d26 30%,#0f1c44 46%,#26346a 54%,#3c4478 58%,#0b0f22 70%,#05070f 100%)".into(),
         ]
         .join(","),
+        "pastelpop" => [
+            "radial-gradient(ellipse 32% 12% at 50% 77%,rgba(60,30,90,.32),transparent 75%)".into(),
+            format!("{} 50% 50%/cover no-repeat", new("PP_STILL")),
+            format!("radial-gradient(ellipse 40% 14% at 50% 56%,{},transparent 72%)", whole(pull(sh, 300.0, 0.35), 90, 88, "0.55")),
+            "radial-gradient(ellipse 55% 35% at 12% 8%,rgba(255,214,240,.85),transparent 70%)".into(),
+            "radial-gradient(ellipse 50% 40% at 92% 18%,rgba(190,240,255,.7),transparent 70%)".into(),
+            "radial-gradient(ellipse 70% 30% at 50% 100%,rgba(200,250,232,.55),transparent 72%)".into(),
+            "linear-gradient(180deg,#86aaf8 0%,#a08ff2 30%,#c89aee 50%,#f2a2d6 66%,#ffc0c4 82%,#ffd7b4 100%)".into(),
+        ]
+        .join(","),
         // Spectrum, and the two that wear its wash: Spectrum Classic, and Artwork under a game's own picture
         _ => format!(
             "radial-gradient(ellipse 75% 65% at 28% 22%,{},transparent 70%),radial-gradient(ellipse 60% 60% at 82% 72%,{},transparent 70%),radial-gradient(ellipse 40% 40% at 55% 55%,{},transparent 70%),linear-gradient(160deg,{},{})",
@@ -411,6 +424,7 @@ fn strengths(id: &str) -> (f32, f32, f32) {
         "ember" | "dusk" | "storm" | "fireflies" | "desertnight" => (0.32, 1.0, 1.0),
         "starfield" | "eventhorizon" => (0.3, 1.0, 1.0),
         "sakura" => (0.34, 1.0, 1.0),
+        "pastelpop" => (0.22, 1.0, 1.0),
         _ => (1.0, 1.0, 1.0),
     }
 }
