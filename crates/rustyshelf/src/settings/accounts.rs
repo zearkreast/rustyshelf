@@ -325,11 +325,11 @@ impl Settings {
     pub(super) fn load_more_shots(&mut self) {
         let Some(c) = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom && !c.game.file.as_os_str().is_empty()) else { return };
         let base: Vec<String> = c.game.info.as_ref().map(|i| i.shots.clone()).unwrap_or_default();
-        if base.len() >= 6 || at(&self.cfg, &["ui", "moreShots"]) == Some(&json!(false)) || !self.shots_asked.insert(c.game.id.clone()) {
+        if base.len() >= 6 || !self.more_shots() || !self.shots_asked.insert(c.game.id.clone()) {
             return;
         }
         let (sys, file, title, region, id) = (c.console.clone(), c.game.file.clone(), c.game.title.clone(), c.game.region.clone(), c.game.id.clone());
-        let (data, art_region) = (paths::data_dir(&self.app_root), self.text(&["ui", "artRegion"]));
+        let (data, art_region) = (paths::data_dir(&self.app_root), self.art_region());
         let (tx, rx) = std::sync::mpsc::channel();
         self.shots_answer = Some(Mutex::new(rx));
         std::thread::spawn(move || {

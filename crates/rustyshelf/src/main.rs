@@ -5,6 +5,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod appicon;
+mod background;
 mod boot;
 mod card;
 mod cheevos;
@@ -97,7 +98,8 @@ fn main() {
         .init_resource::<tour::Tour>()
         .add_plugins(music::plugin)
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup).chain())
-        .add_systems(Update, appicon::set)
+        .init_resource::<background::Background>()
+        .add_systems(Update, (appicon::set, background::run))
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_systems(
             Update,

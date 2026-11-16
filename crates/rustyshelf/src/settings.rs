@@ -606,6 +606,21 @@ impl Settings {
     }
 
     /// The shelf's colour theme.
+    /// Box art (and with it more screenshots) is fetched from the internet.
+    pub fn auto_covers(&self) -> bool {
+        self.flag(&["ui", "autoCovers"], false)
+    }
+
+    /// Details tops up a console game's screenshots.
+    pub fn more_shots(&self) -> bool {
+        at(&self.cfg, &["ui", "moreShots"]) != Some(&json!(false))
+    }
+
+    /// The region box art is asked in ("auto" for the game's own).
+    pub fn art_region(&self) -> String {
+        self.text(&["ui", "artRegion"])
+    }
+
     /// A moving theme keeps moving while the shelf slides (Settings → Look); off, it pauses until the shelf stops.
     pub fn theme_keeps_moving(&self) -> bool {
         self.flag(&["ui", "themeKeepMoving"], cfg!(windows))
