@@ -16,6 +16,7 @@ mod cheevos;
 mod deck;
 mod dialog;
 mod frames;
+mod motion;
 mod home;
 mod hud;
 mod idle;
@@ -149,7 +150,7 @@ pub fn run() {
         .add_systems(Startup, (shelf::setup, hud::setup, boot::setup, home::setup, reader::setup, phone::setup, idle::setup, card::setup, wiimote::setup, deck::log_start).chain())
         .init_resource::<background::Background>()
         .add_systems(Update, (appicon::set, background::run, rumble::send, place::keep, settings::apply_scale))
-        .add_systems(PostUpdate, settings::fit_rows.after(bevy::ui::UiSystems::Layout))
+        .add_systems(PostUpdate, settings::motion::measure.after(bevy::ui::UiSystems::Layout))
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
         .add_plugins(android_input)
         .add_systems(PreUpdate, touch::run.after(bevy::input::InputSystems))
@@ -175,7 +176,7 @@ pub fn run() {
                 (shelf::apply_covers, shelf::reveal).chain(),
                 shelf::arrange,
                 (shelf::customs, shelf::backdrop, shelf::moving).chain(),
-                (cheevos::run, hud::update, hud::top, hud::hints, settings::draw, boot::run, home::draw).chain(),
+                (cheevos::run, hud::update, hud::top, hud::hints, settings::draw, settings::motion::animate, settings::motion::fade, boot::run, home::draw).chain(),
             )
                 .chain(),
         )

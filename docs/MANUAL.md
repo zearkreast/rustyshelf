@@ -129,6 +129,10 @@ complete yet.
   and Reduce motion (the moving themes stand still; Follow takes it from Windows' or GNOME's animation switch), and
   Controls' Scroll speed (how quickly a held direction repeats) and Controller rumble (short pulses as a game starts,
   the Surprise me case lands, a game is made a favourite or hidden, the shelf changes, and a controller connects).
+- Moves in Settings, Details and the shelf's menu as the Electron app does: one highlight glides from row to row, the
+  list scrolls to keep the chosen row in view (▲ / ▼ when there's more), a value slides in on ← / →, a switch's knob
+  springs over, a pressed row gives a little, a page comes in from just below (Details from the right) and the whole
+  fades in and out. Reduce motion keeps only the fades, quicker.
 - Has Settings → Shelf → Console order: each shelf moves up (←) or down (→) the list, and the shelves along the top
   follow at once (`ui.shelfOrder`, which the Electron app reads too); Reset puts RustyShelf's own order back.
 - Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and

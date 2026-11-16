@@ -37,6 +37,7 @@ pub use kid::kid_hidden;
 pub use notes::notes;
 mod manuals;
 mod moving;
+pub mod motion;
 mod notes;
 mod mstudio;
 mod linuxpc;
@@ -55,7 +56,7 @@ const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "Jun
 /// The rows a page shows at once; a longer page scrolls with the cursor.
 const WINDOW: usize = 11;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 enum Screen {
     Welcome,
     Root,
@@ -219,10 +220,8 @@ enum Pick {
 #[derive(Resource)]
 pub struct Settings {
     pub open: bool,
-    /// rows the list draws fewer than its usual number, so it ends above the pill of keys (`fit_rows`), and the
-    /// page and window size that's for
-    cut: usize,
-    cut_for: Option<(Screen, Vec2)>,
+    /// what's moving on the screens, kept between their rebuilds
+    pub motion: motion::SettingsMotion,
     /// controller pulses asked for from Settings' own pages, for `rumble::send`
     pub pulses: Vec<(f32, f32, u64)>,
     /// the Kid mode PIN was given since Settings opened
@@ -405,8 +404,7 @@ impl Default for Settings {
             every_console: false,
             genres: Vec::new(),
             console_shelves: Vec::new(),
-            cut: 0,
-            cut_for: None,
+            motion: Default::default(),
             order_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
@@ -674,7 +672,7 @@ impl Settings {
     /// Settings or Details is up and hides the shelf entirely: what's behind needn't be drawn or kept moving. (The
     /// shelf menu and the first run's card leave the shelf in view.)
     pub fn covers_shelf(&self) -> bool {
-        self.open && !self.wizard && self.editing.is_none() && !(self.stack.len() == 1 && self.stack[0].0 == Screen::Shelf)
+        self.open && self.motion.faded_in && !self.wizard && !(self.stack.len() == 1 && self.stack[0].0 == Screen::Shelf)
     }
 
     /// A moving theme keeps moving while the shelf slides (Settings → Look); off, it pauses until the shelf stops.
@@ -2849,11 +2847,13 @@ pub fn input(
         let side = (keys.just_pressed(KeyCode::ArrowRight) || pad(GamepadButton::DPadRight)) as i32 - (keys.just_pressed(KeyCode::ArrowLeft) || pad(GamepadButton::DPadLeft)) as i32;
         if side != 0 {
             if let Some(step) = page.rows.get(at).and_then(|r| r.step.as_ref()) {
+                s.motion.stepped = Some((side, now));
                 step(&mut s, side);
             }
         } else if typing {
         } else if keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(confirm) {
             if let Some(press) = page.rows.get(at).and_then(|r| r.press.as_ref()) {
+                s.motion.pressed = Some(now);
                 press(&mut s);
             }
         } else if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || (!s.wizard && (keys.just_pressed(KeyCode::F1) || pad(GamepadButton::Start) || pad(GamepadButton::Select))) {
@@ -3066,101 +3066,132 @@ fn heading(label: &str) -> bool {
 
 type Fonts<'a> = &'a dyn Fn(u32, f32) -> TextFont;
 
-/// The page's rows from `first`, `count` of them, on hairlines; the chosen one lit.
-fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, first: usize, count: usize, at: usize, width: f32, font: Fonts, t: &dyn Fn(&str) -> String) {
+/// What moves in a list as it's built: the highlight's place (none yet on a new page), the scroll, and the chosen
+/// row's slide, spring and nudge.
+struct ListMotion {
+    highlight: Option<Vec4>,
+    scroll: f32,
+    slid: Option<i32>,
+    flipped: bool,
+    pressed: bool,
+}
+
+/// rows put in the list at most, round the chosen one (a page of every game's size lists hundreds)
+const MOST_ROWS: usize = 80;
+
+/// The page's rows from `from` on, on hairlines, in a frame that scrolls to keep the chosen one in view, with the
+/// highlight that glides to it under them.
+#[allow(clippy::too_many_arguments)]
+fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, from: usize, at: usize, width: f32, font: Fonts, t: &dyn Fn(&str) -> String, mv: &ListMotion) {
     let n = page.rows.len();
-    pg.spawn(Node { height: dp(18.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, max_width: dp(width), ..default() }).with_children(|m| {
-        if first > 0 {
-            m.spawn((Text::new("▲"), font(500, 13.0), TextColor(S_FAINT)));
+    let lo = at.saturating_sub(MOST_ROWS / 2).max(from).min(n.saturating_sub(MOST_ROWS).max(from));
+    let hi = (lo + MOST_ROWS).min(n);
+    let more = || Node { height: dp(18.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, max_width: dp(width), ..default() };
+    pg.spawn((more(), motion::MoreAbove, Visibility::Hidden)).with_children(|m| {
+        m.spawn((Text::new("▲"), font(500, 13.0), TextColor(S_FAINT)));
+    });
+    // (the frame's padding is room for the highlight's glow at its sides; the margin takes it back so the rows line
+    // up. Above and below, the list keeps the chosen row clear of its edges)
+    let glow = (dp(18.0), px(0));
+    pg.spawn((
+        motion::ListFrame,
+        Node {
+            flex_direction: FlexDirection::Column,
+            flex_grow: 1.0,
+            min_height: px(0),
+            max_width: Val::Vh((width + 36.0) / 10.8 * f32::from_bits(SCALE.load(std::sync::atomic::Ordering::Relaxed))),
+            overflow: Overflow::scroll_y(),
+            padding: UiRect::axes(glow.0, glow.1),
+            margin: UiRect::axes(neg(glow.0), neg(glow.1)),
+            ..default()
+        },
+        ScrollPosition(Vec2::new(0.0, mv.scroll)),
+    ))
+    .with_children(|list| {
+        let place = mv.highlight.unwrap_or_default();
+        let (bg, border, shadow) = lit();
+        list.spawn((
+            motion::Highlight,
+            Node { position_type: PositionType::Absolute, left: px(place.x), top: px(place.y), width: px(place.z), height: px(place.w), border: UiRect::all(dp(2.0)), border_radius: BorderRadius::all(dp(14.0)), ..default() },
+            bg,
+            border,
+            shadow,
+            if mv.highlight.is_some() { Visibility::Inherited } else { Visibility::Hidden },
+        ));
+        for (i, row) in page.rows.iter().enumerate().take(hi).skip(lo) {
+            let chosen = i == at;
+            let head = heading(&row.label);
+            let value = if LANGUAGES.iter().any(|l| l.1 == row.value) { row.value.clone() } else { t(&row.value) };
+            let toggle = matches!(row.value.as_str(), "On" | "Off");
+            let mut line = list.spawn((
+                Node {
+                    max_width: dp(width),
+                    min_height: dp(62.0),
+                    flex_shrink: 0.0,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::SpaceBetween,
+                    column_gap: dp(24.0),
+                    padding: UiRect::horizontal(dp(18.0)),
+                    border: UiRect::bottom(px(1)),
+                    ..default()
+                },
+                // (the chosen row's hairline would cross the highlight)
+                BorderColor::all(if head || chosen { Color::NONE } else { S_LINE }),
+            ));
+            if chosen {
+                line.insert(motion::ChosenRow);
+                if mv.pressed {
+                    line.insert((motion::PressedRow, UiTransform::default()));
+                }
+            }
+            line.with_children(|r| {
+                if head && !chosen {
+                    r.spawn((Text::new(t(bare(&row.label)).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
+                    return;
+                }
+                r.spawn((Text::new(t(bare(&row.label))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 })));
+                r.spawn(Node { align_items: AlignItems::Center, column_gap: dp(12.0), flex_shrink: 0.0, ..default() }).with_children(|v| {
+                    if row.step.is_some() && !toggle && chosen {
+                        v.spawn((Text::new("‹"), font(500, 22.0), TextColor(S_DIM)));
+                    }
+                    if !value.is_empty() {
+                        let mut shown = v.spawn((Text::new(value.clone()), font(if chosen && !toggle { 600 } else { 500 }, 21.0), TextColor(if chosen { S_INK } else { S_DIM })));
+                        if let Some(dir) = mv.slid.filter(|_| chosen && !toggle) {
+                            shown.insert((motion::ValueSlide(dir), UiTransform::default()));
+                        }
+                    }
+                    if toggle {
+                        let on = row.value == "On";
+                        v.spawn((
+                            Node { width: dp(52.0), height: dp(30.0), padding: UiRect::all(dp(3.0)), justify_content: if on { JustifyContent::FlexEnd } else { JustifyContent::FlexStart }, border_radius: BorderRadius::MAX, ..default() },
+                            BackgroundColor(if on { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.14) }),
+                        ))
+                        .with_children(|sw| {
+                            let mut knob = sw.spawn((Node { width: dp(24.0), height: dp(24.0), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::WHITE)));
+                            if chosen && mv.flipped {
+                                knob.insert((motion::Knob(on), UiTransform::default()));
+                            }
+                        });
+                    } else if row.step.is_some() && chosen {
+                        v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_INK)));
+                    } else if row.press.is_some() {
+                        v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_FAINT)));
+                    }
+                });
+            });
         }
     });
-    for (i, row) in page.rows.iter().enumerate().skip(first).take(count) {
-        let chosen = i == at;
-        let head = heading(&row.label);
-        let value = if LANGUAGES.iter().any(|l| l.1 == row.value) { row.value.clone() } else { t(&row.value) };
-        let toggle = matches!(row.value.as_str(), "On" | "Off");
-        let mut line = pg.spawn((
-            ListedRow,
-            Node {
-                max_width: dp(width),
-                min_height: dp(62.0),
-                flex_shrink: 0.0,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceBetween,
-                column_gap: dp(24.0),
-                padding: UiRect::horizontal(dp(18.0)),
-                border: if chosen { UiRect::all(dp(2.0)) } else { UiRect::bottom(px(1)) },
-                border_radius: BorderRadius::all(dp(if chosen { 14.0 } else { 0.0 })),
-                ..default()
-            },
-            BorderColor::all(if head { Color::NONE } else { S_LINE }),
-        ));
-        if chosen {
-            line.insert(lit());
-        }
-        line.with_children(|r| {
-            if head && !chosen {
-                r.spawn((Text::new(t(bare(&row.label)).to_uppercase()), font(700, 13.0), TextColor(S_FAINT)));
-                return;
-            }
-            r.spawn((Text::new(t(bare(&row.label))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 })));
-            r.spawn(Node { align_items: AlignItems::Center, column_gap: dp(12.0), flex_shrink: 0.0, ..default() }).with_children(|v| {
-                if row.step.is_some() && !toggle && chosen {
-                    v.spawn((Text::new("‹"), font(500, 22.0), TextColor(S_DIM)));
-                }
-                if !value.is_empty() {
-                    v.spawn((Text::new(value.clone()), font(if chosen && !toggle { 600 } else { 500 }, 21.0), TextColor(if chosen { S_INK } else { S_DIM })));
-                }
-                if toggle {
-                    let on = row.value == "On";
-                    v.spawn((
-                        Node { width: dp(52.0), height: dp(30.0), padding: UiRect::all(dp(3.0)), justify_content: if on { JustifyContent::FlexEnd } else { JustifyContent::FlexStart }, border_radius: BorderRadius::MAX, ..default() },
-                        BackgroundColor(if on { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.14) }),
-                        children![(Node { width: dp(24.0), height: dp(24.0), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::WHITE))],
-                    ));
-                } else if row.step.is_some() && chosen {
-                    v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_INK)));
-                } else if row.press.is_some() {
-                    v.spawn((Text::new("›"), font(500, 22.0), TextColor(S_FAINT)));
-                }
-            });
-        });
-    }
-    pg.spawn(Node { height: dp(18.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, max_width: dp(width), ..default() }).with_children(|m| {
-        if first + count < n {
-            m.spawn((Text::new("▼"), font(500, 13.0), TextColor(S_FAINT)));
-        }
+    pg.spawn((more(), motion::MoreBelow, Visibility::Hidden)).with_children(|m| {
+        m.spawn((Text::new("▼"), font(500, 13.0), TextColor(S_FAINT)));
     });
 }
 
-/// A row of the list on screen.
-#[derive(Component)]
-pub struct ListedRow;
-
-/// The pill of keys along the bottom.
-#[derive(Component)]
-pub struct KeyBar;
-
-/// Once laid out: a list that runs under the pill of keys (a long title, a big interface size) is drawn again a row
-/// shorter, until it ends above it. A new page or window size starts from the usual number again.
-pub fn fit_rows(mut s: ResMut<Settings>, windows: Query<&Window, With<bevy::window::PrimaryWindow>>, rows: Query<(&ComputedNode, &UiGlobalTransform), With<ListedRow>>, bar: Query<(&ComputedNode, &UiGlobalTransform), With<KeyBar>>) {
-    if !s.open {
-        return;
-    }
-    let size = windows.single().map_or(Vec2::ZERO, Window::size);
-    let page = s.stack.last().map(|p| p.0.clone());
-    if s.cut_for.as_ref().map(|f| (&f.0, f.1)) != page.as_ref().map(|p| (p, size)) {
-        s.cut_for = page.map(|p| (p, size));
-        if s.cut > 0 {
-            (s.cut, s.redraw) = (0, true);
-        }
-        return;
-    }
-    let Ok((bar, at)) = bar.single() else { return };
-    let top = at.translation.y - bar.size().y / 2.0;
-    let (count, lowest) = rows.iter().fold((0, f32::MIN), |(c, m), (n, at)| (c + 1, m.max(at.translation.y + n.size().y / 2.0)));
-    if count > 1 && lowest > top && !s.redraw {
-        (s.cut, s.redraw) = (s.cut + 1, true);
+/// A length taken off: a negative `dp`.
+fn neg(v: Val) -> Val {
+    match v {
+        Val::Vh(x) => Val::Vh(-x),
+        Val::Px(x) => Val::Px(-x),
+        other => other,
     }
 }
 
@@ -3168,7 +3199,6 @@ pub fn fit_rows(mut s: ResMut<Settings>, windows: Query<&Window, With<bevy::wind
 fn key_bar(p: &mut ChildSpawnerCommands, keys: &[(Vec<String>, String)], font: Fonts) {
     p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), left: px(0), right: px(0), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
         bar.spawn((
-            KeyBar,
             Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
             BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
             BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
@@ -3203,8 +3233,9 @@ pub fn draw(
     face: Option<Res<Face>>,
     mona: Option<Res<crate::hud::MonaSans>>,
     covers: Res<crate::shelf::Covers>,
-    old: Query<Entity, With<SettingsUi>>,
+    old: Query<(Entity, Has<motion::Closing>), With<SettingsUi>>,
     mut images: ResMut<Assets<Image>>,
+    time: Res<Time>,
 ) {
     if !s.redraw {
         return;
@@ -3212,8 +3243,20 @@ pub fn draw(
     let (Some(face), Some(mona)) = (face, mona) else { return };
     s.redraw = false;
     let _span = crate::frames::span("settings redraw");
-    for e in &old {
-        commands.entity(e).despawn();
+    let now = time.elapsed_secs();
+    let screen = s.stack.last().map(|p| p.0.clone());
+    let details = screen == Some(Screen::Details) && s.chosen.is_some() && !s.wizard;
+    let key = format!("{:?}|{}|{}|{}", screen, s.tab, s.wizard, s.editing.is_some());
+    let reduce = s.reduce_motion();
+    let open = s.open;
+    let closing = s.motion.redrawn(open, key, details, reduce, now);
+    for (e, already) in &old {
+        // a Settings closing fades out (motion::fade takes it away); one opening again replaces it at once
+        if closing && !already {
+            commands.entity(e).insert(motion::Closing(now));
+        } else if s.open || !already {
+            commands.entity(e).despawn();
+        }
     }
     if !s.open {
         return;
@@ -3248,14 +3291,8 @@ pub fn draw(
     let preview = s.art_preview(&mut images);
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
-    let window = match look {
-        Look::Details => 7,
-        Look::Setup => 9,
-        _ => WINDOW,
-    }
-    .saturating_sub(s.cut)
-    .max(1);
-    let first = if n <= window { 0 } else { at.saturating_sub(window / 2).min(n - window) };
+    let (highlight, scroll) = s.motion.now(now);
+    let mv = ListMotion { highlight, scroll, slid: s.motion.slid(now), flipped: s.motion.flipped(now), pressed: s.motion.just_pressed(now) };
     let lang = s.text(&["ui", "language"]);
     let t = |text: &str| rustyshelf_core::i18n::tr(&lang, text);
     let chosen_row = page.rows.get(at);
@@ -3293,7 +3330,7 @@ pub fn draw(
                 ))
                 .with_children(|panel| {
                     panel.spawn((Node { margin: UiRect::bottom(dp(8.0)), ..default() }, Text::new(t("Arrange your shelves").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
-                    row_list(panel, &page, first, window, at, 804.0, &font, &t);
+                    row_list(panel, &page, 0, at, 804.0, &font, &t, &mv);
                     if !hint.is_empty() {
                         panel.spawn((Node { margin: UiRect::top(dp(6.0)), ..default() }, Text::new(hint.clone()), font(400, 17.0), TextColor(S_DIM)));
                     }
@@ -3325,7 +3362,7 @@ pub fn draw(
                     }
                 }
             });
-            p.spawn(Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(px(0), dp(96.0), dp(110.0), dp(110.0)), ..default() }).with_children(|right| {
+            p.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(px(0), dp(96.0), dp(110.0), dp(110.0)), ..default() })).with_children(|right| {
                 let system = systems().console(&c.console).map_or(c.console.clone(), |x| x.name.clone());
                 right.spawn((Text::new(system.to_uppercase()), font(700, 16.0), TextColor(S_ACC2)));
                 right.spawn((Node { margin: UiRect::vertical(dp(10.0)), ..default() }, Text::new(g.title.clone()), wide(800, 76.0), TextColor(S_INK)));
@@ -3374,10 +3411,7 @@ pub fn draw(
                     right.spawn((Node { max_width: dp(860.0), margin: UiRect::bottom(dp(18.0)), ..default() }, Text::new(text), font(400, 21.0), TextColor(S_INK2)));
                 }
                 right.spawn((Node { margin: UiRect::vertical(dp(6.0)), ..default() }, Text::new(t("More").to_uppercase()), font(700, 15.0), TextColor(S_DIM)));
-                let more = n.saturating_sub(rest);
-                let count = window.min(more);
-                let first = if more <= window { rest } else { rest + (at.max(rest) - rest).saturating_sub(window / 2).min(more - window) };
-                row_list(right, &page, first, count, at, 860.0, &font, &t);
+                row_list(right, &page, rest, at, 860.0, &font, &t, &mv);
             });
             key_bar(p, &keys, &font);
         }
@@ -3421,13 +3455,13 @@ pub fn draw(
                         side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 14.0), TextColor(S_FAINT)));
                     });
                     card.spawn(Node { flex_grow: 1.0, min_width: px(0), flex_direction: FlexDirection::Column, ..default() }).with_children(|main| {
-                        main.spawn(Node { flex_grow: 1.0, min_height: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(46.0), dp(46.0), dp(46.0), dp(10.0)), ..default() }).with_children(|pg| {
+                        main.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_height: px(0), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(46.0), dp(46.0), dp(46.0), dp(10.0)), ..default() })).with_children(|pg| {
                             pg.spawn((Text::new(t("Welcome to RustyShelf").to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
                             pg.spawn((Node { margin: UiRect::top(dp(8.0)), ..default() }, Text::new(t(&page.title)), wide(800, 46.0), TextColor(S_INK)));
                             if !page.lead.is_empty() {
                                 pg.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(16.0)), max_width: dp(860.0), ..default() }, Text::new(t(&page.lead)), font(400, 19.0), TextColor(S_DIM)));
                             }
-                            row_list(pg, &page, first, window, at, 860.0, &font, &t);
+                            row_list(pg, &page, 0, at, 860.0, &font, &t, &mv);
                         });
                         main.spawn((
                             Node { min_height: dp(84.0), flex_shrink: 0.0, align_items: AlignItems::Center, column_gap: dp(22.0), padding: UiRect::horizontal(dp(46.0)), border: UiRect::top(px(1)), ..default() },
@@ -3478,7 +3512,7 @@ pub fn draw(
                 side.spawn(Node { flex_grow: 1.0, ..default() });
                 side.spawn((Node { margin: UiRect::left(dp(14.0)), ..default() }, Text::new(format!("RustyShelf {}", env!("CARGO_PKG_VERSION"))), font(500, 13.0), TextColor(S_FAINT)));
             });
-            p.spawn(Node { flex_grow: 1.0, min_width: px(0), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(48.0), dp(48.0), dp(44.0), dp(120.0)), ..default() }).with_children(|pg| {
+            p.spawn((motion::PageBody, UiTransform::default(), Node { flex_grow: 1.0, min_width: px(0), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(dp(48.0), dp(48.0), dp(44.0), dp(120.0)), ..default() })).with_children(|pg| {
                 let eyebrow = if root { t(group_of(tab).0) } else { String::new() };
                 if !eyebrow.is_empty() {
                     pg.spawn((Text::new(eyebrow.to_uppercase()), font(700, 14.0), TextColor(S_DIM)));
@@ -3489,7 +3523,7 @@ pub fn draw(
                 } else {
                     pg.spawn((Node { margin: UiRect::new(px(0), px(0), dp(10.0), dp(20.0)), max_width: dp(820.0), ..default() }, Text::new(t(&page.lead)), font(400, 20.0), TextColor(S_DIM)));
                 }
-                row_list(pg, &page, first, window, at, 800.0, &font, &t);
+                row_list(pg, &page, 0, at, 800.0, &font, &t, &mv);
             });
             p.spawn(Node { width: dp(470.0), flex_shrink: 0.0, flex_direction: FlexDirection::Column, row_gap: dp(20.0), padding: UiRect::new(px(0), dp(48.0), dp(155.0), dp(120.0)), ..default() }).with_children(|info| {
                 if !hint.is_empty() {
