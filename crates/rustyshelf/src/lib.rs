@@ -2,6 +2,8 @@
 // Bevy systems take their data as arguments, and queries are types
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
+#[cfg(target_os = "android")]
+mod android_pad;
 mod appicon;
 mod background;
 mod boot;
@@ -23,6 +25,7 @@ mod romm;
 mod settings;
 mod shelf;
 mod sound;
+mod touch;
 mod tour;
 mod whatsnew;
 mod wiimote;
@@ -59,6 +62,14 @@ fn main() {
         unsafe { std::env::set_var("SSL_CERT_DIR", "/system/etc/security/cacerts") };
     }
     run();
+}
+
+/// Android's controller and Back key in Bevy's input (nothing elsewhere).
+fn android_input(app: &mut App) {
+    #[cfg(target_os = "android")]
+    app.add_systems(PreUpdate, (android_pad::feed.before(bevy::input::InputSystems), android_pad::back_is_esc.after(bevy::input::InputSystems)));
+    #[cfg(not(target_os = "android"))]
+    let _ = app;
 }
 
 pub fn run() {
@@ -117,6 +128,8 @@ pub fn run() {
         .init_resource::<background::Background>()
         .add_systems(Update, (appicon::set, background::run))
         .add_systems(PreUpdate, phone::keys.before(bevy::input::InputSystems))
+        .add_plugins(android_input)
+        .add_systems(PreUpdate, touch::run.after(bevy::input::InputSystems))
         .add_systems(
             Update,
             (

@@ -785,8 +785,10 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
 rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, and opening the case in Inspect (its disc and its manual inside). On Android the native
 app is at its first stage: it builds as an APK of its own ("RustyShelf (native)", which installs beside the Android app
-above) and keeps its settings in its own storage; picking games folders, starting emulators, the controller and the
-Thor's bottom screen aren't in it yet. Hiding the taskbar
+above) and keeps its settings in its own storage. A controller works as on the desktop (its buttons, sticks and a
+D-pad sent as a hat), Android's Back is Esc, and a finger works as in the Android app: a sideways drag along the shelf,
+a tap on the chosen case to play, a swipe in from a side edge (or, off the shelf, a quick swipe left) for Back, a drag
+up or down through Settings. Picking games folders, starting emulators and the Thor's bottom screen aren't in it yet. Hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash
