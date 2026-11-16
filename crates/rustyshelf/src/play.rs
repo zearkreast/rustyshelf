@@ -722,11 +722,7 @@ pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Ca
                 if let Some(answer) = std::env::var_os("RUSTYSHELF_PICK") {
                     return drop(tx.send(Some(answer.into())));
                 }
-                let mut dialog = rfd::FileDialog::new().set_title("Choose a Switch 2 emulator (eglantine.exe, lichii.exe, orchid.exe…)");
-                if cfg!(windows) {
-                    dialog = dialog.add_filter("Programs", &["exe"]);
-                }
-                let _ = tx.send(dialog.pick_file());
+                let _ = tx.send(crate::dialog::pick_file("Choose a Switch 2 emulator (eglantine.exe, lichii.exe, orchid.exe…)", true));
             });
             pick.adding = Some((id, file, title, Mutex::new(rx)));
         }

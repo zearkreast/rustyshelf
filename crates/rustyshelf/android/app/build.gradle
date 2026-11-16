@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.github.rustyshelf.native_'
+    compileSdk 36
+    defaultConfig {
+        // its own id: it installs beside the Capacitor app (android-app/) while the rewrite catches up
+        applicationId 'io.github.rustyshelf.native'
+        minSdk 26
+        targetSdk 36
+        versionCode((project.findProperty('rsVersionCode') ?: '1') as int)
+        versionName project.findProperty('rsVersionName') ?: '0.1.0'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    buildTypes {
+        release { minifyEnabled false }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // keep in sync with the android-activity crate Bevy uses (its README names the GameActivity it's built for)
+    implementation 'androidx.games:games-activity:4.4.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.core:core:1.17.0'
+}

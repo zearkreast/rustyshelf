@@ -74,7 +74,7 @@ pub fn press(layer: usize, at: (usize, usize)) -> Vec<Hit> {
 /// Text from the clipboard as it goes into a one-line setting: its lines joined, nothing that can't be typed. None
 /// when there's no text on it.
 pub fn clipboard() -> Option<String> {
-    let text = arboard::Clipboard::new().ok()?.get_text().ok()?;
+    let text = crate::dialog::clipboard_text()?;
     let line: String = text.split(['\r', '\n']).map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ").chars().filter(|c| !c.is_control()).collect();
     Some(line).filter(|l| !l.is_empty())
 }

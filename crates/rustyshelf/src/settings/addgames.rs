@@ -66,7 +66,7 @@ impl Settings {
     pub(super) fn pick_several(&mut self) {
         let (tx, rx) = channel();
         std::thread::spawn(move || {
-            let _ = tx.send(rfd::FileDialog::new().set_title("Choose the games' programs (hold Ctrl to pick several)").pick_files().unwrap_or_default());
+            let _ = tx.send(crate::dialog::pick_files("Choose the games' programs (hold Ctrl to pick several)"));
         });
         self.adding.several = Some(Mutex::new(rx));
     }

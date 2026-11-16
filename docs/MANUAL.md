@@ -783,12 +783,24 @@ RustyShelf is being rewritten as a native app in Rust, in `crates/` (a Cargo wor
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, and opening the case in Inspect (its disc and its manual inside). Android
-isn't built: the rewrite goes to Windows first. Hiding the taskbar
+rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio, and opening the case in Inspect (its disc and its manual inside). On Android the native
+app is at its first stage: it builds as an APK of its own ("RustyShelf (native)", which installs beside the Android app
+above) and keeps its settings in its own storage; picking games folders, starting emulators, the controller and the
+Thor's bottom screen aren't in it yet. Hiding the taskbar
 while a game runs and the rest of Seamless play (the loading cover, the window mode, Go to desktop) are Electron-only too.
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
+```
+
+The Android APK (needs the Android SDK and NDK, and `cargo install cargo-ndk`):
+
+```bash
+cargo ndk -t arm64-v8a -P 26 -o crates/rustyshelf/android/app/src/main/jniLibs build --release -p rustyshelf --lib
+```
+
+```bash
+cd crates/rustyshelf/android && ./gradlew assembleDebug
 ```
 
 It uses the same folder as the Electron app: next to the program when a `data` folder is there, otherwise `~/RustyShelf`

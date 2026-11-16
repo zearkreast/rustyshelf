@@ -972,8 +972,7 @@ impl Settings {
                 let _ = tx.send(Some(PathBuf::from(answer)));
                 return;
             }
-            let dialog = rfd::FileDialog::new().set_title(&title);
-            let _ = tx.send(if folder { dialog.pick_folder() } else { dialog.pick_file() });
+            let _ = tx.send(if folder { crate::dialog::pick_folder(&title) } else { crate::dialog::pick_file(&title, false) });
         });
         self.picking = Some((what, Mutex::new(rx)));
     }
