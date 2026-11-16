@@ -106,7 +106,73 @@ impl AtLaunch {
     }
 }
 
+/// The BIOS files an emulator needs for a console, as its setup page shows them; None when it isn't one that's
+/// checked.
+fn bios_for(setup: &Setup, cfg: Option<&Config>, console: Option<&Console>, id: &str, exe: &str, kind: Kind) -> Option<Bios> {
+    let own = setup.bios_dir_of(kind, exe);
+    let mut bios = match kind {
+        Kind::RetroArch => {
+            let (c, cfg) = (console.filter(|c| c.ra_core.is_some())?, cfg?);
+            let sc = cfg.system(c);
+            let mut dirs: Vec<String> = own.iter().cloned().chain([setup.shared_bios_dir()]).collect();
+            // Neo Geo's BIOS can sit with its games
+            if id == "neogeo" {
+                dirs.extend(sc.rom_dirs.iter().cloned());
+            }
+            racores::bios(id, &dirs).map(|b| Bios { need: Some(b.need), note: b.note, ok: b.ok, files: b.files, dir: String::new() })?
+        }
+        Kind::DuckStation | Kind::Pcsx2 => {
+            let wanted = |n: &str| {
+                let n = n.to_lowercase();
+                n.ends_with(".bin") && (kind != Kind::Pcsx2 || ["scph", "ps2", "bios"].iter().any(|p| n.starts_with(p)))
+            };
+            let any = own.as_ref().and_then(|d| std::fs::read_dir(d).ok()).is_some_and(|l| l.flatten().any(|e| wanted(&e.file_name().to_string_lossy())));
+            Bios { need: None, note: "", ok: any, files: Vec::new(), dir: String::new() }
+        }
+        _ => return None,
+    };
+    bios.dir = own.filter(|d| !d.is_empty()).unwrap_or_else(|| setup.shared_bios_dir());
+    Some(bios)
+}
+
 impl Settings {
+    /// Library's Needs attention: each console whose emulator can't start without a BIOS it hasn't got (console id
+    /// and name, the emulator's name), read off the frame.
+    pub(super) fn load_bios_needs(&mut self) {
+        if !emusetup::ON {
+            return;
+        }
+        let consoles: Vec<(String, String, String)> = systems()
+            .consoles
+            .iter()
+            .filter(|c| self.flag(&["systems", &c.id, "enabled"], true) && self.cfg["systems"].get(&c.id).is_some())
+            .map(|c| (c.id.clone(), c.name.clone(), self.emulator_of(&c.id)))
+            .filter(|c| !c.2.is_empty())
+            .collect();
+        let (cfg, root, data) = (self.cfg.clone(), self.app_root.clone(), paths::data_dir(&self.app_root));
+        let (tx, rx) = channel();
+        self.bios_answer = Some(Mutex::new(rx));
+        std::thread::spawn(move || {
+            let setup = Setup { data_dir: data, app_root: root.clone(), var: &paths::env_var };
+            let cfg = Config::from_value(&cfg);
+            let need: Vec<(String, String, String)> = consoles
+                .into_iter()
+                .filter_map(|(id, name, emu)| {
+                    let exe = launch::emu_path(&emu, &root).to_string_lossy().into_owned();
+                    let kind = emusetup::kind_of(&exe)?;
+                    let b = bios_for(&setup, cfg.as_ref(), systems().console(&id), &id, &exe, kind)?;
+                    (!b.ok && b.need != Some(racores::Need::Optional)).then(|| (id, name, kind.name().to_string()))
+                })
+                .collect();
+            let _ = tx.send(need);
+        });
+    }
+
+    pub(super) fn poll_bios_needs(&mut self) {
+        let Some(need) = self.bios_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        (self.bios_answer, self.bios_needs, self.redraw) = (None, need, true);
+    }
+
     fn setup(&self) -> Setup<'static> {
         Setup { data_dir: paths::data_dir(&self.app_root), app_root: self.app_root.clone(), var: &paths::env_var }
     }
@@ -205,37 +271,15 @@ impl Settings {
                 let root = self.app_root.clone();
                 info.pending = self.list(&["emuSetup", "pending"]).iter().any(|p| launch::emu_path(p, &root).to_string_lossy().to_lowercase() == exe.to_lowercase());
                 info.preset = emusetup::preset_for(self.gpu_vendor);
-                let console = self.console(id);
-                let own = setup.bios_dir_of(st.kind, &exe);
-                match st.kind {
-                    Kind::RetroArch => {
-                        if let (Some(c), Some(cfg)) = (console.filter(|c| c.ra_core.is_some()), Config::from_value(&self.cfg)) {
-                            let sc = cfg.system(c);
-                            if let Some(core) = launch::core_of(c, &sc) {
-                                let name = c.ra_cores.iter().find(|(k, _)| *k == core).map_or(core.clone(), |(_, n)| n.clone());
-                                info.core = Some(Core { installed: launch::retro_core(Path::new(&exe), &core).is_some(), id: core, name });
-                            }
-                            let mut dirs: Vec<String> = own.iter().cloned().chain([setup.shared_bios_dir()]).collect();
-                            // Neo Geo's BIOS can sit with its games
-                            if id == "neogeo" {
-                                dirs.extend(sc.rom_dirs.iter().cloned());
-                            }
-                            info.bios = racores::bios(id, &dirs).map(|b| Bios { need: Some(b.need), note: b.note, ok: b.ok, files: b.files, dir: String::new() });
+                if let (Some(c), Some(cfg)) = (self.console(id).filter(|c| c.ra_core.is_some()), Config::from_value(&self.cfg)) {
+                    if st.kind == Kind::RetroArch {
+                        if let Some(core) = launch::core_of(c, &cfg.system(c)) {
+                            let name = c.ra_cores.iter().find(|(k, _)| *k == core).map_or(core.clone(), |(_, n)| n.clone());
+                            info.core = Some(Core { installed: launch::retro_core(Path::new(&exe), &core).is_some(), id: core, name });
                         }
                     }
-                    Kind::DuckStation | Kind::Pcsx2 => {
-                        let wanted = |n: &str| {
-                            let n = n.to_lowercase();
-                            n.ends_with(".bin") && (st.kind != Kind::Pcsx2 || ["scph", "ps2", "bios"].iter().any(|p| n.starts_with(p)))
-                        };
-                        let any = own.as_ref().and_then(|d| std::fs::read_dir(d).ok()).is_some_and(|l| l.flatten().any(|e| wanted(&e.file_name().to_string_lossy())));
-                        info.bios = Some(Bios { need: None, note: "", ok: any, files: Vec::new(), dir: String::new() });
-                    }
-                    _ => {}
                 }
-                if let Some(b) = &mut info.bios {
-                    b.dir = own.filter(|d| !d.is_empty()).unwrap_or_else(|| setup.shared_bios_dir());
-                }
+                info.bios = bios_for(&setup, Config::from_value(&self.cfg).as_ref(), self.console(id), id, &exe, st.kind);
                 info.status = Some(st);
             }
         }

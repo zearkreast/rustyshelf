@@ -295,6 +295,9 @@ pub struct Settings {
     /// more screenshots: the games asked for this run, the answer on its way, and what came
     shots_asked: std::collections::HashSet<String>,
     shots_answer: Option<Mutex<Receiver<(String, Vec<String>)>>>,
+    /// consoles whose emulator needs a BIOS it hasn't got: id, name, the emulator's name
+    bios_needs: Vec<(String, String, String)>,
+    bios_answer: Option<Mutex<Receiver<Vec<(String, String, String)>>>>,
     more_shots: std::collections::HashMap<String, Vec<String>>,
     /// the achievements last asked for: the game's id, and what came back
     achievements: Option<(String, Result<Option<Value>, String>)>,
@@ -401,6 +404,8 @@ impl Default for Settings {
             igdb_answer: None,
             shots_asked: std::collections::HashSet::new(),
             shots_answer: None,
+            bios_needs: Vec::new(),
+            bios_answer: None,
             more_shots: std::collections::HashMap::new(),
             achievements: None,
             ach_sort: 0,
@@ -1116,6 +1121,11 @@ impl Settings {
             };
             let id = c.id.clone();
             rows.push(Row { label, value: "Fix".into(), hint: format!("{hint}."), press: Some(Box::new(move |s: &mut Settings| s.go(Screen::Console(id.clone())))), step: None });
+        }
+        // a BIOS it can't start without
+        for (id, name, emu) in &self.bios_needs {
+            let id = id.clone();
+            rows.push(Row { label: format!("{name}: {emu} needs a BIOS"), value: "Show me".into(), hint: "Copied from your own console into its BIOS folder.".into(), press: Some(Box::new(move |s: &mut Settings| s.go(Screen::Console(id.clone())))), step: None });
         }
         if self.api_key("igdbId").is_empty() && !self.console_shelves.is_empty() {
             rows.push(Row { label: "Connect IGDB for game info".into(), value: "Set up".into(), hint: "Free with a Twitch developer account: the description, genres and dates LaunchBox is missing.".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Accounts))), step: None });
@@ -2508,6 +2518,7 @@ pub fn input(
         }
         s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
         s.console_shelves = base.0.as_ref().map(|b| b.shelves.iter().filter(|sh| matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()).map(|sh| (sh.id.clone(), sh.name.clone())).collect()).unwrap_or_default();
+        s.load_bios_needs();
         s.open = true;
         s.changed = false;
         s.rearranged = false;
@@ -2554,6 +2565,7 @@ pub fn input(
     s.poll_bringing();
     s.poll_igdb();
     s.poll_more_shots();
+    s.poll_bios_needs();
     s.poll_romm();
     s.poll_epic();
     s.poll_moves();
