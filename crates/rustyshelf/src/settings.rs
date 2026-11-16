@@ -86,6 +86,8 @@ enum Screen {
     Done,
     /// the shelf's menu: its order, what's shown, the chosen game
     Shelf,
+    /// the shelves' order along the top
+    ShelfOrder,
     Details,
     Hidden,
     /// the chosen game's collections, and all of them
@@ -284,6 +286,8 @@ pub struct Settings {
     genres: Vec<(String, usize)>,
     /// the console shelves there are, by id and name (Sound per console)
     console_shelves: Vec<(String, String)>,
+    /// the shelves Console order can place, in RustyShelf's own order: the consoles with games, PC and Media
+    order_shelves: Vec<(String, String)>,
     /// your own sounds, read when a sound page opens
     packs: Vec<rustyshelf_core::soundpacks::Pack>,
     storage: storage::Storage,
@@ -396,6 +400,7 @@ impl Default for Settings {
             every_console: false,
             genres: Vec::new(),
             console_shelves: Vec::new(),
+            order_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
             sw2: Default::default(),
@@ -696,7 +701,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections" | "shelfAdds"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -917,6 +922,29 @@ impl Settings {
             press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
             step: Some(Box::new(turn)),
         }
+    }
+
+    /// The shelves Console order shows: the ones placed by hand first, then the rest in RustyShelf's own order.
+    fn shelf_order(&self) -> Vec<String> {
+        let known: Vec<&String> = self.order_shelves.iter().map(|x| &x.0).collect();
+        let saved: Vec<String> = self.list(&["ui", "shelfOrder"]).into_iter().filter(|id| known.contains(&id)).collect();
+        let rest = known.into_iter().filter(|id| !saved.contains(id)).cloned().collect::<Vec<_>>();
+        saved.into_iter().chain(rest).collect()
+    }
+
+    /// Moves the `i`th shelf of Console order one place up (-1) or down (1), the row following it.
+    fn move_shelf(&mut self, i: usize, d: i32) {
+        let mut order = self.shelf_order();
+        let j = i as i32 + d;
+        if j < 0 || j as usize >= order.len() {
+            return;
+        }
+        order.swap(i, j as usize);
+        self.set(&["ui", "shelfOrder"], json!(order));
+        if let Some(top) = self.stack.last_mut() {
+            top.1 = j as usize;
+        }
+        self.redraw = true;
     }
 
     fn back(&mut self) {
@@ -1169,7 +1197,13 @@ impl Settings {
                 rows.push(open("Phone companion", on_off(self.phone.as_ref().is_some_and(|p| p.state().enabled)), "A phone on your home network as a remote, a keyboard and a second look at your games", Screen::Phone));
                 ("Your controller, and how to leave a game.", rows)
             }
-            "Shelf" => ("What the shelf shows.", vec![open("Shelf", String::new(), "The order of every shelf, and which games they show", Screen::Shelf)]),
+            "Shelf" => (
+                "What the shelf shows.",
+                vec![
+                    open("Shelf", String::new(), "The order of every shelf, and which games they show", Screen::Shelf),
+                    open("Console order", "Reorder".into(), "The order of the consoles along the top. Home always comes first.", Screen::ShelfOrder),
+                ],
+            ),
             "Accounts" => {
                 let mut rows = vec![Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() }];
                 rows.extend(rows_of(Screen::Accounts));
@@ -2166,6 +2200,33 @@ impl Settings {
                 .chain(self.notes_rows())
                 .collect(),
             },
+            Screen::ShelfOrder => {
+                let order = self.shelf_order();
+                let name = |id: &str| self.order_shelves.iter().find(|x| x.0 == id).map_or(id.to_string(), |x| x.1.clone());
+                let mut rows: Vec<Row> = order
+                    .iter()
+                    .enumerate()
+                    .map(|(i, id)| Row {
+                        label: format!("{}. {}", i + 1, name(id)),
+                        hint: "← moves it up the list, → down.".into(),
+                        step: Some(Box::new(move |s: &mut Settings, d: i32| s.move_shelf(i, d))),
+                        ..Row::default()
+                    })
+                    .collect();
+                rows.push(Row {
+                    label: "Reset to default order".into(),
+                    value: "Reset".into(),
+                    hint: "Puts the shelves back in RustyShelf's own order.".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        if s.twice("ordreset", "Press again to reset the shelf order") {
+                            s.set(&["ui", "shelfOrder"], json!([]));
+                            s.say("Default order".into());
+                        }
+                    })),
+                    ..Row::default()
+                });
+                Page { title: "Console order".into(), lead: "The order of the shelves along the top. Home always comes first.".into(), rows }
+            }
             Screen::Shelf => {
                 let sort = self.text(&["ui", "sort"]);
                 let at = SORTS.iter().position(|x| x.0 == sort).unwrap_or(0);
@@ -2634,6 +2695,11 @@ pub fn input(
         }
         s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
         s.console_shelves = base.0.as_ref().map(|b| b.shelves.iter().filter(|sh| matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()).map(|sh| (sh.id.clone(), sh.name.clone())).collect()).unwrap_or_default();
+        s.order_shelves = base
+            .0
+            .as_ref()
+            .map(|b| b.shelves.iter().filter(|sh| (matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()) || sh.id == "pc" || sh.id == "media").map(|sh| (sh.id.clone(), sh.name.clone())).collect())
+            .unwrap_or_default();
         s.load_bios_needs();
         s.load_deck();
         s.open = true;

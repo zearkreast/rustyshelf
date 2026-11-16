@@ -129,6 +129,8 @@ complete yet.
   and Reduce motion (the moving themes stand still; Follow takes it from Windows' or GNOME's animation switch), and
   Controls' Scroll speed (how quickly a held direction repeats) and Controller rumble (short pulses as a game starts,
   the Surprise me case lands, a game is made a favourite or hidden, the shelf changes, and a controller connects).
+- Has Settings → Shelf → Console order: each shelf moves up (←) or down (→) the list, and the shelves along the top
+  follow at once (`ui.shelfOrder`, which the Electron app reads too); Reset puts RustyShelf's own order back.
 - Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and
   emulator options (Settings → the console → Emulator & advanced, which also opens the emulator on its own, holds the
   GameCube startup and Kyty's launcher switch, and the console's own art folder), and the RetroArch core a console
