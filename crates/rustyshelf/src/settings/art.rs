@@ -6,7 +6,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
 use rustyshelf_core::artjob::{self, Ask, Job, Remote, Set, SetDone};
 use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
-use rustyshelf_core::{looks, paths};
+use rustyshelf_core::{js, looks, paths};
 use std::sync::atomic::Ordering;
 
 use super::*;
@@ -64,6 +64,36 @@ pub(super) struct ArtPick {
     /// per console, every style its shelf may still partly show (a restyle stopped leaves some games in the one
     /// before)
     stale: std::collections::HashMap<String, Vec<Value>>,
+    /// the versions shown, by region, source, type and edition ("" for all): kept for the session, across games
+    filter: [String; 4],
+    /// an unlocked game's parts picked again for the shelf style: the game as it is then, and the pictures changed
+    repick: Option<Mutex<Receiver<(GameArt, usize)>>>,
+}
+
+/// The versions' filters (settings.js FLT_DIMS): a name, and its values.
+const FILTERS: [(&str, &[(&str, &str)]); 4] = [
+    ("Region", &[("usa", "USA"), ("eur", "Europe"), ("jpn", "Japan")]),
+    ("Source", &[("launchbox", "LaunchBox"), ("gametdb", "GameTDB"), ("screenscraper", "ScreenScraper"), ("steamgriddb", "SteamGridDB"), ("libretro", "libretro")]),
+    ("Type", &[("scan", "Scans"), ("clean", "Clean"), ("hd", "HD")]),
+    ("Edition", &[("original", "Original"), ("reprint", "Reprint"), ("special", "Special")]),
+];
+
+fn dim(c: &Cand, d: usize) -> &str {
+    match d {
+        0 => &c.region,
+        1 => &c.source,
+        2 => &c.kind,
+        _ => &c.edition,
+    }
+}
+
+/// A version found by a source (the picture in use and earlier ones always show).
+fn found(c: &Cand) -> bool {
+    c.source != "current" && c.source != "earlier"
+}
+
+fn passes(filter: &[String; 4], c: &Cand) -> bool {
+    !found(c) || filter.iter().enumerate().all(|(d, f)| f.is_empty() || dim(c, d) == f)
 }
 
 struct Restyle {
@@ -336,7 +366,7 @@ impl Settings {
 
     pub(super) fn art_sets_page(&self) -> Page {
         let pick = &self.art_pick;
-        let title = format!("Complete sets · {}", pick.game.as_ref().map_or("", |g| g.title.as_str()));
+        let title = format!("Complete sets · {}", self.chosen.as_ref().map_or("", |c| c.game.title.as_str()));
         let sys = pick.game.as_ref().map_or("", |g| g.sys.as_str());
         let mut rows: Vec<Row> = pick
             .sets
@@ -421,6 +451,25 @@ impl Settings {
                 self.changed = true;
             }
         }
+        if let Some((g, changed)) = self.art_pick.repick.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+            self.art_pick.repick = None;
+            if let Some(c) = self.chosen.as_mut() {
+                let [front, back, spine, disc] = g.current.clone();
+                (c.game.art.front, c.game.art.disc) = (front, disc);
+                if back.is_some() {
+                    (c.game.art.back, c.game.art.made_back) = (back, false);
+                }
+                if spine.is_some() {
+                    (c.game.art.spine, c.game.art.made_spine) = (spine, false);
+                }
+            }
+            let title = self.chosen.as_ref().map_or(g.title.clone(), |c| c.game.title.clone());
+            self.say(match changed {
+                0 => format!("{title}: nothing changed"),
+                n => format!("{title}: {n} picture{} changed", if n == 1 { "" } else { "s" }),
+            });
+            self.changed |= changed > 0;
+        }
         if let Some(sets) = self.art_pick.sets_listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
             (self.art_pick.sets_listing, self.art_pick.sets, self.redraw) = (None, sets, true);
         }
@@ -464,13 +513,13 @@ impl Settings {
         let on_page = self.stack.last().is_some_and(|p| p.0 == Screen::ArtPart);
         if let Some((list, more)) = self.art_pick.listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
             // the cursor stays on the version it was on
-            let lit = self.stack.last().filter(|_| on_page).and_then(|p| self.art_pick.list.get(p.1)).map(|c| c.key.clone());
+            let lit = self.stack.last().filter(|_| on_page).and_then(|p| self.art_versions().get(p.1).map(|c| c.key.clone()));
             (self.art_pick.list, self.art_pick.pending, self.redraw) = (list, more, true);
             if !more {
                 self.art_pick.listing = None;
             }
             if let (Some(key), Some(top)) = (lit, self.stack.last_mut()) {
-                if let Some(i) = self.art_pick.list.iter().position(|c| c.key == key) {
+                if let Some(i) = self.art_pick.list.iter().filter(|c| passes(&self.art_pick.filter, c)).position(|c| c.key == key) {
                     top.1 = i;
                 }
             }
@@ -506,12 +555,15 @@ impl Settings {
             let part = self.art_pick.part;
             match done {
                 Ok((g, moved)) => {
+                    let to_style = key.as_deref() == Some("shelf");
                     // kept as chosen by hand: the automatic art check leaves this part alone
                     let mut lock = json!({ "look": "exact", "at": now_ms() });
                     if let Some(key) = &key {
                         lock["key"] = json!(key);
                     }
-                    self.set(&["art", "locks", &studio::lock_key(&g.sys, &g.file), part], lock);
+                    if !to_style {
+                        self.set(&["art", "locks", &studio::lock_key(&g.sys, &g.file), part], lock);
+                    }
                     if let Some(c) = self.chosen.as_mut() {
                         let now = g.current[studio::PARTS.iter().position(|p| *p == part).unwrap_or(0)].clone();
                         match part {
@@ -522,6 +574,7 @@ impl Settings {
                         }
                     }
                     self.say(match (moved, key.is_some()) {
+                        _ if to_style => format!("{} follows the shelf style again.", part_name(part, &g.sys)),
                         (_, true) if key.as_deref() == Some("own") => "Your picture is in use now, and stays until you change it.".into(),
                         (false, _) => "That's the picture in use already.".into(),
                         (true, true) => "In use now. The picture it replaced is kept in the replaced folder beside it; the shelf shows the new one when Settings closes.".into(),
@@ -540,7 +593,7 @@ impl Settings {
         }
         // the highlighted version's picture: at once from this computer, from the web after a moment on it
         let at = self.stack.last().map_or(0, |p| p.1);
-        let Some(c) = self.art_pick.list.get(at).cloned() else { return };
+        let Some(c) = self.art_versions().get(at).map(|c| (*c).clone()) else { return };
         if self.art_pick.lit.0 != c.key {
             self.art_pick.lit = (c.key.clone(), now);
         }
@@ -593,19 +646,24 @@ impl Settings {
             }
         }
         let at = self.stack.last().map_or(0, |p| p.1);
-        let lit = self.art_pick.list.get(at)?;
-        self.art_pick.shown.as_ref().filter(|s| s.0 == lit.key).map(|s| s.1.clone())
+        let lit = self.art_versions().get(at)?.key.clone();
+        self.art_pick.shown.as_ref().filter(|s| s.0 == lit).map(|s| s.1.clone())
     }
 
     pub(super) fn art_page(&self) -> Page {
         let title = self.chosen.as_ref().map_or(String::new(), |c| c.game.title.clone());
         let Some(g) = self.art_game() else { return Page { title, lead: String::new(), rows: Vec::new() } };
+        let locks = &self.cfg["art"]["locks"][studio::lock_key(&g.sys, &g.file).as_str()];
         let rows = studio::PARTS
             .into_iter()
             .zip(&g.current)
             .map(|(part, now)| Row {
                 label: part_name(part, &g.sys).into(),
-                value: now.as_ref().map_or("None yet".into(), |f| short(&f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())),
+                value: format!(
+                    "{}{}",
+                    now.as_ref().map_or("None yet".into(), |f| short(&f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())),
+                    if js::truthy(locks.get(part)) { " · your pick" } else { "" }
+                ),
                 hint: "Every version of this part the box art sources have, to choose from".into(),
                 press: Some(Box::new(move |s: &mut Settings| s.open_art_part(part))),
                 step: None,
@@ -613,15 +671,130 @@ impl Settings {
             .collect::<Vec<Row>>();
         let mut rows = rows;
         rows.push(Row { label: "Complete sets".into(), hint: "A front, back, spine and disc that belong together, from one region and source".into(), press: Some(Box::new(|s: &mut Settings| s.open_art_sets())), ..Row::default() });
+        let frozen = self.art_frozen(&g);
+        rows.push(Row {
+            label: "Lock this game".into(),
+            value: if self.art_pick.repick.is_some() { "One moment…".into() } else { on_off(frozen) },
+            hint: if frozen { "Every part stays as it is. Shelf styles and auto-fetch skip it." } else { "Off: a style change replaces picks too." }.into(),
+            press: Some(Box::new(|s: &mut Settings| s.toggle_game_lock())),
+            step: Some(Box::new(|s: &mut Settings, _| s.toggle_game_lock())),
+        });
         Page { title: format!("Box art · {title}"), lead: "A part chosen here stays as chosen: the automatic art check leaves it alone.".into(), rows }
+    }
+
+    /// The open part's versions the filters let through.
+    fn art_versions(&self) -> Vec<&Cand> {
+        self.art_pick.list.iter().filter(|c| passes(&self.art_pick.filter, c)).collect()
+    }
+
+    /// A filter for each way the versions differ (two values or more), and any filter that's on.
+    fn filter_rows(&self) -> Vec<Row> {
+        let mut rows = Vec::new();
+        for (d, (label, names)) in FILTERS.iter().enumerate() {
+            let have: std::collections::HashSet<&str> = self.art_pick.list.iter().filter(|c| found(c)).map(|c| dim(c, d)).collect();
+            let on = self.art_pick.filter[d].clone();
+            let vals: Vec<&str> = names.iter().map(|v| v.0).filter(|v| have.contains(v) || *v == on).collect();
+            if on.is_empty() && (vals.is_empty() || have.len() < 2) {
+                continue;
+            }
+            let mut ring = vec![String::new()];
+            ring.extend(vals.iter().map(|v| v.to_string()));
+            let at = ring.iter().position(|v| *v == on).unwrap_or(0);
+            let turn = move |s: &mut Settings, step: i32| {
+                s.art_pick.filter[d] = ring[(at as i32 + step).rem_euclid(ring.len() as i32) as usize].clone();
+                // the cursor stays on this filter as the versions above it come and go
+                let row = s.page().rows.iter().position(|r| r.label == *label);
+                if let (Some(row), Some(top)) = (row, s.stack.last_mut()) {
+                    top.1 = row;
+                }
+                s.redraw = true;
+            };
+            let turn2 = turn.clone();
+            rows.push(Row {
+                label: label.to_string(),
+                value: names.iter().find(|v| v.0 == on).map_or("All", |v| v.1).into(),
+                hint: format!("Shows only the versions of one {}: ← → choose; All shows every one.", label.to_lowercase()),
+                press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
+                step: Some(Box::new(turn2)),
+            });
+        }
+        rows
+    }
+
+    /// The open part stops being the player's pick: the console's shelf style picks it again.
+    fn art_to_style(&mut self) {
+        let Some(g) = self.art_pick.game.clone().filter(|_| self.art_pick.placing.is_none()) else { return };
+        let part = self.art_pick.part;
+        let key = studio::lock_key(&g.sys, &g.file);
+        let mut e = self.cfg["art"]["locks"][key.as_str()].clone();
+        if let Some(o) = e.as_object_mut() {
+            o.shift_remove(part);
+        }
+        self.set(&["art", "locks", &key], e);
+        // the player handed this part to the style: a picture kept from before is the style's to replace now
+        rustyshelf_core::provenance::adopt(&g.current[studio::PARTS.iter().position(|p| *p == part).unwrap_or(0)].iter().cloned().collect::<Vec<_>>());
+        let style = studio::style_for(&self.cfg, &g.sys);
+        let look = studio::look_for(&style, part);
+        let data = paths::data_dir(&self.app_root);
+        self.place_with(Some("shelf".into()), move |st, g, part| artjob::pick_by_look(st, &data, g, part, &look, &style));
+    }
+
+    fn art_frozen(&self, g: &GameArt) -> bool {
+        js::truthy(self.cfg["art"]["locks"][studio::lock_key(&g.sys, &g.file).as_str()].get("all"))
+    }
+
+    /// Locks the chosen game as it is, or puts it back on the shelf style: unlocking picks again only the parts
+    /// that followed the shelf and whose look the style changed since, or that are missing (settings.js toggleLock,
+    /// artstudio.js lockGame).
+    fn toggle_game_lock(&mut self) {
+        let Some(g) = self.art_game().filter(|_| self.art_pick.repick.is_none()) else { return };
+        let title = self.chosen.as_ref().map_or(g.title.clone(), |c| c.game.title.clone());
+        let key = studio::lock_key(&g.sys, &g.file);
+        let style = studio::style_for(&self.cfg, &g.sys);
+        let mut e = self.cfg["art"]["locks"][key.as_str()].as_object().cloned().unwrap_or_default();
+        if !js::truthy(e.get("all")) {
+            let sig: serde_json::Map<String, Value> = studio::PARTS.iter().filter(|p| !js::truthy(e.get(**p))).map(|p| (p.to_string(), json!(artjob::look_sig(&style, p, &g.region)))).collect();
+            e.insert("all".into(), json!({ "at": now_ms(), "sig": sig }));
+            self.set(&["art", "locks", &key], Value::Object(e));
+            self.say(format!("{title}: locked as it is"));
+            return;
+        }
+        let sig = e.get("all").map_or(Value::Null, |a| a["sig"].clone());
+        let kept = studio::PARTS.iter().filter(|p| js::truthy(e.get(**p))).count();
+        let todo: Vec<&'static str> = studio::PARTS
+            .iter()
+            .enumerate()
+            .filter(|(i, p)| !js::truthy(e.get(**p)) && (g.current[*i].as_ref().is_none_or(|f| !f.is_file()) || sig[**p].as_str().is_some_and(|s| s != artjob::look_sig(&style, p, &g.region))))
+            .map(|(_, p)| *p)
+            .collect();
+        e.shift_remove("all");
+        self.set(&["art", "locks", &key], Value::Object(e));
+        let own = if kept > 0 { " · your picks stay until the shelf style changes" } else { "" };
+        self.say(match todo.len() {
+            0 if kept > 0 => format!("Unlocked{own}"),
+            0 => "Unlocked · already matches the shelf style".into(),
+            n => format!("Unlocked · re-picking {n} part{} for the shelf style{own}", if n == 1 { "" } else { "s" }),
+        });
+        if todo.is_empty() {
+            return;
+        }
+        let data = paths::data_dir(&self.app_root);
+        let (tx, rx) = channel();
+        let mut g = g;
+        std::thread::spawn(move || {
+            let st = Studio::new(&data);
+            let changed = todo.iter().filter(|p| artjob::pick_by_look(&st, &data, &mut g, p, &studio::look_for(&style, p), &style).unwrap_or(false)).count();
+            let _ = tx.send((g, changed));
+        });
+        self.art_pick.repick = Some(Mutex::new(rx));
     }
 
     pub(super) fn art_part_page(&self) -> Page {
         let pick = &self.art_pick;
         let sys = pick.game.as_ref().map_or("", |g| g.sys.as_str());
-        let title = format!("{} · {}", part_name(pick.part, sys), pick.game.as_ref().map_or("", |g| g.title.as_str()));
-        let mut rows: Vec<Row> = pick
-            .list
+        let title = format!("{} · {}", part_name(pick.part, sys), self.chosen.as_ref().map_or("", |c| c.game.title.as_str()));
+        let versions = self.art_versions();
+        let mut rows: Vec<Row> = versions
             .iter()
             .map(|c| {
                 let key = c.key.clone();
@@ -639,6 +812,7 @@ impl Settings {
             })
             .collect();
         let n = rows.len();
+        let filtered = pick.filter.iter().any(|f| !f.is_empty());
         let lead = if pick.placing.is_some() {
             "Putting it in place…".to_string()
         } else if pick.pending {
@@ -649,9 +823,22 @@ impl Settings {
             "No source set up here has this part for this game. Each source below can add versions.".into()
         } else if rows.is_empty() {
             "No source has this part for this game. The box art lists come with the first box art download (Settings → Box art).".into()
+        } else if filtered {
+            format!("{n} of {} versions · filtered", pick.list.len())
         } else {
             format!("{n} to choose from, the best for this console's style first.")
         };
+        rows.extend(self.filter_rows());
+        if let Some(g) = &pick.game {
+            if js::truthy(self.cfg["art"]["locks"][studio::lock_key(&g.sys, &g.file).as_str()].get(pick.part)) {
+                rows.push(Row {
+                    label: "Back to the shelf style".into(),
+                    hint: "This part stops being your pick and is picked again by the console's shelf style.".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.art_to_style())),
+                    ..Row::default()
+                });
+            }
+        }
         for src in &pick.missing {
             rows.push(match *src {
                 "LaunchBox" => Row {

@@ -284,7 +284,10 @@ complete yet.
   where that's what the source has, and the part is kept as chosen (`art.locks`, which the automatic art check
   respects in both apps). Put the earlier picture back undoes it, and A picture of yours puts a PNG, JPEG or
   WebP of your own in (for a spine, also cut from a picture of the whole box opened flat). Downloads are kept in `data\art-cand`, the
-  Electron app's own cache. A console's page has its Box art style (Authentic, HD, a region's boxes, Special
+  Electron app's own cache. Region, Source, Type and Edition filters show where the versions differ (kept for the
+  session, across games); Back to the shelf style hands a part you picked back to the console's style, which picks
+  it again; Lock this game keeps every part as it is (shelf styles and the automatic art check skip it), and
+  unlocking picks again only the parts the style changed since, or that are missing. A console's page has its Box art style (Authentic, HD, a region's boxes, Special
   editions), kept as the Electron app keeps it (`art.styles`): the picker puts that look's best first, and the
   automatic art check takes its parts in that look's order and region. Changing a console's style picks its games'
   pictures again in the background, two games at a time, with its progress on that row: every part whose look
