@@ -1147,8 +1147,8 @@ impl Settings {
             let id = id.clone();
             rows.push(Row { label: format!("{name}: {emu} needs a BIOS"), value: "Show me".into(), hint: "Copied from your own console into its BIOS folder.".into(), press: Some(Box::new(move |s: &mut Settings| s.go(Screen::Console(id.clone())))), step: None });
         }
-        if self.api_key("igdbId").is_empty() && !self.console_shelves.is_empty() {
-            rows.push(Row { label: "Connect IGDB for game info".into(), value: "Set up".into(), hint: "Free with a Twitch developer account: the description, genres and dates LaunchBox is missing.".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Accounts))), step: None });
+        if self.api_key("igdbId").is_empty() && self.more_shots() && !self.console_shelves.is_empty() {
+            rows.push(Row { label: "Connect IGDB for more screenshots and game info".into(), value: "Set up".into(), hint: "Free with a Twitch developer account, about 5 minutes.".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Accounts))), step: None });
         }
         if !rows.is_empty() {
             rows.insert(0, Row { label: format!("— Needs attention · {} —", rows.len()), ..Row::default() });
