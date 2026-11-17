@@ -639,10 +639,13 @@ pub fn run(
         commands.entity(r).despawn();
     }
     let stop = pick.batch.is_some();
-    build(&mut commands, open, stop, &mona, &face, &settings, now);
+    let scrolled = pick.scroll.now(now, SCROLL, OUT);
+    build(&mut commands, open, stop, scrolled, &mona, &face, &settings, now);
 }
 
-fn build(commands: &mut Commands, open: &Open, stop: bool, mona: &MonaSans, face: &crate::hud::Face, settings: &crate::settings::Settings, now: f32) {
+/// `scrolled`: the grid's scroll now. A new grid starts there: [`scroll`] only sets it after layout.
+#[allow(clippy::too_many_arguments)]
+fn build(commands: &mut Commands, open: &Open, stop: bool, scrolled: f32, mona: &MonaSans, face: &crate::hud::Face, settings: &crate::settings::Settings, now: f32) {
     let lang = settings.language();
     let t = |s: &str| rustyshelf_core::i18n::tr(&lang, s);
     let text = |s: String, weight: u32, size: f32, color: Color| (Text::new(s), mona.font(weight, size), TextColor(color));
@@ -681,6 +684,7 @@ fn build(commands: &mut Commands, open: &Open, stop: bool, mona: &MonaSans, face
                         min_height: px(0),
                         ..default()
                     },
+                    ScrollPosition(Vec2::new(0.0, scrolled)),
                 ))
                 .with_children(|grid| {
                     for (i, it) in open.items.iter().enumerate() {
@@ -725,6 +729,9 @@ fn build(commands: &mut Commands, open: &Open, stop: bool, mona: &MonaSans, face
         });
 }
 
+/// seconds the grid takes to scroll to the lit tile
+const SCROLL: f32 = 0.22;
+
 /// Once laid out: the grid scrolled to keep the lit tile in view.
 pub fn scroll(time: Res<Time>, mut pick: ResMut<CoverPick>, mut grid: Query<(&ComputedNode, &UiGlobalTransform, &mut ScrollPosition), With<CoverGrid>>, lit: Query<(&ComputedNode, &UiGlobalTransform), With<LitTile>>) {
     let now = time.elapsed_secs();
@@ -739,8 +746,8 @@ pub fn scroll(time: Res<Time>, mut pick: ResMut<CoverPick>, mut grid: Query<(&Co
     if top + h + 12.0 > to + view {
         to = top + h + 12.0 - view;
     }
-    pick.scroll.go(to.max(0.0), now, 0.22, OUT);
-    let y = pick.scroll.now(now, 0.22, OUT);
+    pick.scroll.go(to.max(0.0), now, SCROLL, OUT);
+    let y = pick.scroll.now(now, SCROLL, OUT);
     if at.0.y != y {
         at.0.y = y;
     }

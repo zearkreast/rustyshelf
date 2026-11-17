@@ -1,8 +1,8 @@
 // Based on ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf by
 // sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source): ported from pcBack in its main/covers.js and
 // pcBacksSoon in its main.js.
-//! The back of a PC game's box from LaunchBox's PC games (its Windows platform), for the games with none. Only an
-//! index already built with them is read: nothing here downloads the database.
+//! The back of a PC game's box from LaunchBox's PC games (its Windows platform), for the games with none; a port or
+//! recomp's from its console's release. Only an index already built is read: nothing here downloads the database.
 
 use std::path::{Path, PathBuf};
 
@@ -26,16 +26,20 @@ pub struct Want {
     pub title: String,
     /// a store's game: its title is the game's own name, so close calls are taken
     pub store: bool,
+    /// LaunchBox's platform it's looked up on: Windows, or a port's console
+    pub plat: &'static str,
 }
 
 impl Want {
     pub fn of(g: &Game) -> Option<Want> {
-        let store = match &g.source {
-            Source::Steam { .. } => true,
-            Source::Pc(p) => !p.port && matches!(p.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder" | "hoyoplay"),
+        let (store, plat) = match &g.source {
+            Source::Steam { .. } => (true, LB_PC),
+            // a port or recomp is named after the console game it's made from
+            Source::Pc(p) if !p.port_of.is_empty() => (true, covers::launchbox_platform(&p.port_of)?),
+            Source::Pc(p) => (!p.port && matches!(p.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder" | "hoyoplay"), LB_PC),
             _ => return None,
         };
-        (!g.id.is_empty() && !g.title.is_empty()).then(|| Want { id: g.id.clone(), title: g.title.clone(), store })
+        (!g.id.is_empty() && !g.title.is_empty()).then(|| Want { id: g.id.clone(), title: g.title.clone(), store, plat })
     }
 }
 
@@ -65,13 +69,13 @@ fn look(shard: &ShardFile, want: &Want, region: &str, get: &dyn Fn(&Want, &str) 
 }
 
 fn index(cache_dir: &Path) -> Option<Index> {
-    boxart::ready_index(cache_dir).filter(|i| i.has(LB_PC))
+    boxart::ready_index(cache_dir)
 }
 
 /// One game's back, asked for by hand: LaunchBox's goes on the case, over the player's own.
 pub fn fetch(data: &Path, cache_dir: &Path, want: &Want, region: &str) -> Got {
-    let Some(mut idx) = index(cache_dir) else { return Got::NotReady };
-    let Some(shard) = idx.platform(LB_PC) else { return Got::NotReady };
+    let Some(mut idx) = index(cache_dir).filter(|i| i.has(want.plat)) else { return Got::NotReady };
+    let Some(shard) = idx.platform(want.plat) else { return Got::NotReady };
     let got = look(shard, want, region, &|w, u| pccovers::fetch_auto_back(data, &w.id, u));
     if matches!(got, Got::Back(..)) {
         pccovers::prefer_auto_back(data, &want.id);
@@ -105,7 +109,10 @@ fn run_with(data: &Path, idx: &mut Index, wants: &[Want], region: &str, now: u64
         if (now as f64 - js::number(miss.get(&key))) < MISS_MS {
             continue;
         }
-        let Some(shard) = idx.platform(LB_PC) else { break };
+        if !idx.has(w.plat) {
+            continue;
+        }
+        let Some(shard) = idx.platform(w.plat) else { continue };
         tried += 1;
         match look(shard, w, region, get) {
             Got::Back(..) => got += 1,
@@ -133,7 +140,9 @@ mod tests {
         let games: Map<String, Value> = plats
             .iter()
             .map(|p| {
-                let list = if *p == LB_PC {
+                let list = if *p == "Nintendo 64" {
+                    json!([{ "id": "4", "name": "The Legend of Zelda: Ocarina of Time", "n": "the legend of zelda ocarina of time" }])
+                } else if *p == LB_PC {
                     json!([{ "id": "1", "name": "Zeta Run", "n": "zeta run" }, { "id": "2", "name": "Omega Quest: Deluxe", "n": "omega quest deluxe" }, { "id": "3", "name": "Bare", "n": "bare" }])
                 } else {
                     json!([])
@@ -145,12 +154,13 @@ mod tests {
             "1": [{ "type": "Box - Back", "region": "Europe", "file": "1-eu.jpg" }, { "type": "Box - Back", "region": "North America", "file": "1 us.jpg" }, { "type": "Box - Front", "region": "", "file": "1-f.jpg" }],
             "2": [{ "type": "Box - Back - Reconstructed", "region": "", "file": "2-r.png" }],
             "3": [{ "type": "Box - Front", "region": "", "file": "3-f.jpg" }],
+            "4": [{ "type": "Box - Back", "region": "North America", "file": "4-us.jpg" }],
         });
         std::fs::write(dir.join("launchbox-index.json"), json!({ "v": 8, "at": 1, "games": games, "images": images }).to_string()).unwrap();
     }
 
     fn want(id: &str, title: &str, store: bool) -> Want {
-        Want { id: id.into(), title: title.into(), store }
+        Want { id: id.into(), title: title.into(), store, plat: LB_PC }
     }
 
     #[test]
@@ -167,8 +177,16 @@ mod tests {
         assert_eq!(urls("Omega Quest Deluxe Edition", false, "auto"), None);
         assert_eq!(urls("Bare", true, "auto"), None, "no back");
         let t = tempfile::tempdir().unwrap();
-        cache_with(t.path(), &["Nintendo GameCube"]);
-        assert!(index(t.path()).is_none() && boxart::ready_index(t.path()).is_some());
+        cache_with(t.path(), &["Nintendo 64"]);
+        let mut idx = index(t.path()).unwrap();
+        assert!(!idx.has(LB_PC));
+        // a recomp: its console's release
+        let port = Game { id: "custom-oot".into(), title: "The Legend of Zelda Ocarina of Time".into(), source: Source::Pc(Box::new(crate::pcgames::PcGame { id: "custom-oot".into(), source: "custom", port: true, port_of: "n64".into(), ..Default::default() })), ..Game::default() };
+        let w = Want::of(&port).unwrap();
+        assert_eq!(w.plat, "Nintendo 64");
+        let got = find(idx.platform(w.plat).unwrap(), &w.title, w.store, "auto").map(|(n, u)| (n, u.len()));
+        assert_eq!(got, Some(("The Legend of Zelda: Ocarina of Time".into(), 1)));
+        assert!(matches!(fetch(t.path(), t.path(), &want("steam-1", "Zeta Run", true), "auto"), Got::NotReady), "no Windows games in this index");
     }
 
     #[test]

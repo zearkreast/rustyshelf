@@ -142,6 +142,22 @@ fn windows_programs(dir: &Path, folder: &str) -> Vec<(String, bool)> {
     found.into_iter().take(40).map(|f| (f.rel, false)).collect()
 }
 
+/// A folder that holds games rather than being one: no program of its own at its top, and two or more folders in it
+/// that each have one. Those folders, in name order.
+fn group_of(dir: &Path) -> Option<Vec<String>> {
+    if programs_in(dir, "").iter().any(|p| !p.0.contains(['/', '\\'])) {
+        return None;
+    }
+    let inner: Vec<String> = read_dir_sorted(dir)
+        .iter()
+        .filter(|e| is_dir_entry(e))
+        .map(name_of)
+        .filter(|n| !n.starts_with('.') && !SKIP_DIR.is_match(n))
+        .filter(|n| !programs_in(&dir.join(n), n).is_empty())
+        .collect();
+    (inner.len() >= 2).then_some(inner)
+}
+
 /// Every program a game could start with (its path inside the folder, and whether it's made for this system), the
 /// one RustyShelf would pick first.
 pub fn programs_in(dir: &Path, folder: &str) -> Vec<(String, bool)> {
@@ -168,19 +184,29 @@ pub fn scan(games_dir: &str, own_dir: &str, programs: Option<&Value>, skip: &[St
     // in name order, as JS compares strings: ids stay the same between scans
     folders.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
     let (mut out, mut used) = (Vec::new(), HashSet::new());
+    // (the folder inside the games folder, and the game's name)
+    let mut games: Vec<(String, String)> = Vec::new();
     for folder in folders.into_iter().filter(|f| !f.starts_with('.')) {
+        let dir = if own.contains(&folder) { js::join(&[own_dir, &folder]) } else { js::join(&[games_dir, &folder]) };
+        match group_of(Path::new(&dir)) {
+            Some(inner) => games.extend(inner.into_iter().map(|g| (js::join(&[&folder, &g]), g))),
+            None => games.push((folder.clone(), folder)),
+        }
+    }
+    for (folder, title) in games {
+        let top = folder.split(['/', '\\']).next().unwrap_or(&folder);
         let shared = js::join(&[games_dir, &folder]);
-        let dir = if own.contains(&folder) { js::join(&[own_dir, &folder]) } else { shared.clone() };
+        let dir = if own.contains(top) { js::join(&[own_dir, &folder]) } else { shared.clone() };
         if Path::new(&js::join(&[&shared, ".egstore"])).metadata().is_ok() || taken.contains(&real(&shared)) {
             continue;
         }
-        let progs = programs_in(Path::new(&dir), &folder);
+        let progs = programs_in(Path::new(&dir), &title);
         let wanted = js::str_of(programs.and_then(|p| p.get(&folder)));
         let Some(chosen) = progs.iter().find(|p| Some(p.0.as_str()) == wanted).or(progs.first()) else { continue };
         out.push(PcGame {
-            id: id_of(&folder, &mut used),
+            id: id_of(&title, &mut used),
             source: "folder",
-            title: folder,
+            title,
             exe: js::join(&[&dir, &chosen.0]),
             native: chosen.1,
             dir,
@@ -278,6 +304,32 @@ mod tests {
                 ("TotK Recomp", "sw", "totk.exe".to_string()),
                 ("Wind Waker HD", "wiiu", "Wind Waker HD.exe".to_string()),
                 ("Wind Waker HD", "", "Wind Waker HD.exe".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_folder_of_games_is_opened() {
+        let t = tempfile::tempdir().unwrap();
+        let make = |rel: &str| {
+            let p = t.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, b"MZ").unwrap();
+        };
+        make("#no-drm/Space War/spacewar.exe");
+        make("#no-drm/Moon Run/bin/moonrun.exe");
+        make("Hollow Knight/hollow_knight.exe");
+        make("Hollow Knight/tools/a/editor.exe");
+        make("One Inside/Game/game.exe");
+        let games = scan(&t.path().to_string_lossy(), "", None, &[]);
+        let got: Vec<(&str, String)> = games.iter().map(|g| (g.title.as_str(), Path::new(&g.exe).strip_prefix(t.path()).unwrap().to_string_lossy().replace('\\', "/"))).collect();
+        assert_eq!(
+            got,
+            [
+                ("Hollow Knight", "Hollow Knight/hollow_knight.exe".to_string()),
+                ("Moon Run", "#no-drm/Moon Run/bin/moonrun.exe".to_string()),
+                ("One Inside", "One Inside/Game/game.exe".to_string()),
+                ("Space War", "#no-drm/Space War/spacewar.exe".to_string()),
             ]
         );
     }

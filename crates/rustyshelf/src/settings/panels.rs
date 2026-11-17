@@ -7,6 +7,8 @@
 //! rows for Find a game, the volume, sorting, trophies, updates, Settings and power.
 
 use super::*;
+use bevy::color::Mix;
+
 use crate::motion::{self, Ease, FADE, PANEL};
 
 /// seconds: the Sort panel fading in and its card sliding down (style.css .sortpanel, .sp-card), the quick menu
@@ -49,7 +51,7 @@ enum QRow {
     Power,
 }
 
-const ACTS: [&str; 4] = ["fav", "det", "art", "hide"];
+const ACTS: [&str; 5] = ["fav", "det", "man", "art", "hide"];
 
 #[derive(Default)]
 pub struct Panels {
@@ -69,6 +71,8 @@ pub struct Panels {
     /// the pill's place, as measured, eased
     pill: Ease<Vec4>,
     pill_placed: bool,
+    /// how much of each quick menu row the pill covered when last laid out, for a rebuilt row's colours
+    covered: Vec<f32>,
     /// the shelf stepping aside (0: in place, 1: aside)
     aside: Ease<f32>,
     pub(super) redraw: bool,
@@ -94,6 +98,19 @@ pub struct Pill;
 
 #[derive(Component)]
 pub struct PillRow;
+
+/// A row of the quick menu the pill glides over, by its place in the list.
+#[derive(Component)]
+pub struct QuickLine(usize);
+
+/// A colour in a quick menu row, mixed from `off` to `on` as the pill covers the row: the text's, or with `fill` the
+/// node's background (every node has one).
+#[derive(Component, Clone, Copy)]
+pub struct Tinted {
+    off: Color,
+    on: Color,
+    fill: bool,
+}
 
 impl Panels {
     pub fn is_open(&self) -> bool {
@@ -161,6 +178,7 @@ impl Settings {
         self.panels.game = game;
         self.panels.sub = None;
         self.panels.pill_placed = false;
+        self.panels.covered.clear();
         self.panels.redraw = true;
         self.panels.sort_row = 0;
         if which == Which::Quick {
@@ -334,10 +352,11 @@ impl Settings {
         }
     }
 
-    /// The tiles of the actions row: Box art only for a game whose art can be chosen.
+    /// The tiles of the actions row: Manual only for a game with one, Box art only for a game whose art can be chosen.
     fn acts(&self) -> Vec<&'static str> {
         let art = self.panels.game.as_ref().is_some_and(|g| matches!(g.game.source, Source::Rom | Source::Steam { .. } | Source::Pc(_)));
-        ACTS.iter().copied().filter(|a| *a != "art" || art).collect()
+        let manual = self.panels.game.as_ref().is_some_and(|g| !g.game.art.manual.is_empty());
+        ACTS.iter().copied().filter(|a| (*a != "art" || art) && (*a != "man" || manual)).collect()
     }
 
     fn quick_pick(&mut self, row: QRow, now: f32) {
@@ -355,6 +374,10 @@ impl Settings {
                     Some("det") => {
                         self.close_panel(now, true);
                         self.wanted = Some(Screen::Details);
+                    }
+                    Some("man") => {
+                        self.close_panel(now, true);
+                        self.manual = Some(g.game.art.manual.clone());
                     }
                     Some("art") => {
                         self.close_panel(now, true);
@@ -427,22 +450,40 @@ impl Settings {
     }
 }
 
-/// The panels drawn, and moving: rebuilt when something in them changes; the card sliding, the menu sliding in and
-/// out, the pill gliding and the whole fading, every frame.
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn draw(
+fn card_at(shown: f32) -> Val2 {
+    Val2::px(0.0, -10.0 * (1.0 - shown))
+}
+
+fn quick_at(shown: f32) -> Val2 {
+    Val2::percent(104.0 * (1.0 - shown), 0.0)
+}
+
+impl Settings {
+    /// How far in a panel is: 0 to 1 opening, 1 to 0 closing, 0 when it isn't up.
+    fn panel_shown(&self, w: Which, dur: f32, curve: [f32; 4], now: f32) -> f32 {
+        match (self.panels.open, self.panels.closing) {
+            (Some(o), _) if o == w => motion::progress(now, self.panels.since, dur, curve).min(1.0),
+            (_, Some((c, at))) if c == w => 1.0 - motion::progress(now, at, dur, curve).min(1.0),
+            _ => 0.0,
+        }
+    }
+
+    /// The pill's rect in the quick menu's list, once it has one.
+    fn pill_now(&self, now: f32) -> Option<Vec4> {
+        self.panels.pill_placed.then(|| self.panels.pill.now(now, PILL, GLIDE))
+    }
+}
+
+/// The panels rebuilt when something in them changes, each part spawned where [`draw`] has it now: one spawned off
+/// screen and moved in by `draw` in the same frame isn't drawn that frame.
+pub fn rebuild(
     mut commands: Commands,
     time: Res<Time>,
     mut s: ResMut<Settings>,
     mona: Res<crate::hud::MonaSans>,
     face: Res<crate::hud::Face>,
     covers: Res<crate::shelf::Covers>,
-    roots: Query<(Entity, &PanelRoot)>,
-    mut card: Query<&mut UiTransform, (With<SortCard>, Without<QuickPanel>)>,
-    mut quick: Query<&mut UiTransform, (With<QuickPanel>, Without<SortCard>)>,
-    mut pill: Query<(&mut Node, &mut Visibility), With<Pill>>,
-    children: Query<&Children>,
-    mut colours: motion::FadeColours,
+    roots: Query<Entity, With<PanelRoot>>,
 ) {
     let now = time.elapsed_secs();
     // closed and gone
@@ -454,36 +495,48 @@ pub fn draw(
         }
     }
     if std::mem::take(&mut s.panels.redraw) {
-        for (e, _) in &roots {
+        for e in &roots {
             commands.entity(e).despawn();
         }
         let shown = s.panels.open.or(s.panels.closing.map(|c| c.0));
         if let Some(which) = shown {
-            build(&mut commands, &s, which, &mona, &face, &covers);
+            build(&mut commands, &s, which, &mona, &face, &covers, now);
         }
     }
-    let (open, closing) = (s.panels.open, s.panels.closing);
-    let k = |w: Which, dur: f32, curve: [f32; 4]| match (open, closing) {
-        (Some(o), _) if o == w => motion::progress(now, s.panels.since, dur, curve).min(1.0),
-        (_, Some((c, at))) if c == w => 1.0 - motion::progress(now, at, dur, curve).min(1.0),
-        _ => 0.0,
-    };
-    let sort = k(Which::Sort, SORT_SLIDE, CARD);
+}
+
+/// The panels moving: the card sliding, the menu sliding in and out, the pill gliding and the whole fading, every
+/// frame.
+#[allow(clippy::type_complexity)]
+pub fn draw(
+    mut commands: Commands,
+    time: Res<Time>,
+    s: Res<Settings>,
+    roots: Query<(Entity, &PanelRoot)>,
+    mut card: Query<&mut UiTransform, (With<SortCard>, Without<QuickPanel>)>,
+    mut quick: Query<&mut UiTransform, (With<QuickPanel>, Without<SortCard>)>,
+    mut pill: Query<(&mut Node, &mut Visibility), With<Pill>>,
+    children: Query<&Children>,
+    mut colours: motion::FadeColours,
+) {
+    let now = time.elapsed_secs();
+    let open = s.panels.open;
+    let sort = s.panel_shown(Which::Sort, SORT_SLIDE, CARD, now);
     for mut t in &mut card {
-        t.translation = Val2::px(0.0, -10.0 * (1.0 - sort));
+        t.translation = card_at(sort);
     }
-    let slide = k(Which::Quick, QUICK_SLIDE, PANEL);
+    let slide = s.panel_shown(Which::Quick, QUICK_SLIDE, PANEL, now);
     for mut t in &mut quick {
-        t.translation = Val2::percent(104.0 * (1.0 - slide), 0.0);
+        t.translation = quick_at(slide);
     }
-    let fade = k(Which::Sort, SORT_FADE, FADE);
+    let fade = s.panel_shown(Which::Sort, SORT_FADE, FADE, now);
     for (e, root) in &roots {
         let _ = root;
         if s.panels.closing.is_some_and(|c| c.0 == Which::Sort) || (open == Some(Which::Sort) && fade < 1.0) {
             motion::fade_tree(e, fade, &|_| 1.0, &children, &mut colours, &mut commands);
         }
     }
-    let rect = s.panels.pill_placed.then(|| s.panels.pill.now(now, PILL, GLIDE));
+    let rect = s.pill_now(now);
     for (mut node, mut seen) in &mut pill {
         match rect {
             Some(r) => {
@@ -518,6 +571,44 @@ pub fn measure(time: Res<Time>, mut s: ResMut<Settings>, list: Query<(&ComputedN
     }
 }
 
+/// After [`measure`]: each row's colours by how much of it the pill covers, so a row's dark text never sits on the dark
+/// panel while the pill is still gliding to it.
+#[allow(clippy::type_complexity)]
+pub fn tint(
+    time: Res<Time>,
+    mut s: ResMut<Settings>,
+    list: Query<(&ComputedNode, &UiGlobalTransform), With<QuickList>>,
+    lines: Query<(Entity, &QuickLine, &ComputedNode, &UiGlobalTransform)>,
+    children: Query<&Children>,
+    mut inks: Query<(&Tinted, Option<&mut TextColor>, Option<&mut BackgroundColor>)>,
+) {
+    let Ok((l, lt)) = list.single() else { return };
+    let pill = s.pill_now(time.elapsed_secs());
+    let inv = l.inverse_scale_factor;
+    let origin = lt.translation - l.size / 2.0;
+    for (e, &QuickLine(i), r, rt) in &lines {
+        let top = (rt.translation.y - r.size.y / 2.0 - origin.y) * inv;
+        let h = r.size.y * inv;
+        let covered = pill.map_or(0.0, |p| ((top + h).min(p.y + p.w) - top.max(p.y)).max(0.0) / h.max(1.0)).min(1.0);
+        let had = &mut s.panels.covered;
+        if had.len() <= i {
+            had.resize(i + 1, 0.0);
+        }
+        had[i] = covered;
+        for d in std::iter::once(e).chain(children.iter_descendants(e)) {
+            let Ok((c, text, back)) = inks.get_mut(d) else { continue };
+            let mixed = c.off.mix(&c.on, covered);
+            if c.fill {
+                if let Some(mut b) = back.filter(|b| b.0 != mixed) {
+                    b.0 = mixed;
+                }
+            } else if let Some(mut t) = text.filter(|t| t.0 != mixed) {
+                t.0 = mixed;
+            }
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct QuickList;
 
@@ -526,10 +617,11 @@ const DIM: Color = Color::srgba(0.953, 0.961, 0.984, 0.62);
 const DARK: Color = Color::srgb(0.063, 0.071, 0.102);
 const LIGHT: Color = Color::srgb(0.922, 0.922, 0.941);
 
-fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud::MonaSans, face: &crate::hud::Face, covers: &crate::shelf::Covers) {
+fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud::MonaSans, face: &crate::hud::Face, covers: &crate::shelf::Covers, now: f32) {
     let lang = s.language();
     let t = |x: &str| rustyshelf_core::i18n::tr(&lang, x);
     let text = |x: String, weight: u32, size: f32, color: Color| (Text::new(x), mona.font(weight, size), TextColor(color));
+    let words = |x: String, weight: u32, size: f32| (Text::new(x), mona.font(weight, size));
     let chip = |p: &mut ChildSpawnerCommands, label: String, cur: bool, lit: bool| {
         let mut c = p.spawn((
             Node { padding: UiRect::axes(px(14), px(7)), border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
@@ -555,7 +647,7 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                 .with_children(|r| {
                     r.spawn((
                         SortCard,
-                        UiTransform::from_translation(Val2::px(0.0, -10.0)),
+                        UiTransform::from_translation(card_at(s.panel_shown(Which::Sort, SORT_SLIDE, CARD, now))),
                         Node { width: px(880), max_width: percent(92), flex_direction: FlexDirection::Column, padding: UiRect::new(px(20), px(20), px(18), px(14)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(20)), ..default() },
                         BackgroundColor(Color::srgba(14.0 / 255.0, 16.0 / 255.0, 24.0 / 255.0, 0.9)),
                         BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
@@ -593,7 +685,7 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                 .with_children(|r| {
                     r.spawn((
                         QuickPanel,
-                        UiTransform::from_translation(Val2::percent(104.0, 0.0)),
+                        UiTransform::from_translation(quick_at(s.panel_shown(Which::Quick, QUICK_SLIDE, PANEL, now))),
                         Node { width: px(460), max_width: percent(100), height: percent(100), flex_direction: FlexDirection::Column, padding: UiRect::new(px(24), px(24), px(34), px(0)), border: UiRect::left(px(1)), ..default() },
                         // (the glass is blurred in the Electron app; with no blur here it's nearly opaque)
                         BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 20.0 / 255.0, 0.96)),
@@ -622,7 +714,14 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                             });
                         }
                         q.spawn((QuickList, Node { flex_direction: FlexDirection::Column, row_gap: px(2), padding: UiRect::new(px(0), px(0), px(8), px(24)), ..default() })).with_children(|list| {
-                            list.spawn((Pill, Node { position_type: PositionType::Absolute, border_radius: BorderRadius::all(px(25)), ..default() }, BackgroundColor(LIGHT), Visibility::Hidden));
+                            let pill = s.pill_now(now);
+                            let r = pill.unwrap_or_default();
+                            list.spawn((
+                                Pill,
+                                Node { position_type: PositionType::Absolute, left: px(r.x), top: px(r.y), width: px(r.z), height: px(r.w), border_radius: BorderRadius::all(px(25)), ..default() },
+                                BackgroundColor(LIGHT),
+                                if pill.is_some() { Visibility::Inherited } else { Visibility::Hidden },
+                            ));
                             for (i, row) in rows.iter().enumerate() {
                                 let lit = i == s.panels.row && s.panels.sub.is_none();
                                 if *row == QRow::Updates || (*row == QRow::Settings && !rows.contains(&QRow::Updates)) {
@@ -636,6 +735,7 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                                             let (sign, label) = match *a {
                                                 "fav" => ("♥", if fav { "Favorited" } else { "Favorite" }),
                                                 "det" => ("≡", "Details"),
+                                                "man" => ("☰", "Manual"),
                                                 "art" => ("▣", "Box art"),
                                                 _ => ("⊘", "Hide"),
                                             };
@@ -670,24 +770,28 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                                     QRow::Power => ("Power", if s.asked.is_empty() { String::new() } else { t(&s.note) }, true),
                                     QRow::Acts => unreachable!(),
                                 };
-                                let mut line = list.spawn(Node { height: px(50), flex_shrink: 0.0, align_items: AlignItems::Center, column_gap: px(14), padding: UiRect::horizontal(px(18)), ..default() });
+                                let mut line = list.spawn((QuickLine(i), Node { height: px(50), flex_shrink: 0.0, align_items: AlignItems::Center, column_gap: px(14), padding: UiRect::horizontal(px(18)), ..default() }));
                                 if lit {
                                     line.insert(PillRow);
                                 }
-                                let ink = if lit { DARK } else { INK };
+                                let ink = Tinted { off: INK, on: DARK, fill: false };
+                                let soft = Tinted { off: DIM, on: Color::srgba(0.063, 0.071, 0.102, 0.62), fill: false };
+                                let covered = s.panels.covered.get(i).copied().unwrap_or(if lit { 1.0 } else { 0.0 });
+                                let shade = |c: Tinted| (TextColor(c.off.mix(&c.on, covered)), c);
                                 line.with_children(|l| {
-                                    l.spawn((text(t(label), 500, 15.0, ink), TextLayout::no_wrap(), Node { flex_shrink: 0.0, ..default() }));
+                                    l.spawn((words(t(label), 500, 15.0), shade(ink), TextLayout::no_wrap(), Node { flex_shrink: 0.0, ..default() }));
                                     if *row == QRow::Volume {
                                         let v = (s.panel_volume() * 100.0).round() as i32;
-                                        l.spawn((Node { flex_grow: 1.0, height: px(4), border_radius: BorderRadius::all(px(2)), margin: UiRect::horizontal(px(4)), ..default() }, BackgroundColor(if lit { Color::srgba(0.063, 0.071, 0.102, 0.18) } else { Color::srgba(1.0, 1.0, 1.0, 0.18) })))
+                                        let track = Tinted { off: Color::srgba(1.0, 1.0, 1.0, 0.18), on: Color::srgba(0.063, 0.071, 0.102, 0.18), fill: true };
+                                        l.spawn((Node { flex_grow: 1.0, height: px(4), border_radius: BorderRadius::all(px(2)), margin: UiRect::horizontal(px(4)), ..default() }, BackgroundColor(track.off.mix(&track.on, covered)), track))
                                             .with_children(|bar| {
-                                                bar.spawn((Node { width: percent(v as f32), height: percent(100), border_radius: BorderRadius::all(px(2)), ..default() }, BackgroundColor(ink)));
+                                                bar.spawn((Node { width: percent(v as f32), height: percent(100), border_radius: BorderRadius::all(px(2)), ..default() }, BackgroundColor(ink.off.mix(&ink.on, covered)), Tinted { fill: true, ..ink }));
                                             });
-                                        l.spawn((Node { min_width: px(44), justify_content: JustifyContent::FlexEnd, ..default() }, text(if v > 0 { format!("{v}%") } else { t("Muted") }, 400, 13.0, if lit { DARK } else { DIM })));
+                                        l.spawn((Node { min_width: px(44), justify_content: JustifyContent::FlexEnd, ..default() }, words(if v > 0 { format!("{v}%") } else { t("Muted") }, 400, 13.0), shade(Tinted { off: DIM, on: DARK, fill: false })));
                                     } else {
-                                        l.spawn((Node { margin: UiRect::left(auto()), min_width: px(0), ..default() }, text(value, 400, 13.0, if lit { Color::srgba(0.063, 0.071, 0.102, 0.62) } else { DIM }), TextLayout::no_wrap()));
+                                        l.spawn((Node { margin: UiRect::left(auto()), min_width: px(0), ..default() }, words(value, 400, 13.0), shade(soft), TextLayout::no_wrap()));
                                         if more {
-                                            l.spawn(text("›".into(), 400, 18.0, if lit { Color::srgba(0.063, 0.071, 0.102, 0.5) } else { Color::srgba(0.953, 0.961, 0.984, 0.38) }));
+                                            l.spawn((words("›".into(), 400, 18.0), shade(Tinted { off: Color::srgba(0.953, 0.961, 0.984, 0.38), on: Color::srgba(0.063, 0.071, 0.102, 0.5), fill: false })));
                                         }
                                     }
                                 });

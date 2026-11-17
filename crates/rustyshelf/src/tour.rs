@@ -139,7 +139,7 @@ const STEPS: [Step; 10] = [
     Step {
         k: "Quick menu",
         t: "The quick menu",
-        p: "The chosen game’s Favourite, Details, Box art and Hide, then Find a game, the volume, the order of the shelves, trophies, Settings and power.",
+        p: "The chosen game’s Favourite, Details, Manual, Box art and Hide, then Find a game, the volume, the order of the shelves, trophies, Settings and power.",
         enter: Enter::Page(TourPage::Quick),
         target: Target::Quick,
         keys: &[key(&["☰"], &["Esc"], "Quick menu"), Key { pad: &["☰"], pad_word: "Hold", kbd: &["G"], kbd_word: "", what: "Sort and filter", what_pad: "" }],

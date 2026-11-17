@@ -1,7 +1,9 @@
 //! The pictures beside the rows of the achievement and trophy lists: badges and game icons, from the web or from
-//! RPCS3's folders, fetched off the frame for the rows round the chosen one and kept for the run.
+//! RPCS3's folders, fetched off the frame for the rows round the chosen one, kept for the run and on disk
+//! (`rustyshelf_core::achpics`).
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::mpsc::Sender;
 
 use bevy::asset::RenderAssetUsages;
@@ -70,9 +72,9 @@ fn youtube() -> Picture {
     (n, n, px)
 }
 
-fn load(src: &str) -> Option<Picture> {
+fn load(data: &Path, src: &str) -> Option<Picture> {
     let bytes = if src.starts_with("https://") || src.starts_with("http://") {
-        rustyshelf_core::net::get_bytes(src, std::time::Duration::from_secs(15), 4 << 20).ok().flatten()?
+        rustyshelf_core::achpics::get(data, src)?
     } else {
         std::fs::read(src).ok()?
     };
@@ -128,9 +130,9 @@ impl Settings {
             }
             self.badge.got.insert(url.clone(), Pic::Loading);
             self.badge.busy += 1;
-            let tx = self.badge.tx.clone();
+            let (tx, data) = (self.badge.tx.clone(), paths::data_dir(&self.app_root));
             std::thread::spawn(move || {
-                let pic = load(&url);
+                let pic = load(&data, &url);
                 let _ = tx.send((url, pic));
             });
         }

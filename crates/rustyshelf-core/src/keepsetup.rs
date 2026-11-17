@@ -22,8 +22,8 @@ const DEF_DIRS: [(&str, &str); 2] = [("sounds", "pack.json"), ("Custom themes", 
 const BRING_APP_DIRS: [&str; 3] = ["sounds", "Custom themes", "themes"];
 const BRING_DATA_DIRS: [&str; 1] = ["pc-covers"];
 /// The downloads that can come along too ("Also copy downloaded extras").
-const EXTRA_DATA: [&str; 39] = [
-    "thumbs", "previews", "more-shots", "boxart-cache", "art-cand", "manual-cand", "steam-art", "stremio-art", "pc-cover-cache", "commercials", "trophy-packs", "custom-theme-cache", "wiiu-manuals", "ra", "icons",
+const EXTRA_DATA: [&str; 40] = [
+    "thumbs", "previews", "more-shots", "boxart-cache", "art-cand", "manual-cand", "steam-art", "stremio-art", "pc-cover-cache", "commercials", "trophy-packs", "custom-theme-cache", "wiiu-manuals", "ra", "icons", "ach-icons",
     "logo-find", "romm-covers", "library", "wiimote-cache", "tools", "steam", "cache", "library-cache.json", "cover-checks.json", "cover-backs.json", "steam-info.json", "x360-titles.json", "sgdb-cache.json",
     "ss-cache.json", "arcade-names.json", "commercials.json", "manual-collections.json", "logo-find.json", "art-missing.json", "sw2-builds.json", "pc-xbox.json", "pc-steam.json", "romm-library.json", "igdb-info",
 ];
