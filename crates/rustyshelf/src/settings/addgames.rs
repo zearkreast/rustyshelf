@@ -132,7 +132,7 @@ impl Settings {
     /// Puts the ticked games on the Custom shelf, each with the picture found in its folder.
     fn add_ticked(&mut self) {
         let (mut list, mut have) = (self.customs(), self.programs());
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        let now = u128::from(rustyshelf_core::now_ms());
         let data = paths::data_dir(&self.app_root);
         let mut n = 0;
         for x in std::mem::take(&mut self.adding.list).into_iter().filter(|x| x.on && !x.have) {

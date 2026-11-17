@@ -10,7 +10,12 @@ pub const VERSION: &str = match option_env!("RUSTYSHELF_VERSION") {
 
 /// Milliseconds since 1970 (JS `Date.now()`).
 pub fn now_ms() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+    ms_of(std::time::SystemTime::now()).unwrap_or(0)
+}
+
+/// A time as milliseconds since 1970; None before 1970.
+pub fn ms_of(t: std::time::SystemTime) -> Option<u64> {
+    t.duration_since(std::time::UNIX_EPOCH).ok().map(|d| d.as_millis() as u64)
 }
 
 pub mod accountenv;

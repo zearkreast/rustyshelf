@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde_json::{json, Value};
 
@@ -110,14 +110,7 @@ fn same_path(a: &Path, b: &Path) -> bool {
 pub(crate) fn art_stamp() -> String {
     let ms = crate::now_ms();
     let (days, rest) = ((ms / 86_400_000) as i64, ms % 86_400_000);
-    // civil date from days since 1970 (Howard Hinnant's algorithm)
-    let z = days + 719_468;
-    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
-    let y = yoe + era * 400 + i64::from(m <= 2);
+    let (y, m, d) = crate::js::civil_from_days(days);
     format!("{y:04}-{m:02}-{d:02}-{:02}-{:02}-{:02}-{:03}", rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60, rest % 1000)
 }
 
@@ -350,9 +343,14 @@ fn index_file(cache_dir: &Path) -> PathBuf {
     cache_dir.join("launchbox-index.json")
 }
 
+/// The LaunchBox index file's date (ms), which its split and the game info cache are stamped with.
+pub(crate) fn index_stamp(cache_dir: &Path) -> Option<u64> {
+    crate::files::mtime_ms(&index_file(cache_dir))
+}
+
 /// The split's details, when it's the split of the index file that's there (its stamp is that file's date).
 fn shard_meta(cache_dir: &Path) -> Option<ShardsMeta> {
-    let stamp = index_file(cache_dir).metadata().and_then(|m| m.modified()).ok()?.duration_since(UNIX_EPOCH).ok()?.as_millis() as u64;
+    let stamp = index_stamp(cache_dir)?;
     let m: ShardsMeta = serde_json::from_slice(&std::fs::read(cache_dir.join("launchbox-shards.json")).ok()?).ok()?;
     (m.stamp != 0 && m.stamp == stamp).then_some(m)
 }
@@ -1041,7 +1039,7 @@ mod match_tests {
 
         let plat = covers::launchbox_platform("ps2").unwrap();
         fs::write(cache.join("launchbox-index.json"), "{}").unwrap();
-        let stamp = cache.join("launchbox-index.json").metadata().unwrap().modified().unwrap().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let stamp = cache.join("launchbox-index.json").metadata().unwrap().modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
         fs::write(cache.join("launchbox-shards.json"), serde_json::to_vec(&ShardsMeta { v: IDX_V, at: 0, plats: vec![plat.to_string()], stamp }).unwrap()).unwrap();
         let game = |id: &str, name: &str| LbGame { id: id.into(), name: name.into(), n: norm(name), overview: None, release: None, year: None, dev: None, pub_: None, genres: None, esrb: None, players: None, coop: None, rating: None, wiki: None, video: None };
         let img = |kind: &str| GameImage { r#type: kind.into(), region: "North America".into(), file: "x.jpg".into() };

@@ -345,7 +345,7 @@ pub fn import_from(app_root: &Path, sources: &[PathBuf], name: Option<&str>) -> 
     files.sort_by(|a, b| natural(a, b));
     unsupported.sort();
     unsupported.dedup();
-    let pack = json!({ "name": name, "matches": match_all(&files), "where": guess_where(&name), "files": files, "unsupported": unsupported.into_iter().take(40).collect::<Vec<_>>(), "added": crate::js::iso_string(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)) });
+    let pack = json!({ "name": name, "matches": match_all(&files), "where": guess_where(&name), "files": files, "unsupported": unsupported.into_iter().take(40).collect::<Vec<_>>(), "added": crate::js::iso_string(crate::now_ms() as i64) });
     let (f, tmp) = (dest.join("pack.json"), dest.join("pack.json.tmp"));
     std::fs::write(&tmp, crate::js::stringify_indented(&pack, 1)).and_then(|()| std::fs::rename(&tmp, &f)).map_err(|e| e.to_string())?;
     read_pack(app_root, &id).ok_or_else(|| "The pack couldn't be read back.".into())

@@ -16,7 +16,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -977,7 +977,7 @@ impl Companion {
         let asked = if asked.is_nan() { 0 } else { js::round(asked).max(0.0) as u32 };
         let tall = if asked >= 64 { Some(THUMB_H.into_iter().find(|x| *x >= asked).unwrap_or(1600)) } else { None };
         if let Some(tall) = tall {
-            let changed = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64);
+            let changed = meta.modified().ok().and_then(crate::ms_of).unwrap_or(0);
             let key = (file.clone(), changed, tall);
             let made = inner.thumbs.get(&key).cloned().or_else(|| {
                 let small = smaller(Path::new(&file), tall).map(Arc::new)?;

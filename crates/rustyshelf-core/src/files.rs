@@ -11,6 +11,11 @@ pub fn read_json(f: &Path) -> Option<Value> {
     serde_json::from_str(text.strip_prefix('\u{feff}').unwrap_or(&text)).ok()
 }
 
+/// A file's modification time in ms since 1970; None when it isn't there.
+pub fn mtime_ms(f: &Path) -> Option<u64> {
+    crate::ms_of(std::fs::metadata(f).ok()?.modified().ok()?)
+}
+
 /// Writes a file whole or not at all: a temporary file beside it, then moved over it. The temporary file's name has
 /// the process id, as another RustyShelf may be writing the same file.
 pub fn write_atomic(f: &Path, data: impl AsRef<[u8]>) -> std::io::Result<()> {

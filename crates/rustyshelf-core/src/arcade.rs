@@ -108,7 +108,7 @@ pub fn fetch(data_dir: &Path) -> Result<bool, String> {
     }
     let dat = crate::net::get_bytes(URL_DAT, std::time::Duration::from_secs(60), 64 << 20).map_err(|e| format!("arcade list: {e}"))?.ok_or("arcade list: HTTP 404")?;
     let (names, bios) = parse_dat(&String::from_utf8_lossy(&dat)).ok_or("arcade list: no games in it")?;
-    let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let at = crate::now_ms();
     let table = serde_json::json!({ "v": 1, "at": at, "names": names.into_iter().map(|(k, v)| (k, v.into())).collect::<serde_json::Map<String, serde_json::Value>>(), "bios": bios });
     let file = data_dir.join("arcade-names.json");
     let tmp = data_dir.join("arcade-names.json.part");

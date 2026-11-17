@@ -163,7 +163,7 @@ fn pending_begin(data_dir: &Path) -> std::io::Result<PathBuf> {
 
 fn pending_commit(data_dir: &Path, meta: Value) -> std::io::Result<()> {
     let mut meta = meta;
-    meta["at"] = json!(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64));
+    meta["at"] = json!(crate::now_ms());
     write_atomic(&pending_dir(data_dir).join("ready.json"), meta.to_string())
 }
 
@@ -288,7 +288,7 @@ pub fn setup_at(dir: &Path) -> Option<Install> {
     tries.into_iter().find_map(|(data_dir, app_root)| {
         let f = data_dir.join("config.json");
         let c = read_json(&f).filter(|c| c["setupDone"] == true && c["ui"].is_object() && c["systems"].is_object())?;
-        let last_run = std::fs::metadata(&f).and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0.0, |d| d.as_millis() as f64);
+        let last_run = crate::files::mtime_ms(Path::new(&f)).unwrap_or(0) as f64;
         Some(Install { version: c["ui"]["lastSeenVersion"].as_str().unwrap_or("").chars().take(64).collect(), data_dir, app_root, last_run })
     })
 }
@@ -442,7 +442,7 @@ pub fn take_note() -> Option<String> {
 /// of the setup (from the version before), then checked; and this RustyShelf noted in installs.json.
 pub fn at_start(app_root: &Path, version: &str, var: crate::emucfg::Var) {
     let data_dir = crate::paths::data_dir(app_root);
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+    let now = crate::js::date_now();
     let mut said = Vec::new();
     if let Some((meta, _)) = apply_pending(&data_dir, app_root) {
         said.push(match meta["kind"].as_str() {

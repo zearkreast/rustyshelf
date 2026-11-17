@@ -7,7 +7,6 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -176,7 +175,7 @@ impl InfoCache {
     /// `cache_dir`: `data/boxart-cache`.
     pub fn load(cache_dir: &Path) -> InfoCache {
         let file = cache_dir.join("gameinfo-cache.json");
-        let stamp = cache_dir.join("launchbox-index.json").metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64);
+        let stamp = boxart::index_stamp(cache_dir).unwrap_or(0);
         let saved: Option<Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
         let map = match saved {
             Some(mut j) if j["stamp"].as_u64() == Some(stamp) && j["v"].as_u64() == Some(MATCH_V) => j["map"].as_object_mut().map(std::mem::take).unwrap_or_default(),

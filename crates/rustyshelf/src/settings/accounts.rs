@@ -525,7 +525,7 @@ impl Settings {
             let (tx, rx) = std::sync::mpsc::channel();
             self.ra_answer = Some(Mutex::new(rx));
             std::thread::spawn(move || {
-                let got = if shelf == "x360" { xeniaach::progress(&exe, &title_id, &paths::env_var) } else { rpcs3troph::progress(&exe, &title, &file, Some(&cache), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)) };
+                let got = if shelf == "x360" { xeniaach::progress(&exe, &title_id, &paths::env_var) } else { rpcs3troph::progress(&exe, &title, &file, Some(&cache), rustyshelf_core::now_ms() as i64) };
                 let _ = tx.send(RaAnswer::Progress(id, Ok(got)));
             });
             return;
@@ -817,7 +817,7 @@ impl AchFrom {
             let id = g.title_id.len() == 8 && g.title_id.chars().all(|c| c.is_ascii_hexdigit());
             return id.then(|| xeniaach::progress(exe, &g.title_id, &paths::env_var)).flatten();
         }
-        rpcs3troph::progress(exe, &g.title, &g.file, Some(cache), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64))
+        rpcs3troph::progress(exe, &g.title, &g.file, Some(cache), rustyshelf_core::now_ms() as i64)
     }
 
     /// Whether the game has any: from the files on this PC, or RetroAchievements' game list as last downloaded.

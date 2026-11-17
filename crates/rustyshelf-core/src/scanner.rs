@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
-use std::time::UNIX_EPOCH;
 
 use regex::Regex;
 
@@ -383,8 +382,8 @@ fn with_ext(p: &Path, ext: &str) -> PathBuf {
 }
 
 fn added_ms(m: &fs::Metadata) -> u64 {
-    let t = m.created().or_else(|_| m.modified()).ok();
-    t.and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64)
+    let t = m.created().or_else(|_| m.modified());
+    t.ok().and_then(crate::ms_of).unwrap_or(0)
 }
 
 fn walk_files(console: &Console, sc: &SystemConfig) -> Vec<PathBuf> {

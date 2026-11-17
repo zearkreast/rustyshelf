@@ -25,10 +25,6 @@ pub(super) struct ManualSearch {
     kept: std::sync::OnceLock<(std::collections::HashMap<String, String>, std::collections::HashSet<String>)>,
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 impl Settings {
     /// Where the chosen game's manual goes, and the name its art has: a PC game's on a console's shelf is kept with
     /// its art, under its id.
@@ -122,7 +118,7 @@ impl Settings {
         let (key, key2) = (g.key(), g.key());
         let locked = self.manual_stores().1.contains(&key);
         let flip = move |s: &mut Settings| {
-            Stores::load(&paths::data_dir(&s.app_root)).set_lock(&key, !locked, true, now_ms());
+            Stores::load(&paths::data_dir(&s.app_root)).set_lock(&key, !locked, true, rustyshelf_core::js::date_now());
             s.manual_search.kept = Default::default();
             s.redraw = true;
         };
@@ -146,7 +142,7 @@ impl Settings {
                     let data = paths::data_dir(&s.app_root);
                     let (tx, rx) = channel();
                     std::thread::spawn(move || {
-                        let _ = tx.send(manuals::reject_manual(&Online, &data, &g, &now_ms));
+                        let _ = tx.send(manuals::reject_manual(&Online, &data, &g, &rustyshelf_core::js::date_now));
                     });
                     s.manual_search.rejecting = Some(Mutex::new(rx));
                     s.redraw = true;

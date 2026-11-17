@@ -282,14 +282,19 @@ fn number_of(s: &str) -> f64 {
 /// `new Date(ms).toISOString()`, for ms since 1970.
 pub fn iso_string(ms: i64) -> String {
     let (days, rest) = (ms.div_euclid(86_400_000), ms.rem_euclid(86_400_000));
+    let (y, m, d) = civil_from_days(days);
+    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.{:03}Z", rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60, rest % 1000)
+}
+
+/// Days since 1970 as a (year, month, day) date.
+pub fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let z = days + 719_468;
     let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
     let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
     let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
-    let y = yoe + era * 400 + i64::from(m <= 2);
-    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.{:03}Z", rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60, rest % 1000)
+    (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
 /// JS `Date.now()`: milliseconds since 1970, as a number.

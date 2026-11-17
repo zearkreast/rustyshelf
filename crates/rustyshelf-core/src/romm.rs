@@ -11,13 +11,13 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::js;
+use crate::{js, now_ms};
 
 const PAGE: usize = 1000;
 const PAGE_PAUSE: Duration = Duration::from_millis(40);
@@ -111,10 +111,6 @@ fn io_error(e: std::io::Error) -> Error {
     }
 }
 
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
-}
-
 fn is_http(u: &str) -> bool {
     u.len() >= 7 && (u[..7].eq_ignore_ascii_case("http://") || u.get(..8).is_some_and(|p| p.eq_ignore_ascii_case("https://")))
 }
@@ -148,16 +144,6 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
-fn civil_from_days(days: i64) -> (i64, i64, i64) {
-    let z = days + 719_468;
-    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
-    (yoe + era * 400 + i64::from(m <= 2), m, d)
-}
-
 /// `Date.parse` of an ISO 8601 date (RomM's `updated_at`), in ms; 0 when it isn't one. A time without a zone is
 /// taken as UTC.
 fn parse_iso(s: &str) -> i64 {
@@ -183,13 +169,6 @@ fn parse_iso(s: &str) -> i64 {
     ((days * 86_400 + n(4) * 3600 + n(5) * 60 + n(6)) - offset * 60) * 1000 + ms
 }
 
-/// `new Date(ms).toISOString()`.
-fn iso(ms: u64) -> String {
-    let (days, rest) = ((ms / 86_400_000) as i64, ms % 86_400_000);
-    let (y, m, d) = civil_from_days(days);
-    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.{:03}Z", rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60, rest % 1000)
-}
-
 /// A release date as "1990-01-02": RomM gives ms, seconds, or a date.
 fn date_of(v: Option<&Value>) -> Option<String> {
     let mut t = match num(v) {
@@ -202,7 +181,7 @@ fn date_of(v: Option<&Value>) -> Option<String> {
     if t < 1e11 {
         t *= 1000.0;
     }
-    let (y, m, d) = civil_from_days((t / 86_400_000.0).floor() as i64);
+    let (y, m, d) = js::civil_from_days((t / 86_400_000.0).floor() as i64);
     Some(format!("{y:04}-{m:02}-{d:02}"))
 }
 
@@ -1635,7 +1614,7 @@ impl Romm {
         c.games = games;
         c.platforms = platforms;
         c.skipped = Some(skipped);
-        c.at = Some(iso(now_ms()));
+        c.at = Some(js::iso_string(now_ms() as i64));
         if so != self.sign_outs.load(Ordering::Relaxed) {
             return Shown { error: Some(Error::SignedOut), ..self.out(&c) };
         }
@@ -2237,7 +2216,7 @@ mod tests {
     fn dates() {
         assert_eq!(parse_iso("2026-01-01T00:00:00.000Z"), 1_767_225_600_000);
         assert_eq!(parse_iso("2026-01-01T02:00:00.123456+02:00"), 1_767_225_600_123);
-        assert_eq!(iso(1_767_225_600_123), "2026-01-01T00:00:00.123Z");
+        assert_eq!(js::iso_string(1_767_225_600_123), "2026-01-01T00:00:00.123Z");
         assert_eq!(date_of(Some(&json!(631_152_000_000u64 + 86_400_000))).as_deref(), Some("1990-01-02"));
         assert_eq!(date_of(Some(&json!(631_152_000))).as_deref(), Some("1990-01-01"));
         assert_eq!(date_of(Some(&json!(null))), None);

@@ -12,7 +12,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, LazyLock, Mutex};
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::Duration;
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -622,7 +622,7 @@ impl ScreenScraper {
         if !meta.is_file() || meta.len() > HASH_MAX || meta.len() < 1 {
             return None;
         }
-        let changed = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis());
+        let changed = meta.modified().ok().and_then(crate::ms_of).unwrap_or(0);
         let key = format!("{}|{}|{changed}", file.to_lowercase(), meta.len());
         let text = |v: &Value| v.as_str().unwrap_or("").to_string();
         if let Some(hit) = self.cache(|c| c.hashes.get(&key).map(|h| [text(&h[0]), text(&h[1]), text(&h[2])])) {

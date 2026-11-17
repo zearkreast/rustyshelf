@@ -77,7 +77,7 @@ impl Settings {
             let mut errs = Vec::new();
             let (r, s) = std::thread::scope(|sc| {
                 let r = sc.spawn(|| ra.trophies(force));
-                let s = sc.spawn(|| steam.trophies(force, now_s()));
+                let s = sc.spawn(|| steam.trophies(force, rustyshelf_core::js::date_now() / 1000.0));
                 (r.join().unwrap_or(Ok(None)), s.join().unwrap_or(Ok(None)))
             });
             let mut keep = |got: Result<Option<Value>, String>| got.unwrap_or_else(|e| {
@@ -375,8 +375,4 @@ fn summary(p: &Value, src: &str) -> String {
         "steam" => format!("{} of {} earned", p["earned"], p["total"]),
         _ => format!("{} of {} earned · {} of {} points", p["earned"], p["total"], p["pointsEarned"], p["points"]),
     }
-}
-
-fn now_s() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
 }

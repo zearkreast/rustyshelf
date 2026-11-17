@@ -6,7 +6,7 @@
 
 use std::io::{Read, Write};
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde_json::{json, Value};
 
@@ -114,7 +114,7 @@ impl Worker {
 
     fn flush(&mut self) {
         let Some(pipe) = self.pipe.as_mut() else { return };
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis()).to_string();
+        let nonce = crate::now_ms().to_string();
         let msg = json!({ "cmd": "SET_ACTIVITY", "args": { "pid": std::process::id(), "activity": self.want }, "nonce": nonce });
         // its answer is read so the socket never fills
         if pipe.write_all(&frame(FRAME, &msg)).is_err() || read_frame(pipe.as_mut()).is_none() {
@@ -142,7 +142,7 @@ impl Worker {
                 }
             }
             Msg::Game { title, shelf, image } if self.on => {
-                let start = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+                let start = crate::now_ms() / 1000;
                 self.want = Some(activity(&title, &shelf, &image, start));
                 if self.pipe.is_some() {
                     self.flush();

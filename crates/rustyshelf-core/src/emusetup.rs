@@ -954,7 +954,7 @@ impl Setup<'_> {
         }
         let at = rec.get("at").and_then(Value::as_u64).unwrap_or(0);
         for f in listed("files") {
-            let mtime = Path::new(&f).metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64);
+            let mtime = crate::files::mtime_ms(Path::new(&f)).unwrap_or(0);
             if mtime != 0 && at != 0 && mtime > at + 5000 {
                 continue;
             }
@@ -985,7 +985,7 @@ impl Setup<'_> {
         let file = self.main_file(kind, exe);
         let rec = self.manifest().get(&Self::key_of(kind, exe)).filter(|r| js::truthy(Some(r))).cloned();
         let modified = file.as_ref().and_then(|f| Path::new(f).metadata().ok()).filter(|m| m.is_file()).and_then(|m| m.modified().ok());
-        let age = modified.and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|t| now.saturating_sub(t.as_millis() as u64));
+        let age = modified.and_then(crate::ms_of).map(|t| now.saturating_sub(t));
         let p = self.plan(kind, exe, &Options::default());
         let done = rec.as_ref().map(|r| {
             let groups = r.get("groups").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default();

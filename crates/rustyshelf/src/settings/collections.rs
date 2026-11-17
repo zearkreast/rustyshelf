@@ -40,7 +40,7 @@ impl Settings {
                 return;
             }
             None => {
-                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+                let now = u128::from(rustyshelf_core::now_ms());
                 // the id the Electron app gives one: "c" and the time in base 36
                 list.push(json!({ "id": format!("c{}", custom::base36(now)), "name": name, "ids": [game] }));
             }
@@ -211,7 +211,7 @@ impl Settings {
             Some(c) => c["id"].as_str().unwrap_or("").to_string(),
             None if list.len() >= MOST => return self.say(format!("That's the most collections there can be ({MOST}).")),
             None => {
-                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+                let now = u128::from(rustyshelf_core::now_ms());
                 let id = format!("c{}", custom::base36(now));
                 list.push(json!({ "id": id, "name": name, "ids": [] }));
                 self.set(&["ui", "collections"], json!(list));
@@ -384,7 +384,7 @@ impl Settings {
             self.say(format!("That's the most collections there can be ({MOST})."));
             return;
         }
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        let now = u128::from(rustyshelf_core::now_ms());
         let name: String = genre.chars().take(LONGEST).collect();
         list.push(json!({ "id": format!("t{}", custom::base36(now)), "name": name, "ids": [], "tag": name }));
         self.set(&["ui", "collections"], json!(list));

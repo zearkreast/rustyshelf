@@ -5,18 +5,12 @@
 //! changes (its own modification time) or after a week.
 
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
 use serde_json::{json, Map, Value};
 
 use crate::js;
 
 const WEEK: f64 = 7.0 * 24.0 * 3_600_000.0;
-
-/// A folder's own modification time in ms; None when it isn't there.
-fn mtime_of(dir: &str) -> Option<u64> {
-    Path::new(dir).metadata().ok()?.modified().ok()?.duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis() as u64)
-}
 
 /// `du` prints bytes with -b (GNU, Linux); BSD / macOS du counts kilobytes with -k.
 #[cfg(unix)]
@@ -69,7 +63,7 @@ impl DirSizes {
         if dir.is_empty() || !js::is_absolute(dir) {
             return false;
         }
-        let Some(m) = mtime_of(dir) else { return false };
+        let Some(m) = crate::files::mtime_ms(Path::new(dir)) else { return false };
         match self.cache.get(dir) {
             Some(c) => js::number(c.get("mtime")) != m as f64 || crate::now_ms() as f64 - js::number(c.get("at")) > WEEK,
             None => true,
@@ -83,7 +77,7 @@ impl DirSizes {
             if !self.stale(dir) {
                 continue;
             }
-            let Some(m) = mtime_of(dir) else { continue };
+            let Some(m) = crate::files::mtime_ms(Path::new(dir)) else { continue };
             let bytes = measure(dir);
             changed |= self.cache.get(dir).and_then(|c| c.get("bytes")).and_then(Value::as_f64) != Some(bytes as f64);
             self.cache.insert(dir.clone(), json!({ "bytes": bytes, "mtime": m, "at": crate::now_ms() }));

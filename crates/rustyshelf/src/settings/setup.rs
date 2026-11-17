@@ -30,13 +30,8 @@ fn about(group: &str) -> &'static str {
 
 /// The day (UTC) of a time in ms since 1970, as "November 21, 1999".
 pub(super) fn day(ms: u64) -> String {
-    let z = (ms / 86_400_000) as i64 + 719_468;
-    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
-    format!("{} {d}, {}", MONTHS[(m - 1) as usize], yoe + era * 400 + i64::from(m <= 2))
+    let (y, m, d) = rustyshelf_core::js::civil_from_days((ms / 86_400_000) as i64);
+    format!("{} {d}, {y}", MONTHS[(m - 1) as usize])
 }
 
 fn names(groups: &[impl AsRef<str>]) -> String {

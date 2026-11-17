@@ -51,7 +51,7 @@ impl Settings {
             return;
         }
         let title = pcgames::title_from_exe(exe);
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        let now = u128::from(rustyshelf_core::now_ms());
         // the id the Electron app gives one: the time in base 36
         list.push(json!({ "id": base36(now), "title": title, "exe": exe, "args": "" }));
         self.set(&["pc", "custom"], json!(list));

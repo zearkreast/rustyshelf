@@ -249,7 +249,7 @@ fn add_titles(list: &serde_json::Value, titles: &mut serde_json::Map<String, ser
 pub fn refresh(data_dir: &Path) -> Result<bool, String> {
     const WEEK: f64 = 7.0 * 86_400_000.0;
     let file = data_dir.join("x360-titles.json");
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let now = crate::now_ms();
     let saved: Option<serde_json::Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
     if saved.as_ref().is_some_and(|j| j.get("titles").is_some_and(|t| t.is_object()) && now as f64 - crate::js::number(j.get("at").or(Some(&serde_json::Value::Null))) < WEEK) {
         return Ok(false);

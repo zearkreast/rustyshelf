@@ -14,7 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -45,18 +45,10 @@ fn inside(p: &Path, root: &Path) -> bool {
 
 /// The time as an export's folder is named after it ("2026-11-14 21-40", by UTC), and as its manifest has it.
 fn stamps() -> (String, String) {
-    let ms = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
-    let (days, rest) = ((ms / 86_400_000) as i64, ms % 86_400_000);
-    // civil date from days since 1970 (Howard Hinnant's algorithm)
-    let z = days + 719_468;
-    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
-    let y = yoe + era * 400 + i64::from(m <= 2);
-    let (h, min, s) = (rest / 3_600_000, rest / 60_000 % 60, rest / 1000 % 60);
-    (format!("{y:04}-{m:02}-{d:02} {h:02}-{min:02}"), format!("{y:04}-{m:02}-{d:02}T{h:02}:{min:02}:{s:02}.{:03}Z", rest % 1000))
+    let ms = crate::now_ms();
+    let (y, m, d) = crate::js::civil_from_days((ms / 86_400_000) as i64);
+    let rest = ms % 86_400_000;
+    (format!("{y:04}-{m:02}-{d:02} {:02}-{:02}", rest / 3_600_000, rest / 60_000 % 60), crate::js::iso_string(ms as i64))
 }
 
 /// A file to copy: where it is, its path under what's being copied ("" for a single file), its size and when it

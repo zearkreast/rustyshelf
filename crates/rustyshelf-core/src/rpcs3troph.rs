@@ -138,7 +138,7 @@ type Titles = (String, HashMap<String, String>);
 /// Each trophy set's game name (as matched) → its folder, kept until the trophy folder changes.
 fn titles_of(root: &Path, dirs: &[String]) -> HashMap<String, String> {
     static MEMO: LazyLock<Mutex<HashMap<PathBuf, Titles>>> = LazyLock::new(Default::default);
-    let stamp = std::fs::metadata(root).and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis());
+    let stamp = crate::files::mtime_ms(root).unwrap_or(0);
     let key = format!("{stamp}|{}", dirs.len());
     if let Some((k, map)) = MEMO.lock().unwrap().get(root) {
         if *k == key {

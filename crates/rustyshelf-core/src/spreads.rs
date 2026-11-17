@@ -164,15 +164,10 @@ pub fn split_manual(dir: &Path, base: &str, opts: Split) -> Result<usize, String
 /// that already holds a backup.
 pub fn backup_dir(dir: &Path, base: &str) -> std::io::Result<PathBuf> {
     let root = dir.join(".manual-originals").join(base);
-    let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64);
+    let ms = crate::now_ms() as i64;
     let (days, rest) = (ms.div_euclid(86_400_000), ms.rem_euclid(86_400_000));
-    let z = days + 719_468;
-    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
-    let stamp = format!("{:04}-{m:02}-{d:02}T{:02}-{:02}-{:02}-{:03}", yoe + era * 400 + i64::from(m <= 2), rest / 3_600_000, rest % 3_600_000 / 60_000, rest % 60_000 / 1000, rest % 1000);
+    let (y, m, d) = crate::js::civil_from_days(days);
+    let stamp = format!("{y:04}-{m:02}-{d:02}T{:02}-{:02}-{:02}-{:03}", rest / 3_600_000, rest % 3_600_000 / 60_000, rest % 60_000 / 1000, rest % 1000);
     fs::create_dir_all(&root)?;
     for i in 0.. {
         let d = root.join(if i == 0 { stamp.clone() } else { format!("{stamp}-{i}") });

@@ -168,10 +168,6 @@ fn stretched(image: Handle<Image>) -> ImageNode {
     ImageNode { image, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..default() }
 }
 
-fn wall_ms() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64)
-}
-
 /// Opens and closes the menu, takes the keys and the pads while it's open, and does what's chosen.
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -190,7 +186,7 @@ pub fn run(
     mut stick: Local<(i32, i32)>,
 ) {
     let home = &mut *home;
-    let (now, wall) = (time.elapsed_secs(), wall_ms());
+    let (now, wall) = (time.elapsed_secs(), rustyshelf_core::js::date_now());
     let (enabled, center, swap_ab, glyphs) = settings.home_menu();
     let LibraryState::Ready(l) = &lib.0 else { return };
 
@@ -524,7 +520,7 @@ pub fn draw(
         (home.minute, home.fresh) = (minute, true);
     }
     if let Some(menu) = home.menu.as_ref().filter(|_| std::mem::take(&mut home.fresh)) {
-        let (title, line) = menu.heading(home.game.as_ref().map_or(0.0, |g| g.started), wall_ms());
+        let (title, line) = menu.heading(home.game.as_ref().map_or(0.0, |g| g.started), rustyshelf_core::js::date_now());
         // Mona Sans has the Latin letters only: arrows and a pad's own signs are set in the font with more
         let font = |words: &str, weight: u32, size: f32| match &face {
             Some(face) if words.chars().any(|c| c >= '\u{2190}') => TextFont::from_font_size(bevy::text::FontSize::Px(size)).with_font(face.0.clone()),

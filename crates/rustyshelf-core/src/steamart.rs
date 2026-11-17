@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::Duration;
 
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -251,8 +251,8 @@ pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
     // (".noart": the ".missing" and ".nocover" marks were set before the store API was asked right, and aren't trusted)
     let missed = |name: &str| dir.join(format!("{name}.noart"));
     let recently_missed = |name: &str| {
-        let at = missed(name).metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok());
-        at.is_some_and(|t| (crate::now_ms() as f64 - t.as_millis() as f64) < RETRY)
+        let at = crate::files::mtime_ms(&missed(name));
+        at.is_some_and(|t| (crate::now_ms() as f64 - t as f64) < RETRY)
     };
     let remember = |name: &str| {
         let _ = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(missed(name), b""));

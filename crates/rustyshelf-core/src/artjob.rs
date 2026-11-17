@@ -217,7 +217,7 @@ impl Studio {
 /// The best version of a game's part for `look`, from every source, put in use. Whether the picture changed (false
 /// also when no version could be had).
 pub fn pick_by_look(st: &Studio, data_dir: &Path, g: &mut GameArt, part: &str, look: &str, style: &Value) -> Result<bool, String> {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+    let now = crate::js::date_now();
     let region = studio::region_for_look(style, look, &g.region);
     let ask = Ask { wiki: true, posters: look == "hd", ss_cache_only: true };
     let list = st.list_for(g, part, Remote::new(data_dir, &g.sys).cands(g, part, &region, ask, now), now);
@@ -305,7 +305,7 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
     let (sets_full, sets_partial, sets_skipped) = (AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(locked));
     let offline = AtomicBool::new(false);
     let stop = || job.cancel.load(Ordering::Relaxed) || offline.load(Ordering::Relaxed);
-    let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+    let now = || crate::js::date_now();
     // two games at a time
     std::thread::scope(|s| {
         for _ in 0..work.len().min(2) {

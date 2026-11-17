@@ -2729,7 +2729,7 @@ fn last_played(ms: u64) -> String {
     if ms == 0 {
         return "Never".into();
     }
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let now = rustyshelf_core::now_ms();
     match now.saturating_sub(ms) / 86_400_000 {
         0 => "Today".into(),
         1 => "Yesterday".into(),

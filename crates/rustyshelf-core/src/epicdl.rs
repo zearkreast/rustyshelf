@@ -8,12 +8,12 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use regex::Regex;
 use serde_json::{json, Value};
 
-use crate::js;
+use crate::{js, now_ms};
 use crate::linuxpc::{self, Proc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,10 +98,6 @@ struct Shared {
     data_dir: PathBuf,
     hooks: Hooks,
     inner: Mutex<Inner>,
-}
-
-fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
 fn list_dir(d: &str) -> HashSet<String> {

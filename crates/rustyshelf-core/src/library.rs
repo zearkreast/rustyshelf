@@ -503,7 +503,7 @@ pub fn upkeep(lib: &Library) -> bool {
     // (before any picture is replaced: an HD upgrade asks it)
     if !crate::provenance::looked() {
         let art: Vec<PathBuf> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).flat_map(|s| &s.games).flat_map(|g| [&g.art.front, &g.art.back, &g.art.spine, &g.art.disc]).flatten().cloned().collect();
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+        let now = crate::now_ms();
         crate::provenance::first_look(&art, &data_dir.join("art-cand"), now);
     }
     if cfg!(target_os = "linux") {
@@ -561,7 +561,7 @@ fn auto_manuals(lib: &Library, data_dir: &Path) -> bool {
     if all.is_empty() {
         return false;
     }
-    let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_millis() as f64);
+    let now = || crate::js::date_now();
     let mut stores = Stores::load(data_dir);
     let games: Vec<manualcoll::Game> = all.iter().map(|g| g.0.clone()).collect();
     // (the collections are English, North American: not for a console set to another language or region)
@@ -664,7 +664,7 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
         Some(Value::Object(m)) => m,
         _ => serde_json::Map::new(),
     };
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let now = crate::now_ms();
     // a made back or spine still wants a real scan
     let incomplete = |g: &Game| g.art.front.is_none() || g.art.back.is_none() || g.art.made_back || g.art.spine.is_none() || g.art.made_spine;
     let mut wanted = Vec::new();
@@ -761,7 +761,7 @@ fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
         .filter(|g| g.box_plat.is_none() && (g.art.back.is_none() || g.art.made_back))
         .filter_map(crate::pcbacks::Want::of)
         .collect();
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let now = crate::now_ms();
     // a port or recomp not in a console's folder: its console looked up by its title, as a recomp's is
     let loose: Vec<(String, String)> = lib
         .shelves
@@ -804,7 +804,7 @@ fn recomp_consoles(lib: &Library, data_dir: &Path) -> bool {
         })
         .collect();
     let shelves: HashSet<&str> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).map(|s| s.id.as_str()).collect();
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    let now = crate::now_ms();
     !games.is_empty() && crate::recomps::detect(data_dir, &data_dir.join("boxart-cache"), &games, &shelves, now)
 }
 
