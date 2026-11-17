@@ -45,6 +45,7 @@ mod phone;
 mod romm;
 pub mod setup;
 mod storage;
+mod streaming;
 mod sw2;
 mod text;
 mod trophies;
@@ -103,6 +104,7 @@ enum Screen {
     Trophies,
     Phone,
     Romm,
+    GameStreaming,
     /// (Linux) the Epic account's games, and the downloads
     EpicLibrary,
     EpicDownloads,
@@ -215,6 +217,7 @@ enum Pick {
     /// a Switch 2 emulator for the list Play shows, and a folder of them
     Sw2Build,
     Sw2Folder,
+    Moonlight,
 }
 
 #[derive(Resource)]
@@ -338,6 +341,7 @@ pub struct Settings {
     pub reload_music: bool,
     romm: romm::RommUi,
     epic: linuxpc::EpicUi,
+    streaming: streaming::StreamingUi,
 }
 
 /// Settings → Sounds.
@@ -439,6 +443,7 @@ impl Default for Settings {
             reload_music: false,
             romm: Default::default(),
             epic: Default::default(),
+            streaming: Default::default(),
         };
         SCALE.store(s.ui_scale().to_bits(), std::sync::atomic::Ordering::Relaxed);
         s
@@ -1131,6 +1136,7 @@ impl Settings {
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
             Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
             Pick::PortsDir => self.set(&["pc", "portsDir"], json!(p)),
+            Pick::Moonlight => self.set(&["moonlight", "path"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
             Pick::ArtDir(id) => self.set(&["systems", &id, "artDir"], json!(p)),
             Pick::CustomGame => self.add_custom(&p),
@@ -1198,6 +1204,12 @@ impl Settings {
                     open("Consoles", String::new(), "Each console's emulator and games folders", Screen::Consoles),
                     open("PC games and apps", String::new(), "Steam, the other stores, the PC games folder, the streaming apps", Screen::Pc),
                     open("Custom games", String::new(), "Recomps, PC ports and any other program, added by hand", Screen::Custom),
+                ]);
+                // Moonlight's command line is a desktop program's
+                if !cfg!(target_os = "android") {
+                    rows.push(open("Game streaming", on_off(self.flag(&["moonlight", "enabled"], false)), "Games from your other PC through Moonlight, on a Game streaming shelf.", Screen::GameStreaming));
+                }
+                rows.extend([
                     open("Collections", String::new(), "Shelves you make yourself, mixing games from any console: make one, name it, search for games to put on it.", Screen::Collections),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                 ]);
@@ -2440,6 +2452,7 @@ impl Settings {
             Screen::Accounts => self.accounts_page(),
             Screen::Phone => self.phone_page(),
             Screen::Romm => self.romm_page(),
+            Screen::GameStreaming => self.streaming_page(),
             Screen::EpicLibrary => self.epic_library_page(),
             Screen::EpicDownloads => self.epic_downloads_page(),
             Screen::WhatsNew => self.whatsnew_page(),
@@ -2637,6 +2650,7 @@ pub fn input(
     if s.gpu_vendor.is_none() {
         s.gpu_vendor = adapter.map(|a| a.vendor);
     }
+    s.poll_streaming(time.elapsed_secs(), playing.title.is_some());
     if s.keys_taken {
         return;
     }
