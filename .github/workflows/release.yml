@@ -1,5 +1,6 @@
-# RustyShelf release: the builds (build.yml), then a GitHub release vA.B.C.0 with them, as the latest release. Called by
-# build-release-check.yml for a "For version A.B.C" commit.
+# RustyShelf release: the builds (build.yml), then a GitHub release vA.B.C with them and their SHA-256 sums, marked as the
+# latest release. Called by build-release-check.yml for a "For version A.B.C" commit.
+# The release's text is .github/release-notes/vA.B.C.md when that file is there, else the commit message.
 name: Release
 
 on:
@@ -29,6 +30,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       code: ${{ inputs.code }}
+      signed: true
 
   publish:
     name: Publish the release
@@ -36,10 +38,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/release-notes
       - uses: actions/download-artifact@v4
         with:
           path: out
           merge-multiple: true
+      - name: Sums
+        working-directory: out
+        run: sha256sum RustyShelf-* > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,5 +56,9 @@ jobs:
           VERSION: ${{ inputs.version }}
           TARGET: ${{ github.sha }}
         run: |
-          printf '%s\n' "$NOTES" > notes.md
-          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$TARGET" --title "RustyShelf $VERSION" --notes-file notes.md
+          if [ -f ".github/release-notes/$TAG.md" ]; then
+            cp ".github/release-notes/$TAG.md" notes.md
+          else
+            printf '%s\n' "$NOTES" > notes.md
+          fi
+          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$TARGET" --title "RustyShelf $VERSION" --notes-file notes.md --latest

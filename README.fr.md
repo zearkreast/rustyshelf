@@ -21,15 +21,16 @@
 Les jeux de console émulés, les jeux Steam et autres jeux PC se tiennent côte à côte comme de vraies boîtes sur une
 étagère, et se jouent avec une seule manette.
 
-> **Cette branche est l'application native, en Rust.** C'est une alpha, pas encore complète. L'application Electron dont
+> **Cette branche est l'application native, en Rust.** Une partie de l'application Electron n'y est pas encore. L'application Electron dont
 > elle est réécrite (et son application Android, faite avec Capacitor) se trouve sur la branche
 > [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron). Les deux lisent les mêmes réglages
 > et les mêmes données : une configuration faite dans l'une fonctionne dans l'autre. Le musée reste propre à Electron.
 
 ## Installation
 
-Les alphas pour Windows et Android sont sur la [page des releases](https://github.com/zearkreast/rustyshelf/releases).
-Ou lancez-la depuis les sources :
+Les versions pour Windows, Linux et Android sont sur la [page des releases](https://github.com/zearkreast/rustyshelf/releases) :
+`RustyShelf-<version>-windows.exe` (sans installateur), `RustyShelf-<version>-linux.AppImage` et
+`RustyShelf-<version>-android.apk`. Ou lancez-la depuis les sources :
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

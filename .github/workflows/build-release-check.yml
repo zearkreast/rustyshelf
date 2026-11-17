@@ -2,9 +2,9 @@
 # (scripts/release-version.js) and decides one of four things, all of them about the native app (crates/):
 #   none     a normal commit: this run finishes here, nothing else runs
 #   build    "For build…" → calls build.yml: the Windows, Linux and Android builds, kept as the run's downloads
-#   release  "For version A.B.C" → calls release.yml: the same builds, then a GitHub release vA.B.C.0
+#   release  "For version A.B.C" → calls release.yml: the same builds, then the latest release vA.B.C
 #   alpha    "For alpha" → calls alpha.yml: Windows and Android, as a prerelease vA.B.C-alpha.N
-# The version is A.B.C.DDDD, A.B.C the Cargo workspace's version and DDDD the build of it; Android's versionCode grows
+# A.B.C is the Cargo workspace's version; a build is A.B.C.DDDD, DDDD the build of it. Android's versionCode grows
 # with every build. The Electron app's builds are on the archive/electron branch.
 name: Build/release check
 

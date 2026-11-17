@@ -12,6 +12,9 @@ on:
       code:
         type: string
         required: true
+      signed:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -134,14 +137,34 @@ jobs:
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           cargo ndk -t arm64-v8a -P 26 -o crates/rustyshelf/android/app/src/main/jniLibs build --release --locked -p rustyshelf --lib
-      # (signed with the debug key: installable by hand)
+      # Signed with RustyShelf's key (the ANDROID_KEYSTORE_* secrets) when it's there, else with a debug key made for
+      # this run, which a later APK can't install over; a release (`signed`) stops without the key
       - name: Build the APK
         working-directory: crates/rustyshelf/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SIGNED: ${{ inputs.signed }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace -PrsVersionName="${{ inputs.version }}" -PrsVersionCode="${{ inputs.code }}"
           mkdir -p "$GITHUB_WORKSPACE/out"
-          mv app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/RustyShelf-${{ inputs.version }}-android.apk"
+          OUT="$GITHUB_WORKSPACE/out/RustyShelf-${{ inputs.version }}-android.apk"
+          ARGS=(--no-daemon --stacktrace -PrsVersionName="${{ inputs.version }}" -PrsVersionCode="${{ inputs.code }}")
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            export RS_KEYSTORE="$RUNNER_TEMP/rustyshelf.jks"
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RS_KEYSTORE"
+            ./gradlew assembleRelease "${ARGS[@]}"
+            mv app/build/outputs/apk/release/app-release.apk "$OUT"
+            rm -f "$RS_KEYSTORE"
+          elif [ "$SIGNED" = "true" ]; then
+            echo "::error::A release needs RustyShelf's Android key: the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets"
+            exit 1
+          else
+            ./gradlew assembleDebug "${ARGS[@]}"
+            mv app/build/outputs/apk/debug/app-debug.apk "$OUT"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: android

@@ -21,15 +21,16 @@
 Emülatörle oynanan konsol oyunları, Steam ve diğer PC oyunları bir rafta gerçek kutular olarak yan yana durur; hepsi
 tek bir oyun koluyla oynanır.
 
-> **Bu dal Rust ile yazılmış yerel uygulamadır.** Alfa sürümündedir, henüz tamamlanmadı. Yeniden yazıldığı Electron
+> **Bu dal Rust ile yazılmış yerel uygulamadır.** Electron uygulamasındaki her şey henüz gelmedi. Yeniden yazıldığı Electron
 > uygulaması (ve Capacitor ile yapılmış Android uygulaması)
 > [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron) dalındadır. İkisi de aynı ayarları ve
 > verileri okur; birinde yapılan kurulum diğerinde de çalışır. Müze yalnızca Electron'da kalıyor.
 
 ## Kurulum
 
-Windows ve Android alfaları [sürümler sayfasında](https://github.com/zearkreast/rustyshelf/releases). Ya da kaynaktan
-çalıştırın:
+Windows, Linux ve Android sürümleri [sürümler sayfasında](https://github.com/zearkreast/rustyshelf/releases):
+`RustyShelf-<sürüm>-windows.exe` (kurulumsuz), `RustyShelf-<sürüm>-linux.AppImage` ve
+`RustyShelf-<sürüm>-android.apk`. Ya da kaynaktan çalıştırın:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

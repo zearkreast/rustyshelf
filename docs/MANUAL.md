@@ -16,7 +16,7 @@ PC games all stand side by side as real boxes on a shelf, and play with one cont
 |---|---|
 | **Runs on** | Windows, Linux (Steam Deck included), Android (in progress) |
 | **Licence** | [GNU GPL v3.0](../LICENSE) |
-| **Downloads** | Alphas on the [releases page](https://github.com/zearkreast/rustyshelf/releases) |
+| **Downloads** | Windows, Linux and Android builds on the [releases page](https://github.com/zearkreast/rustyshelf/releases) |
 | **Status** | Alpha: a native rewrite in Rust of the Electron app, which is kept on the [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron) branch |
 
 ## Where RustyShelf comes from
@@ -229,7 +229,7 @@ complete yet.
   settings there were as a backup file, and starts RustyShelf again.
 - Tells you the newest release when asked (Settings → System → Check for a new version), comparing versions
   as the Electron app does, and opens its page; nothing is downloaded or installed, and it doesn't ask by
-  itself at start yet, since the releases are still the Electron app's.
+  itself at start yet.
 - Reads a game's manual (Details → Read the manual) when its pages are beside its box art, where the Electron
   app keeps them: the cover on its own, then the pages in pairs like an open booklet, ← → to turn. A PDF manual
   is drawn into pages by the Electron app's rule (1600 pixels across, 80 pages at most, the PDF removed once all
@@ -384,13 +384,18 @@ what to do from the commit message:
 |---|---|
 | Nothing special | The check stops; nothing is built |
 | `For build` | The Windows exe, the Linux AppImage and the Android APK are built (`build.yml`) and kept as the run's downloads for 14 days; no release |
-| `For version 0.2.0` | The same builds, then a GitHub release `0.2.0.0` (`release.yml`), marked as the latest |
+| `For version 0.5.0` | The same builds, then the GitHub release `v0.5.0` (`release.yml`) with their SHA-256 sums, marked as the latest; its text is `.github/release-notes/v0.5.0.md` when that file is there, else the commit message |
 | `For alpha` | The Windows exe and the Android APK, published as a prerelease `A.B.C-alpha.N` (`alpha.yml`) |
 
-Versions look like `A.B.C.DDDD`: `A.B.C` is the Cargo workspace's version (`Cargo.toml`), which the app shows, and `DDDD`
-the build of it. `For build` and `For version` fail when they name another version than Cargo's: change the workspace
+A release is `A.B.C`, the Cargo workspace's version (`Cargo.toml`), which the app shows; a build is `A.B.C.DDDD`, `DDDD`
+the build of it, counted from the release. `For build` and `For version` fail when they name another version than Cargo's: change the workspace
 version first. A `For version` commit also fails if that version has already been released. `For build` only counts as
 a phrase on its own, followed by a version, punctuation or the end of the line.
+
+The Android APK is signed with RustyShelf's own key when the repository has the `ANDROID_KEYSTORE_BASE64` (the
+keystore file in base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` secrets, so each
+one installs over the one before. Without them a build or an alpha gets a debug key made for that run, and a release
+stops.
 
 `node scripts/push-build.js "Build: what it is"` creates that build commit, pushes it and returns immediately.
 `--status` shows how the latest runs are going.

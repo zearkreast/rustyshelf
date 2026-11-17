@@ -90,14 +90,29 @@ jobs:
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           cargo ndk -t arm64-v8a -P 26 -o crates/rustyshelf/android/app/src/main/jniLibs build --release --locked -p rustyshelf --lib
-      # (signed with the debug key, as the Capacitor app's APK is: installable by hand)
+      # (signed with RustyShelf's key when the ANDROID_KEYSTORE_* secrets are there, else with a debug key made for this run)
       - name: Build the APK
         working-directory: crates/rustyshelf/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace -PrsVersionName="${{ inputs.version }}" -PrsVersionCode="${{ github.run_number }}"
           mkdir -p "$GITHUB_WORKSPACE/out"
-          mv app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/RustyShelf-native-${{ inputs.version }}-android.apk"
+          OUT="$GITHUB_WORKSPACE/out/RustyShelf-native-${{ inputs.version }}-android.apk"
+          ARGS=(--no-daemon --stacktrace -PrsVersionName="${{ inputs.version }}" -PrsVersionCode="${{ github.run_number }}")
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            export RS_KEYSTORE="$RUNNER_TEMP/rustyshelf.jks"
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RS_KEYSTORE"
+            ./gradlew assembleRelease "${ARGS[@]}"
+            mv app/build/outputs/apk/release/app-release.apk "$OUT"
+            rm -f "$RS_KEYSTORE"
+          else
+            ./gradlew assembleDebug "${ARGS[@]}"
+            mv app/build/outputs/apk/debug/app-debug.apk "$OUT"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: alpha-android

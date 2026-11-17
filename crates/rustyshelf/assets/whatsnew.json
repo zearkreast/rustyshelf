@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.5.0", "name": "0.5.0", "date": "2026-11-17", "title": "The first stable release of the native app",
+    "highlights": [
+      "The first stable release, for Windows, Linux and Android",
+      "Game streaming: games from another PC through Moonlight",
+      "Covers for Steam, store and added games, and console boxes for PC games",
+      "The Art Studio: lock a game, back to the shelf style, filters, and Art match",
+      "Less stutter on the shelf and in Settings"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Game streaming", "With a host PC paired in Moonlight, its games stand on a Game streaming shelf and Play opens them fullscreen; a host with a MAC address is woken first. Settings → Game streaming."],
+        ["PC game covers", "Details → Box art chooses a Steam, store or added game's cover: Steam's own, SteamGridDB's, a search under another name or a picture of yours."],
+        ["Console boxes for PC games", "A PC game can wear the box of its console release, with its back and a PC band on the spine. The PC games gallery shows every cover and where it comes from."],
+        ["Backs of the box for PC games", "Your own picture, or LaunchBox's."],
+        ["Recomps in their console's case", "A program put on a console's shelf gets that console's whole case, the Art Studio and manuals. Put recomps on their console's shelf can do it by itself (off by default)."],
+        ["The Art Studio", "Lock this game keeps every part as it is, Back to the shelf style undoes a pick, and a part's versions can be filtered by region, source, type and edition."],
+        ["Art match", "For a ROM hack, translation or mod: look the game up under the original's name."],
+        ["Sort panel and quick menu", "G opens the Sort panel; a Menu tap or Tab opens the quick menu at the right, as in the Electron app."],
+        ["Look and controls", "Interface size, Open into, Reduce motion, Scroll speed, Controller rumble and the consoles' order."],
+        ["Motion", "Settings, Details and the shelf menu glide and fade as in the Electron app."],
+        ["Pastel Pop", "A bright pastel theme with glossy bubbles."],
+        ["French", "Zak's French merged in, with French and Turkish for the new pages."]
+      ] },
+      { "h": "Fixed", "items": [
+        ["Less stutter", "Covers land a few at a time, settings are written off the frame, and sorting and filtering run on a worker."],
+        ["Themes and voices stay chosen", "Newer themes and voices no longer go back to Spectrum and Aero after a restart."],
+        ["Settings from the shelf menu", "Opens with its tabs."]
+      ] }
+    ]
+  },
+  {
     "version": "0.2.0-alpha.6", "name": "0.2.0 alpha 6", "date": "2026-11-16", "title": "The Electron app's look",
     "highlights": [
       "Settings in the Electron app's look: a sidebar of tabs, a card that says what each row does",

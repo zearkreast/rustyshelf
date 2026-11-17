@@ -11,11 +11,26 @@ android {
         minSdk 26
         targetSdk 36
         versionCode((project.findProperty('rsVersionCode') ?: '1') as int)
-        versionName project.findProperty('rsVersionName') ?: '0.2.0'
+        versionName project.findProperty('rsVersionName') ?: '0.5.0'
         ndk { abiFilters 'arm64-v8a' }
     }
+    // RustyShelf's own key, from the CI's secrets: every release signed alike, so each installs over the one before
+    def keystore = System.getenv('RS_KEYSTORE')
+    signingConfigs {
+        if (keystore) {
+            rustyshelf {
+                storeFile file(keystore)
+                storePassword System.getenv('RS_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('RS_KEY_ALIAS')
+                keyPassword System.getenv('RS_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
-        release { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (keystore) signingConfig signingConfigs.rustyshelf
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

@@ -5786,7 +5786,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rustyshelf"
-version = "0.2.0"
+version = "0.5.0"
 dependencies = [
  "arboard",
  "bevy",
@@ -5803,7 +5803,7 @@ dependencies = [
 
 [[package]]
 name = "rustyshelf-core"
-version = "0.2.0"
+version = "0.5.0"
 dependencies = [
  "ab_glyph",
  "aes-gcm",

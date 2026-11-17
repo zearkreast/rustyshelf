@@ -21,7 +21,7 @@
 Emulated console games, Steam and other PC games all stand side by side as real boxes on a shelf, played with one
 controller.
 
-> **This branch is the native app, in Rust.** It's an alpha, not complete yet. The Electron app it is rewritten from (and
+> **This branch is the native app, in Rust.** Some of the Electron app isn't in it yet. The Electron app it is rewritten from (and
 > its Android app, made with Capacitor) is on the [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron)
 > branch. Both read the same settings and data, so a setup made in either works in both. The Museum stays Electron-only.
 
@@ -43,8 +43,9 @@ The manual lists [what works so far](docs/MANUAL.md#what-works) and what isn't i
 
 ## Install
 
-Alphas for Windows and Android are on the [releases page](https://github.com/zearkreast/rustyshelf/releases). Or run it
-from source:
+Windows, Linux and Android builds are on the [releases page](https://github.com/zearkreast/rustyshelf/releases):
+`RustyShelf-<version>-windows.exe` (no installer), `RustyShelf-<version>-linux.AppImage` and
+`RustyShelf-<version>-android.apk`. Or run it from source:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

@@ -21,15 +21,16 @@
 Консольные игры в эмуляторах, игры из Steam и другие игры для ПК стоят рядом на полке, как настоящие коробки, и для
 всего этого хватает одного геймпада.
 
-> **В этой ветке нативное приложение на Rust.** Это альфа-версия, ещё не полная. Приложение на Electron, с которого оно
+> **В этой ветке нативное приложение на Rust.** Часть возможностей приложения на Electron ещё не перенесена. Приложение на Electron, с которого оно
 > переписывается (и его приложение для Android на Capacitor), находится в ветке
 > [`archive/electron`](https://github.com/zearkreast/rustyshelf/tree/archive/electron). Оба читают одни и те же настройки и
 > данные, так что настройка, сделанная в одном, работает в другом. Музей остаётся только в версии на Electron.
 
 ## Установка
 
-Альфа-сборки для Windows и Android есть на [странице релизов](https://github.com/zearkreast/rustyshelf/releases). Или
-запустите из исходников:
+Сборки для Windows, Linux и Android есть на [странице релизов](https://github.com/zearkreast/rustyshelf/releases):
+`RustyShelf-<версия>-windows.exe` (без установщика), `RustyShelf-<версия>-linux.AppImage` и
+`RustyShelf-<версия>-android.apk`. Или запустите из исходников:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
