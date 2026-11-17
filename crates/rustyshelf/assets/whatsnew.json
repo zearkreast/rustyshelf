@@ -1,5 +1,30 @@
 [
   {
+    "version": "0.5.5", "name": "0.5.5", "date": "2026-11-17", "title": "An installer for Windows, Accounts by service and Trophies with pictures",
+    "highlights": [
+      "Windows: an installer, or a zip with the app and its data folder",
+      "Settings → Accounts: one page per service",
+      "Trophies with pictures, and Steam's rarity and points",
+      "Esc on the shelf opens the quick menu"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Windows installer and zip", "RustyShelf-<version>-windows-setup.exe installs for your user alone, no admin rights; the zip holds a RustyShelf folder with the app and its data folder."],
+        ["Accounts by service", "RetroAchievements, Steam, SteamGridDB, IGDB, ScreenScraper and RomM each have their own page; RetroAchievements lists whether each console's emulator is signed in."],
+        ["data/.env", "Every sign-in and key is also written there in plain text, one per line, to edit by hand or carry to another PC."],
+        ["Trophies", "T on the shelf opens it, with each game's icon and each achievement's badge, narrowed to RetroAchievements or Steam."],
+        ["Steam achievements", "Details shows how many players have each one and its points, to sort by rarity or points."],
+        ["LaunchBox's PC games", "The download shows how far it is."]
+      ] },
+      { "h": "Changed", "items": [
+        ["Esc on the shelf", "Opens the quick menu instead of closing RustyShelf; Exit is under Power."]
+      ] },
+      { "h": "Fixed", "items": [
+        ["PCSX2 and RetroAchievements", "PCSX2 2.x counts as signed in with its token in secrets.ini."]
+      ] }
+    ]
+  },
+  {
     "version": "0.5.0", "name": "0.5.0", "date": "2026-11-17", "title": "The first stable release of the native app",
     "highlights": [
       "The first stable release, for Windows, Linux and Android",
