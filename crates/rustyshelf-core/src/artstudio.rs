@@ -685,12 +685,8 @@ impl Studio {
                 list.push(c);
             }
         }
-        let mut dirs = vec![g.dir.clone()];
-        dirs.extend(cur.and_then(|c| c.parent()).map(Path::to_path_buf).filter(|d| *d != g.dir));
-        for d in dirs {
-            let old = d.join("replaced");
-            let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-            for (name, stamp) in covers::replaced_for(&names, &g.base, g.suffix(part)).into_iter().take(12) {
+        for (old, found) in replaced_pictures(g, part, cur.map(PathBuf::as_path)) {
+            for (name, stamp) in found.into_iter().take(12) {
                 let when = date_word(&stamp).map_or(String::new(), |w| format!(" · {w}"));
                 let mut c = local_cand(&old.join(name), "earlier", format!("Earlier{when}"));
                 c.in_use = false;
@@ -826,18 +822,26 @@ impl Studio {
 
     /// Puts back the picture a part had before the one in use.
     pub fn undo(&self, g: &mut GameArt, part: &str, now: f64) -> Result<(), String> {
-        let mut dirs = vec![g.dir.clone()];
-        dirs.extend(g.current[part_index(part)].as_ref().and_then(|c| c.parent()).map(Path::to_path_buf).filter(|d| *d != g.dir));
-        let mut earlier: Vec<(String, PathBuf)> = Vec::new();
-        for d in dirs {
-            let old = d.join("replaced");
-            let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-            earlier.extend(covers::replaced_for(&names, &g.base, g.suffix(part)).into_iter().map(|(name, stamp)| (stamp, old.join(name))));
-        }
+        let earlier: Vec<(String, PathBuf)> = replaced_pictures(g, part, g.current[part_index(part)].as_deref()).into_iter().flat_map(|(old, found)| found.into_iter().map(move |(name, stamp)| (stamp, old.join(name)))).collect();
         // (the newest stamp first; of two the same, the first found)
         let last = earlier.iter().fold(None::<&(String, PathBuf)>, |best, e| if best.is_none_or(|b| e.0 > b.0) { Some(e) } else { best }).ok_or("Nothing to undo")?.1.clone();
         self.restore(g, part, &last, now).map(|_| ())
     }
+}
+
+/// A part's pictures replaced before (name, stamp), newest first, in each `replaced` folder: the game's art folder's,
+/// then the one beside `cur` (the picture in use) when that's elsewhere.
+fn replaced_pictures(g: &GameArt, part: &str, cur: Option<&Path>) -> Vec<(PathBuf, Vec<(String, String)>)> {
+    let mut dirs = vec![g.dir.clone()];
+    dirs.extend(cur.and_then(Path::parent).map(Path::to_path_buf).filter(|d| *d != g.dir));
+    dirs.into_iter()
+        .map(|d| {
+            let old = d.join("replaced");
+            let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+            let found = covers::replaced_for(&names, &g.base, g.suffix(part));
+            (old, found)
+        })
+        .collect()
 }
 
 /// A picture by its first bytes, not its name: its type (with the dot), and its size where the header says it

@@ -3,9 +3,8 @@
 
 use std::sync::Arc;
 
-use rustyshelf_core::art::{art_base, ArtLibrary};
 use rustyshelf_core::manuals::{self, Candidate, Got, Online, Rejected, Stores};
-use rustyshelf_core::{manualcoll, paths, pccovers};
+use rustyshelf_core::{manualcoll, paths};
 
 use super::*;
 
@@ -29,16 +28,7 @@ impl Settings {
     /// Where the chosen game's manual goes, and the name its art has: a PC game's on a console's shelf is kept with
     /// its art, under its id.
     fn manual_place(&self) -> Option<(PathBuf, String)> {
-        let c = self.chosen.as_ref()?;
-        let console = systems().console(&c.console)?;
-        match c.game.source {
-            Source::Rom => {
-                let config = Config::from_value(&self.cfg)?;
-                Some((ArtLibrary::from_config(&config, &self.app_root).manual_dir_for(&config.system(console), &c.game.file, &self.app_root), art_base(&c.game.file)))
-            }
-            Source::Pc(_) => Some((paths::data_dir(&self.app_root).join("pc-covers"), pccovers::safe_id(&c.game.id))),
-            _ => None,
-        }
+        self.art_place(true)
     }
 
     /// Whether Details offers the search: a console's game, or a PC game on a console's shelf, with no manual yet.

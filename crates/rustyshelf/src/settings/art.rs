@@ -128,41 +128,42 @@ fn source_name(source: &str) -> &str {
 
 impl Settings {
     /// The chosen game as the Art Studio works on it, when it's a console's game or a PC game on a console's shelf.
-    fn art_game(&self) -> Option<GameArt> {
+    /// The folder the chosen game's art (or its manual, `manual`) goes in and the name its files start with: a PC
+    /// game's are kept in `pc-covers` under its id.
+    pub(super) fn art_place(&self, manual: bool) -> Option<(PathBuf, String)> {
         let c = self.chosen.as_ref()?;
         let console = systems().console(&c.console)?;
-        let art = &c.game.art;
-        let current = [art.front.clone(), art.back.clone().filter(|_| !art.made_back), art.spine.clone().filter(|_| !art.made_spine), art.disc.clone()];
-        match &c.game.source {
+        match c.game.source {
             Source::Rom => {
                 let config = Config::from_value(&self.cfg)?;
-                Some(GameArt {
-                    sys: c.console.clone(),
-                    title: rustyshelf_core::covers::art_name(&self.cfg, &c.game.id).unwrap_or(&c.game.title).to_string(),
-                    file: c.game.file.clone(),
-                    region: c.game.region.clone(),
-                    dir: ArtLibrary::from_config(&config, &self.app_root).dir_for(&config.system(console), &c.game.file, &self.app_root),
-                    base: art_base(&c.game.file),
-                    current,
-                    pc: false,
-                })
+                let lib = ArtLibrary::from_config(&config, &self.app_root);
+                let sys = config.system(console);
+                let dir = if manual { lib.manual_dir_for(&sys, &c.game.file, &self.app_root) } else { lib.dir_for(&sys, &c.game.file, &self.app_root) };
+                Some((dir, art_base(&c.game.file)))
             }
-            Source::Pc(_) => {
-                let title = rustyshelf_core::covers::art_name(&self.cfg, &c.game.id).unwrap_or(&c.game.title).to_string();
-                Some(GameArt {
-                    sys: c.console.clone(),
-                    // the sources go by its title, not its program's name or contents
-                    file: PathBuf::from(title.replace(['/', '\\'], " ")),
-                    title,
-                    region: String::new(),
-                    dir: paths::data_dir(&self.app_root).join("pc-covers"),
-                    base: pccovers::safe_id(&c.game.id),
-                    current,
-                    pc: true,
-                })
-            }
+            Source::Pc(_) => Some((paths::data_dir(&self.app_root).join("pc-covers"), pccovers::safe_id(&c.game.id))),
             _ => None,
         }
+    }
+
+    fn art_game(&self) -> Option<GameArt> {
+        let (dir, base) = self.art_place(false)?;
+        let c = self.chosen.as_ref()?;
+        let art = &c.game.art;
+        let current = [art.front.clone(), art.back.clone().filter(|_| !art.made_back), art.spine.clone().filter(|_| !art.made_spine), art.disc.clone()];
+        let title = rustyshelf_core::covers::art_name(&self.cfg, &c.game.id).unwrap_or(&c.game.title).to_string();
+        let pc = matches!(c.game.source, Source::Pc(_));
+        Some(GameArt {
+            sys: c.console.clone(),
+            // the sources go by a PC game's title, not its program's name or contents
+            file: if pc { PathBuf::from(title.replace(['/', '\\'], " ")) } else { c.game.file.clone() },
+            title,
+            region: if pc { String::new() } else { c.game.region.clone() },
+            dir,
+            base,
+            current,
+            pc,
+        })
     }
 
     /// Keeps a part chosen here as it is: the automatic art check leaves it alone (it never looks at a PC game's).

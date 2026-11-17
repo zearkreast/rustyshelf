@@ -211,25 +211,6 @@ fn start(ask: Ask, batch: Option<&Batch>, data: PathBuf, now: f32) -> Open {
     Open { finding: Some(Mutex::new(rx)), ..opening(ask, title, game, false, "Looking for covers…", now) }
 }
 
-/// The name each store goes by (app.js PC_SRC).
-fn store_name(g: &Game) -> &'static str {
-    match &g.source {
-        Source::Pc(p) => match p.source {
-            "epic" => "Epic Games",
-            "folder" => "PC games folder",
-            "quiver" => "Quiver",
-            "custom" => "Custom",
-            "gog" => "GOG",
-            "ubisoft" => "Ubisoft",
-            "ea" => "EA",
-            "xbox" => "Xbox",
-            "hoyoplay" => "HoYoPlay",
-            _ => "PC",
-        },
-        _ => "Steam",
-    }
-}
-
 /// Where a PC game's cover comes from, as the gallery says it, and its front.
 fn cover_of(data: &std::path::Path, g: &Game) -> (&'static str, Option<PathBuf>) {
     let chosen = pccovers::cover(data, &g.id);
@@ -272,7 +253,7 @@ fn gallery(lib: &Library, data: &std::path::Path, now: f32) -> Option<Open> {
             let (from, front) = cover_of(data, g);
             let made = front.is_none();
             fronts.push(front);
-            Item { act: Act::Game(ask_for(g)), label: g.title.clone(), sub: format!("{} · {from}", store_name(g)), icon: "", thumb: None, made }
+            Item { act: Act::Game(ask_for(g)), label: g.title.clone(), sub: format!("{} · {from}", match &g.source { Source::Pc(p) => crate::hud::store_name(p.source), _ => "Steam" }), icon: "", thumb: None, made }
         })
         .collect();
     let made = items.iter().filter(|i| i.made).count();
