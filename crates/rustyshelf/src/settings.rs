@@ -106,8 +106,10 @@ enum Screen {
     /// one service under Accounts: "ra", "emus", "steam", "sgdb", "igdb", "ss"
     Account(&'static str),
     Achievements,
-    /// RetroAchievements and Steam achievements, the whole account
+    /// RetroAchievements, RPCS3 and Steam achievements, the whole account; one game of them; one achievement
     Trophies,
+    TrophyGame,
+    AchievementOne,
     Phone,
     Romm,
     GameStreaming,
@@ -1792,6 +1794,8 @@ impl Settings {
             Screen::Manuals => self.manuals_page(),
             Screen::ManualStudio => self.manual_studio_page(),
             Screen::Trophies => self.trophies_page(),
+            Screen::TrophyGame => self.trophy_game_listing().0,
+            Screen::AchievementOne => self.achievement_listing().0,
             Screen::Playnite => self.playnite_page(),
             Screen::Pc => {
                 let steam = self.text(&["steam", "path"]);
@@ -3248,6 +3252,8 @@ struct ListMotion {
     slid: Option<i32>,
     flipped: bool,
     pressed: bool,
+    /// each row's picture: None for a row without one, Some(None) while it's coming
+    pics: Vec<Option<Option<Handle<Image>>>>,
 }
 
 /// rows put in the list at most, round the chosen one (a page of every game's size lists hundreds)
@@ -3323,7 +3329,26 @@ fn row_list(pg: &mut ChildSpawnerCommands, page: &Page, from: usize, at: usize, 
                     r.spawn((Text::new(upper(&mv.lang, &t(bare(&row.label)))), font(700, 13.0), TextColor(S_FAINT)));
                     return;
                 }
-                r.spawn((Text::new(t(bare(&row.label))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 })));
+                let label = (Text::new(t(bare(&row.label))), font(500, 23.0), TextColor(if chosen { Color::WHITE } else { S_INK2 }));
+                match mv.pics.get(i).cloned().flatten() {
+                    Some(pic) => {
+                        r.spawn(Node { align_items: AlignItems::Center, column_gap: dp(16.0), flex_shrink: 1.0, min_width: px(0), padding: UiRect::vertical(dp(8.0)), ..default() }).with_children(|l| {
+                            let frame = Node { width: dp(52.0), height: dp(52.0), flex_shrink: 0.0, border_radius: BorderRadius::all(dp(8.0)), ..default() };
+                            match pic {
+                                Some(h) => {
+                                    l.spawn((frame, ImageNode { image: h, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..default() }));
+                                }
+                                None => {
+                                    l.spawn((frame, BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.06))));
+                                }
+                            }
+                            l.spawn(label);
+                        });
+                    }
+                    None => {
+                        r.spawn(label);
+                    }
+                }
                 r.spawn(Node { align_items: AlignItems::Center, column_gap: dp(12.0), flex_shrink: 0.0, ..default() }).with_children(|v| {
                     if row.step.is_some() && !toggle && chosen {
                         v.spawn((Text::new("‹"), font(500, 22.0), TextColor(S_DIM)));
@@ -3460,11 +3485,12 @@ pub fn draw(
         s.qr = link.and_then(|l| Some((l.clone(), images.add(phone::qr_image(&l)?))));
     }
     let code = s.qr.as_ref().map(|q| q.1.clone());
-    let preview = s.art_preview(&mut images).map(|p| (p, 420.0)).or_else(|| s.badge_preview(&mut images).map(|p| (p, badge::SIZE)));
+    let preview = s.art_preview(&mut images);
+    let pics = s.row_pics(&mut images);
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
     let (highlight, scroll) = s.motion.now(now);
-    let mv = ListMotion { lang: s.text(&["ui", "language"]), highlight, scroll, slid: s.motion.slid(now), flipped: s.motion.flipped(now), pressed: s.motion.just_pressed(now) };
+    let mv = ListMotion { lang: s.text(&["ui", "language"]), highlight, scroll, slid: s.motion.slid(now), flipped: s.motion.flipped(now), pressed: s.motion.just_pressed(now), pics };
     let lang = s.text(&["ui", "language"]);
     let t = |text: &str| rustyshelf_core::i18n::tr(&lang, text);
     let chosen_row = page.rows.get(at);
@@ -3679,8 +3705,8 @@ pub fn draw(
                 if !hint.is_empty() {
                     info_card(info, card_title.clone(), &hint, &font);
                 }
-                if let Some((preview, high)) = preview {
-                    info.spawn((Node { height: dp(high), align_self: AlignSelf::Center, ..default() }, ImageNode::new(preview)));
+                if let Some(preview) = preview {
+                    info.spawn((Node { height: dp(420.0), align_self: AlignSelf::Center, ..default() }, ImageNode::new(preview)));
                 }
                 if let Some(code) = code {
                     info.spawn((

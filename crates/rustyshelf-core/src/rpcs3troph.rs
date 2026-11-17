@@ -243,6 +243,51 @@ pub fn unpack_trp(trp: &Path, out: &Path) -> bool {
     wrote > 0
 }
 
+/// Every trophy set RPCS3 keeps for its first user that has any, for the Trophies screen: `{ id, title, console,
+/// icon, total, earned, pct, award, last, src: "rpcs3" }` each, the last played first; and the trophies won in the
+/// last `days`.
+pub fn all(exe: &Path, now: i64, days: i64) -> (Vec<Value>, Vec<Value>) {
+    let (mut games, mut recent) = (Vec::new(), Vec::new());
+    let since = now - days * 86_400_000;
+    for root in trophy_roots(exe) {
+        let Ok(rd) = std::fs::read_dir(&root) else { continue };
+        for e in rd.flatten().filter(|e| e.path().is_dir()) {
+            let id = e.file_name().to_string_lossy().into_owned();
+            let earned = std::fs::read(e.path().join("TROPUSR.DAT")).map(|b| read_usr(&b, now)).unwrap_or_default();
+            let Some(p) = from_dir(&e.path(), &id, &earned) else { continue };
+            let last = earned.values().copied().max().filter(|t| *t > 0);
+            let total = p["total"].as_u64().unwrap_or(0);
+            let got = p["earned"].as_u64().unwrap_or(0);
+            for (t, at) in earned.iter().filter(|(_, at)| **at >= since) {
+                if let Some(a) = p["achievements"].as_array().and_then(|l| l.iter().find(|a| a["id"] == *t)) {
+                    recent.push(json!({ "id": format!("{id}:{t}"), "title": a["title"], "desc": a["desc"], "points": a["points"], "grade": a["grade"], "badge": a["badge"],
+                        "game": p["title"], "gameId": id.to_uppercase(), "console": "PS3", "hardcore": false, "date": crate::js::iso_string(*at), "rarity": null, "src": "rpcs3" }));
+                }
+            }
+            games.push(json!({ "id": id.to_uppercase(), "title": p["title"], "console": "PS3", "icon": p["icon"], "total": total, "earned": got,
+                "pct": (100 * got + total / 2).checked_div(total).unwrap_or(0), "award": p["mastered"], "last": last.map(crate::js::iso_string), "src": "rpcs3" }));
+        }
+        if !games.is_empty() {
+            break;
+        }
+    }
+    games.sort_by_key(|g| std::cmp::Reverse(g["last"].as_str().unwrap_or("").to_string()));
+    recent.sort_by_key(|g| std::cmp::Reverse(g["date"].as_str().unwrap_or("").to_string()));
+    (games, recent)
+}
+
+/// One trophy set by its folder's name (an NP communication id), as [`progress`] gives it.
+pub fn set(exe: &Path, id: &str, now: i64) -> Option<Value> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        return None;
+    }
+    trophy_roots(exe).into_iter().find_map(|root| {
+        let dir = std::fs::read_dir(&root).ok()?.flatten().find(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(id))?.path();
+        let earned = std::fs::read(dir.join("TROPUSR.DAT")).map(|b| read_usr(&b, now)).unwrap_or_default();
+        from_dir(&dir, id, &earned)
+    })
+}
+
 /// One game's trophies: RPCS3's own folder once the game has run (what's earned, and when), else the game's own
 /// pack (all locked, unpacked into `cache`), else None.
 pub fn progress(exe: &Path, title: &str, file: &Path, cache: Option<&Path>, now: i64) -> Option<Value> {
@@ -385,6 +430,23 @@ mod tests {
         let p = progress(&exe, "Another Game", &eboot, Some(&cache), 0).unwrap();
         assert_eq!((p["id"].as_str(), p["earned"].as_u64(), p["total"].as_u64()), (Some("NPWR99999_00"), Some(0), Some(3)));
         assert!(cache.join("NPWR99999_00").join("ICON0.PNG").is_file() && !tmp.path().join("evil.png").exists());
+    }
+
+    #[test]
+    fn every_set_and_one_by_its_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let exe = tmp.path().join("rpcs3").join("rpcs3.exe");
+        let set_dir = tmp.path().join("rpcs3").join("dev_hdd0").join("home").join("00000001").join("trophy").join("NPWR00001_00");
+        std::fs::create_dir_all(&set_dir).unwrap();
+        std::fs::write(set_dir.join("TROP.SFM"), SFM).unwrap();
+        std::fs::write(set_dir.join("TROPUSR.DAT"), usr(1_700_000_000_000)).unwrap();
+        let (games, recent) = all(&exe, 1_700_000_100_000, 30);
+        assert_eq!(games.len(), 1);
+        assert_eq!((games[0]["id"].as_str(), games[0]["earned"].as_u64(), games[0]["pct"].as_u64(), games[0]["src"].as_str()), (Some("NPWR00001_00"), Some(1), Some(33), Some("rpcs3")));
+        assert_eq!((recent.len(), recent[0]["title"].as_str(), recent[0]["grade"].as_str()), (1, Some("Gold one"), Some("Gold")));
+        assert!(all(&exe, 1_700_000_000_000 + 40 * 86_400_000, 30).1.is_empty(), "older than 30 days");
+        assert_eq!(set(&exe, "npwr00001_00", 0).unwrap()["total"].as_u64(), Some(3));
+        assert!(set(&exe, "../x", 0).is_none());
     }
 
     #[test]

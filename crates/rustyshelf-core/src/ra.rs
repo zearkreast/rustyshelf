@@ -299,6 +299,22 @@ impl Ra {
     pub fn progress_within(&self, shelf: &str, title: &str, max_age_ms: u64) -> Result<Option<Value>, String> {
         let list = self.game_list(shelf)?;
         let Some(g) = match_game(&list, title) else { return Ok(None) };
+        self.game_progress(g.id, &g.title, max_age_ms).map(|p| Some(p.0))
+    }
+
+    /// One game's achievements by its RetroAchievements id, as [`Ra::progress`] gives them, with its release `year`
+    /// when the site knows it.
+    pub fn game(&self, id: u64, force: bool) -> Result<Option<Value>, String> {
+        let (mut p, data) = self.game_progress(id, "", if force { 0 } else { 600_000 })?;
+        static YEAR: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"\b(19[5-9]\d|20\d\d)\b").unwrap());
+        if let Some(y) = data.get("Released").and_then(Value::as_str).and_then(|r| YEAR.find(r)) {
+            p["year"] = json!(y.as_str());
+        }
+        Ok(Some(p))
+    }
+
+    fn game_progress(&self, id: u64, fallback: &str, max_age_ms: u64) -> Result<(Value, Value), String> {
+        let g = Listed { id, title: fallback.to_string(), folded: String::new(), count: 0 };
         let user = self.user();
         let data = self.cached(&format!("game-{}-{}", g.id, self.user_key()), max_age_ms, || self.call("API_GetGameInfoAndUserProgress", &[("g", g.id.to_string()), ("u", user.clone()), ("a", "1".into())], None))?;
         let Some(all) = data.get("Achievements").filter(|a| truthy(Some(a))) else { return Err("RetroAchievements sent no achievement list for this game. Try again in a moment.".into()) };
@@ -354,7 +370,7 @@ impl Ra {
         out.insert("mastered".into(), or_null("HighestAwardKind"));
         out.insert("url".into(), json!(format!("https://retroachievements.org/game/{}", g.id)));
         out.insert("achievements".into(), Value::Array(achievements));
-        Ok(Some(Value::Object(out)))
+        Ok((Value::Object(out), data))
     }
 
     /// How far each of a shelf's games is, by title, for the marks on the shelf: its set's size, how many are

@@ -624,7 +624,6 @@ impl Settings {
     /// The page, and each row's picture (an achievement's badge).
     pub(super) fn achievements_listing(&self) -> (Page, Vec<Option<String>>) {
         let mut pics: Vec<Option<String>> = Vec::new();
-        const SORTS: [&str; 3] = ["Order", "Rarity", "Points"];
         let title = self.chosen.as_ref().map_or(String::new(), |c| c.game.title.clone());
         let steam = self.steam_app().is_some();
         let own = self.chosen.as_ref().filter(|c| self.own_ach_emulator(&c.console).is_some()).map(|c| if c.console == "ps3" { "RPCS3" } else { "Xenia" });
@@ -633,7 +632,6 @@ impl Settings {
             None if steam => "Reads your progress again from what Steam keeps on this PC.".into(),
             None => "Reads your progress from RetroAchievements now.".into(),
         };
-        let sort = self.ach_sort % SORTS.len();
         let mut rows = vec![Row { label: "Ask again".into(), hint: again, press: Some(Box::new(|s: &mut Settings| s.load_achievements(true))), ..Row::default() }];
         let lead = match self.achievements.as_ref().map(|a| &a.1) {
             None if own.is_some() || steam => format!("Reading {}'s files…", own.unwrap_or("Steam")),
@@ -644,27 +642,11 @@ impl Settings {
             Some(Ok(None)) if steam => "Steam keeps no achievements for this game on this PC yet.".into(),
             Some(Ok(None)) => "RetroAchievements has no set for this game.".into(),
             Some(Ok(Some(p))) => {
-                let all: Vec<&Value> = p["achievements"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
-                if !steam || all.iter().any(|a| a["rarity"].is_number()) {
-                    rows.push(Row {
-                        label: "Sort".into(),
-                        value: SORTS[sort].into(),
-                        hint: "◀ ▶ Order (story first), Rarity (the rarest first) or Points.".into(),
-                        press: Some(Box::new(|s: &mut Settings| s.sort_achievements(1))),
-                        step: Some(Box::new(|s: &mut Settings, by| s.sort_achievements(by))),
-                    });
-                }
-                for (label, list) in achievement_sections(&all, sort) {
-                    if list.is_empty() {
-                        continue;
-                    }
-                    rows.push(Row { label: format!("— {label} · {} —", list.len()), ..Row::default() });
-                    pics.resize(rows.len(), None);
-                    for a in list {
-                        rows.push(achievement_row(a, steam));
-                        pics.push(a["badge"].as_str().filter(|b| b.starts_with("https://")).map(String::from));
-                    }
-                }
+                let year = self.chosen.as_ref().and_then(|c| c.game.info.as_ref()?.year()).map(|y| y.to_string());
+                let (more, more_pics) = self.ach_listing(p, &title, year);
+                pics.resize(rows.len(), None);
+                rows.extend(more);
+                pics.extend(more_pics);
                 if own == Some("RPCS3") {
                     format!("{} of {} earned · {}", p["earned"], p["total"], p["grades"].as_str().unwrap_or(""))
                 } else if own.is_some() {
@@ -682,6 +664,40 @@ impl Settings {
         (Page { title: format!("Achievements · {title}"), lead, rows }, pics)
     }
 
+    /// An achievement list's rows: the sort, then the sections, each achievement opening on its own; with each row's
+    /// picture.
+    pub(super) fn ach_listing(&self, p: &Value, game: &str, year: Option<String>) -> (Vec<Row>, Vec<Option<String>>) {
+        const SORTS: [&str; 3] = ["Order", "Rarity", "Points"];
+        let sort = self.ach_sort % SORTS.len();
+        let all: Vec<&Value> = p["achievements"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
+        let mut rows = Vec::new();
+        if all.iter().any(|a| a["rarity"].is_number() || a["points"].as_f64().is_some_and(|n| n > 0.0)) {
+            rows.push(Row {
+                label: "Sort".into(),
+                value: SORTS[sort].into(),
+                hint: "◀ ▶ Order (story first), Rarity (the rarest first) or Points.".into(),
+                press: Some(Box::new(|s: &mut Settings| s.sort_achievements(1))),
+                step: Some(Box::new(|s: &mut Settings, by| s.sort_achievements(by))),
+            });
+        }
+        let mut pics = vec![None; rows.len()];
+        for (label, list) in achievement_sections(&all, sort) {
+            if list.is_empty() {
+                continue;
+            }
+            rows.push(Row { label: format!("— {label} · {} —", list.len()), ..Row::default() });
+            pics.push(None);
+            for a in list {
+                let mut row = achievement_row(a);
+                let (a2, g, y) = (a.clone(), game.to_string(), year.clone());
+                row.press = Some(Box::new(move |s: &mut Settings| s.open_achievement(a2.clone(), g.clone(), y.clone())));
+                rows.push(row);
+                pics.push(a["badge"].as_str().filter(|b| !b.is_empty()).map(String::from));
+            }
+        }
+        (rows, pics)
+    }
+
     fn sort_achievements(&mut self, by: i32) {
         self.ach_sort = (self.ach_sort as i32 + by).rem_euclid(3) as usize;
         self.redraw = true;
@@ -689,7 +705,7 @@ impl Settings {
 }
 
 /// How rare an achievement is, from the share of players who have it.
-fn tier(rarity: Option<f64>) -> Option<&'static str> {
+pub(super) fn tier(rarity: Option<f64>) -> Option<&'static str> {
     Some(match rarity? {
         r if r < 3.0 => "Ultra rare",
         r if r < 10.0 => "Rare",
@@ -738,39 +754,32 @@ fn achievement_sections<'a>(all: &[&'a Value], sort: usize) -> Vec<(&'static str
     out
 }
 
-fn achievement_row(a: &Value, steam: bool) -> Row {
+/// An achievement's value on the right of its row: how rare it is, then its points (or a trophy's grade).
+pub(super) fn ach_value(a: &Value) -> String {
+    let rarity = a["rarity"].as_f64().map(|r| format!("{r}%"));
+    let worth = match a["grade"].as_str() {
+        Some(g) => Some(g.to_string()),
+        None => a["points"].as_f64().filter(|n| *n > 0.0).map(|n| format!("{n} pts")),
+    };
+    [rarity, worth].into_iter().flatten().collect::<Vec<_>>().join(" · ")
+}
+
+fn achievement_row(a: &Value) -> Row {
     let earned = a["earned"] == true;
     let rarity = a["rarity"].as_f64();
-    let pts = a["points"].as_f64().filter(|n| *n > 0.0);
-    let value = if steam {
-        match (pts, earned) {
-            (Some(n), true) => format!("{n} · Earned"),
-            (Some(n), false) => n.to_string(),
-            (None, true) => "Earned".into(),
-            (None, false) => String::new(),
-        }
-    } else if let Some(grade) = a["grade"].as_str() {
-        grade.to_string()
-    } else {
-        format!("{}{}", a["points"], if a["hardcore"] == true { " · hardcore" } else { "" })
-    };
     let hint = [
         a["desc"].as_str().unwrap_or("").to_string(),
         kind(a).to_string(),
         a["date"].as_str().map_or(String::new(), |d| format!("Earned {d}")),
         rarity.map_or(String::new(), |r| format!("{r}% of players have it")),
         tier(rarity).map_or(String::new(), String::from),
+        if a["hardcore"] == true { "hardcore".into() } else { String::new() },
     ]
     .into_iter()
     .filter(|t| !t.is_empty())
     .collect::<Vec<_>>()
     .join(" · ");
-    let mark = match tier(rarity) {
-        Some("Ultra rare") => "◆ ",
-        Some("Rare") => "◇ ",
-        _ => "",
-    };
-    Row { label: format!("{} {mark}{}", if earned { "★" } else { "☆" }, a["title"].as_str().unwrap_or("")), value, hint, ..Row::default() }
+    Row { label: format!("{} {}", if earned { "★" } else { "☆" }, a["title"].as_str().unwrap_or("")), value: ach_value(a), hint, ..Row::default() }
 }
 
 /// Where a running game's achievements come from (`Settings::ach_from`).

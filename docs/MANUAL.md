@@ -218,11 +218,13 @@ complete yet.
   world percentages) and steamhunters.com's points for it, so they sort by rarity or points; a game never started
   on this PC has none.
 - Has the Trophies screen (T on the shelf, the quick menu, or Settings → Library → Trophies): the whole
-  RetroAchievements account and, with your own Steam Web API key (Settings → Accounts → Steam), the Steam
-  achievements of the account signed in to Steam on this PC: every game with how far it is, the last 30 days'
-  unlocks with how rare each is, and the mastered games, from everywhere or from one of the two (From ◀ ▶). The
-  highlighted game's icon or achievement's badge shows beside the list, as it does in Details' achievements. The
-  lookups are kept where the Electron app keeps them (`data\ra`, `data\steam-ach`).
+  RetroAchievements account, RPCS3's PS3 trophies (from its `dev_hdd0\home\<user>\trophy` folders) and, with your own
+  Steam Web API key (Settings → Accounts → Steam), the Steam achievements of the account signed in to Steam on this
+  PC: every game with how far it is, the last 30 days' unlocks and the mastered games, from everywhere or from one
+  source (From ◀ ▶). A game opens its achievements, each with its own picture, how rare it is and its points (a
+  trophy's grade for RPCS3) on the right; an achievement opens on its own page with when it was earned and How to
+  get it, a YouTube search for "how to get <achievement> in <game> (<year>)" in the browser. Details' achievements
+  are listed the same way. The lookups are kept where the Electron app keeps them (`data\ra`, `data\steam-ach`).
 - Lists the room the PC games take (Settings → PC games and apps → Storage): the installed Steam, Epic, GOG,
   HoYoPlay and PC games folder games by drive, the biggest first, with each drive's free space.
 - Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf

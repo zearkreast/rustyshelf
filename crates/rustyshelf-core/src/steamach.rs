@@ -228,6 +228,63 @@ impl SteamAch {
         .unwrap_or_else(|_| json!({}))
     }
 
+    /// One game's achievements for the account signed in to Steam here, as [`crate::ra::Ra::progress`] gives them:
+    /// pictures, how rare each is, steamhunters.com's points, and the release `year`. None without a key, or for a
+    /// game Steam keeps none for.
+    pub fn game(&self, appid: &str, force: bool) -> Result<Option<Value>, String> {
+        if !self.enabled() || appid.is_empty() || !appid.bytes().all(|b| b.is_ascii_digit()) {
+            return Ok(None);
+        }
+        let sid = self.root.as_deref().and_then(steam_id).ok_or("RustyShelf couldn't find the account signed in to Steam on this PC.")?;
+        let list = match self.player(&sid, appid, if force { 0 } else { 600_000 }) {
+            Ok(l) => l,
+            Err(Ok(Private)) => return Err("Your Steam game details are private. In Steam, set Profile → Privacy → Game details to Public, then reload.".into()),
+            Err(Err(e)) => return Err(e),
+        };
+        let Some(list) = list.as_array().filter(|l| !l.is_empty()) else { return Ok(None) };
+        let (icons, rarity, points) = (self.icons(appid), self.rarity(appid), self.hunter_points(appid));
+        let mut total = (0i64, 0i64);
+        let achievements: Vec<Value> = list
+            .iter()
+            .map(|x| {
+                let api = crate::js::string(x.get("api"));
+                let earned = x["earned"] == true;
+                let pts = points.get(&api).map(|n| n.round() as i64);
+                if let Some(n) = pts {
+                    total.0 += n;
+                    total.1 += if earned { n } else { 0 };
+                }
+                json!({ "id": api, "api": api, "title": x["title"], "desc": x["desc"], "points": pts.map_or(json!(0), |n| json!(n)), "badge": cdn(icons.get(&api)),
+                    "earned": earned, "hardcore": false, "date": if earned { iso(number(x.get("at"))) } else { Value::Null },
+                    "rarity": rarity.get(&api).map_or(Value::Null, |r| crate::js::num((round(r * 10.0) / 10.0).max(0.1))) })
+            })
+            .collect();
+        let earned = achievements.iter().filter(|a| a["earned"] == true).count();
+        let mut out = json!({ "id": appid, "title": self.app_name(appid), "console": "Steam", "source": "steam", "total": achievements.len(), "earned": earned,
+            "points": total.0, "pointsEarned": total.1, "mastered": if earned == achievements.len() { "completed" } else { "" }, "achievements": achievements,
+            "url": format!("https://store.steampowered.com/app/{appid}") });
+        if let Some(y) = self.release_year(appid) {
+            out["year"] = json!(y);
+        }
+        Ok(Some(out))
+    }
+
+    fn app_name(&self, appid: &str) -> Value {
+        let sid = self.root.as_deref().and_then(steam_id).unwrap_or_default();
+        let owned = self.owned(&sid, 86_400_000).unwrap_or(Value::Null);
+        crate::js::items(Some(&owned)).into_iter().find(|g| crate::js::string(g.get("appid")) == appid).and_then(|g| g.get("name")).cloned().unwrap_or(json!(""))
+    }
+
+    /// The year the Steam store says the game came out, kept a month.
+    fn release_year(&self, appid: &str) -> Option<String> {
+        static YEAR: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\b(19[5-9]\d|20\d\d)\b").unwrap());
+        let got = self.cached(&format!("year-{appid}"), 30 * 86_400_000, || -> Result<Value, String> {
+            let (_, j) = self.get(&format!("https://store.steampowered.com/api/appdetails?appids={appid}&filters=release_date"))?;
+            Ok(j.pointer(&format!("/{appid}/data/release_date/date")).cloned().unwrap_or(json!("")))
+        });
+        got.ok().and_then(|d| YEAR.find(d.as_str()?).map(|m| m.as_str().to_string()))
+    }
+
     /// How many players have each of a game's achievements, in percent, by API name; Steam answers this without a key.
     pub fn rarity(&self, appid: &str) -> HashMap<String, f64> {
         let w = self.world(appid);
@@ -341,6 +398,37 @@ impl SteamAch {
 
 /// The Trophies screen: RetroAchievements and Steam side by side, either one alone enough; `errs` are why a side
 /// that was asked didn't answer.
+/// RPCS3's trophy sets put in with the rest of the Trophies screen (`combine`'s answer, or an empty one), totals
+/// counted again. `games` and `recent` as `rpcs3troph::all` gives them.
+pub fn add_rpcs3(d: Option<Value>, games: Vec<Value>, recent: Vec<Value>) -> Value {
+    let mut d = d.unwrap_or_else(|| json!({ "user": "", "pic": null, "points": 0, "softcore": 0, "games": [], "recent": [], "sources": { "ra": false, "steam": false, "steamUser": "" }, "warn": "" }));
+    if games.is_empty() {
+        return d;
+    }
+    let date = |v: &Value| -> Value { v.as_str().map_or(Value::Null, |t| json!(t.replacen('T', " ", 1).chars().take(19).collect::<String>())) };
+    let mut all: Vec<Value> = crate::js::items(d.get("games")).into_iter().cloned().collect();
+    all.extend(games.into_iter().map(|mut g| {
+        g["last"] = date(&g["last"]);
+        g
+    }));
+    all.sort_by_key(|a| std::cmp::Reverse(text(a.get("last"))));
+    let mut rec: Vec<Value> = crate::js::items(d.get("recent")).into_iter().cloned().collect();
+    rec.extend(recent.into_iter().map(|mut r| {
+        r["date"] = date(&r["date"]);
+        r
+    }));
+    rec.sort_by_key(|a| std::cmp::Reverse(text(a.get("date"))));
+    rec.truncate(100);
+    let award = |kinds: &[&str]| all.iter().filter(|g| g["award"].as_str().is_some_and(|k| kinds.contains(&k))).count();
+    let unlocked: f64 = all.iter().map(|g| number(g.get("earned"))).sum();
+    let avg = if all.is_empty() { 0.0 } else { round(all.iter().map(|g| number(g.get("pct"))).sum::<f64>() / all.len() as f64) };
+    d["totals"] = json!({ "games": all.len(), "unlocked": crate::js::num(unlocked), "mastered": award(&["mastered", "completed", "platinum"]), "beaten": award(&["beaten-hardcore", "beaten-softcore"]), "avg": crate::js::num(avg) });
+    d["games"] = Value::Array(all);
+    d["recent"] = Value::Array(rec);
+    d["sources"]["rpcs3"] = json!(true);
+    d
+}
+
 pub fn combine(ra: Option<Value>, steam: Option<Value>, errs: &[String]) -> Result<Value, String> {
     if ra.is_none() && steam.is_none() {
         return Err(errs.first().cloned().unwrap_or_else(|| "Neither RetroAchievements nor Steam answered.".into()));
