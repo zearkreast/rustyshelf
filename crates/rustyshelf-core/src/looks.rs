@@ -316,6 +316,7 @@ mod tests {
         assert_eq!(look_for("gc", &Game::default()).edge, 0.022);
         let streamed = look_for("streaming", &Game { box_plat: Some("gc".into()), ..Game::default() });
         assert_eq!((look("streaming").id.as_str(), streamed.id.as_str(), streamed.edge, streamed.spine_band.map(|b| b.label)), ("pc", "gc", 0.0, Some("PC".into())));
+        assert_eq!(wordmark("streaming"), Some(("Streaming", "Games from another PC")));
 
         let on = gc.on_shelf("gc");
         assert!((on.depth - 0.07476).abs() < 1e-6 && on.edge == on.edge_in && (on.rc - 0.712 * 0.03).abs() < 1e-6);
