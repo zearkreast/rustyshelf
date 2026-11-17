@@ -180,6 +180,8 @@ mod tests {
         // a miss waits a month; an answer stays
         assert!(!detect(&data, &cache, &[g("Bare Quest")], &shelves, 2_000), "on two consoles");
         assert!(!detect(&data, &cache, &games, &HashSet::from(["n64"]), 1_000 + 29 * 86_400_000));
+        // a rewrite within the same millisecond would keep the old split
+        std::fs::remove_file(cache.join("launchbox-shards.json")).unwrap();
         std::fs::write(cache.join("launchbox-index.json"), json!({ "v": 8, "at": 2, "games": { lb("gbc"): [{ "id": "8", "name": "Native Thing", "n": "native thing" }] }, "images": {} }).to_string()).unwrap();
         assert!(detect(&data, &cache, &games, &HashSet::from(["gbc"]), 1_000 + 31 * 86_400_000));
         assert_eq!(found(&data).get("custom-native-thing|Native Thing").map(String::as_str), Some("gbc"));
