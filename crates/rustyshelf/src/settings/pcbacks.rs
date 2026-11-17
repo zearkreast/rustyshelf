@@ -17,6 +17,8 @@ pub(super) struct PcBacksUi {
     pub(super) get: Option<(Arc<Mutex<String>>, Mutex<Receiver<Result<(), String>>>)>,
     /// "Back from LaunchBox": the game's id and title, and what came back
     looking: Option<(String, String, Mutex<Receiver<Got>>)>,
+    /// the download's row value as last drawn, and when
+    shown: (String, f32),
 }
 
 impl Settings {
@@ -46,24 +48,21 @@ impl Settings {
     pub(super) fn launchbox_pc_row(&self) -> Row {
         let cache = paths::data_dir(&self.app_root).join("boxart-cache");
         let value = if let Some((stage, _)) = &self.pc_backs.get {
-            let stage = stage.lock().unwrap();
-            let pct = stage.split_once("… ").and_then(|(_, r)| r.split_once('%')).map(|(p, _)| p).filter(|p| p.bytes().all(|b| b.is_ascii_digit()));
-            match (stage.starts_with("Reading"), pct) {
-                (false, Some(p)) => format!("Downloading… {p}%"),
-                (true, Some(p)) => format!("Reading… {p}%"),
-                (true, None) => "Reading…".into(),
-                _ if stage.starts_with("Unpacking") => "Unpacking…".into(),
-                _ => "Downloading…".into(),
-            }
+            launchbox_value(&stage.lock().unwrap())
         } else if boxart::has_pc_games(&cache) {
             "Added".into()
         } else {
             "About 110 MB".into()
         };
+        let hint = if self.pc_backs.get.is_some() {
+            "Takes a few minutes, with the saving at the end. You can close Settings and carry on: it goes on behind the shelf and says when it's done"
+        } else {
+            "LaunchBox's free database again, with its PC games in, for the backs of their boxes: a download of about 110 MB"
+        };
         Row {
             label: "Add LaunchBox's PC games".into(),
             value,
-            hint: "LaunchBox's free database again, with its PC games in, for the backs of their boxes: a download of about 110 MB".into(),
+            hint: hint.into(),
             press: Some(Box::new(|s: &mut Settings| s.add_launchbox_pc())),
             step: None,
         }
@@ -142,8 +141,12 @@ impl Settings {
         self.redraw = true;
     }
 
+    pub(super) fn pc_backs_busy(&self) -> bool {
+        self.pc_backs.get.is_some()
+    }
+
     /// What the back looked up and LaunchBox's download came to since the last frame.
-    pub(super) fn poll_pc_backs(&mut self) {
+    pub(super) fn poll_pc_backs(&mut self, now: f32) {
         let looked = self.pc_backs.looking.as_ref().map(|(_, _, rx)| rx.lock().unwrap().try_recv());
         match looked {
             Some(Ok(got)) => {
@@ -166,25 +169,55 @@ impl Settings {
             Err(TryRecvError::Disconnected) => Some(Err("it stopped".into())),
             Err(TryRecvError::Empty) => None,
         };
-        let said = format!("LaunchBox's PC games: {}", stage.lock().unwrap());
-        if ended.is_none() && self.note != said && self.stack.last().is_some_and(|p| p.0 == Screen::Pc) {
-            self.say(said);
+        // at most four redraws a second; the note under the page is left to the chosen row
+        let value = launchbox_value(&stage.lock().unwrap());
+        if ended.is_none() && value != self.pc_backs.shown.0 && now - self.pc_backs.shown.1 >= 0.25 && self.stack.last().is_some_and(|p| p.0 == Screen::Pc) {
+            self.pc_backs.shown = (value, now);
+            self.redraw = true;
         }
         let Some(ended) = ended else { return };
         self.pc_backs.get = None;
-        match ended {
+        let said = match ended {
             Ok(()) => {
                 self.changed |= self.flag(&["pc", "autoBacks"], false);
-                self.say("LaunchBox's PC games are in".into());
+                "LaunchBox's PC games are in. The backs of the boxes come in behind the shelf, 30 games at a time".to_string()
             }
-            Err(why) => self.say(format!("LaunchBox's PC games didn't download: {why}")),
+            Err(why) => format!("LaunchBox's PC games didn't download: {why}"),
+        };
+        if self.open {
+            self.say(said);
+        } else {
+            self.toast = Some(said);
         }
+    }
+}
+
+/// The row's value for a stage of the download: "Downloading… 12%", "Unpacking…", "Reading… 40%", "Saving…".
+fn launchbox_value(stage: &str) -> String {
+    let pct = stage.split_once("… ").and_then(|(_, r)| r.split_once('%')).map(|(p, _)| p).filter(|p| p.bytes().all(|b| b.is_ascii_digit()));
+    match (stage.split(' ').next().unwrap_or(""), pct) {
+        ("Reading", Some(p)) => format!("Reading… {p}%"),
+        ("Reading", None) => "Reading…".into(),
+        ("Unpacking", _) => "Unpacking…".into(),
+        ("Saving", _) => "Saving…".into(),
+        (_, Some(p)) => format!("Downloading… {p}%"),
+        _ => "Downloading…".into(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launchbox_stages() {
+        let v = launchbox_value;
+        assert_eq!(v("Starting the download…"), "Downloading…");
+        assert_eq!(v("Downloading the LaunchBox game database… 12% · 13 / 105 MB"), "Downloading… 12%");
+        assert_eq!(v("Unpacking the game database…"), "Unpacking…");
+        assert_eq!(v("Reading the game database… 40%"), "Reading… 40%");
+        assert_eq!(v("Saving the game database (a few hundred MB)…"), "Saving…");
+    }
 
     fn root(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("rustyshelf-pcbacks-{name}-{}", std::process::id()));

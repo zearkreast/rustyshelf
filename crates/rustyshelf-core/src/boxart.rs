@@ -453,7 +453,7 @@ fn index_with(cache_dir: &Path, need: Option<&str>, progress: &mut dyn FnMut(&st
     if !plats.iter().any(|p| p == covers::LB_PC) {
         plats.push(covers::LB_PC.to_string());
     }
-    let built = lbindex::build_index_file(&xml, &idx, &plats, IDX_V, Some(cache_dir), |pct| progress(&format!("Reading the game database… {pct}%"))).map_err(|e| e.to_string());
+    let built = lbindex::build_index_file(&xml, &idx, &plats, IDX_V, Some(cache_dir), |pct| if pct >= 100 { progress("Saving the game database (a few hundred MB)…") } else { progress(&format!("Reading the game database… {pct}%")) }).map_err(|e| e.to_string());
     // the 500 MB XML is only needed while the index is built
     let _ = std::fs::remove_file(&xml);
     built?;

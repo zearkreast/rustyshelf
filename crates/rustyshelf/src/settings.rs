@@ -2732,6 +2732,10 @@ pub fn input(
         return;
     }
     if !s.open {
+        // LaunchBox's PC games go on downloading with Settings shut
+        if s.pc_backs_busy() {
+            s.poll_pc_backs(time.elapsed_secs());
+        }
         if let Some(text) = s.toast.take() {
             toast.text = text;
             toast.until = time.elapsed_secs() + 12.0;
@@ -2916,7 +2920,7 @@ pub fn input(
     s.poll_deck();
     s.poll_art(time.elapsed_secs());
     s.poll_art_match();
-    s.poll_pc_backs();
+    s.poll_pc_backs(time.elapsed_secs());
     s.poll_badge(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
