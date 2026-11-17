@@ -1,6 +1,7 @@
 //! The interface in another language: an English text on screen swapped for its translation, from the Electron app's
-//! dictionaries (`assets/i18n`: its renderer/i18n-fr.js, renderer/i18n-tr.js, and Thanks2111's Brazilian Portuguese,
-//! renderer/i18n-pt-data.js, as JSON). The matching is renderer/i18n-dict.js's and, for Portuguese, renderer/i18n.js's.
+//! dictionaries (`assets/i18n`: its renderer/i18n-fr.js with Zak's French from ZakAuMiel/boxshelf-source merged in,
+//! renderer/i18n-tr.js, and Thanks2111's Brazilian Portuguese, renderer/i18n-pt-data.js, as JSON). The matching is
+//! renderer/i18n-dict.js's and, for Portuguese, renderer/i18n.js's.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{LazyLock, Mutex, OnceLock};
@@ -315,5 +316,19 @@ mod tests {
         assert_eq!(tr("fr", "Home console"), "Console de salon");
         assert_eq!(tr("tr", "Home console"), "Ev konsolu");
         assert_eq!(tr("pt", "Home"), "Início");
+    }
+
+    #[test]
+    fn plurals_by_count_and_short_patterns_only_on_short_texts() {
+        assert_eq!((tr("fr", "1 hidden"), tr("fr", "3 hidden")), ("1 masqué".into(), "3 masqués".into()));
+        assert_eq!(tr("fr", "Every game you hid stays hidden"), "Every game you hid stays hidden");
+        assert_eq!(tr("fr", "1 track found"), "1 morceau trouvé");
+    }
+
+    #[test]
+    fn game_streaming_and_pc_backs_rows() {
+        assert_eq!((tr("fr", "Game streaming"), tr("tr", "Game streaming")), ("Streaming de jeux".into(), "Oyun akışı".into()));
+        assert_eq!(tr("fr", "12 apps on the host"), "12 applis sur l'hôte");
+        assert_eq!(tr("tr", "LaunchBox's PC games: Reading the game database… 12%"), "LaunchBox'ın PC oyunları: Oyun veritabanı okunuyor… %12");
     }
 }
