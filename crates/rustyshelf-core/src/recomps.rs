@@ -31,6 +31,11 @@ pub fn key(id: &str, title: &str) -> String {
     format!("{id}|{title}")
 }
 
+/// The title a game is looked up and kept under: its own, not its rename, as in Zak's fork's file.
+pub fn title(g: &PcGame) -> &str {
+    g.file_title.as_deref().unwrap_or(&g.title)
+}
+
 fn read(data: &Path) -> Map<String, Value> {
     match std::fs::read(data.join(FILE)).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
         Some(Value::Object(m)) => m,

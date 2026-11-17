@@ -230,7 +230,7 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
     mine.extend(pcfolder::scan_ports(js::str_of(get("portsDir")).unwrap_or("")));
     for g in stores.iter_mut().chain(mine.iter_mut()) {
         if let Some(t) = cfg.game_title(&g.id) {
-            g.title = t.to_string();
+            g.file_title = Some(std::mem::replace(&mut g.title, t.to_string()));
         }
     }
     (stores, mine)
@@ -404,7 +404,7 @@ impl Library {
         let found = if config.recomp_detect() { crate::recomps::found(&data_dir) } else { HashMap::new() };
         for g in mine {
             let (shelf, port) = (g.shelf.clone(), g.port);
-            let on = Some(&g).filter(|g| crate::recomps::candidate(g)).and_then(|g| found.get(&crate::recomps::key(&g.id, &g.title))).filter(|sys| own_shelf.contains(*sys)).cloned();
+            let on = Some(&g).filter(|g| crate::recomps::candidate(g)).and_then(|g| found.get(&crate::recomps::key(&g.id, crate::recomps::title(g)))).filter(|sys| own_shelf.contains(*sys)).cloned();
             let game = art.pc_game(g);
             match shelf.as_deref() {
                 // Ports & Recomps: a program set there, and Quiver's ports and recompilations
@@ -776,8 +776,10 @@ fn recomp_consoles(lib: &Library, data_dir: &Path) -> bool {
         .iter()
         .filter(|s| s.id == "custom")
         .flat_map(|s| &s.games)
-        .filter(|g| matches!(&g.source, Source::Pc(p) if crate::recomps::candidate(p)))
-        .map(|g| (g.id.clone(), g.title.clone()))
+        .filter_map(|g| match &g.source {
+            Source::Pc(p) if crate::recomps::candidate(p) => Some((g.id.clone(), crate::recomps::title(p).to_string())),
+            _ => None,
+        })
         .collect();
     let shelves: HashSet<&str> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).map(|s| s.id.as_str()).collect();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
@@ -995,6 +997,8 @@ mod tests {
         assert_eq!(shelves(&cfg), mine(&["Omega"], &["Snes Only", "Zeta Run"]));
         cfg["pc"]["recompDetect"] = true.into();
         assert_eq!(shelves(&cfg), mine(&["Omega", "Zeta Run"], &["Snes Only"]), "no SNES shelf");
+        cfg["games"] = serde_json::json!({ "custom-zeta-run": { "title": "Zeta 64" } });
+        assert_eq!(shelves(&cfg), mine(&["Omega", "Zeta 64"], &["Snes Only"]), "found by its own title");
     }
 
     #[test]

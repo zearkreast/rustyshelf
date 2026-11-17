@@ -25,6 +25,8 @@ pub struct PcGame {
     /// "epic", "gog", "ubisoft", "ea", "xbox", "hoyoplay", "folder", "quiver", "custom" or "moonlight"
     pub source: &'static str,
     pub title: String,
+    /// its title before Details → Rename, when it was renamed
+    pub file_title: Option<String>,
     /// the game's own program; empty when only its store can start it
     pub exe: String,
     pub args: String,
