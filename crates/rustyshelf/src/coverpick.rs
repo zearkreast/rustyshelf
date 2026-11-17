@@ -161,13 +161,6 @@ pub struct CardIn;
 /// seconds: the card coming in (style.css .buildpick, .bp-card)
 const IN: f32 = 0.3;
 
-fn decode(file: &std::path::Path) -> Decoded {
-    let img = image::ImageReader::open(file).ok()?.with_guessed_format().ok()?.decode().ok()?;
-    let img = if img.height() > THUMB_H { img.resize(u32::MAX, THUMB_H, image::imageops::FilterType::Triangle) } else { img };
-    let rgba = img.into_rgba8();
-    Some((rgba.width(), rgba.height(), rgba.into_raw()))
-}
-
 /// Pictures decoded a few at a time.
 fn decode_all(files: &[Option<PathBuf>]) -> Vec<Decoded> {
     let next = std::sync::atomic::AtomicUsize::new(0);
@@ -177,7 +170,7 @@ fn decode_all(files: &[Option<PathBuf>]) -> Vec<Decoded> {
             s.spawn(|| loop {
                 let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 let Some(f) = files.get(i) else { return };
-                let d = f.as_deref().and_then(decode);
+                let d = f.as_deref().and_then(|f| crate::loading::decode(f, THUMB_H));
                 if let Ok(mut g) = got[i].lock() {
                     *g = d;
                 }
@@ -311,7 +304,7 @@ fn say(settings: &mut crate::settings::Settings, toast: &mut crate::hud::Toast, 
     if settings.open {
         settings.say(text);
     } else {
-        (toast.text, toast.until) = (text, now + 5.0);
+        toast.show(text, now, 5.0);
     }
 }
 
@@ -506,7 +499,7 @@ pub fn run(
                 covers.forget(&path);
                 sounds.play("toast", 1);
                 if pick.batch.is_none() {
-                    (toast.text, toast.until) = (format!("New cover for {}", open.ask.title), now + 4.0);
+                    toast.show(format!("New cover for {}", open.ask.title), now, 4.0);
                 }
                 (pick.reload, pick.open, pick.after) = (true, None, Some(After::Settled { counted: true }));
                 return;
@@ -592,7 +585,7 @@ pub fn run(
                     }
                     sounds.play("toast", 1);
                     if pick.batch.is_none() {
-                        (toast.text, toast.until) = (format!("{} is back on its automatic cover", ask.title), now + 4.0);
+                        toast.show(format!("{} is back on its automatic cover", ask.title), now, 4.0);
                     }
                     (pick.reload, pick.open, pick.after) = (true, None, Some(After::Settled { counted: false }));
                     return;

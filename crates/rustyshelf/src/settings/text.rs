@@ -170,18 +170,7 @@ impl Editing {
                         });
                     }
                 });
-                p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), width: percent(100), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
-                    bar.spawn((
-                        Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
-                        BackgroundColor(Color::srgba(10.0 / 255.0, 12.0 / 255.0, 22.0 / 255.0, 0.78)),
-                        BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16)),
-                    ))
-                    .with_children(|b| {
-                        for (caps, label) in &keys {
-                            key_hint(b, font, caps, label);
-                        }
-                    });
-                });
+                key_bar(p, &keys, font);
             });
     }
 }

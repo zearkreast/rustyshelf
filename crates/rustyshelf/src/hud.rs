@@ -75,6 +75,14 @@ pub struct Toast {
     pub until: f32,
 }
 
+impl Toast {
+    /// Shows `text` for `secs` seconds from `now`.
+    pub fn show(&mut self, text: impl Into<String>, now: f32, secs: f32) {
+        self.text = text.into();
+        self.until = now + secs;
+    }
+}
+
 /// The font Settings is written in.
 #[derive(Resource)]
 pub struct Face(pub Handle<Font>);
@@ -363,7 +371,7 @@ pub fn update(
                         None => meta(g, &shelf.name, ok),
                     };
                     // on Home, All or a collection: the shelf it's from first
-                    let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id));
+                    let own = l.own_shelf(shelf, cursor.game);
                     if let Some(own) = own {
                         under.insert(0, own.name.clone());
                     }

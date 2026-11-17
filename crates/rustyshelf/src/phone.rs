@@ -314,7 +314,7 @@ pub fn run(
                     continue;
                 }
                 if !settings.open || (matches!(input, Input::Text(_)) && !settings.takes_text()) {
-                    (toast.text, toast.until) = ("Open a text box on the TV to type into it (Find a game, or a name in Settings)".into(), now + 5.0);
+                    toast.show("Open a text box on the TV to type into it (Find a game, or a name in Settings)", now, 5.0);
                     continue;
                 }
                 phone.typed.push(input);
@@ -351,7 +351,7 @@ pub fn run(
     let Some(((shelf, id, title), until)) = phone.play.clone() else { return };
     if now > until {
         phone.play = None;
-        (toast.text, toast.until) = ("Couldn't start the game from the phone: RustyShelf was busy".into(), now + 6.0);
+        toast.show("Couldn't start the game from the phone: RustyShelf was busy", now, 6.0);
         return;
     }
     if in_game || menu_open {
@@ -371,7 +371,7 @@ pub fn run(
     phone.play = None;
     let place = l.shelves.iter().position(|s| s.id == shelf && !matches!(s.kind, ShelfKind::Mixed)).and_then(|i| Some((i, l.shelves[i].games.iter().position(|g| g.id == id)?)));
     let Some((i, at)) = place else {
-        (toast.text, toast.until) = (format!("{} isn't on the shelf right now", if title.is_empty() { "That game" } else { &title }), now + 6.0);
+        toast.show(format!("{} isn't on the shelf right now", if title.is_empty() { "That game" } else { &title }), now, 6.0);
         return;
     };
     (cursor.shelf, cursor.game, cursor.flipped, cursor.land) = (i, at, false, false);

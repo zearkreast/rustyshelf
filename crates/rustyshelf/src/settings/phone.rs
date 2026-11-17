@@ -110,9 +110,7 @@ impl Settings {
 
 /// The pairing code as a picture: a module a pixel, with the quiet edge a camera needs around it.
 pub(super) fn qr_image(link: &str) -> Option<Image> {
-    use bevy::asset::RenderAssetUsages;
     use bevy::image::ImageSampler;
-    use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
     const QUIET: usize = 4;
     let modules = rustyshelf_core::companion::qr_matrix(link).ok()?;
     let side = modules.len() + QUIET * 2;
@@ -123,7 +121,7 @@ pub(super) fn qr_image(link: &str) -> Option<Image> {
             data[at..at + 3].fill(0);
         }
     }
-    let mut image = Image::new(Extent3d { width: side as u32, height: side as u32, depth_or_array_layers: 1 }, TextureDimension::D2, data, TextureFormat::Rgba8UnormSrgb, RenderAssetUsages::RENDER_WORLD);
+    let mut image = crate::loading::to_image(side as u32, side as u32, data);
     image.sampler = ImageSampler::nearest();
     Some(image)
 }

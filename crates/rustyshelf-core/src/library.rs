@@ -311,6 +311,11 @@ impl Library {
         Self::load_from(&paths::app_root())
     }
 
+    /// The shelf the `i`th game of a mixed shelf (Home, All, a collection) comes from.
+    pub fn own_shelf(&self, shelf: &Shelf, i: usize) -> Option<&Shelf> {
+        shelf.from.get(i).and_then(|id| self.shelves.iter().find(|s| s.id == *id))
+    }
+
     pub fn load_from(app_root: &Path) -> Result<Library, LoadError> {
         GONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clear();
         let data_dir = paths::data_dir(app_root);

@@ -1,8 +1,6 @@
 //! Details → Box art: every version of each part of the chosen game's box the sources have, the best for the
 //! console's style first, with the highlighted one shown beside the list; Enter puts one in use.
 
-use bevy::asset::RenderAssetUsages;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
 use rustyshelf_core::artjob::{self, Ask, Job, Remote, Set, SetDone};
 use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
@@ -653,11 +651,7 @@ impl Settings {
         let key = c.key.clone();
         std::thread::spawn(move || {
             let file = local.or_else(|| Studio::new(&data).fetch_cand(&c, &sys, rustyshelf_core::js::date_now()).ok().flatten());
-            let picture = file.and_then(|f| image::ImageReader::open(f).ok()?.with_guessed_format().ok()?.decode().ok()).map(|img| {
-                let img = if img.height() > PREVIEW { img.resize(u32::MAX, PREVIEW, image::imageops::FilterType::Triangle) } else { img };
-                let rgba = img.into_rgba8();
-                (rgba.width(), rgba.height(), rgba.into_raw())
-            });
+            let picture = file.and_then(|f| crate::loading::decode(&f, PREVIEW));
             let _ = tx.send(picture);
         });
         self.art_pick.reading = Some((key, Mutex::new(rx)));
@@ -676,8 +670,7 @@ impl Settings {
                 images.remove(&old);
             }
             if let Some((w, h, data)) = picture {
-                let image = Image::new(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, data, TextureFormat::Rgba8UnormSrgb, RenderAssetUsages::RENDER_WORLD);
-                self.art_pick.shown = Some((key, images.add(image)));
+                self.art_pick.shown = Some((key, images.add(crate::loading::to_image(w, h, data))));
             }
         }
         let at = self.stack.last().map_or(0, |p| p.1);

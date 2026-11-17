@@ -64,11 +64,7 @@ impl Default for Reader {
                     Some(url) => rustyshelf_core::info::shot_file(&data, url).unwrap_or_default(),
                     None => file.clone(),
                 };
-                let picture = image::ImageReader::open(&local).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.decode().ok()).map(|img| {
-                    let img = if img.height() > TALLEST { img.resize(u32::MAX, TALLEST, image::imageops::FilterType::Triangle) } else { img };
-                    let rgba = img.into_rgba8();
-                    (rgba.width(), rgba.height(), rgba.into_raw())
-                });
+                let picture = crate::loading::decode(&local, TALLEST);
                 if done.send((file, picture)).is_err() {
                     return;
                 }

@@ -113,8 +113,7 @@ pub fn poll(mut toast: bevy::prelude::ResMut<crate::hud::Toast>, mut plays: bevy
     match r {
         Ok(()) => plays.0.touch(&id),
         Err(why) => {
-            toast.text = why;
-            toast.until = time.elapsed_secs() + 6.0;
+            toast.show(why, time.elapsed_secs(), 6.0);
             sounds.play("error", 1);
         }
     }

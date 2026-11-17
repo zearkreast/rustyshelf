@@ -262,7 +262,8 @@ impl Settings {
                 let root = self.app_root.clone();
                 info.pending = self.list(&["emuSetup", "pending"]).iter().any(|p| launch::emu_path(p, &root).to_string_lossy().to_lowercase() == exe.to_lowercase());
                 info.preset = emusetup::preset_for(self.gpu_vendor);
-                if let (Some(c), Some(cfg)) = (self.console(id).filter(|c| c.ra_core.is_some()), Config::from_value(&self.cfg)) {
+                let config = Config::from_value(&self.cfg);
+                if let (Some(c), Some(cfg)) = (self.console(id).filter(|c| c.ra_core.is_some()), config.as_ref()) {
                     if st.kind == Kind::RetroArch {
                         if let Some(core) = launch::core_of(c, &cfg.system(c)) {
                             let name = c.ra_cores.iter().find(|(k, _)| *k == core).map_or(core.clone(), |(_, n)| n.clone());
@@ -270,7 +271,7 @@ impl Settings {
                         }
                     }
                 }
-                info.bios = bios_for(&setup, Config::from_value(&self.cfg).as_ref(), self.console(id), id, &exe, st.kind);
+                info.bios = bios_for(&setup, config.as_ref(), self.console(id), id, &exe, st.kind);
                 info.status = Some(st);
             }
         }

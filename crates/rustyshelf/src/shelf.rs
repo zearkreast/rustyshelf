@@ -940,7 +940,11 @@ pub fn build_shelf(
     order.sort_by_key(|&i| i.abs_diff(cursor.game));
     for (i, g) in order.into_iter().map(|i| (i, &shelf.games[i])) {
         // on Home, All or a collection each game keeps its own shelf's case; one added to another shelf takes that one's
-        let own = shelf.from.get(i).filter(|_| matches!(shelf.kind, rustyshelf_core::library::ShelfKind::Mixed)).and_then(|id| library.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+        let own = match shelf.kind {
+            rustyshelf_core::library::ShelfKind::Mixed => library.own_shelf(shelf, i),
+            _ => None,
+        }
+        .unwrap_or(shelf);
         let look = looks::look_for(&own.id, g);
         let shape = look.on_shelf(&own.id);
         let (w, d) = (look.ratio, shape.depth);
@@ -1474,13 +1478,7 @@ pub fn moving(
                 }
             }
             None => {
-                let mut image = Image::new(
-                    bevy::render::render_resource::Extent3d { width: p.width, height: p.height, depth_or_array_layers: 1 },
-                    bevy::render::render_resource::TextureDimension::D2,
-                    p.rgba,
-                    bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
-                    RenderAssetUsages::RENDER_WORLD,
-                );
+                let mut image = to_image(p.width, p.height, p.rgba);
                 if pixels {
                     image.sampler = bevy::image::ImageSampler::nearest();
                 }

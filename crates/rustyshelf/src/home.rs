@@ -205,7 +205,7 @@ pub fn run(
                     game.paused = false;
                 }
                 if let Some(text) = Some(()).filter(|()| !ok).and_then(|()| homemenu::toast_for(&action, &game.keys, was_paused, false)) {
-                    (toast.text, toast.until) = (text, now + 5.0);
+                    toast.show(text, now, 5.0);
                 }
             }
         }
@@ -432,7 +432,7 @@ pub fn run(
                     }
                 }
                 "settings" => settings.open_root(),
-                "restart" | "shutdown" | "quitapp" if settings.kid_on() => (toast.text, toast.until) = (crate::play::KID_SAYS.into(), now + 3.0),
+                "restart" | "shutdown" | "quitapp" if settings.kid_on() => toast.show(crate::play::KID_SAYS, now, 3.0),
                 "sleep" | "restart" | "shutdown" => padwatch::power(match action.as_str() {
                     "sleep" => "sleep",
                     "restart" => "restart",

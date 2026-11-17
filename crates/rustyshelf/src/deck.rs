@@ -76,17 +76,17 @@ pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut hint: ResMut<DeckHint>, mu
     let now = time.elapsed_secs();
     if let Some(said) = hint.adding.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
         hint.adding = None;
-        (toast.text, toast.until) = (said, now + 8.0);
+        toast.show(said, now, 8.0);
     }
     if let Some(can_add) = hint.showing {
         let Some(o) = card.take() else { return };
         hint.showing = None;
         match o {
             Outcome::Picked(0) if can_add => {
-                (toast.text, toast.until) = ("Adding RustyShelf to Steam (Steam closes and opens again)…".into(), now + 30.0);
+                toast.show("Adding RustyShelf to Steam (Steam closes and opens again)…", now, 30.0);
                 hint.adding = Some(Mutex::new(add(true)));
             }
-            Outcome::Picked(1) => (toast.text, toast.until) = ("You can add it any time in Settings → System.".into(), now + 5.0),
+            Outcome::Picked(1) => toast.show("You can add it any time in Settings → System.", now, 5.0),
             _ => {}
         }
         return;

@@ -67,8 +67,7 @@ pub fn run(
             }
             Answer::Unlocked(Ok(list)) if !list.is_empty() => {
                 let names: Vec<&str> = list.iter().filter_map(|a| a["title"].as_str()).take(3).collect();
-                toast.text = format!("{} achievement{} unlocked: {}{}", list.len(), plural_s(list.len()), names.join(", "), if list.len() > names.len() { "…" } else { "" });
-                toast.until = now + 8.0;
+                toast.show(format!("{} achievement{} unlocked: {}{}", list.len(), plural_s(list.len()), names.join(", "), if list.len() > names.len() { "…" } else { "" }), now, 8.0);
                 // the shelves' marks are out of date now
                 c.shelves.clear();
             }

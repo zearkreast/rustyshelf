@@ -2871,29 +2871,14 @@ pub fn input(
         }
         s.poll_update();
         if let Some(text) = s.toast.take() {
-            toast.text = text;
-            toast.until = time.elapsed_secs() + 12.0;
+            toast.show(text, time.elapsed_secs(), 12.0);
         }
         if s.just_closed {
             s.just_closed = false;
         }
-        // shut from outside with something saved: the shelves are read again
-        if s.changed {
-            (s.changed, s.rearranged) = (false, false);
-            *lib = loading::start_library();
-            *cursor = Cursor::default();
-        }
-        // a favourite made on the shelf
-        if s.rearranged {
-            s.rearranged = false;
-            if let (Some(b), Some(cfg)) = (base.0.as_mut(), s.config_now()) {
-                std::sync::Arc::make_mut(b).config = cfg;
-                re.ask(b, &plays.0);
-            }
-        }
+        reshelve(&mut s, &mut lib, &mut cursor, &mut base, &mut re, &plays);
         if let Some(failed) = start_emulator(&mut s, &mut playing, time.elapsed_secs()).and_then(Result::err) {
-            toast.text = failed;
-            toast.until = time.elapsed_secs() + 8.0;
+            toast.show(failed, time.elapsed_secs(), 8.0);
         }
         let now = time.elapsed_secs();
         // a panel over the shelf has the keys
@@ -2916,7 +2901,7 @@ pub fn input(
         if let Some(which) = panel {
             if let LibraryState::Ready(l) = &lib.0 {
                 let game = l.shelves.get(cursor.shelf).and_then(|shelf| {
-                    let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|x| x.id == *id)).unwrap_or(shelf);
+                    let own = l.own_shelf(shelf, cursor.game).unwrap_or(shelf);
                     let g = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_)))?;
                     Some(panels::PanelGame { game: g.clone(), console: own.id.clone(), shelf_name: shelf.name.clone(), played: shelfview::played(g, &plays.0) })
                 });
@@ -2965,7 +2950,7 @@ pub fn input(
         if let LibraryState::Ready(l) = &lib.0 {
             if let Some(shelf) = l.shelves.get(cursor.shelf) {
                 // on a mixed shelf, the game's own shelf says what runs it
-                let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+                let own = l.own_shelf(shelf, cursor.game).unwrap_or(shelf);
                 let emulator = emulator_of(own);
                 s.chosen = shelf.games.get(cursor.game).filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| Chosen { console: own.id.clone(), emulator, game: g.clone(), plays: shelfview::played(g, &plays.0) });
                 let more = s.chosen.as_ref().and_then(|c| s.more_shots.get(&c.game.id).filter(|m| m.len() > c.game.info.as_ref().map_or(0, |i| i.shots.len())).cloned());
@@ -3178,20 +3163,23 @@ pub fn input(
             Some(i) => {
                 let at = l.shelves[i].games.iter().position(|g| g.id == id);
                 if at.is_none() {
-                    toast.text = "That game isn't shown with the filter that's on. Change it in the shelf's menu (G).".into();
-                    toast.until = time.elapsed_secs() + 6.0;
+                    toast.show("That game isn't shown with the filter that's on. Change it in the shelf's menu (G).", time.elapsed_secs(), 6.0);
                 }
                 (cursor.shelf, cursor.land) = (i, at.is_none());
                 cursor.game = at.unwrap_or(0);
                 cursor.flipped = false;
             }
             None => {
-                toast.text = "That game's shelf isn't shown.".into();
-                toast.until = time.elapsed_secs() + 5.0;
+                toast.show("That game's shelf isn't shown.", time.elapsed_secs(), 5.0);
             }
         }
     }
-    // a change to what's shown only rearranges the shelves; any other reads them again once Settings closes
+    reshelve(&mut s, &mut lib, &mut cursor, &mut base, &mut re, &plays);
+}
+
+/// A change to what's shown (a favourite made on the shelf, too) only rearranges the shelves; any other reads them
+/// again once Settings closes.
+fn reshelve(s: &mut Settings, lib: &mut LibraryRes, cursor: &mut Cursor, base: &mut Base, re: &mut loading::Reshower, plays: &crate::play::Plays) {
     if !s.open && s.changed {
         s.changed = false;
         s.rearranged = false;
@@ -3549,7 +3537,7 @@ fn neg(v: Val) -> Val {
 }
 
 /// The pill of keys along the bottom.
-fn key_bar(p: &mut ChildSpawnerCommands, keys: &[(Vec<String>, String)], font: Fonts) {
+fn key_bar(p: &mut ChildSpawnerCommands, keys: &[(Vec<impl AsRef<str>>, impl AsRef<str>)], font: Fonts) {
     p.spawn(Node { position_type: PositionType::Absolute, bottom: dp(24.0), left: px(0), right: px(0), justify_content: JustifyContent::Center, ..default() }).with_children(|bar| {
         bar.spawn((
             Node { padding: UiRect::axes(dp(18.0), dp(10.0)), column_gap: dp(26.0), align_items: AlignItems::Center, border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() },
@@ -3558,7 +3546,7 @@ fn key_bar(p: &mut ChildSpawnerCommands, keys: &[(Vec<String>, String)], font: F
         ))
         .with_children(|b| {
             for (caps, label) in keys {
-                key_hint(b, font, caps, label);
+                key_hint(b, font, caps, label.as_ref());
             }
         });
     });

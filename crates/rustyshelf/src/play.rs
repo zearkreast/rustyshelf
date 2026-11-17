@@ -303,8 +303,7 @@ pub fn navigate(
     if let Some(d) = playing.romm.as_ref().filter(|_| keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pads.iter().any(|p| p.just_pressed(settings.confirm().1))) {
         // the part is kept for a resume
         d.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-        toast.text = "Stopping the download…".into();
-        toast.until = time.elapsed_secs() + 3.0;
+        toast.show("Stopping the download…", time.elapsed_secs(), 3.0);
         return;
     }
     if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() && playing.title.is_none() {
@@ -326,7 +325,7 @@ pub fn navigate(
     // held on the shelf, the quit combo closes RustyShelf
     if combo.as_deref().is_some_and(|c| padwatch::held_here(&mut held, &pads, padwatch::mask(c), time.elapsed().as_millis() as u64)) {
         if settings.kid_on() {
-            (toast.text, toast.until) = (KID_SAYS.into(), time.elapsed_secs() + 3.0);
+            toast.show(KID_SAYS, time.elapsed_secs(), 3.0);
         } else {
             exit.write(AppExit::Success);
         }
@@ -426,8 +425,7 @@ pub fn navigate(
         let on = settings.toggle_favorite(&g.id);
         sounds.play(if on { "toast" } else { "back" }, 1);
         rumble.pulse(0.0, 0.3, 70);
-        toast.text = if on { format!("♥ {} added to favorites", g.title) } else { format!("Removed {} from favorites", g.title) };
-        toast.until = now + 3.0;
+        toast.show(if on { format!("♥ {} added to favorites", g.title) } else { format!("Removed {} from favorites", g.title) }, now, 3.0);
     }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(settings.confirm().0);
@@ -449,8 +447,7 @@ pub fn navigate(
                 (cursor.game, cursor.flipped, roll) = (i, false, true);
             }
             None => {
-                toast.text = "Nothing to shuffle on this shelf".into();
-                toast.until = now + 3.0;
+                toast.show("Nothing to shuffle on this shelf", now, 3.0);
             }
         }
     } else if go {
@@ -486,7 +483,7 @@ pub fn navigate(
     sounds.play("go", 1);
     rumble.pulse(0.6, 0.3, 140);
     // a game on Home, All or a collection starts as it does on its own shelf
-    let own = shelf.from.get(cursor.game).and_then(|id| l.shelves.iter().find(|s| s.id == *id)).unwrap_or(shelf);
+    let own = l.own_shelf(shelf, cursor.game).unwrap_or(shelf);
     match (&own.kind, &g.source) {
         // Steam starts it. With Seamless play it's watched as a game RustyShelf started; without, Steam looks after
         // it and the shelf stays as it is
@@ -498,19 +495,16 @@ pub fn navigate(
             }
             Ok(()) => {
                 plays.0.touch(&g.id);
-                toast.text = format!("{} is starting in Steam.", g.title);
-                toast.until = now + 5.0;
+                toast.show(format!("{} is starting in Steam.", g.title), now, 5.0);
             }
             Err(e) => {
-                toast.text = e.to_string();
                 sounds.play("error", 1);
-                toast.until = now + 5.0;
+                toast.show(e.to_string(), now, 5.0);
             }
         },
         // a PC game's launch is counted, its time isn't
         (_, Source::Pc(pc)) if cfg!(target_os = "linux") && pc.source == "epic" && pc.installed == Some(false) => {
-            toast.text = settings.epic_offer(&pc.app_name, &g.title, now);
-            toast.until = now + 6.0;
+            toast.show(settings.epic_offer(&pc.app_name, &g.title, now), now, 6.0);
         }
         (_, Source::Pc(pc)) if launch::is_linux_pc(pc) => {
             let (tx, rx) = channel();
@@ -525,8 +519,7 @@ pub fn navigate(
                 let _ = tx.send(started);
             });
             if pc.source == "epic" {
-                toast.text = "Getting the game ready with Epic…".into();
-                toast.until = now + 6.0;
+                toast.show("Getting the game ready with Epic…", now, 6.0);
             }
             playing.title = Some(g.title.clone());
             playing.id = g.id.clone();
@@ -536,8 +529,7 @@ pub fn navigate(
         (_, Source::Pc(pc)) => match launch::launch_pc_with(pc, &l.config, &l.app_root) {
             Ok((Some(child), notice)) => {
                 if let Some(n) = notice {
-                    toast.text = n;
-                    toast.until = now + 8.0;
+                    toast.show(n, now, 8.0);
                 }
                 plays.0.touch(&g.id);
                 playing.title = Some(g.title.clone());
@@ -557,21 +549,18 @@ pub fn navigate(
             // its store starts it and looks after it
             Ok((None, _)) => {
                 plays.0.touch(&g.id);
-                toast.text = format!("{} is starting in {}.", g.title, crate::hud::source_name(pc));
-                toast.until = now + 5.0;
+                toast.show(format!("{} is starting in {}.", g.title, crate::hud::source_name(pc)), now, 5.0);
             }
             Err(e) => {
-                toast.text = e.to_string();
                 sounds.play("error", 1);
-                toast.until = now + 6.0;
+                toast.show(e.to_string(), now, 6.0);
             }
         },
         // Android: the console's emulator app, handed the game as the app wants it
         #[cfg(target_os = "android")]
         (ShelfKind::Console { console, config }, Source::Rom) => {
             crate::android_saf::start(console, config, g);
-            toast.text = format!("Starting {}…", g.title);
-            toast.until = now + 3.0;
+            toast.show(format!("Starting {}…", g.title), now, 3.0);
         }
         #[cfg(not(target_os = "android"))]
         (ShelfKind::Console { console, config }, Source::Rom) => {
@@ -646,9 +635,8 @@ pub fn navigate(
                 playing.running(child);
             }
             Err(e) => {
-                toast.text = e.to_string();
                 sounds.play("error", 1);
-                toast.until = now + 6.0;
+                toast.show(e.to_string(), now, 6.0);
             }
         },
         (ShelfKind::Pc | ShelfKind::Apps | ShelfKind::Mixed, Source::Rom) | (_, Source::Tile(_)) => {}
@@ -709,11 +697,7 @@ pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Ca
     if let Some(got) = pick.adding.as_ref().and_then(|a| a.3.lock().unwrap().try_recv().ok()) {
         let (id, file, title, _) = pick.adding.take().unwrap();
         if let Some(exe) = got {
-            toast.text = match settings.add_sw2_build(&exe) {
-                Ok(()) => "Emulator added".into(),
-                Err(e) => e,
-            };
-            toast.until = now + 4.0;
+            toast.show(settings.add_sw2_build(&exe).err().unwrap_or_else(|| "Emulator added".into()), now, 4.0);
         }
         if let Some(cfg) = settings.config_now() {
             playing.pick.ask(cfg, id, file, title);
@@ -805,8 +789,7 @@ pub fn watch_game(
                     over = true;
                 }
                 Event::Timeout => {
-                    toast.text = format!("{title} didn't show up. If it's still starting, {} has it now.", w.store);
-                    toast.until = now + 8.0;
+                    toast.show(format!("{title} didn't show up. If it's still starting, {} has it now.", w.store), now, 8.0);
                     over = true;
                 }
                 Event::Forced(_) => warn!("{title} didn't close when asked: ended"),
@@ -820,8 +803,7 @@ pub fn watch_game(
             info!("Closing {title}");
             let _ = w.close.send(CLOSE_WAIT_MS);
             p.closing = Some(f32::INFINITY);
-            toast.text = format!("Closing {title}…");
-            toast.until = now + 4.0;
+            toast.show(format!("Closing {title}…"), now, 4.0);
         }
         return;
     }
@@ -852,8 +834,7 @@ pub fn watch_game(
         Some(Ok(Err(e))) => {
             warn!("{title}: {e}");
             sounds.play("error", 1);
-            toast.text = e.to_string();
-            toast.until = now + 6.0;
+            toast.show(e.to_string(), now, 6.0);
             *playing = Playing::default();
         }
         Some(Err(TryRecvError::Disconnected)) => *playing = Playing::default(),
@@ -870,8 +851,7 @@ pub fn watch_game(
                     launch::close_program(pid, false);
                 }
                 playing.closing = Some(now + if playing.app { APP_CLOSE_WAIT } else { CLOSE_WAIT });
-                toast.text = format!("Closing {title}…");
-                toast.until = now + 4.0;
+                toast.show(format!("Closing {title}…"), now, 4.0);
             }
             // a "really quit?" question (or anything else) is holding it open
             Some(by) if now >= by => {
@@ -897,8 +877,7 @@ pub fn watch_game(
     let rocket_said = playing.rocket.zip(emulator.as_ref()).map(|(at, e)| rustyshelf_core::rocket::last_error(std::path::Path::new(&e.exe), at)).filter(|e| !e.is_empty());
     if let Some(err) = rocket_said {
         warn!("RocketLauncher said: {err}");
-        toast.text = format!("RocketLauncher: {err}");
-        toast.until = now + 10.0;
+        toast.show(format!("RocketLauncher: {err}"), now, 10.0);
     } else if let Some(e) = emulator.as_ref().filter(|_| playing.rocket.is_none()) {
         let (console, exe) = (e.console.clone(), e.exe.clone());
         std::thread::spawn(move || emucfg::after_exit(&console, &exe, &paths::env_var));
@@ -907,8 +886,7 @@ pub fn watch_game(
         Some((emulator, at)) if now - at < QUICK_EXIT => {
             plays.0.undo();
             let code = code.filter(|c| *c != 0).map(|c| format!(" (code {c})")).unwrap_or_default();
-            toast.text = format!("{emulator} closed right away{code}. Open {emulator} on its own to check its setup: a missing BIOS, keys or firmware is the usual cause.");
-            toast.until = now + 12.0;
+            toast.show(format!("{emulator} closed right away{code}. Open {emulator} on its own to check its setup: a missing BIOS, keys or firmware is the usual cause."), now, 12.0);
         }
         _ => plays.0.end(),
     }

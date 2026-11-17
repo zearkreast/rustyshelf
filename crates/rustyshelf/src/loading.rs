@@ -366,7 +366,7 @@ impl Art {
     fn make(&self) -> Option<(u32, u32, Vec<u8>)> {
         let drawn = |p: rustyshelf_core::drawn::Picture| Some((p.width, p.height, p.rgba));
         match self {
-            Art::File(p) => decode(p),
+            Art::File(p) => decode(p, ART_HEIGHT),
             Art::Front { look, title, region, scene, hue, seed } => drawn(rustyshelf_core::drawn::front_from(look, title, region, *scene, *hue, seed.unwrap_or_else(|| rustyshelf_core::drawn::hash(title)))),
             Art::Tile { look, tile: Tile::Surprise } => drawn(rustyshelf_core::drawn::surprise(look)),
             Art::Tile { look, .. } => drawn(rustyshelf_core::drawn::add_games(look)),
@@ -440,9 +440,10 @@ impl ArtLoader {
     }
 }
 
-fn decode(path: &std::path::Path) -> Option<(u32, u32, Vec<u8>)> {
+/// A picture shrunk to at most `tallest` pixels tall, as (width, height, RGBA).
+pub fn decode(path: &std::path::Path, tallest: u32) -> Option<(u32, u32, Vec<u8>)> {
     let img = image::ImageReader::open(path).ok()?.with_guessed_format().ok()?.decode().ok()?;
-    let img = if img.height() > ART_HEIGHT { img.resize(u32::MAX, ART_HEIGHT, image::imageops::FilterType::Triangle) } else { img };
+    let img = if img.height() > tallest { img.resize(u32::MAX, tallest, image::imageops::FilterType::Triangle) } else { img };
     let rgba = img.into_rgba8();
     Some((rgba.width(), rgba.height(), rgba.into_raw()))
 }
