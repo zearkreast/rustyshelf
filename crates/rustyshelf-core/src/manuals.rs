@@ -93,13 +93,8 @@ impl Web for Online {
         if status != 200 || body.len() < 2048 {
             return Ok(false);
         }
-        // through a .part: a page half written must never read as a manual's page
-        let part = PathBuf::from(format!("{}.part", dest.display()));
-        let written = fs::write(&part, &body).and_then(|()| fs::rename(&part, dest));
-        if written.is_err() {
-            let _ = fs::remove_file(&part);
-        }
-        written.map(|()| true).map_err(|e| WebError::Offline(e.to_string()))
+        // a page half written must never read as a manual's page
+        crate::files::write_atomic(dest, &body).map(|()| true).map_err(|e| WebError::Offline(e.to_string()))
     }
 }
 
@@ -971,10 +966,7 @@ impl Stores {
     }
 
     pub fn save(&self) {
-        let tmp = PathBuf::from(format!("{}.tmp", self.auto_file.display()));
-        if fs::write(&tmp, Value::Object(self.auto.clone()).to_string()).is_ok() {
-            let _ = fs::rename(&tmp, &self.auto_file);
-        }
+        let _ = crate::files::write_atomic(&self.auto_file, Value::Object(self.auto.clone()).to_string());
     }
 
     pub fn rejected(&self, key: &str, id: &str) -> bool {
@@ -982,10 +974,7 @@ impl Stores {
     }
 
     fn write(&self, name: &str, what: &Value) {
-        let (file, tmp) = (self.data_dir.join(name), self.data_dir.join(format!("{name}.tmp")));
-        if fs::create_dir_all(&self.data_dir).is_ok() && fs::write(&tmp, what.to_string()).is_ok() {
-            let _ = fs::rename(&tmp, &file);
-        }
+        let _ = crate::files::write_atomic(&self.data_dir.join(name), what.to_string());
     }
 
     /// Sets copies aside for a game: neither the automatic search nor the collections bring them again.

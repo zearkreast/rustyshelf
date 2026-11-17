@@ -44,18 +44,25 @@ pub fn own(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
     let dir = data.join("pc-covers");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let base = dir.join(safe_id(id)).display().to_string();
-    let (dest, tmp) = (PathBuf::from(format!("{base}.{ext}")), PathBuf::from(format!("{base}.{ext}.tmp")));
-    std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
-    clear(data, id);
-    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    let dest = PathBuf::from(format!("{base}.{ext}"));
+    crate::files::write_atomic(&dest, bytes).map_err(|e| e.to_string())?;
+    clear_except(data, id, &dest);
     Ok(dest)
 }
 
 /// Takes away the cover chosen for a game: its automatic one is shown again.
 pub fn clear(data: &Path, id: &str) {
+    clear_except(data, id, Path::new(""));
+}
+
+/// [`clear`], sparing `kept`.
+fn clear_except(data: &Path, id: &str, kept: &Path) {
     let base = data.join("pc-covers").join(safe_id(id)).display().to_string();
     for gone in ["jpg", "png", "webp", "plat", "from"] {
-        let _ = std::fs::remove_file(format!("{base}.{gone}"));
+        let f = PathBuf::from(format!("{base}.{gone}"));
+        if f != kept {
+            let _ = std::fs::remove_file(f);
+        }
     }
 }
 
@@ -141,8 +148,7 @@ pub fn save_console(data: &Path, id: &str, bytes: &[u8], from: &str, part: &str,
     let base = dir.join(safe_id(id)).display().to_string();
     let dash = if part.is_empty() { "" } else { "-" };
     let f = PathBuf::from(format!("{base}{dash}{part}.jpg"));
-    let tmp = PathBuf::from(format!("{}.tmp", f.display()));
-    std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, &f)).map_err(|e| e.to_string())?;
+    crate::files::write_atomic(&f, bytes).map_err(|e| e.to_string())?;
     if part.is_empty() {
         std::fs::write(format!("{base}.from"), from).map_err(|e| e.to_string())?;
         if !plat.is_empty() {
@@ -219,8 +225,7 @@ fn thumb(data: &Path, url: &str) -> Option<PathBuf> {
     }
     std::fs::create_dir_all(&dir).ok()?;
     let dest = PathBuf::from(format!("{base}.{}", ext_of(url, &b)));
-    let tmp = PathBuf::from(format!("{}.tmp", dest.display()));
-    std::fs::write(&tmp, &b).and_then(|()| std::fs::rename(&tmp, &dest)).ok()?;
+    crate::files::write_atomic(&dest, &b).ok()?;
     Some(dest)
 }
 
@@ -327,10 +332,8 @@ fn keep(data: &Path, id: &str, bytes: &[u8], from: &str) -> Result<PathBuf, Stri
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let base = dir.join(safe_id(id)).display().to_string();
     let dest = PathBuf::from(format!("{base}.{}", ext_of(from, bytes)));
-    let tmp = PathBuf::from(format!("{}.tmp", dest.display()));
-    std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
-    clear(data, id);
-    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    crate::files::write_atomic(&dest, bytes).map_err(|e| e.to_string())?;
+    clear_except(data, id, &dest);
     Ok(dest)
 }
 
@@ -444,8 +447,8 @@ pub fn fetch_auto(data: &Path, id: &str, url: &str) -> Option<PathBuf> {
     for e in ["jpg", "png", "webp"] {
         let _ = std::fs::remove_file(format!("{base}.{e}"));
     }
-    let (dest, tmp) = (PathBuf::from(format!("{base}.{ext}")), PathBuf::from(format!("{base}.{ext}.tmp")));
-    std::fs::write(&tmp, &b).and_then(|()| std::fs::rename(&tmp, &dest)).ok()?;
+    let dest = PathBuf::from(format!("{base}.{ext}"));
+    crate::files::write_atomic(&dest, &b).ok()?;
     let _ = std::fs::write(&from, url);
     Some(dest)
 }

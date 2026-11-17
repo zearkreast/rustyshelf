@@ -120,10 +120,7 @@ fn run_with(data: &Path, idx: &mut Index, wants: &[Want], region: &str, now: u64
         }
     }
     if missed {
-        let tmp = file.with_extension("json.tmp");
-        if file.parent().is_some_and(|d| std::fs::create_dir_all(d).is_ok()) && std::fs::write(&tmp, Value::Object(miss).to_string()).is_ok() {
-            let _ = std::fs::rename(&tmp, &file);
-        }
+        let _ = crate::files::write_atomic(&file, Value::Object(miss).to_string());
     }
     got
 }

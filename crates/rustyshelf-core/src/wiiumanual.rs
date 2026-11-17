@@ -777,8 +777,7 @@ pub fn collect(data_dir: &Path, games: &[Want], render: &Render) -> usize {
                         EBOOKS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(g.title.clone());
                         return Ok(None);
                     }
-                    let part = dir.join(format!("{stem}.bfma.part"));
-                    let _ = fs::create_dir_all(&dir).and_then(|()| fs::write(&part, &b)).and_then(|()| fs::rename(&part, &cache));
+                    let _ = crate::files::write_atomic(&cache, &b);
                     b
                 }
             };

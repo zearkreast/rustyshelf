@@ -208,14 +208,9 @@ pub fn download_ex(url: &str, dest: &Path, zip: bool) -> Result<Outcome, String>
             if if zip { !buf.starts_with(b"PK\x03\x04") } else { !is_image(&buf) } {
                 return Ok(Outcome::Busy);
             }
-            let part = PathBuf::from(format!("{}.part", dest.display()));
-            let saved = dest.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|()| std::fs::write(&part, &buf)).and_then(|()| std::fs::rename(&part, dest));
-            return match saved {
+            return match crate::files::write_atomic(dest, &buf) {
                 Ok(()) => Ok(Outcome::Ok),
-                Err(e) => {
-                    let _ = std::fs::remove_file(&part);
-                    Err(if e.kind() == std::io::ErrorKind::StorageFull { "disk full".into() } else { e.to_string() })
-                }
+                Err(e) => Err(if e.kind() == std::io::ErrorKind::StorageFull { "disk full".into() } else { e.to_string() }),
             };
         }
         if status >= 500 || status == 429 {

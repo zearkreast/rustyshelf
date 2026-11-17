@@ -920,8 +920,7 @@ impl Setup<'_> {
                         restored.push(f.clone());
                     }
                 } else if same && is_file(Path::new(&snap)) {
-                    let tmp = format!("{f}.tmp");
-                    if std::fs::copy(&snap, &tmp).and_then(|_| std::fs::rename(&tmp, &f)).is_ok() {
+                    if crate::files::copy_atomic(Path::new(&snap), Path::new(&f)).is_ok() {
                         restored.push(f.clone());
                     }
                 } else {
@@ -964,8 +963,7 @@ impl Setup<'_> {
             if !is_file(Path::new(&bak)) {
                 continue;
             }
-            let tmp = format!("{f}.tmp");
-            if std::fs::copy(&bak, &tmp).and_then(|_| std::fs::rename(&tmp, &f)).and_then(|()| std::fs::remove_file(&bak)).is_ok() {
+            if crate::files::copy_atomic(Path::new(&bak), Path::new(&f)).and_then(|()| std::fs::remove_file(&bak)).is_ok() {
                 restored.push(f);
             }
         }

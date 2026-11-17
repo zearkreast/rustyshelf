@@ -358,8 +358,7 @@ pub fn add_to_steam(var: Var, home: &Path, exe: &str, icon: Option<&[u8]>, data_
                 fs::copy(&f, f.with_extension("vdf.rustyshelf-bak")).map_err(|e| e.kind().to_string())?;
             }
             let (root, id, had) = with_rustyshelf(root, exe, "RustyShelf", &icon_file);
-            let tmp = f.with_extension("vdf.part");
-            fs::write(&tmp, write(&root)).and_then(|()| fs::rename(&tmp, &f)).map_err(|e| e.kind().to_string())?;
+            crate::files::write_atomic(&f, write(&root)).map_err(|e| e.kind().to_string())?;
             // the Library's artwork: RustyShelf's icon, until a proper one is chosen in Steam
             if !icon_file.is_empty() {
                 let grid = dir.join("grid");

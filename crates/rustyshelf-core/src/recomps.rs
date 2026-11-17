@@ -8,7 +8,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use serde::Serialize;
 use serde_json::{json, Map, Value};
 
 use crate::covers::{self, LB_PC};
@@ -116,11 +115,7 @@ pub fn detect(data: &Path, cache_dir: &Path, games: &[(String, String)], shelves
         };
         memo.insert(key(id, title), answer);
     }
-    let mut out = Vec::new();
-    let tmp = data.join(format!("{FILE}.tmp"));
-    if Value::Object(memo).serialize(&mut serde_json::Serializer::with_formatter(&mut out, serde_json::ser::PrettyFormatter::with_indent(b" "))).is_ok() && std::fs::write(&tmp, out).is_ok() {
-        let _ = std::fs::rename(&tmp, data.join(FILE));
-    }
+    let _ = crate::files::write_atomic(&data.join(FILE), js::stringify_indented(&Value::Object(memo), 1));
     placed
 }
 

@@ -50,12 +50,9 @@ fn save(urls: &[String], dest: &Path) -> Saved {
                     err = true;
                     continue;
                 }
-                let part = PathBuf::from(format!("{}.part", dest.display()));
-                let written = dest.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|()| std::fs::write(&part, &b)).and_then(|()| std::fs::rename(&part, dest));
-                match written {
+                match crate::files::write_atomic(dest, &b) {
                     Ok(()) => return Saved::Ok,
                     Err(_) => {
-                        let _ = std::fs::remove_file(&part);
                         err = true;
                     }
                 }

@@ -1386,11 +1386,7 @@ impl Romm {
     }
 
     fn save_cache(&self, c: &Cache) {
-        let f = self.cache_file();
-        let tmp = f.with_file_name(format!("romm-library.json.{}.tmp", std::process::id()));
-        let _ = fs::create_dir_all(&self.data_dir)
-            .and_then(|_| fs::write(&tmp, serde_json::to_string(c).unwrap_or_default()))
-            .and_then(|_| fs::rename(&tmp, &f));
+        let _ = crate::files::write_atomic(&self.cache_file(), serde_json::to_string(c).unwrap_or_default());
     }
 
     /// romm-covers' files by RomM id.
@@ -1674,9 +1670,8 @@ impl Romm {
                         continue;
                     };
                     let file = dir.join(format!("{}.{ext}", g.romm_id));
-                    let tmp = dir.join(format!("{}.{ext}.{}.tmp", g.romm_id, std::process::id()));
                     let mut o = out.lock().unwrap();
-                    if fs::write(&tmp, &r.bytes).and_then(|_| fs::rename(&tmp, &file)).is_ok() {
+                    if crate::files::write_atomic(&file, &r.bytes).is_ok() {
                         o.paths.insert(g.id.clone(), file);
                         o.downloaded += 1;
                     } else {

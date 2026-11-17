@@ -46,7 +46,7 @@ pub fn keep(time: Res<Time>, lib: Res<LibraryRes>, cursor: Res<Cursor>, mut seen
         return;
     }
     let path = file(&rustyshelf_core::paths::data_dir(&l.app_root));
-    if std::fs::write(&path, json!({ "shelf": here.0, "game": here.1 }).to_string()).is_ok() {
+    if rustyshelf_core::files::write_atomic(&path, json!({ "shelf": here.0, "game": here.1 }).to_string()).is_ok() {
         *kept = Some(here);
     }
 }

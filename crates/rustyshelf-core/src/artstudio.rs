@@ -723,8 +723,7 @@ impl Studio {
         std::fs::create_dir_all(&self.cand_dir).map_err(|e| e.to_string())?;
         if let Some(front) = &c.made {
             let Some(png) = crate::boxart::make_cart(front, sys) else { return Ok(None) };
-            let part = PathBuf::from(format!("{}.part", dest.display()));
-            std::fs::write(&part, png).and_then(|()| std::fs::rename(&part, &dest)).map_err(|e| e.to_string())?;
+            crate::files::write_atomic(&dest, png).map_err(|e| e.to_string())?;
             return Ok(Some(dest));
         }
         let get = |to: &Path| -> Result<bool, String> {
@@ -754,9 +753,7 @@ impl Studio {
                 let piece = get(&raw).map(|ok| if ok { crate::boxart::cut_wrap(&raw, sys, cut) } else { None });
                 let _ = std::fs::remove_file(&raw);
                 let Some(bytes) = piece? else { return Ok(None) };
-                let part = PathBuf::from(format!("{}.part", dest.display()));
-                if std::fs::write(&part, bytes).and_then(|()| std::fs::rename(&part, &dest)).is_err() {
-                    let _ = std::fs::remove_file(&part);
+                if crate::files::write_atomic(&dest, bytes).is_err() {
                     return Ok(None);
                 }
             }

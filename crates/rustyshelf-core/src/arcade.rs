@@ -110,8 +110,7 @@ pub fn fetch(data_dir: &Path) -> Result<bool, String> {
     let at = crate::now_ms();
     let table = serde_json::json!({ "v": 1, "at": at, "names": names.into_iter().map(|(k, v)| (k, v.into())).collect::<serde_json::Map<String, serde_json::Value>>(), "bios": bios });
     let file = data_dir.join("arcade-names.json");
-    let tmp = data_dir.join("arcade-names.json.part");
-    std::fs::create_dir_all(data_dir).and_then(|()| std::fs::write(&tmp, table.to_string())).and_then(|()| std::fs::rename(&tmp, &file)).map_err(|e| e.to_string())?;
+    crate::files::write_atomic(&file, table.to_string()).map_err(|e| e.to_string())?;
     Ok(true)
 }
 

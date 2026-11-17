@@ -130,7 +130,7 @@ pub fn create(root: &Path, file: &Path, name: &str) -> Result<String, String> {
     fs::create_dir(&dir).map_err(|e| e.to_string())?;
     let ext = file_name.rfind('.').map_or(String::new(), |i| file_name[i..].to_lowercase());
     fs::copy(file, dir.join(format!("background{ext}"))).map_err(|e| e.to_string())?;
-    let settings = serde_json::to_string_pretty(&json!({ "name": named, "shade": 0.35, "blur": false, "glow": 0.35 })).unwrap_or_default();
+    let settings = crate::js::stringify_pretty(&json!({ "name": named, "shade": 0.35, "blur": false, "glow": 0.35 }));
     fs::write(dir.join("theme.json"), settings).map_err(|e| e.to_string())?;
     let plain = slug(&folder);
     Ok(format!("custom-{}", if plain.is_empty() { "theme" } else { &plain }))
@@ -239,7 +239,7 @@ pub fn ensure_examples(root: &Path) {
         if fs::create_dir_all(&dir).is_err() {
             return;
         }
-        let settings = serde_json::to_string_pretty(&json!({ "name": name, "accent": accent, "shade": shade, "glow": glow, "blur": false })).unwrap_or_default();
+        let settings = crate::js::stringify_pretty(&json!({ "name": name, "accent": accent, "shade": shade, "glow": glow, "blur": false }));
         let _ = fs::write(dir.join("background.svg"), picture);
         let _ = fs::write(dir.join("theme.json"), settings);
     }

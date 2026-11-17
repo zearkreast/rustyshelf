@@ -269,11 +269,7 @@ pub fn boot_file(file: &Path, exe: &str, var: &dyn Fn(&str) -> Option<String>, o
     }
     // written last, through a temporary name: an interrupted install isn't taken as a finished one
     let tmd = js::join(&[&dir, "00000000.tmd"]);
-    let part = format!("{tmd}.part");
-    std::fs::write(&part, &cia.tmd).and_then(|()| std::fs::rename(&part, &tmd)).map_err(|e| {
-        let _ = std::fs::remove_file(&part);
-        io(e)
-    })?;
+    crate::files::write_atomic(Path::new(&tmd), &cia.tmd).map_err(io)?;
     on_status(&format!("Starting in {emu}"));
     Ok(boot)
 }

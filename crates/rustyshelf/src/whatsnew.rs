@@ -42,7 +42,7 @@ pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut wn: ResMut<WhatsNew>, mut 
     if seen == top.version {
         return;
     }
-    let _ = std::fs::write(&file, serde_json::json!({ "seen": top.version }).to_string());
+    let _ = rustyshelf_core::files::write_atomic(&file, serde_json::json!({ "seen": top.version }).to_string());
     if !settings.setup_done() {
         return;
     }

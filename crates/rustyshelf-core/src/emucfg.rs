@@ -699,12 +699,8 @@ pub fn restore_backups(emulators: &[(String, String)], var: Var) -> Vec<String> 
         if !exists(&bak) {
             continue;
         }
-        let tmp = format!("{f}.tmp");
-        match std::fs::copy(&bak, &tmp).and_then(|_| std::fs::rename(&tmp, &f)).and_then(|()| std::fs::remove_file(&bak)) {
-            Ok(()) => done.push(f),
-            Err(_) => {
-                let _ = std::fs::remove_file(&tmp);
-            }
+        if crate::files::copy_atomic(Path::new(&bak), Path::new(&f)).and_then(|()| std::fs::remove_file(&bak)).is_ok() {
+            done.push(f);
         }
     }
     done

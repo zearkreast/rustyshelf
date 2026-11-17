@@ -199,7 +199,7 @@ impl Settings {
                 // the shelf reads the pages when Settings closes; Details has them at once
                 if let (Some((dir, base)), Some(c)) = (place, self.chosen.as_mut().filter(|_| same)) {
                     let prefix = format!("{base}-manual-").to_lowercase();
-                    let mut pages: Vec<PathBuf> = std::fs::read_dir(&dir).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.file_name().is_some_and(|f| f.to_string_lossy().to_lowercase().starts_with(&prefix)) && !p.to_string_lossy().ends_with(".part")).collect();
+                    let mut pages: Vec<PathBuf> = std::fs::read_dir(&dir).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.file_name().is_some_and(|f| f.to_string_lossy().to_lowercase().starts_with(&prefix)) && !p.to_string_lossy().ends_with(".part") && !p.to_string_lossy().ends_with(".tmp")).collect();
                     pages.sort();
                     c.game.art.manual = pages;
                 }

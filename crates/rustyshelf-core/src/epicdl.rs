@@ -132,9 +132,7 @@ impl Downloads {
             .iter()
             .map(|x| json!({ "id": x.id, "appName": x.app_name, "title": x.title, "baseDir": x.base_dir, "update": x.update, "status": x.state.name(), "pct": js::num(x.pct), "error": x.error, "added": x.added }))
             .collect();
-        let tmp = PathBuf::from(format!("{}.tmp", self.0.file.display()));
-        let _ = self.0.file.parent().map(std::fs::create_dir_all);
-        let _ = std::fs::write(&tmp, Value::Array(d).to_string()).and_then(|_| std::fs::rename(&tmp, &self.0.file));
+        let _ = crate::files::write_atomic(&self.0.file, Value::Array(d).to_string());
     }
 
     fn changed(&self, mut i: MutexGuard<'_, Inner>, force: bool) {

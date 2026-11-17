@@ -54,6 +54,14 @@ pub fn write_atomic(f: &Path, data: impl AsRef<[u8]>) -> std::io::Result<()> {
     })
 }
 
+/// [`write_atomic`] for a copy of `src`: `dest` is the old file or the whole copy, never part of one.
+pub fn copy_atomic(src: &Path, dest: &Path) -> std::io::Result<()> {
+    let tmp = tmp_of(dest);
+    std::fs::copy(src, &tmp).and_then(|_| std::fs::rename(&tmp, dest)).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
+}
+
 fn tmp_of(f: &Path) -> PathBuf {
     let mut name = f.file_name().unwrap_or_default().to_os_string();
     name.push(format!(".{}.tmp", std::process::id()));

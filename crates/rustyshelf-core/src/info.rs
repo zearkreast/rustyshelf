@@ -228,8 +228,6 @@ pub fn shot_file(data_dir: &Path, url: &str) -> Option<std::path::PathBuf> {
         return Some(file);
     }
     let bytes = crate::net::get_bytes(url, std::time::Duration::from_secs(20), 15_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b))?;
-    std::fs::create_dir_all(&dir).ok()?;
-    let part = dir.join(format!("{name}.part"));
-    std::fs::write(&part, &bytes).and_then(|()| std::fs::rename(&part, &file)).ok()?;
+    crate::files::write_atomic(&file, &bytes).ok()?;
     Some(file)
 }

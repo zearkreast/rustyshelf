@@ -77,9 +77,7 @@ pub fn get(exe: &str, core: &str, var: &dyn Fn(&str) -> Option<String>, on_pct: 
         }
         let dir = cores_dir(exe, var);
         let dest = js::join(&[&dir, &want]);
-        let part = format!("{dest}.part");
-        std::fs::create_dir_all(&dir).and_then(|()| std::fs::copy(&got, &part)).and_then(|_| std::fs::rename(&part, &dest)).map_err(|e| {
-            let _ = std::fs::remove_file(&part);
+        std::fs::create_dir_all(&dir).and_then(|()| crate::files::copy_atomic(&got, Path::new(&dest))).map_err(|e| {
             format!("RetroArch's cores folder can't be written ({e}): use RetroArch's Online Updater instead")
         })?;
         Ok(PathBuf::from(dest))

@@ -482,10 +482,7 @@ impl ScreenScraper {
             trim(&mut c.hashes, MAX_HASH);
             json!({ "games": c.games, "hashes": c.hashes }).to_string()
         });
-        let tmp = self.file.with_extension("json.tmp");
-        if fs::write(&tmp, text).is_ok() {
-            let _ = fs::rename(&tmp, &self.file);
-        }
+        let _ = crate::files::write_atomic(&self.file, text);
     }
 
     fn pause(&self, ms: f64, why: &'static str) {
@@ -795,8 +792,7 @@ impl ScreenScraper {
         if !picture {
             return Ok(Got::Missing);
         }
-        let part = PathBuf::from(format!("{}.part", dest.display()));
-        fs::write(&part, &b).and_then(|()| fs::rename(&part, dest)).map_err(|e| e.to_string())?;
+        crate::files::write_atomic(dest, &b).map_err(|e| e.to_string())?;
         Ok(Got::Ok)
     }
 
