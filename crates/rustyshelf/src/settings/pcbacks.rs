@@ -24,16 +24,17 @@ impl Settings {
     pub(super) fn pc_back_rows(&self) -> Vec<Row> {
         let Some(c) = self.chosen.as_ref().filter(|c| matches!(c.game.source, Source::Steam { .. } | Source::Pc(_)) && systems().console(&c.console).is_none()) else { return Vec::new() };
         let (data, id) = (paths::data_dir(&self.app_root), &c.game.id);
-        let mut rows = vec![
-            Row { label: "Back of the box…".into(), hint: "A picture of yours".into(), press: Some(Box::new(|s: &mut Settings| s.pick(Pick::OwnBack, "Choose the back of the box", false))), ..Row::default() },
-            Row {
+        let mut rows = vec![Row { label: "Back of the box…".into(), hint: "A picture of yours".into(), press: Some(Box::new(|s: &mut Settings| s.pick(Pick::OwnBack, "Choose the back of the box", false))), ..Row::default() }];
+        // a console box's case never wears LaunchBox's back
+        if c.game.box_plat.is_none() {
+            rows.push(Row {
                 label: "Back from LaunchBox".into(),
                 value: if self.pc_backs.looking.is_some() { "Looking…".into() } else { String::new() },
                 hint: "Found by name".into(),
                 press: Some(Box::new(|s: &mut Settings| s.launchbox_back())),
                 step: None,
-            },
-        ];
+            });
+        }
         let launchbox = c.game.box_plat.is_none() && !pccovers::made_up_back(&data, id) && pccovers::auto_back(&data, id).is_some();
         if pccovers::back(&data, id).is_some() || launchbox {
             rows.push(Row { label: "Made-up back".into(), hint: "Remove your back".into(), press: Some(Box::new(|s: &mut Settings| s.made_up_back())), ..Row::default() });
@@ -113,7 +114,7 @@ impl Settings {
     }
 
     fn launchbox_back(&mut self) {
-        let Some(want) = self.chosen.as_ref().and_then(|c| Want::of(&c.game)).filter(|_| self.pc_backs.looking.is_none()) else { return };
+        let Some(want) = self.chosen.as_ref().filter(|c| c.game.box_plat.is_none()).and_then(|c| Want::of(&c.game)).filter(|_| self.pc_backs.looking.is_none()) else { return };
         let (data, region) = (paths::data_dir(&self.app_root), self.art_region());
         let (id, title) = (want.id.clone(), want.title.clone());
         let (tx, rx) = channel();
@@ -200,6 +201,10 @@ mod tests {
         s.made_up_back();
         assert_eq!(labels(&s).len(), 2);
         assert!(s.changed && pccovers::made_up_back(&r.join("data"), "custom-zeta"));
+        s.chosen.as_mut().unwrap().game.box_plat = Some("ps5".into());
+        assert_eq!(labels(&s), ["Back of the box…"], "in a console box");
+        s.launchbox_back();
+        assert!(s.pc_backs.looking.is_none());
         s.chosen.as_mut().unwrap().console = "snes".into();
         assert!(labels(&s).is_empty());
         let _ = std::fs::remove_dir_all(&r);
