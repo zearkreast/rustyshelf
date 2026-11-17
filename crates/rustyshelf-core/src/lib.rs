@@ -14,6 +14,7 @@ pub fn now_ms() -> u64 {
 }
 
 pub mod accountenv;
+pub mod achpics;
 pub mod addgames;
 pub mod android;
 pub mod arcade;
