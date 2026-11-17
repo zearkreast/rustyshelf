@@ -329,6 +329,8 @@ mod tests {
     fn game_streaming_and_pc_backs_rows() {
         assert_eq!((tr("fr", "Game streaming"), tr("tr", "Game streaming")), ("Streaming de jeux".into(), "Oyun akışı".into()));
         assert_eq!(tr("fr", "12 apps on the host"), "12 applis sur l'hôte");
+        assert_eq!((tr("fr", "1 game from mypc"), tr("fr", "12 games from living-room-pc")), ("1 jeu de mypc".into(), "12 jeux de living-room-pc".into()));
+        assert_eq!(tr("tr", "1 game from mypc"), "mypc: 1 oyun");
         assert_eq!(tr("tr", "LaunchBox's PC games: Reading the game database… 12%"), "LaunchBox'ın PC oyunları: Oyun veritabanı okunuyor… %12");
     }
 }

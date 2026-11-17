@@ -71,7 +71,7 @@ impl Settings {
         rows.push(Row {
             label: "Put recomps on their console's shelf".into(),
             value: on_off(self.flag(&["pc", "recompDetect"], false)),
-            hint: "A game added here with no Platform, or one of Quiver's, goes on its console's shelf when LaunchBox's database (from box art downloads) has a game of exactly its name on that console and nowhere else. Ports and games you placed stay where they are.".into(),
+            hint: "A game added here with no Platform, or one of Quiver's, goes on its console's shelf when LaunchBox's database (from box art downloads) has a game of exactly its name on that console and nowhere else. Ports, and games you put on PC, Ports & Recomps or a console's shelf, stay where they are; Custom counts as no Platform.".into(),
             press: Some(Box::new(|s: &mut Settings| s.toggle(&["pc", "recompDetect"], false))),
             step: Some(Box::new(|s: &mut Settings, _| s.toggle(&["pc", "recompDetect"], false))),
         });

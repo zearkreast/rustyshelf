@@ -104,6 +104,7 @@ impl Settings {
                     let told = std::mem::take(&mut self.streaming.page_asked);
                     // another host was named meanwhile: its own list is asked for next
                     if host != self.text(&["moonlight", "host"]) {
+                        self.streaming.looked = false;
                         continue;
                     }
                     let changed = take_answer(&mut self.cfg, found, apps.as_deref().ok());
@@ -112,7 +113,7 @@ impl Settings {
                             self.streaming.unreached = false;
                             if told {
                                 let n = at(&self.cfg, &["moonlight", "apps"]).and_then(Value::as_array).map_or(0, Vec::len);
-                                self.say(format!("{n} games from {host}"));
+                                self.say(format!("{n} game{} from {host}", if n == 1 { "" } else { "s" }));
                             }
                         }
                         Err(why) if told => {

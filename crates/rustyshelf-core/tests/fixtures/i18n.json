@@ -1979,8 +1979,8 @@
     "Ceci retélécharge la base de LaunchBox : environ 110 Mo. Appuyez à nouveau pour continuer"
    ],
    [
-    "A game added here with no Platform, or one of Quiver's, goes on its console's shelf when LaunchBox's database (from box art downloads) has a game of exactly its name on that console and nowhere else. Ports and games you placed stay where they are.",
-    "Un jeu ajouté ici sans Plateforme, ou un jeu de Quiver, va sur l'étagère de sa console quand la base de LaunchBox (celle des téléchargements de jaquettes) a un jeu de ce nom exact sur cette console et nulle part ailleurs. Les portages et les jeux que vous avez placés restent où ils sont."
+    "A game added here with no Platform, or one of Quiver's, goes on its console's shelf when LaunchBox's database (from box art downloads) has a game of exactly its name on that console and nowhere else. Ports, and games you put on PC, Ports & Recomps or a console's shelf, stay where they are; Custom counts as no Platform.",
+    "Un jeu ajouté ici sans Plateforme, ou un jeu de Quiver, va sur l'étagère de sa console quand la base de LaunchBox (celle des téléchargements de jaquettes) a un jeu de ce nom exact sur cette console et nulle part ailleurs. Les portages, et les jeux que vous avez mis sur PC, Ports & Recomps ou l'étagère d'une console, restent où ils sont ; Perso compte comme sans Plateforme."
    ],
    [
     "Games from your other PC, streamed with Moonlight: each app your Sunshine host offers gets a case on a Game streaming shelf. Pair the PC once in Moonlight's own window first.",
