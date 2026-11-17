@@ -52,11 +52,7 @@ fn pages(dir: &Path, base: &str) -> Vec<String> {
 fn halves(file: &Path) -> Option<(Vec<u8>, Vec<u8>)> {
     let img = image::open(file).ok()?;
     let (left, right) = rustyshelf_imgtools::crop::crop_both(&img);
-    let jpeg = |half: image::DynamicImage| {
-        let mut out = Vec::new();
-        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 90).encode_image(&half.into_rgb8()).ok()?;
-        Some(out)
-    };
+    let jpeg = |half: image::DynamicImage| crate::art::jpeg(&half.into_rgb8(), 90);
     Some((jpeg(left)?, jpeg(right)?))
 }
 

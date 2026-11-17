@@ -57,6 +57,13 @@ pub fn resolve(p: &Path) -> PathBuf {
     out
 }
 
+/// A picture as a JPEG of this quality (1 to 100).
+pub fn jpeg(img: &image::RgbImage, quality: u8) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, quality).encode_image(img).ok()?;
+    Some(out)
+}
+
 /// A path as a case-blind key: resolved, lowercased.
 pub fn path_key(p: &Path) -> String {
     resolve(p).to_string_lossy().to_lowercase()

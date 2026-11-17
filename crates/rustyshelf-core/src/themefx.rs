@@ -246,8 +246,7 @@ impl Layer {
             "synth" => self.synth(),
             _ => {}
         }
-        let rgba = self.c.pix.pixels().iter().flat_map(|p| { let d = p.demultiply(); [d.red(), d.green(), d.blue(), d.alpha()] }).collect();
-        Picture { width: self.c.pix.width(), height: self.c.pix.height(), rgba }
+        Picture::of(&self.c.pix)
     }
 
     fn spectrum(&mut self, dt: f32) {

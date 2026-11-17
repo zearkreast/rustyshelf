@@ -41,13 +41,7 @@ pub fn own(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
         return Err("That picture is too big (over 25 MB).".into());
     }
     let bytes = std::fs::read(file).map_err(|e| e.to_string())?;
-    let dir = data.join("pc-covers");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let base = dir.join(safe_id(id)).display().to_string();
-    let dest = PathBuf::from(format!("{base}.{ext}"));
-    crate::files::write_atomic(&dest, bytes).map_err(|e| e.to_string())?;
-    clear_except(data, id, &dest);
-    Ok(dest)
+    keep_as(data, id, &bytes, &ext)
 }
 
 /// Takes away the cover chosen for a game: its automatic one is shown again.
@@ -76,15 +70,6 @@ fn ext_of(url: &str, b: &[u8]) -> String {
     } else {
         NAMED.captures(url).map_or("jpg".into(), |c| c[1].to_lowercase().replace("jpeg", "jpg"))
     }
-}
-
-/// Steam's public store art of an app, from the hosts that have it (steamart.rs asset).
-fn steam_art(appid: &str, name: &str) -> [String; 3] {
-    [
-        format!("https://shared.steamstatic.com/store_item_assets/steam/apps/{appid}/{name}"),
-        format!("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}/{name}"),
-        format!("https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/{name}"),
-    ]
 }
 
 /// A cover offered for a game.
@@ -160,13 +145,11 @@ pub fn save_console(data: &Path, id: &str, bytes: &[u8], from: &str, part: &str,
 /// A console box part with its console's band at the top painted over with a PC one, as a JPEG.
 fn rebranded(bytes: &[u8], plat: &str, part: &str) -> Option<Vec<u8>> {
     let img = rustyshelf_imgtools::rebrand::rebrand(&image::load_from_memory(bytes).ok()?, plat, part)?;
-    let mut out = Vec::new();
-    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 92).encode_image(&img.into_rgb8()).ok()?;
-    Some(out)
+    crate::art::jpeg(&img.into_rgb8(), 92)
 }
 
 fn download(url: &str) -> Option<Vec<u8>> {
-    crate::net::get_bytes(url, std::time::Duration::from_secs(15), 25_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b))
+    crate::net::get_picture(url, std::time::Duration::from_secs(15), 25_000_000)
 }
 
 /// Each of these PC games (id, title) without a box or a chosen cover in the box of its newest console release.
@@ -215,13 +198,10 @@ fn thumb(data: &Path, url: &str) -> Option<PathBuf> {
     let dir = data.join("pc-cover-cache");
     let name = crate::files::hex(&sha1::Sha1::digest(url.as_bytes())[..12]);
     let base = dir.join(&name).display().to_string();
-    if let Some(had) = ["jpg", "png", "webp"].iter().map(|e| PathBuf::from(format!("{base}.{e}"))).find(|f| is_file(f)) {
+    if let Some(had) = picture(dir.clone(), &name) {
         return Some(had);
     }
-    let b = crate::net::get_bytes(url, std::time::Duration::from_secs(10), 15_000_000).ok()??;
-    if !crate::steamart::is_image(&b) {
-        return None;
-    }
+    let b = crate::net::get_picture(url, std::time::Duration::from_secs(10), 15_000_000)?;
     std::fs::create_dir_all(&dir).ok()?;
     let dest = PathBuf::from(format!("{base}.{}", ext_of(url, &b)));
     crate::files::write_atomic(&dest, &b).ok()?;
@@ -272,14 +252,14 @@ pub fn options(data: &Path, id: &str, appid: Option<&str>, title: &str, term: bo
     let posters: Vec<_> = posters.into_iter().take(24).collect();
     let wanted: Vec<Vec<String>> = apps
         .iter()
-        .map(|(a, _)| steam_art(a, "library_600x900.jpg")[..2].to_vec())
+        .map(|(a, _)| crate::steamart::asset(a, "library_600x900.jpg")[..2].to_vec())
         .chain(boxes.iter().map(|b| vec![b.url.clone()]))
         .chain(posters.iter().map(|p| vec![p.thumb.clone().unwrap_or_else(|| p.url.clone())]))
         .collect();
     let got = thumbs(data, wanted);
     for ((a, name), t) in apps.iter().zip(&got) {
         let Some(t) = t else { continue };
-        let urls = [steam_art(a, "library_600x900_2x.jpg"), steam_art(a, "library_600x900.jpg")].concat();
+        let urls = [crate::steamart::asset(a, "library_600x900_2x.jpg"), crate::steamart::asset(a, "library_600x900.jpg")].concat();
         let sub = if name.is_empty() { "From Steam's store".to_string() } else { format!("{name} on Steam") };
         list.push(CoverOption { label: "Steam's cover".into(), sub, source: "steamstore", thumb: t.clone(), take: Take::Urls(urls) });
     }
@@ -327,10 +307,15 @@ pub fn choose(data: &Path, id: &str, option: &CoverOption) -> Result<PathBuf, St
 
 /// Keeps a picture as the game's chosen cover in place of any chosen before.
 fn keep(data: &Path, id: &str, bytes: &[u8], from: &str) -> Result<PathBuf, String> {
+    keep_as(data, id, bytes, &ext_of(from, bytes))
+}
+
+/// [`keep`], as `<id>.<ext>`.
+fn keep_as(data: &Path, id: &str, bytes: &[u8], ext: &str) -> Result<PathBuf, String> {
     let dir = data.join("pc-covers");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let base = dir.join(safe_id(id)).display().to_string();
-    let dest = PathBuf::from(format!("{base}.{}", ext_of(from, bytes)));
+    let dest = PathBuf::from(format!("{base}.{ext}"));
     crate::files::write_atomic(&dest, bytes).map_err(|e| e.to_string())?;
     clear_except(data, id, &dest);
     Ok(dest)
@@ -420,7 +405,6 @@ pub fn auto_cover(data: &Path, id: &str) -> Option<PathBuf> {
 /// Downloads a cover into the automatic ones (`data/pc-covers-auto`), with the address it came from beside it:
 /// a cover already there from that address is left alone. None when it couldn't be had.
 pub fn fetch_auto(data: &Path, id: &str, url: &str) -> Option<PathBuf> {
-    static NAMED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.(png|webp|jpe?g)(?:$|\?)").unwrap());
     if !url.starts_with("https://") {
         return None;
     }
@@ -431,22 +415,10 @@ pub fn fetch_auto(data: &Path, id: &str, url: &str) -> Option<PathBuf> {
         return Some(had);
     }
     // a picture of 1 kB to 15 MB
-    let b = crate::net::get_bytes(url, std::time::Duration::from_secs(10), 15_000_000).ok()??;
-    if b.len() <= 1000 || !crate::steamart::is_image(&b) {
-        return None;
-    }
-    let ext = if b.starts_with(&[0x89, b'P']) {
-        "png".to_string()
-    } else if b.get(8..12) == Some(b"WEBP") {
-        "webp".to_string()
-    } else {
-        NAMED.captures(url).map_or("jpg".to_string(), |c| c[1].to_lowercase().replace("jpeg", "jpg"))
-    };
+    let b = crate::net::get_picture(url, std::time::Duration::from_secs(10), 15_000_000).filter(|b| b.len() > 1000)?;
     std::fs::create_dir_all(&dir).ok()?;
-    for e in ["jpg", "png", "webp"] {
-        let _ = std::fs::remove_file(format!("{base}.{e}"));
-    }
-    let dest = PathBuf::from(format!("{base}.{ext}"));
+    remove_pictures(&dir, id);
+    let dest = PathBuf::from(format!("{base}.{}", ext_of(url, &b)));
     crate::files::write_atomic(&dest, &b).ok()?;
     let _ = std::fs::write(&from, url);
     Some(dest)

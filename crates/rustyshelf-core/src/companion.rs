@@ -1245,7 +1245,5 @@ fn smaller(file: &Path, tall: u32) -> Option<Vec<u8>> {
         return None;
     }
     let small = img.resize(u32::MAX, tall, image::imageops::FilterType::Triangle).into_rgb8();
-    let mut out = Vec::new();
-    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 82).encode_image(&small).ok()?;
-    Some(out)
+    crate::art::jpeg(&small, 82)
 }

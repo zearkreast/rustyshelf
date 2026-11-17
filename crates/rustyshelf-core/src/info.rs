@@ -227,7 +227,7 @@ pub fn shot_file(data_dir: &Path, url: &str) -> Option<std::path::PathBuf> {
     if crate::paths::is_file(&file) {
         return Some(file);
     }
-    let bytes = crate::net::get_bytes(url, std::time::Duration::from_secs(20), 15_000_000).ok().flatten().filter(|b| crate::steamart::is_image(b))?;
+    let bytes = crate::net::get_picture(url, std::time::Duration::from_secs(20), 15_000_000)?;
     crate::files::write_atomic(&file, &bytes).ok()?;
     Some(file)
 }

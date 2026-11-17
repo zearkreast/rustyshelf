@@ -46,6 +46,12 @@ pub fn get(url: &str, wait: Duration, max: usize, user_agent: &str) -> Result<(u
     Ok((status, b))
 }
 
+/// A download kept only when it's a picture ([`crate::steamart::is_image`]); None when it isn't, is missing or
+/// couldn't be had.
+pub fn get_picture(url: &str, wait: Duration, max: usize) -> Option<Vec<u8>> {
+    get_bytes(url, wait, max).ok().flatten().filter(|b| crate::steamart::is_image(b))
+}
+
 /// A server's answer to a request with its own headers: the status, how long it asks to wait (`Retry-After`) and
 /// at most `max` bytes. An error is the network's; `true` when it was a timeout.
 pub fn ask(url: &str, headers: &[(&str, &str)], wait: Duration, max: usize) -> Result<(u16, Option<String>, Vec<u8>), bool> {

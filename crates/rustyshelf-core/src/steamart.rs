@@ -28,7 +28,7 @@ pub fn is_image(b: &[u8]) -> bool {
 
 /// shared.cloudflare… now redirects to shared.steamstatic.com, the only host with the hashed files (newer games' art).
 /// Keep in sync with main/steamart.js asset.
-fn asset(id: &str, name: &str) -> [String; 3] {
+pub(crate) fn asset(id: &str, name: &str) -> [String; 3] {
     [format!("https://shared.steamstatic.com/store_item_assets/steam/apps/{id}/{name}"), format!("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{id}/{name}"), format!("https://cdn.cloudflare.steamstatic.com/steam/apps/{id}/{name}")]
 }
 
@@ -213,9 +213,8 @@ pub fn make_backs(data_dir: &Path, games: &[(String, String, PathBuf)]) -> u32 {
         };
         let Some(p) = crate::drawn::made_back(&cover, &shots, art.as_ref(), &band, &text) else { continue };
         let Some(img) = image::RgbaImage::from_raw(p.width, p.height, p.rgba) else { continue };
-        let mut jpg = Vec::new();
-        let enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpg, 90);
-        if image::DynamicImage::ImageRgba8(img).to_rgb8().write_with_encoder(enc).is_ok() && std::fs::create_dir_all(dest.parent().unwrap_or(data_dir)).and_then(|()| std::fs::write(&dest, &jpg)).is_ok() {
+        let jpg = crate::art::jpeg(&image::DynamicImage::ImageRgba8(img).to_rgb8(), 90);
+        if jpg.is_some_and(|jpg| std::fs::create_dir_all(dest.parent().unwrap_or(data_dir)).and_then(|()| std::fs::write(&dest, jpg)).is_ok()) {
             made += 1;
         }
     }

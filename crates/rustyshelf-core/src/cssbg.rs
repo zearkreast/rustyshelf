@@ -558,9 +558,7 @@ impl Tile {
 
 /// An SVG picture drawn `width` × `height` pixels, fitted as it asks to be (covering them, by default inside them).
 pub fn svg(text: &str, width: u32, height: u32) -> Option<Picture> {
-    let p = drawn(text, width.max(1), height.max(1), 1.0)?;
-    let rgba = p.pixels().iter().flat_map(|px| { let d = px.demultiply(); [d.red(), d.green(), d.blue(), d.alpha()] }).collect();
-    Some(Picture { width: p.width(), height: p.height(), rgba })
+    drawn(text, width.max(1), height.max(1), 1.0).map(|p| Picture::of(&p))
 }
 
 /// A picture being painted: backgrounds go onto it one over another, blended as a browser blends them.
