@@ -104,6 +104,7 @@ Brought into RustyShelf from other people's forks (they are the authors or co-au
 - [Haseo](https://github.com/Haseosama): Français (Settings → Display → Language, in both apps), games folders found in a folder, the drives to search, and the museum with huge libraries
 - [supalii](https://github.com/supalii): Custom games on any shelf, the Xbox One shelf, PC posters and hidden tiles (from supalii's fork)
 - [TrapEmAll](https://github.com/TrapEmAll): Retro TV guide: the progress line no longer stops the guide drawing; Retro TV: live progress for the commercial search and ad downloads; Credit TrapEmAll for the Museum's look-around; Museum: look left and right, and the side displays reachable from the wide view
+- [ZakAuMiel](https://github.com/ZakAuMiel): Recomps go to their console's shelf by themselves; Backs of the box for PC games, from LaunchBox's database; PC games can have a back of the box; Recomps on a console's shelf get the full case, Art Studio and manuals; French translation, with a language setting; Theme: Pastel Pop; Settings: a Streaming page in Library; Streaming shelf: play games from another PC through Moonlight
 
 <!-- /fork-survey credits -->
 
