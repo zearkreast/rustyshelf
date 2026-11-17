@@ -790,7 +790,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "surpriseMe" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -1983,6 +1983,13 @@ impl Settings {
                     ),
                     toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
                     toggle("All games shelf", &["ui", "allShelf"], false, "A shelf with your complete collection in alphabetical order."),
+                    self.choose(
+                        "Surprise me",
+                        &["ui", "surpriseMe"],
+                        vec![(json!("on"), "On"), (json!("off"), "Off")],
+                        json!("on"),
+                        "The Surprise me case at the front of each shelf picks a random game from that shelf. Off takes the case away.",
+                    ),
                     toggle("Attract mode", &["ui", "attract"], true, "After a few idle minutes the shelf drifts through your boxes on its own, with the HUD faded, like a store display."),
                 ];
                 // one of a list of numbers: Enter and right go on to the next, left back
