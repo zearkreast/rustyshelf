@@ -1,9 +1,12 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
 // Boxshelf's main/updates.js, as RustyShelf has it (its own releases, and a build number in a version).
-//! Which release is the newest on RustyShelf's releases page, and whether it's newer than this one. Nothing is
-//! downloaded: it's a notice, with the page to get it from.
+//! Which release is the newest on RustyShelf's releases page, whether it's newer than this one, and putting it in
+//! place of this one: the Windows zip's RustyShelf.exe, or the Linux AppImage.
 
 use std::cmp::Ordering;
+use std::fs::{self, File};
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -105,6 +108,134 @@ pub fn check(current: &str) -> Result<Newest, String> {
     Ok(newest(&serde_json::from_slice(&body).map_err(|_| "unreadable answer".to_string())?, current))
 }
 
+/// The release's file that updates this system: the Windows zip, or the Linux AppImage.
+fn asset_for(assets: &[Asset]) -> Option<&Asset> {
+    let end = if cfg!(windows) { "-windows.zip" } else if cfg!(target_os = "linux") && !cfg!(target_os = "android") { ".AppImage" } else { return None };
+    assets.iter().find(|a| a.name.ends_with(end))
+}
+
+/// The program a new version replaces: this exe on Windows, the AppImage on Linux. None for a build run from Cargo's
+/// target folder, an unpacked Linux binary, Android or any other system.
+pub fn this_program() -> Option<PathBuf> {
+    let exe = if cfg!(windows) {
+        std::env::current_exe().ok()?
+    } else if cfg!(target_os = "linux") && !cfg!(target_os = "android") {
+        PathBuf::from(std::env::var_os("APPIMAGE").filter(|a| !a.is_empty())?)
+    } else {
+        return None;
+    };
+    let names: Vec<String> = exe.components().map(|c| c.as_os_str().to_string_lossy().to_lowercase()).collect();
+    if names.windows(2).any(|w| w[0] == "target" && matches!(w[1].as_str(), "debug" | "release")) {
+        return None;
+    }
+    Some(exe)
+}
+
+/// Whether this RustyShelf can put a new version in its own place.
+pub fn can_install() -> bool {
+    this_program().is_some()
+}
+
+/// Whether a release has a file this RustyShelf can update itself from.
+pub fn installable(n: &Newest) -> bool {
+    can_install() && asset_for(&n.assets).is_some()
+}
+
+fn beside(program: &Path, ext: &str) -> PathBuf {
+    let mut name = program.file_name().unwrap_or_default().to_os_string();
+    name.push(format!(".{ext}"));
+    program.with_file_name(name)
+}
+
+/// What an update before this start left beside the program: the old exe Windows wouldn't let go of, a download cut
+/// short.
+pub fn tidy() {
+    if let Some(p) = this_program() {
+        for ext in ["old", "download", "new"] {
+            let _ = fs::remove_file(beside(&p, ext));
+        }
+    }
+}
+
+fn sha256_of(path: &Path) -> Result<String, String> {
+    use sha2::Digest;
+    let mut f = File::open(path).map_err(|e| e.to_string())?;
+    let (mut h, mut buf) = (sha2::Sha256::new(), vec![0u8; 1 << 20]);
+    loop {
+        let n = f.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// The file's sum in a SHA256SUMS.txt (`<hex>  <name>` lines).
+fn sum_in(sums: &str, name: &str) -> Option<String> {
+    sums.lines().find_map(|l| {
+        let (hash, file) = l.trim().split_once(char::is_whitespace)?;
+        (file.trim().trim_start_matches('*') == name).then(|| hash.to_ascii_lowercase())
+    })
+}
+
+/// Downloads the release's file for this system, checks it against the release's SHA256SUMS.txt and puts it in place
+/// of this program, which runs on until restarted. `on` hears the bytes got and the size.
+pub fn install(n: &Newest, on: &mut dyn FnMut(u64, u64)) -> Result<PathBuf, String> {
+    let program = this_program().ok_or("This RustyShelf can't update itself: get the new version from its page.")?;
+    let asset = asset_for(&n.assets).ok_or("The release has no download for this system.")?;
+    let sums = n.assets.iter().find(|a| a.name == "SHA256SUMS.txt").ok_or("The release has no SHA256SUMS.txt to check the download with.")?;
+    let (status, body) = crate::net::get(&sums.url, Duration::from_secs(30), 1 << 20, "RustyShelf").map_err(|e| format!("Couldn't get the release's sums ({e})."))?;
+    let want = (status == 200).then(|| sum_in(&String::from_utf8_lossy(&body), &asset.name)).flatten().ok_or("The release's sums don't list its download.")?;
+
+    let download = beside(&program, "download");
+    let fail = |why: String| {
+        let _ = fs::remove_file(&download);
+        why
+    };
+    crate::net::download_sized(&asset.url, &download, Duration::from_secs(30 * 60), on).map_err(|e| fail(format!("The download failed ({e}).")))?;
+    if sha256_of(&download).map_err(fail)? != want {
+        return Err(fail("The download doesn't match the release's sums.".into()));
+    }
+
+    if cfg!(windows) {
+        let new = beside(&program, "new");
+        let unpacked = (|| -> Result<(), String> {
+            let mut zip = File::open(&download).map_err(|e| e.to_string())?;
+            let entries = crate::zip::entries_of(&mut zip).map_err(|e| format!("{e:?}"))?;
+            let exe = entries.iter().find(|e| e.name.replace('\\', "/").eq_ignore_ascii_case("RustyShelf/RustyShelf.exe")).ok_or("no RustyShelf.exe in the zip")?;
+            let mut out = File::create(&new).map_err(|e| e.to_string())?;
+            crate::zip::unpack(&mut zip, exe, &mut out).map_err(|e| e.to_string())?;
+            out.sync_all().map_err(|e| e.to_string())
+        })();
+        let _ = fs::remove_file(&download);
+        if let Err(why) = unpacked {
+            let _ = fs::remove_file(&new);
+            return Err(format!("The download couldn't be unpacked ({why})."));
+        }
+        // a running exe can't be overwritten, but it can be renamed
+        let old = beside(&program, "old");
+        let _ = fs::remove_file(&old);
+        fs::rename(&program, &old).map_err(|e| {
+            let _ = fs::remove_file(&new);
+            format!("RustyShelf.exe couldn't be replaced ({e}).")
+        })?;
+        if let Err(e) = fs::rename(&new, &program) {
+            let _ = fs::rename(&old, &program);
+            let _ = fs::remove_file(&new);
+            return Err(format!("RustyShelf.exe couldn't be replaced ({e})."));
+        }
+    } else {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&download, fs::Permissions::from_mode(0o755)).map_err(|e| fail(e.to_string()))?;
+        }
+        fs::rename(&download, &program).map_err(|e| fail(format!("The AppImage couldn't be replaced ({e}).")))?;
+    }
+    Ok(program)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,5 +248,13 @@ mod tests {
         assert!(!newest(&list("v0.2.0-alpha.6"), "0.2.0-alpha.6").newer);
         assert!(newest(&list("v0.2.0.4"), "0.2.0.3").newer);
         assert!(newest(&list("v0.2.0.0"), "0.2.0-alpha.6").newer);
+    }
+
+    #[test]
+    fn a_sum_is_found_by_its_file_name() {
+        let sums = "ab12  RustyShelf-0.5.6-windows.zip\nCD34 *RustyShelf-0.5.6-linux.AppImage\n";
+        assert_eq!(sum_in(sums, "RustyShelf-0.5.6-windows.zip").as_deref(), Some("ab12"));
+        assert_eq!(sum_in(sums, "RustyShelf-0.5.6-linux.AppImage").as_deref(), Some("cd34"));
+        assert_eq!(sum_in(sums, "RustyShelf-0.5.6-android.apk"), None);
     }
 }

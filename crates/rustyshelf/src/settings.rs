@@ -161,10 +161,17 @@ fn other_setup(app_root: &Path) -> Option<rustyshelf_core::keepsetup::Install> {
 
 /// Starts RustyShelf again (a change waiting in data\.pending goes in as it starts).
 fn restart() {
-    rustyshelf_core::settings::flush();
-    if let Ok(exe) = std::env::current_exe() {
-        let _ = std::process::Command::new(exe).args(std::env::args_os().skip(1)).spawn();
+    // an AppImage's own binary is inside its mount, which goes when this one quits
+    let program = std::env::var_os("APPIMAGE").filter(|a| !a.is_empty()).map(PathBuf::from).or_else(|| std::env::current_exe().ok());
+    match program {
+        Some(p) => restart_into(&p),
+        None => std::process::exit(0),
     }
+}
+
+fn restart_into(program: &Path) {
+    rustyshelf_core::settings::flush();
+    let _ = std::process::Command::new(program).args(std::env::args_os().skip(1)).spawn();
     std::process::exit(0);
 }
 
@@ -792,7 +799,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "favShelf" | "surpriseMe" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "favShelf" | "surpriseMe" | "emuCase" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -2011,6 +2018,12 @@ impl Settings {
                         json!("on"),
                         "The Surprise me case at the front of each shelf picks a random game from that shelf. Off takes the case away.",
                     ),
+                    self.switch(
+                        "Emulator case",
+                        &["ui", "emuCase"],
+                        true,
+                        "The Open Dolphin (or other emulator) case at the front of each console's shelf, which starts the emulator on its own. Off takes it away.",
+                    ),
                     toggle("Attract mode", &["ui", "attract"], true, "After a few idle minutes the shelf drifts through your boxes on its own, with the HUD faded, like a store display."),
                 ];
                 // one of a list of numbers: Enter and right go on to the next, left back
@@ -2323,7 +2336,7 @@ impl Settings {
                     }
                 }))
                 .chain(self.moving_rows())
-                .chain([self.update_row()])
+                .chain(self.update_rows())
                 .chain(self.notes_rows())
                 .collect(),
             },
@@ -2779,6 +2792,7 @@ pub fn input(
         if s.pc_backs_busy() {
             s.poll_pc_backs(time.elapsed_secs());
         }
+        s.poll_update();
         if let Some(text) = s.toast.take() {
             toast.text = text;
             toast.until = time.elapsed_secs() + 12.0;
