@@ -87,6 +87,11 @@ Box art and manuals are © their publishers.
   games' own settings pages with a Platform (Custom, PC or any console's shelf) and launch arguments, the Xbox One shelf for
   PC ports, automatic SteamGridDB posters for PC games without a cover, hiding the Open emulator and Surprise me tiles, and
   the Electron app's localization guide. These came into RustyShelf on top of Boxshelf beta.10.
+- [Zak](https://github.com/ZakAuMiel) made, in [their Boxshelf fork](https://github.com/ZakAuMiel/boxshelf-source), the
+  shelf of games streamed from another PC through Moonlight with its Settings page, the Pastel Pop theme, a French
+  translation, recomps on their console's shelf, and PC games' backs of the box from LaunchBox. These came into the
+  native app on top of Boxshelf beta.14: Game streaming, Pastel Pop, their French merged into ours, Art Studio and
+  manuals for a PC game on a console's shelf (it stays a PC game here), and backs of the box.
 - The Electron app's Linux start script's idea of finishing Electron's unpacking comes from wouldja's boxshelf-linux.
 
 <!-- fork-survey credits: made by `node scripts/fork-survey.js --credits` from the commit history; edits here are replaced -->
