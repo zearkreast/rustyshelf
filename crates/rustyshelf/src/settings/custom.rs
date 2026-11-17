@@ -68,6 +68,13 @@ impl Settings {
             press: Some(Box::new(|s: &mut Settings| s.pick(Pick::CustomGame, "Choose the game's program", false))),
             step: None,
         });
+        rows.push(Row {
+            label: "Put recomps on their console's shelf".into(),
+            value: on_off(self.flag(&["pc", "recompDetect"], false)),
+            hint: "A game added here with no Platform, or one of Quiver's, goes on its console's shelf when LaunchBox's database (from box art downloads) has a game of exactly its name on that console and nowhere else. Ports and games you placed stay where they are.".into(),
+            press: Some(Box::new(|s: &mut Settings| s.toggle(&["pc", "recompDetect"], false))),
+            step: Some(Box::new(|s: &mut Settings, _| s.toggle(&["pc", "recompDetect"], false))),
+        });
         for (i, c) in list.iter().enumerate() {
             let text = |k: &str| c.get(k).and_then(Value::as_str).unwrap_or("");
             let (title, shelf) = (text("title"), text("shelf"));
@@ -170,5 +177,22 @@ impl Settings {
         ]);
         let exe = self.custom_field(i, "exe");
         Page { title: if title.is_empty() { "Game".into() } else { title }, lead: format!("Program: {exe}"), rows }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recomps_go_on_their_console_s_shelf_only_once_switched_on() {
+        let r = std::env::temp_dir().join(format!("rustyshelf-custom-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&r);
+        let mut s = Settings { wizard: false, stack: vec![(Screen::Custom, 0)], app_root: r.clone(), ..Settings::default() };
+        let row = |s: &Settings| s.custom_page().rows.into_iter().find(|r| r.label == "Put recomps on their console's shelf").unwrap();
+        assert_eq!(row(&s).value, on_off(false));
+        (row(&s).press.unwrap())(&mut s);
+        assert_eq!((row(&s).value, &s.cfg["pc"]["recompDetect"]), (on_off(true), &json!(true)));
+        let _ = std::fs::remove_dir_all(&r);
     }
 }

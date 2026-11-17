@@ -161,6 +161,12 @@ impl Config {
         self.raw.get("pc").and_then(|p| p.get("autoBacks")).and_then(Value::as_bool) == Some(true)
     }
 
+    /// Settings → Custom games → Put recomps on their console's shelf: off unless switched on (Zak's fork has it on
+    /// unless switched off).
+    pub fn recomp_detect(&self) -> bool {
+        self.raw.get("pc").and_then(|p| p.get("recompDetect")).and_then(Value::as_bool) == Some(true)
+    }
+
     /// Settings → Game streaming, with Zak's fork's defaults when the section isn't there.
     pub fn moonlight(&self) -> crate::moonlight::Setup {
         crate::moonlight::Setup::of(self.raw.get("moonlight"))

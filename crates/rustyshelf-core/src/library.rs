@@ -1,7 +1,8 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the shelves of
 // Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf, PC games' backs of
-// the box and a recomp's whole case on its console's shelf are from ZakAuMiel/boxshelf-source
-// (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported from its main.js.
+// the box, and recomps on their console's shelf (by hand or by themselves) in its whole case are from
+// ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported
+// from its main.js.
 //! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
 //! the Custom shelf's Quiver apps and programs added by hand; the Game streaming shelf's apps of another PC.
 
@@ -343,6 +344,7 @@ impl Library {
             let shelves: Vec<Shelf> = jobs.into_iter().filter_map(|j| j.join().ok()).collect();
             (shelves, steam.join().unwrap_or_default(), pc.join().unwrap_or_default())
         });
+        let own_shelf: HashSet<String> = shelves.iter().map(|s| s.id.clone()).collect();
         let romm = crate::romm::Setup::from_config(&config, crate::seal::key(&paths::env_var).as_ref());
         if romm.on() && romm.cloud {
             let lib = romm.client(&data_dir).cached();
@@ -399,14 +401,19 @@ impl Library {
         // own program. A console that's switched off sends its games back to Custom
         let (mut custom, mut ports, mut back) = (Vec::new(), Vec::new(), Vec::new());
         let mut moved: HashMap<String, Vec<Game>> = HashMap::new();
+        let found = if config.recomp_detect() { crate::recomps::found(&data_dir) } else { HashMap::new() };
         for g in mine {
             let (shelf, port) = (g.shelf.clone(), g.port);
+            let on = Some(&g).filter(|g| crate::recomps::candidate(g)).and_then(|g| found.get(&crate::recomps::key(&g.id, &g.title))).filter(|sys| own_shelf.contains(*sys)).cloned();
             let game = art.pc_game(g);
             match shelf.as_deref() {
                 // Ports & Recomps: a program set there, and Quiver's ports and recompilations
                 Some("ports") => ports.push(game),
                 None if port => ports.push(game),
-                None => custom.push(game),
+                None => match on {
+                    Some(sys) => moved.entry(sys).or_default().push(art.on_console(game)),
+                    None => custom.push(game),
+                },
                 Some("pc") => pc.push(game),
                 Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(art.on_console(game)),
                 Some(_) => back.push(game),
@@ -489,6 +496,7 @@ pub fn upkeep(lib: &Library) -> bool {
     changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
     changed |= steam_fill(lib, &data_dir);
     changed |= pc_backs(lib, &data_dir);
+    changed |= recomp_consoles(lib, &data_dir);
     // (before any picture is replaced: an HD upgrade asks it)
     if !crate::provenance::looked() {
         let art: Vec<PathBuf> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).flat_map(|s| &s.games).flat_map(|g| [&g.art.front, &g.art.back, &g.art.spine, &g.art.disc]).flatten().cloned().collect();
@@ -757,6 +765,25 @@ fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
     !wants.is_empty() && crate::pcbacks::run(data_dir, &data_dir.join("boxart-cache"), &wants, lib.config.art_region(), now) > 0
 }
 
+/// The Custom shelf's games that may be recomps, looked up in LaunchBox's database for their console, when Settings →
+/// Custom games → Put recomps on their console's shelf is on. True when one was found for a console with a shelf.
+fn recomp_consoles(lib: &Library, data_dir: &Path) -> bool {
+    if !lib.config.recomp_detect() {
+        return false;
+    }
+    let games: Vec<(String, String)> = lib
+        .shelves
+        .iter()
+        .filter(|s| s.id == "custom")
+        .flat_map(|s| &s.games)
+        .filter(|g| matches!(&g.source, Source::Pc(p) if crate::recomps::candidate(p)))
+        .map(|g| (g.id.clone(), g.title.clone()))
+        .collect();
+    let shelves: HashSet<&str> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).map(|s| s.id.as_str()).collect();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    !games.is_empty() && crate::recomps::detect(data_dir, &data_dir.join("boxart-cache"), &games, &shelves, now)
+}
+
 /// SteamGridDB posters for the PC games that aren't Steam's and have no cover at all, wherever they sit (a program
 /// can be on a console's shelf). Only with the player's SteamGridDB key. True when one came in.
 fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
@@ -935,6 +962,39 @@ mod tests {
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
         assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("ports", vec!["A Recomp"]), ("media", vec!["Stremio"])]);
+    }
+
+    #[test]
+    fn recomps_found_go_on_their_console_s_shelf_when_asked() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for f in ["tools/a.exe", "tools/b.exe", "tools/c.exe", "tools/d.exe", "n64/Omega (USA).z64"] {
+            touch(&root.join(f));
+        }
+        let at = |f: &str| root.join(f).to_string_lossy().replace('\\', "/");
+        let mut cfg = serde_json::json!({
+            "steam": { "enabled": false },
+            "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false, "custom": [
+                { "title": "Zeta Run", "exe": at("tools/a.exe") }, { "title": "Placed", "exe": at("tools/b.exe"), "shelf": "pc" },
+                { "title": "Ported", "exe": at("tools/c.exe"), "shelf": "ports", "portOf": "n64" }, { "title": "Snes Only", "exe": at("tools/d.exe") } ] },
+            "systems": { "n64": { "romDirs": [at("n64")] } },
+        });
+        let hit = |sys: &str, name: &str| serde_json::json!({ "sys": sys, "name": name });
+        let memo = serde_json::json!({ "custom-zeta-run|Zeta Run": hit("n64", "Zeta Run"), "custom-placed|Placed": hit("n64", "Placed"), "custom-ported|Ported": hit("n64", "Ported"), "custom-snes-only|Snes Only": hit("snes", "Snes Only") });
+        touch(&root.join("data/config.json"));
+        std::fs::write(root.join("data/recomp-detect.json"), memo.to_string()).unwrap();
+        let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let shelves = |cfg: &Value| {
+            std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+            Library::load_from(root).unwrap().shelves.into_iter().map(|s| (s.id, s.games.into_iter().map(|g| g.title).collect::<Vec<_>>())).collect::<Vec<_>>()
+        };
+        let mine = |n64: &[&str], custom: &[&str]| -> Vec<(String, Vec<String>)> {
+            let v = |l: &[&str]| l.iter().map(|x| x.to_string()).collect();
+            vec![("n64".into(), v(n64)), ("pc".into(), v(&["Placed"])), ("custom".into(), v(custom)), ("ports".into(), v(&["Ported"]))]
+        };
+        assert_eq!(shelves(&cfg), mine(&["Omega"], &["Snes Only", "Zeta Run"]));
+        cfg["pc"]["recompDetect"] = true.into();
+        assert_eq!(shelves(&cfg), mine(&["Omega", "Zeta Run"], &["Snes Only"]), "no SNES shelf");
     }
 
     #[test]

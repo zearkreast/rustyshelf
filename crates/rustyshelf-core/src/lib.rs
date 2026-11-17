@@ -72,6 +72,7 @@ pub mod ra;
 pub mod romm;
 pub mod rpcs3troph;
 pub mod racores;
+pub mod recomps;
 pub mod rocket;
 pub mod raemu;
 pub mod scanner;
