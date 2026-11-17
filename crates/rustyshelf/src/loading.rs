@@ -113,7 +113,10 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
             let emulator = if config.emulator.is_empty() && console.retro { base.config.retroarch() } else { config.emulator.clone() };
             let there = !emulator.is_empty() && rustyshelf_core::paths::is_file(&rustyshelf_core::launch::emu_path(&emulator, &base.app_root));
             if there && !hidden.contains(&format!("emu-{}", shelf.id).as_str()) && on("emuCase", &false.into()) {
-                front.push(tile(format!("emu-{}", shelf.id), format!("Open {}", crate::settings::emulator_of(shelf)), Tile::Emulator));
+                let mut case = tile(format!("emu-{}", shelf.id), format!("Open {}", crate::settings::emulator_of(shelf)), Tile::Emulator);
+                case.file = rustyshelf_core::launch::emu_path(&emulator, &base.app_root);
+                case.art.front = crate::settings::emu_cover(&base.app_root, &shelf.id);
+                front.push(case);
             }
         }
         if !shelf.from.is_empty() {
@@ -330,6 +333,8 @@ pub enum Art {
     Front { look: Box<Look>, title: String, region: String, scene: Option<&'static str>, hue: Option<f32>, seed: Option<u32> },
     /// the cover of one of the shelf's own cases
     Tile { look: Box<Look>, tile: Tile },
+    /// an "Open <emulator>" case: the emulator's own icon on its cover, else `drawn`
+    Emulator { look: Box<Look>, name: String, exe: PathBuf, drawn: Box<Art> },
     /// a picture in greys, this bright and with this much contrast: a game that isn't installed
     Grey(Box<Art>, f32, f32),
     Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
@@ -344,6 +349,10 @@ impl Art {
             Art::File(p) => p.clone(),
             Art::Front { look, title, region, hue, seed, .. } => PathBuf::from(format!("drawn:{}|f|{title}|{region}|{hue:?}|{seed:?}", look.id)),
             Art::Tile { look, tile } => PathBuf::from(format!("drawn:{}|t|{tile:?}", look.id)),
+            Art::Emulator { look, name, exe, .. } => {
+                let at = exe.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
+                PathBuf::from(format!("drawn:{}|e|{name}|{}|{at}", look.id, exe.display()))
+            }
             Art::Grey(of, bright, contrast) => PathBuf::from(format!("grey:{bright}:{contrast}:{}", of.key().display())),
             Art::Back { look, title, facts, blurb } => {
                 let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).collect();
@@ -360,6 +369,11 @@ impl Art {
             Art::Front { look, title, region, scene, hue, seed } => drawn(rustyshelf_core::drawn::front_from(look, title, region, *scene, *hue, seed.unwrap_or_else(|| rustyshelf_core::drawn::hash(title)))),
             Art::Tile { look, tile: Tile::Surprise } => drawn(rustyshelf_core::drawn::surprise(look)),
             Art::Tile { look, .. } => drawn(rustyshelf_core::drawn::add_games(look)),
+            // (a tiny icon would look blurred that large: the drawn cover instead)
+            Art::Emulator { look, name, exe, drawn: other } => match rustyshelf_core::exeicon::largest(exe).filter(|i| i.0.min(i.1) >= 96) {
+                Some(icon) => drawn(rustyshelf_core::drawn::emulator(look, name, &icon)),
+                None => other.make(),
+            },
             // CSS's grayscale(1) brightness(b) contrast(c)
             Art::Grey(of, bright, contrast) => of.make().map(|(w, h, mut rgba)| {
                 for px in rgba.as_chunks_mut::<4>().0 {

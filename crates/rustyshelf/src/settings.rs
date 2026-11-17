@@ -237,6 +237,8 @@ enum Pick {
     Moonlight,
     /// a picture of the player's own as the chosen PC game's back of the box
     OwnBack,
+    /// a picture of the player's own for a console's "Open <emulator>" case
+    EmuCover(String),
 }
 
 /// What the shelf tour opens for a step.
@@ -851,6 +853,32 @@ impl Settings {
     }
 
     /// Adds an id to one of the settings' lists of game ids, or takes it out.
+    /// A console's emulator case gets the player's picture (copied into `data/emu-covers`), or its icon again (None).
+    fn set_emu_cover(&mut self, console: &str, file: Option<&Path>) {
+        let dir = paths::data_dir(&self.app_root).join("emu-covers");
+        while let Some(old) = emu_cover(&self.app_root, console) {
+            if std::fs::remove_file(&old).is_err() {
+                break;
+            }
+        }
+        let said = match file {
+            None => "The emulator's case shows its icon again".to_string(),
+            Some(f) => {
+                let ext = f.extension().map(|e| e.to_string_lossy().to_lowercase()).filter(|e| matches!(e.as_str(), "png" | "jpg" | "jpeg" | "webp"));
+                match ext {
+                    None => "Choose a PNG, JPEG or WebP picture".into(),
+                    Some(ext) => match std::fs::create_dir_all(&dir).and_then(|()| std::fs::copy(f, dir.join(format!("{console}.{ext}")))) {
+                        Ok(_) => "Your picture is on the emulator's case".into(),
+                        Err(e) => format!("Couldn't keep the picture: {e}"),
+                    },
+                }
+            }
+        };
+        self.say(said);
+        self.changed = true;
+        self.redraw = true;
+    }
+
     /// ← → between Details' Play and Read the manual.
     fn details_button(&mut self, d: i32) {
         if let Some(p) = self.stack.last_mut() {
@@ -1267,6 +1295,7 @@ impl Settings {
             Pick::OwnArt(cut) => self.own_art(path, cut),
             Pick::OwnManual => self.own_manual(path),
             Pick::OwnBack => self.own_back(path),
+            Pick::EmuCover(id) => self.set_emu_cover(&id, Some(path)),
             Pick::ThemePicture => match rustyshelf_core::customthemes::create(&rustyshelf_core::customthemes::root(&self.app_root), path, "") {
                 Ok(id) => {
                     self.set(&["ui", "theme"], json!(id));
@@ -1674,6 +1703,17 @@ impl Settings {
                     rows.push(open(&format!("Set up {name} for me"), String::new(), &format!("Controller, the Home menu's hotkeys, one BIOS folder and a graphics preset for {name}: backed up first, and Undo puts it back."), Screen::EmuSetup(id.clone())));
                 }
                 rows.push(open("Emulator & advanced", String::new(), &format!("Open {name} on its own, launch options{}.", if id == "gc" { " and the real GameCube startup" } else { "" }), Screen::Advanced(id.clone())));
+                {
+                    let (pick_id, gone_id) = (id.clone(), id.clone());
+                    let own = emu_cover(&self.app_root, id).is_some();
+                    rows.push(Row {
+                        label: "Emulator's case".into(),
+                        value: if own { "Your picture".into() } else { "Its icon".into() },
+                        hint: format!("The cover of the Open {name} case on the shelf: {name}'s own icon, or a picture of yours (Enter). ← → takes yours away again."),
+                        press: Some(Box::new(move |s: &mut Settings| s.pick(Pick::EmuCover(pick_id.clone()), "Choose a picture for the emulator's case", false))),
+                        step: own.then(|| Box::new(move |s: &mut Settings, _| s.set_emu_cover(&gone_id, None)) as Step),
+                    });
+                }
                 // (the Wii U reads its games' own manuals)
                 if id != "wiiu" {
                     rows.push(self.manual_pref_row(id));
@@ -2707,6 +2747,12 @@ fn facts(c: &Chosen) -> Vec<(String, String)> {
 }
 
 /// The emulator a shelf's games run in, by name; nothing for a shelf without one.
+/// The player's own picture for a console's "Open <emulator>" case: `data/emu-covers/<console>.<png|jpg|webp>`.
+pub fn emu_cover(app_root: &Path, console: &str) -> Option<PathBuf> {
+    let dir = paths::data_dir(app_root).join("emu-covers");
+    ["png", "jpg", "jpeg", "webp"].iter().map(|e| dir.join(format!("{console}.{e}"))).find(|f| f.is_file())
+}
+
 pub fn emulator_of(shelf: &rustyshelf_core::library::Shelf) -> String {
     match &shelf.kind {
         ShelfKind::Console { config, .. } if !config.emulator.is_empty() => emuname::label(&config.emulator),

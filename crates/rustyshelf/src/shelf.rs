@@ -851,8 +851,8 @@ fn app_hue(app: &str) -> Option<f32> {
 }
 
 /// A game's cover on the shelf `own`, and the colour that's the game's until its cover is seen: its own picture,
-/// or one drawn from its title; the shelf's own cases have theirs (the emulator's is drawn from its name and its
-/// shelf's).
+/// or one drawn from its title; the shelf's own cases have theirs (the emulator's has its icon, else is drawn from
+/// its name and its shelf's).
 pub fn cover_of(g: &rustyshelf_core::scanner::Game, own: &str, look: &looks::Look) -> (Art, f32) {
     let tile = match g.source {
         Source::Tile(t) => Some(t),
@@ -865,6 +865,12 @@ pub fn cover_of(g: &rustyshelf_core::scanner::Game, own: &str, look: &looks::Loo
         (Some(path), _) => Art::File(path),
         (None, Some(t)) if t != Tile::Emulator => Art::Tile { look: Box::new(look.clone()), tile: t },
         (None, _) => Art::Front { look: Box::new(look.clone()), title: g.title.clone(), region: g.region.clone(), scene: app.then_some("media"), hue, seed },
+    };
+    let cover = match cover {
+        Art::Front { .. } if tile == Some(Tile::Emulator) && !g.file.as_os_str().is_empty() => {
+            Art::Emulator { look: Box::new(look.clone()), name: g.title.strip_prefix("Open ").unwrap_or(&g.title).to_string(), exe: g.file.clone(), drawn: Box::new(cover) }
+        }
+        other => other,
     };
     (cover, hue.unwrap_or((seed.unwrap_or_else(|| rustyshelf_core::drawn::hash(&g.title)) % 360) as f32))
 }

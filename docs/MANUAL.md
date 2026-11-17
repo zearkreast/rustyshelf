@@ -198,6 +198,10 @@ complete yet.
 - Has the shelf's menu (G, or Menu on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.
+- Gives a console's "Open <emulator>" case the emulator's own icon on Windows (the largest picture in its .exe, at
+  least 96 px across), lit in its colour with its name under it; an emulator without one keeps the drawn cover.
+  Settings → each console → Emulator's case puts a picture of yours on it instead (kept in `data\emu-covers`), and
+  ← → takes it away again.
 - Has the Home shelf (the twelve games you played last, then your favorites), the All games and Favorites shelves
   when Settings → Look asks for them (the last step of the first-run setup asks too), and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.

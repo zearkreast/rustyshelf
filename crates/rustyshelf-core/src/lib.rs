@@ -36,6 +36,7 @@ pub mod dirsize;
 pub mod dolphin;
 pub mod drawn;
 pub mod emucfg;
+pub mod exeicon;
 pub mod emuname;
 pub mod emusetup;
 pub mod epicdl;

@@ -684,6 +684,43 @@ pub fn add_games(look: &Look) -> Picture {
     picture(c)
 }
 
+/// The cover of a console's "Open <emulator>" case: the emulator's own icon (`icon`, RGBA) large in the middle, lit
+/// from behind in its own colour, with its name under it.
+pub fn emulator(look: &Look, name: &str, icon: &(u32, u32, Vec<u8>)) -> Picture {
+    let (mut c, height) = canvas(look);
+    let (w, h, rgba) = icon;
+    let (mut sum, mut n) = ([0f32; 3], 0f32);
+    for p in rgba.as_chunks::<4>().0.iter().filter(|p| p[3] > 200) {
+        for (s, v) in sum.iter_mut().zip(p) {
+            *s += f32::from(*v);
+        }
+        n += 1.0;
+    }
+    let avg = if n > 0.0 { sum.map(|v| (v / n) as u8) } else { [90, 110, 160] };
+    let dim = |k: f32| rgba_of(avg.map(|v| (f32::from(v) * k) as u8), 1.0);
+    c.rect(0.0, 0.0, W, height, &fade(0.0, height, dim(0.32), dim(0.08)));
+    let top = band(&mut c, height, look.band.as_ref(), "");
+    let size = W * 0.62;
+    let (cx, cy) = (W / 2.0, top + (height - top) * 0.42);
+    for i in 0..6 {
+        let r = size * (0.75 - i as f32 * 0.08);
+        c.fill(circle(cx, cy, r), &solid(rgba_of(avg, 0.05)));
+    }
+    let premul: Vec<u8> = rgba.as_chunks::<4>().0.iter().flat_map(|p| { let a = u16::from(p[3]); [(u16::from(p[0]) * a / 255) as u8, (u16::from(p[1]) * a / 255) as u8, (u16::from(p[2]) * a / 255) as u8, p[3]] }).collect();
+    if let Some(pic) = tiny_skia::IntSize::from_wh(*w, *h).and_then(|s| Pixmap::from_vec(premul, s)) {
+        let k = size / (*w).max(*h) as f32;
+        let paint = tiny_skia::PixmapPaint { quality: tiny_skia::FilterQuality::Bicubic, ..Default::default() };
+        let at = Transform::from_row(k, 0.0, 0.0, k, cx - *w as f32 * k / 2.0, cy - *h as f32 * k / 2.0);
+        c.pix.draw_pixmap(0, 0, pic.as_ref(), &paint, at, None);
+    }
+    tile_words(&mut c, height, name, "OPEN THE EMULATOR");
+    picture(c)
+}
+
+fn rgba_of(c: [u8; 3], a: f32) -> Color {
+    rgba(c[0], c[1], c[2], a)
+}
+
 /// The mark in the corner of a favourite's cover: a heart on a dark disc, `size` pixels across.
 pub fn heart(size: u32) -> Picture {
     let mut c = Canvas { pix: Pixmap::new(size.max(1), size.max(1)).expect("a mark's size"), clip: None, t: Transform::identity() };
