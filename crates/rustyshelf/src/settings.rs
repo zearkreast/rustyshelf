@@ -28,6 +28,7 @@ mod accounts;
 pub use accounts::{AchFrom, AchGame};
 mod addgames;
 mod art;
+mod badge;
 mod artmatch;
 mod collections;
 mod deck;
@@ -102,6 +103,8 @@ enum Screen {
     MyShelf(String),
     Find,
     Accounts,
+    /// one service under Accounts: "ra", "emus", "steam", "sgdb", "igdb", "ss"
+    Account(&'static str),
     Achievements,
     /// RetroAchievements and Steam achievements, the whole account
     Trophies,
@@ -322,6 +325,7 @@ pub struct Settings {
     sw2: sw2::Sw2Ui,
     deck: deck::DeckUi,
     art_pick: art::ArtPick,
+    badge: badge::Badge,
     art_match: artmatch::ArtMatchState,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
@@ -341,6 +345,8 @@ pub struct Settings {
     ach_sort: usize,
     /// the key the Electron app seals API keys with on this computer
     seal_key: Option<[u8; 32]>,
+    /// `data/.env`: the accounts, by the settings' name (`ra.user`, `ra.key`, else under `keys`)
+    account_env: std::collections::HashMap<String, String>,
     /// the custom themes found, by id and name; and whether they're to be looked for again
     pub custom_themes: Vec<(String, String)>,
     pub reload_themes: bool,
@@ -389,7 +395,7 @@ impl Default for Settings {
         let cfg = Config::load(&paths::data_dir(&app_root)).unwrap_or_default();
         let wizard = !cfg.setup_done();
         let other = if wizard { other_setup(&app_root) } else { None };
-        let s = Settings {
+        let mut s = Settings {
             open: wizard,
             just_closed: false,
             wizard,
@@ -445,6 +451,7 @@ impl Default for Settings {
             sw2: Default::default(),
             deck: Default::default(),
             art_pick: Default::default(),
+            badge: Default::default(),
             art_match: Default::default(),
             kid_open: false,
             tab: 0,
@@ -460,6 +467,7 @@ impl Default for Settings {
             achievements: None,
             ach_sort: 0,
             seal_key: rustyshelf_core::seal::key(&paths::env_var),
+            account_env: Default::default(),
             custom_themes: Vec::new(),
             reload_themes: false,
             go_to: None,
@@ -477,6 +485,7 @@ impl Default for Settings {
             streaming: Default::default(),
             pc_backs: Default::default(),
         };
+        s.keep_accounts_in_env();
         SCALE.store(s.ui_scale().to_bits(), std::sync::atomic::Ordering::Relaxed);
         s
     }
@@ -1273,6 +1282,7 @@ impl Settings {
                 }
                 rows.extend([
                     open("Collections", String::new(), "Shelves you make yourself, mixing games from any console: make one, name it, search for games to put on it.", Screen::Collections),
+                    Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are. T on the shelf, or the quick menu.".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() },
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                 ]);
                 ("Your consoles, their emulators and your games: where RustyShelf finds them and what goes on the shelves.", rows)
@@ -1292,11 +1302,7 @@ impl Settings {
                     open("Console order", "Reorder".into(), "The order of the consoles along the top. Home always comes first.", Screen::ShelfOrder),
                 ],
             ),
-            "Accounts" => {
-                let mut rows = vec![Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() }];
-                rows.extend(rows_of(Screen::Accounts));
-                ("Sign-ins and keys that add art, achievements and features.", rows)
-            }
+            "Accounts" => ("Sign-ins and keys that add art, achievements and features.", rows_of(Screen::Accounts)),
             _ => ("Updates, your settings themselves, and Kid mode.", rows_of(Screen::System)),
         };
         rows.push(Row { label: "Back to the shelf".into(), press: Some(Box::new(|s: &mut Settings| s.back())), ..Row::default() });
@@ -1326,7 +1332,7 @@ impl Settings {
             rows.push(Row { label: format!("{name}: {emu} needs a BIOS"), value: "Show me".into(), hint: "Copied from your own console into its BIOS folder.".into(), press: Some(Box::new(move |s: &mut Settings| s.go(Screen::Console(id.clone())))), step: None });
         }
         if self.api_key("igdbId").is_empty() && self.more_shots() && !self.console_shelves.is_empty() {
-            rows.push(Row { label: "Connect IGDB for more screenshots and game info".into(), value: "Set up".into(), hint: "Free with a Twitch developer account, about 5 minutes.".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Accounts))), step: None });
+            rows.push(Row { label: "Connect IGDB for more screenshots and game info".into(), value: "Set up".into(), hint: "Free with a Twitch developer account, about 5 minutes.".into(), press: Some(Box::new(|s: &mut Settings| s.go(Screen::Account("igdb")))), step: None });
         }
         if !rows.is_empty() {
             rows.insert(0, Row { label: format!("— Needs attention · {} —", rows.len()), ..Row::default() });
@@ -2519,6 +2525,7 @@ impl Settings {
             }
             Screen::Find => self.find_page(),
             Screen::Accounts => self.accounts_page(),
+            Screen::Account(which) => self.account_page(which),
             Screen::Phone => self.phone_page(),
             Screen::Romm => self.romm_page(),
             Screen::GameStreaming => self.streaming_page(),
@@ -2791,6 +2798,8 @@ pub fn input(
             Some(Screen::Find)
         } else if keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::F1) {
             Some(Screen::Root)
+        } else if keys.just_pressed(KeyCode::KeyT) {
+            Some(Screen::Trophies)
         // (as the Electron app: View / Minus opens Details; Settings is in the quick menu, Start)
         } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || pad(GamepadButton::Select) {
             Some(Screen::Details)
@@ -2846,7 +2855,10 @@ pub fn input(
             s.packs = rustyshelf_core::soundpacks::list(&s.app_root);
         }
         let details = first == Screen::Details;
-        s.stack = vec![(first, 0)];
+        s.stack = vec![(first.clone(), 0)];
+        if first == Screen::Trophies {
+            s.open_trophies(false);
+        }
         // the quick menu's Box art, for a console game: its Art Studio, from its Details
         if std::mem::take(&mut s.then_art) && details && s.can_pick_art() {
             s.stack.push((Screen::Art, 0));
@@ -2905,6 +2917,7 @@ pub fn input(
     s.poll_art(time.elapsed_secs());
     s.poll_art_match();
     s.poll_pc_backs();
+    s.poll_badge(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;
@@ -3436,7 +3449,7 @@ pub fn draw(
         s.qr = link.and_then(|l| Some((l.clone(), images.add(phone::qr_image(&l)?))));
     }
     let code = s.qr.as_ref().map(|q| q.1.clone());
-    let preview = s.art_preview(&mut images);
+    let preview = s.art_preview(&mut images).map(|p| (p, 420.0)).or_else(|| s.badge_preview(&mut images).map(|p| (p, badge::SIZE)));
     let n = page.rows.len();
     let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
     let (highlight, scroll) = s.motion.now(now);
@@ -3655,8 +3668,8 @@ pub fn draw(
                 if !hint.is_empty() {
                     info_card(info, card_title.clone(), &hint, &font);
                 }
-                if let Some(preview) = preview {
-                    info.spawn((Node { height: dp(420.0), align_self: AlignSelf::Center, ..default() }, ImageNode::new(preview)));
+                if let Some((preview, high)) = preview {
+                    info.spawn((Node { height: dp(high), align_self: AlignSelf::Center, ..default() }, ImageNode::new(preview)));
                 }
                 if let Some(code) = code {
                     info.spawn((

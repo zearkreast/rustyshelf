@@ -111,11 +111,11 @@ complete yet.
   Settings → Box art → Sharpest scans first (on unless switched off), the sharpest version comes first and a low-res
   picture RustyShelf downloaded is replaced by a clearly sharper one; any other picture that's there is never
   replaced. Both apps keep the same record of which pictures they placed (`data/art-provenance.json`).
-- With your own SteamGridDB key (Settings → Accounts, with a check of the key) and box art downloads on, gives PC
+- With your own SteamGridDB key (Settings → Accounts → SteamGridDB, with a check of the key) and box art downloads on, gives PC
   games, ports and recomps that have no cover at all SteamGridDB's best poster, as the Electron app does (their
   titles are sent to SteamGridDB). The key is kept encrypted like the RetroAchievements one, and the lookups are
   kept in the same `data\sgdb-cache.json`.
-- Signs in to ScreenScraper with your own account (Settings → Accounts: username, password, a developer login of
+- Signs in to ScreenScraper with your own account (Settings → Accounts → ScreenScraper: username, password, a developer login of
   your own if you have one, and a check that shows the lookups left today), kept encrypted like the other keys.
   The lookup itself is the Electron app's (a game matched by its file's checksums, name and size, then by title;
   the account's limits kept to; the same `data\ss-cache.json`), ready for the Art Studio, which is where its
@@ -201,18 +201,28 @@ complete yet.
 - Has the Home shelf (the twelve games you played last, then your favorites), the All shelf when Settings → Display
   asks for it, and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.
-- Reads RetroAchievements as the Electron app does (Settings → Accounts: the username and web API key, a check
-  of the account, and whether each console's emulator is signed in): a game's progress beside its facts on the
-  shelf, its achievements in Details, and what was unlocked when a game is come back from. The key is kept as
-  the Electron app keeps it, encrypted for this Windows user, so both apps open each other's.
+- Groups Settings → Accounts by service, each with its own page: RetroAchievements (with Emulators, whether each
+  console's emulator is signed in, Xenia's and RPCS3's own achievements included), Steam, SteamGridDB, IGDB
+  (Client ID and Client Secret), ScreenScraper and RomM. Every sign-in and key is also written to `data\.env`, one
+  `NAME=value` line each in plain text (`RA_USER`, `RA_API_KEY`, `STEAM_WEB_API_KEY`, `STEAMGRIDDB_API_KEY`,
+  `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`, `SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD`, `SCREENSCRAPER_DEV_ID`,
+  `SCREENSCRAPER_DEV_PASSWORD`); a value there wins over `config.json`, so the file can be edited by hand or
+  carried to another PC. The keys already in `config.json` are copied there on start.
+- Reads RetroAchievements as the Electron app does (Settings → Accounts → RetroAchievements: the username and web
+  API key, a check of the account): a game's progress beside its facts on the shelf, its achievements in Details,
+  and what was unlocked when a game is come back from. The key is also kept as the Electron app keeps it,
+  encrypted for this Windows user, so both apps open each other's. PCSX2 counts as signed in with its token in
+  `inis\secrets.ini`, where PCSX2 2.x keeps it.
 - Shows a Steam game's achievements in Details, read from what Steam keeps on this PC (its `appcache\stats`
-  files, for the account last signed in), as the Electron app does: nothing is asked of Steam, and a game never
-  started on this PC has none.
-- Has the Trophies screen (Settings → Trophies): the whole RetroAchievements account and, with your own Steam Web
-  API key (Settings → Accounts, kept encrypted like the other keys, with a check), the Steam achievements of the
-  account signed in to Steam on this PC, side by side: every game with how far it is, the last 30 days' unlocks
-  with how rare each is, and the mastered games. The lookups are kept where the Electron app keeps them
-  (`data\ra`, `data\steam-ach`).
+  files, for the account last signed in), as the Electron app does, with how many players have each (Steam's
+  world percentages) and steamhunters.com's points for it, so they sort by rarity or points; a game never started
+  on this PC has none.
+- Has the Trophies screen (T on the shelf, the quick menu, or Settings → Library → Trophies): the whole
+  RetroAchievements account and, with your own Steam Web API key (Settings → Accounts → Steam), the Steam
+  achievements of the account signed in to Steam on this PC: every game with how far it is, the last 30 days'
+  unlocks with how rare each is, and the mastered games, from everywhere or from one of the two (From ◀ ▶). The
+  highlighted game's icon or achievement's badge shows beside the list, as it does in Details' achievements. The
+  lookups are kept where the Electron app keeps them (`data\ra`, `data\steam-ach`).
 - Lists the room the PC games take (Settings → PC games and apps → Storage): the installed Steam, Epic, GOG,
   HoYoPlay and PC games folder games by drive, the biggest first, with each drive's free space.
 - Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf
@@ -356,6 +366,7 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Details | I | X |
 | Sort and filter (the Sort panel) | G | hold Menu |
 | Quick menu: Favorite, Details, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab or Esc | Menu |
+| Trophies | T | (the quick menu) |
 | Settings | S | View |
 | Surprise me | R | left stick click |
 | Find a game | / | hold the left stick |

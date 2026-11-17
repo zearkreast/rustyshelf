@@ -14,13 +14,15 @@ use crate::systems::Console;
 #[derive(Debug, Clone)]
 pub struct Config {
     raw: Map<String, Value>,
+    /// `data/.env`'s accounts, by the settings' name
+    env: std::collections::HashMap<String, String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         match crate::settings::defaults() {
-            Value::Object(raw) => Config { raw },
-            _ => Config { raw: Map::new() },
+            Value::Object(raw) => Config { raw, env: Default::default() },
+            _ => Config { raw: Map::new(), env: Default::default() },
         }
     }
 }
@@ -70,22 +72,24 @@ impl Config {
     /// No file yet is a fresh setup: every value is its default.
     pub fn load(data_dir: &Path) -> Result<Config, LoadError> {
         let file = data_dir.join("config.json");
-        if let Some(Value::Object(raw)) = crate::settings::pending(&file) {
-            return Ok(Config { raw });
-        }
-        let text = match fs::read_to_string(&file) {
-            Ok(t) => t,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Config::default()),
-            Err(e) => return Err(LoadError::Io(e)),
+        let mut c = if let Some(Value::Object(raw)) = crate::settings::pending(&file) {
+            Config { raw, env: Default::default() }
+        } else {
+            match fs::read_to_string(&file) {
+                Ok(t) => Self::parse(&t)?,
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Config::default(),
+                Err(e) => return Err(LoadError::Io(e)),
+            }
         };
-        Self::parse(&text)
+        c.env = crate::accountenv::read(data_dir);
+        Ok(c)
     }
 
     /// A saved file as today's settings: merged over the defaults, older versions' values moved on, every value one
     /// the app can use.
     pub fn parse(text: &str) -> Result<Config, LoadError> {
         match crate::settings::read(text) {
-            Some(Value::Object(raw)) => Ok(Config { raw }),
+            Some(Value::Object(raw)) => Ok(Config { raw, env: Default::default() }),
             _ => Err(LoadError::Damaged(match serde_json::from_str::<Value>(text) {
                 Ok(_) => "not a settings object".into(),
                 Err(e) => e.to_string(),
@@ -96,7 +100,7 @@ impl Config {
     /// Settings as a screen hands them back: the same shape rules as a loaded file. None when it isn't an object.
     pub fn from_value(v: &Value) -> Option<Config> {
         match crate::settings::normalize(v)? {
-            Value::Object(raw) => Some(Config { raw }),
+            Value::Object(raw) => Some(Config { raw, env: Default::default() }),
             _ => None,
         }
     }
@@ -182,9 +186,12 @@ impl Config {
         self.raw.get("ui").and_then(|u| u.get("autoCovers")).and_then(Value::as_bool)
     }
 
-    /// One of the player's own API keys ("steamgriddb" …): as typed, or opened from where the Electron app sealed
+    /// One of the player's own API keys ("steamgriddb" …): from `data/.env`, as typed, or opened from where the Electron app sealed
     /// it with `seal_key`. Empty when there's none, or it was sealed on another computer.
     pub fn api_key(&self, name: &str, seal_key: Option<&[u8; 32]>) -> String {
+        if let Some(v) = self.env.get(name) {
+            return v.trim().to_string();
+        }
         let of = |group: &str| str_of(self.raw.get(group).and_then(|k| k.get(name)), "").trim().to_string();
         let plain = of("keys");
         if !plain.is_empty() {

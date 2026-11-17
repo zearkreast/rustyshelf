@@ -331,6 +331,12 @@ mod tests {
         assert_eq!(tr("fr", "12 apps on the host"), "12 applis sur l'hôte");
         assert_eq!((tr("fr", "1 game from mypc"), tr("fr", "12 games from living-room-pc")), ("1 jeu de mypc".into(), "12 jeux de living-room-pc".into()));
         assert_eq!(tr("tr", "1 game from mypc"), "mypc: 1 oyun");
+        assert_eq!(tr("tr", "LaunchBox's PC games: Downloading the LaunchBox game database… 7% · 8 / 105 MB"), "LaunchBox'ın PC oyunları: LaunchBox oyun veritabanı indiriliyor… %7 · 8 / 105 MB");
+        assert_eq!(tr("tr", "Downloading… 7%"), "İndiriliyor… %7");
+        assert_eq!(tr("pt", "Reading… 40%"), "Lendo… 40%");
+        assert_eq!(tr("tr", "3 of 5 ready"), "5 emülatörden 3 tanesi hazır");
+        assert_eq!(tr("pt", "3 of 5 ready"), "3 de 5 prontos");
+        assert_eq!(tr("fr", "21 · Earned"), "21 · Obtenu");
         assert_eq!(tr("tr", "LaunchBox's PC games: Reading the game database… 12%"), "LaunchBox'ın PC oyunları: Oyun veritabanı okunuyor… %12");
     }
 }

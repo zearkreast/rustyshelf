@@ -216,6 +216,15 @@ pub(crate) fn stamp(seconds: f64) -> Option<String> {
 /// A Steam game's achievements and how far you are: `{ id, title, source: "Steam", total, earned, points: 0,
 /// pointsEarned: 0, mastered, achievements: [...] }`; None when none are known for it here.
 pub fn steam_progress(steam_dir: &Path, appid: &str) -> Option<Value> {
+    let mut p = steam_progress_named(steam_dir, appid)?;
+    for a in p["achievements"].as_array_mut().into_iter().flatten() {
+        a.as_object_mut().map(|o| o.remove("api"));
+    }
+    Some(p)
+}
+
+/// [`steam_progress`] with each achievement's API name as `api`, which Steam's and steamhunters' lists go by.
+pub fn steam_progress_named(steam_dir: &Path, appid: &str) -> Option<Value> {
     if appid.is_empty() || !appid.bytes().all(|c| c.is_ascii_digit()) {
         return None;
     }
@@ -248,6 +257,7 @@ pub fn steam_progress(steam_dir: &Path, appid: &str) -> Option<Value> {
                 js::number(Some(&json!(sid))) * 64.0 + bit,
                 json!({
                     "id": format!("{sid}.{}", js::string(Some(&js::num(bit)))),
+                    "api": b.get("name").map(Kv::string),
                     "title": title,
                     "desc": if hidden && !earned { "Hidden achievement".to_string() } else { text(d.get("desc")) },
                     "points": 0,

@@ -8,7 +8,7 @@ use rustyshelf_core::ra::Ra;
 use rustyshelf_core::screenscraper::{Creds, ScreenScraper};
 use rustyshelf_core::steamach::SteamAch;
 use rustyshelf_core::steamgrid::SteamGrid;
-use rustyshelf_core::{raemu, rpcs3troph, seal, xeniaach};
+use rustyshelf_core::{accountenv, raemu, rpcs3troph, seal, xeniaach};
 
 use super::*;
 
@@ -26,9 +26,56 @@ impl Settings {
         if !self.flag(&["ra", "enabled"], true) {
             return Default::default();
         }
+        (self.ra_user(), self.ra_key())
+    }
+
+    fn ra_user(&self) -> String {
+        self.account_env.get("ra.user").cloned().unwrap_or_else(|| self.text(&["ra", "user"]))
+    }
+
+    fn ra_key(&self) -> String {
+        if let Some(k) = self.account_env.get("ra.key") {
+            return k.clone();
+        }
         let plain = self.text(&["ra", "key"]);
-        let key = if plain.is_empty() { self.seal_key.and_then(|k| seal::unseal(&self.text(&["ra", "keyEnc"]), &k)).unwrap_or_default() } else { plain };
-        (self.text(&["ra", "user"]), key)
+        if plain.is_empty() { self.seal_key.and_then(|k| seal::unseal(&self.text(&["ra", "keyEnc"]), &k)).unwrap_or_default() } else { plain }
+    }
+
+    /// The accounts in `config.json` that `data/.env` doesn't have yet are written there, then it's read.
+    pub(super) fn keep_accounts_in_env(&mut self) {
+        let data = paths::data_dir(&self.app_root);
+        self.account_env = accountenv::read(&data);
+        for (name, _) in accountenv::NAMES {
+            if self.account_env.contains_key(name) {
+                continue;
+            }
+            let v = match name {
+                "ra.user" => self.text(&["ra", "user"]),
+                "ra.key" => self.ra_key(),
+                _ => self.api_key(name),
+            };
+            if !v.trim().is_empty() && accountenv::write(&data, name, &v).is_ok() {
+                self.account_env.insert(name.to_string(), v.trim().to_string());
+            }
+        }
+    }
+
+    /// Writes one account value to `data/.env` too; a failure is said.
+    fn env_keep(&mut self, name: &str, value: &str) {
+        match accountenv::write(&paths::data_dir(&self.app_root), name, value) {
+            Ok(()) if value.trim().is_empty() => {
+                self.account_env.remove(name);
+            }
+            Ok(()) => {
+                self.account_env.insert(name.to_string(), value.trim().to_string());
+            }
+            Err(e) => self.say(format!("Couldn't write the accounts file (.env): {e}")),
+        }
+    }
+
+    fn set_ra_user(&mut self, user: String) {
+        self.set(&["ra", "user"], json!(user));
+        self.env_keep("ra.user", &user);
     }
 
     pub fn ra(&self) -> Arc<Ra> {
@@ -37,6 +84,7 @@ impl Settings {
 
     /// Keeps the web API key: sealed as the Electron app seals it where that can be done, else as it is.
     fn set_ra_key(&mut self, key: String) {
+        self.env_keep("ra.key", &key);
         let sealed = self.seal_key.filter(|_| !key.is_empty()).and_then(|k| seal::seal(&key, &k, seal::nonce()));
         match sealed {
             Some(s) => {
@@ -54,6 +102,9 @@ impl Settings {
 
     /// One of the player's own API keys ("steamgriddb" …), opened from where the Electron app sealed it.
     pub fn api_key(&self, name: &str) -> String {
+        if let Some(v) = self.account_env.get(name) {
+            return v.clone();
+        }
         let plain = self.text(&["keys", name]);
         let key = if plain.trim().is_empty() { self.seal_key.and_then(|k| seal::unseal(&self.text(&["keysEnc", name]), &k)).unwrap_or_default() } else { plain };
         key.trim().to_string()
@@ -61,6 +112,7 @@ impl Settings {
 
     /// Keeps an API key as `set_ra_key` keeps RetroAchievements'.
     pub(super) fn set_api_key(&mut self, name: &str, key: String) {
+        self.env_keep(name, &key);
         let sealed = self.seal_key.filter(|_| !key.is_empty()).and_then(|k| seal::seal(&key, &k, seal::nonce()));
         match sealed {
             Some(s) => {
@@ -98,7 +150,50 @@ impl Settings {
         self.redraw = true;
     }
 
+    /// Settings → Accounts: one row per service, each opening its own page.
     pub(super) fn accounts_page(&self) -> Page {
+        let set = |v: &str| if v.is_empty() { "Not set up".to_string() } else { "Ready".to_string() };
+        let open = |label: &str, value: String, hint: &str, page: &'static str| Row { label: label.into(), value, hint: hint.into(), press: Some(Box::new(move |s: &mut Settings| s.go(Screen::Account(page)))), step: None };
+        let (user, key) = self.ra_account();
+        let ra = if !self.flag(&["ra", "enabled"], true) { "Off".to_string() } else if user.is_empty() || key.is_empty() { "Not set up".into() } else { user };
+        let ss = self.api_key("ssUser");
+        let rows = vec![
+            open("RetroAchievements", ra, "Your progress on the shelves it covers, and the emulators signed in to it.", "ra"),
+            open("Steam", set(&self.api_key("steamweb")), "A Steam Web API key: your Steam achievements on the Trophies screen.", "steam"),
+            open("SteamGridDB", set(&self.api_key("steamgriddb")), "A key for community-made posters, for PC games without a cover.", "sgdb"),
+            open("IGDB", set(&self.api_key("igdbId")), "A Twitch app's Client ID and Secret: more screenshots and game info.", "igdb"),
+            open("ScreenScraper", if ss.is_empty() { "Not set up".into() } else { ss }, "A screenscraper.fr account: box scans by region.", "ss"),
+            Row {
+                label: "RomM".into(),
+                value: self.romm_state(),
+                hint: "Your RomM server's games on your shelves: RustyShelf's full box art and manuals for them, and a game not on this device yet is downloaded when you press Play.".into(),
+                press: Some(Box::new(|s: &mut Settings| s.go(Screen::Romm))),
+                step: None,
+            },
+        ];
+        Page { title: "Accounts".into(), lead: "Each service's sign-in or keys. They're kept in the data folder's .env file as well, in plain text, so it can be edited by hand or carried to another PC.".into(), rows }
+    }
+
+    /// One service's page under Accounts.
+    pub(super) fn account_page(&self, which: &str) -> Page {
+        match which {
+            "ra" => self.ra_page(),
+            "emus" => self.emus_page(),
+            "steam" => self.steam_page(),
+            "sgdb" => self.sgdb_page(),
+            "igdb" => self.igdb_page(),
+            _ => self.ss_page(),
+        }
+    }
+
+    /// Of the consoles RetroAchievements or their emulator's own files cover, how many are ready, and how many.
+    fn emulators_ready(&self) -> (usize, usize) {
+        let rows = self.emus_page().rows;
+        let counted: Vec<&Row> = rows.iter().filter(|r| !r.label.ends_with("pop-up") && !matches!(r.value.as_str(), "Not covered" | "No emulator")).collect();
+        (counted.iter().filter(|r| r.value.starts_with("Ready")).count(), counted.len())
+    }
+
+    fn ra_page(&self) -> Page {
         let (user, key) = self.ra_account();
         let typed_key = |s: &mut Settings| {
             s.edit(
@@ -110,7 +205,17 @@ impl Settings {
         };
         let mut rows = vec![
             self.switch("RetroAchievements", &["ra", "enabled"], true, "Shows your progress on the shelves and in Details. Achievements are earned inside the emulator, signed in there."),
-            self.typed("Username", &["ra", "user"], "Your name on retroachievements.org."),
+            {
+                let now = self.ra_user();
+                let old = now.clone();
+                Row {
+                    label: "Username".into(),
+                    value: if now.is_empty() { "(none)".into() } else { now },
+                    hint: "Your name on retroachievements.org.".into(),
+                    press: Some(Box::new(move |s: &mut Settings| s.edit("Username", "Your name on retroachievements.org.", old.clone(), Box::new(|s: &mut Settings, v: String| s.set_ra_user(v.trim().to_string()))))),
+                    step: None,
+                }
+            },
             Row { label: "Web API key".into(), value: if key.is_empty() { "(none)".into() } else { "••••••••".into() }, hint: "Your web API key (not your password): retroachievements.org → Settings → Keys.".into(), press: Some(Box::new(typed_key)), step: None },
             Row {
                 label: "Check the account".into(),
@@ -123,8 +228,22 @@ impl Settings {
                 ..Row::default()
             },
         ];
+        let (ready, all) = self.emulators_ready();
+        rows.push(Row {
+            label: "Emulators".into(),
+            value: if all == 0 { "No emulator".into() } else { format!("{ready} of {all} ready") },
+            hint: "Whether each console's emulator is signed in to RetroAchievements, and Xbox 360's and PS3's own achievements.".into(),
+            press: Some(Box::new(|s: &mut Settings| s.go(Screen::Account("emus")))),
+            step: None,
+        });
+        Page { title: "RetroAchievements".into(), lead: "Achievements are earned inside the emulator, signed in there; RustyShelf reads your progress with your name and web API key.".into(), rows }
+    }
+
+    fn emus_page(&self) -> Page {
         // each console's emulator: whether achievements will work in it
+        let mut rows = Vec::new();
         let mut real = self.cfg.clone();
+        real["ra"]["user"] = json!(self.ra_user());
         if let Some(systems) = real.get_mut("systems").and_then(Value::as_object_mut) {
             for sc in systems.values_mut() {
                 if let Some(e) = sc.get("emulator").and_then(Value::as_str).filter(|e| !e.is_empty()) {
@@ -174,6 +293,48 @@ impl Settings {
                 });
             }
         }
+        Page { title: "Emulators".into(), lead: "Whether achievements will work in each console's emulator. Xenia and RPCS3 keep their own, on this PC.".into(), rows }
+    }
+
+    fn steam_page(&self) -> Page {
+        let mut rows = Vec::new();
+        let steamweb = self.api_key("steamweb");
+        let typed_steam = |s: &mut Settings| {
+            s.edit(
+                "Steam Web API key",
+                "Free: steamcommunity.com/dev/apikey (any domain name will do). Kept encrypted like the RetroAchievements key.",
+                String::new(),
+                Box::new(|s: &mut Settings, v: String| s.set_api_key("steamweb", v.trim().to_string())),
+            );
+        };
+        rows.push(Row {
+            label: "Steam Web API key".into(),
+            value: if steamweb.is_empty() { "(none)".into() } else { "••••••••".into() },
+            hint: "Your own Steam Web API key: the Trophies screen then shows your Steam achievements beside RetroAchievements, for the account signed in to Steam on this PC. The key is sent only to api.steampowered.com. Optional.".into(),
+            press: Some(Box::new(typed_steam)),
+            step: None,
+        });
+        rows.push(Row {
+            label: "Check the Steam key".into(),
+            hint: "Asks Steam for the profile of the account signed in here, with this key.".into(),
+            press: Some(Box::new(move |s: &mut Settings| {
+                let (key, dir, given) = (steamweb.clone(), paths::data_dir(&s.app_root), s.text(&["steam", "path"]));
+                s.say("Asking Steam…".into());
+                let (tx, rx) = std::sync::mpsc::channel();
+                s.ra_answer = Some(Mutex::new(rx));
+                std::thread::spawn(move || {
+                    let r = SteamAch::new(&dir, &key, rustyshelf_core::steam::main_root(&given)).test(&key);
+                    let said = if r["ok"] == true { Ok(format!("Steam: the key works · {}", r["user"].as_str().unwrap_or(""))) } else { Err(format!("Steam: {}", r["error"].as_str().unwrap_or("not accepted"))) };
+                    let _ = tx.send(RaAnswer::Tested(said));
+                });
+            })),
+            ..Row::default()
+        });
+        Page { title: "Steam".into(), lead: "Your Steam achievements on the Trophies screen, for the account signed in to Steam on this PC.".into(), rows }
+    }
+
+    fn sgdb_page(&self) -> Page {
+        let mut rows = Vec::new();
         let sgdb = self.api_key("steamgriddb");
         let typed_sgdb = |s: &mut Settings| {
             s.edit(
@@ -205,6 +366,11 @@ impl Settings {
             })),
             ..Row::default()
         });
+        Page { title: "SteamGridDB".into(), lead: "Community-made posters for PC games, ports and recomps without a cover.".into(), rows }
+    }
+
+    fn igdb_page(&self) -> Page {
+        let mut rows = Vec::new();
         let (igdb_id, igdb_secret) = (self.api_key("igdbId"), self.api_key("igdbSecret"));
         for (label, key, hint, secret) in [
             ("IGDB Client ID", "igdbId", "From a free Twitch developer app (dev.twitch.tv → Your Console → Applications → Register, any name, OAuth redirect http://localhost). IGDB then fills in what LaunchBox's database is missing about a game. Kept encrypted.", false),
@@ -233,38 +399,11 @@ impl Settings {
             })),
             ..Row::default()
         });
-        let steamweb = self.api_key("steamweb");
-        let typed_steam = |s: &mut Settings| {
-            s.edit(
-                "Steam Web API key",
-                "Free: steamcommunity.com/dev/apikey (any domain name will do). Kept encrypted like the RetroAchievements key.",
-                String::new(),
-                Box::new(|s: &mut Settings, v: String| s.set_api_key("steamweb", v.trim().to_string())),
-            );
-        };
-        rows.push(Row {
-            label: "Steam achievements".into(),
-            value: if steamweb.is_empty() { "(none)".into() } else { "••••••••".into() },
-            hint: "Your own Steam Web API key: the Trophies screen then shows your Steam achievements beside RetroAchievements, for the account signed in to Steam on this PC. The key is sent only to api.steampowered.com. Optional.".into(),
-            press: Some(Box::new(typed_steam)),
-            step: None,
-        });
-        rows.push(Row {
-            label: "Check the Steam key".into(),
-            hint: "Asks Steam for the profile of the account signed in here, with this key.".into(),
-            press: Some(Box::new(move |s: &mut Settings| {
-                let (key, dir, given) = (steamweb.clone(), paths::data_dir(&s.app_root), s.text(&["steam", "path"]));
-                s.say("Asking Steam…".into());
-                let (tx, rx) = std::sync::mpsc::channel();
-                s.ra_answer = Some(Mutex::new(rx));
-                std::thread::spawn(move || {
-                    let r = SteamAch::new(&dir, &key, rustyshelf_core::steam::main_root(&given)).test(&key);
-                    let said = if r["ok"] == true { Ok(format!("Steam: the key works · {}", r["user"].as_str().unwrap_or(""))) } else { Err(format!("Steam: {}", r["error"].as_str().unwrap_or("not accepted"))) };
-                    let _ = tx.send(RaAnswer::Tested(said));
-                });
-            })),
-            ..Row::default()
-        });
+        Page { title: "IGDB".into(), lead: "What LaunchBox's database is missing about a game, and more screenshots. Free with a Twitch developer app.".into(), rows }
+    }
+
+    fn ss_page(&self) -> Page {
+        let mut rows = Vec::new();
         let ss = Creds { user: self.api_key("ssUser"), pass: self.api_key("ssPass"), dev_id: self.api_key("ssDevId"), dev_pass: self.api_key("ssDevPass") };
         for (label, name, hint, secret) in [
             ("ScreenScraper username", "ssUser", "Your screenscraper.fr username. Box scans by region for the art sources that use it. Optional, kept encrypted.", false),
@@ -300,14 +439,7 @@ impl Settings {
             })),
             ..Row::default()
         });
-        rows.push(Row {
-            label: "RomM".into(),
-            value: self.romm_state(),
-            hint: "Your RomM server's games on your shelves: RustyShelf's full box art and manuals for them, and a game not on this device yet is downloaded when you press Play.".into(),
-            press: Some(Box::new(|s: &mut Settings| s.go(Screen::Romm))),
-            step: None,
-        });
-        Page { title: "Accounts".into(), lead: "RetroAchievements: your progress on the shelves that it covers. SteamGridDB: posters for PC games without a cover. Steam: your achievements on the Trophies screen. ScreenScraper: box scans by region.".into(), rows }
+        Page { title: "ScreenScraper".into(), lead: "Box scans by region for the art sources that use it.".into(), rows }
     }
 
     /// The emulator a console with achievements of its own uses (Xenia for Xbox 360, on Windows; RPCS3 for PS3),
@@ -399,12 +531,34 @@ impl Settings {
             return;
         }
         if let Some(appid) = self.steam_app().map(String::from) {
-            let given = self.text(&["steam", "path"]);
+            let (given, data) = (self.text(&["steam", "path"]), paths::data_dir(&self.app_root));
             let (tx, rx) = std::sync::mpsc::channel();
             self.ra_answer = Some(Mutex::new(rx));
             std::thread::spawn(move || {
                 let root = rustyshelf_core::steam::main_root(&given);
-                let _ = tx.send(RaAnswer::Progress(id, Ok(root.and_then(|r| rustyshelf_core::pcach::steam_progress(&r, &appid)))));
+                let mut got = root.as_deref().and_then(|r| rustyshelf_core::pcach::steam_progress_named(r, &appid));
+                if let Some(p) = got.as_mut() {
+                    let site = SteamAch::new(&data, "", root);
+                    let (rarity, points) = (site.rarity(&appid), site.hunter_points(&appid));
+                    let mut total = (0i64, 0i64);
+                    for a in p["achievements"].as_array_mut().into_iter().flatten() {
+                        let api = a["api"].as_str().unwrap_or("").to_string();
+                        if let Some(r) = rarity.get(&api) {
+                            a["rarity"] = json!(((r * 10.0).round() / 10.0).max(0.1));
+                        }
+                        if let Some(n) = points.get(&api).map(|n| n.round() as i64) {
+                            a["points"] = json!(n);
+                            total.0 += n;
+                            if a["earned"] == true {
+                                total.1 += n;
+                            }
+                        }
+                    }
+                    if !points.is_empty() {
+                        (p["points"], p["pointsEarned"]) = (json!(total.0), json!(total.1));
+                    }
+                }
+                let _ = tx.send(RaAnswer::Progress(id, Ok(got)));
             });
             return;
         }
@@ -429,7 +583,8 @@ impl Settings {
         if self.steam_app().is_some() {
             // (a Steam game with none kept here has no row at all)
             let p = self.achievements.as_ref().filter(|a| a.0 == c.game.id)?.1.as_ref().ok()?.as_ref()?;
-            return Some(format!("{} of {}{}", p["earned"], p["total"], if p["mastered"] == "completed" { " · Completed" } else { "" }));
+            let pts = p["points"].as_f64().filter(|n| *n > 0.0).map_or(String::new(), |n| format!(" · {} of {n} points", p["pointsEarned"]));
+            return Some(format!("{} of {}{pts}{}", p["earned"], p["total"], if p["mastered"] == "completed" { " · Completed" } else { "" }));
         }
         if self.own_ach_emulator(&c.console).is_some() {
             let ps3 = c.console == "ps3";
@@ -463,6 +618,12 @@ impl Settings {
     }
 
     pub(super) fn achievements_page(&self) -> Page {
+        self.achievements_listing().0
+    }
+
+    /// The page, and each row's picture (an achievement's badge).
+    pub(super) fn achievements_listing(&self) -> (Page, Vec<Option<String>>) {
+        let mut pics: Vec<Option<String>> = Vec::new();
         const SORTS: [&str; 3] = ["Order", "Rarity", "Points"];
         let title = self.chosen.as_ref().map_or(String::new(), |c| c.game.title.clone());
         let steam = self.steam_app().is_some();
@@ -484,7 +645,7 @@ impl Settings {
             Some(Ok(None)) => "RetroAchievements has no set for this game.".into(),
             Some(Ok(Some(p))) => {
                 let all: Vec<&Value> = p["achievements"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
-                if !steam {
+                if !steam || all.iter().any(|a| a["rarity"].is_number()) {
                     rows.push(Row {
                         label: "Sort".into(),
                         value: SORTS[sort].into(),
@@ -498,12 +659,18 @@ impl Settings {
                         continue;
                     }
                     rows.push(Row { label: format!("— {label} · {} —", list.len()), ..Row::default() });
-                    rows.extend(list.into_iter().map(|a| achievement_row(a, steam)));
+                    pics.resize(rows.len(), None);
+                    for a in list {
+                        rows.push(achievement_row(a, steam));
+                        pics.push(a["badge"].as_str().filter(|b| b.starts_with("https://")).map(String::from));
+                    }
                 }
                 if own == Some("RPCS3") {
                     format!("{} of {} earned · {}", p["earned"], p["total"], p["grades"].as_str().unwrap_or(""))
                 } else if own.is_some() {
                     format!("{} of {} earned · {} of {} G", p["earned"], p["total"], p["pointsEarned"], p["points"])
+                } else if steam && p["points"].as_f64().is_some_and(|n| n > 0.0) {
+                    format!("{} of {} earned · {} of {} points (steamhunters.com)", p["earned"], p["total"], p["pointsEarned"], p["points"])
                 } else if steam {
                     format!("{} of {} earned, as Steam keeps them on this PC", p["earned"], p["total"])
                 } else {
@@ -511,7 +678,8 @@ impl Settings {
                 }
             }
         };
-        Page { title: format!("Achievements · {title}"), lead, rows }
+        pics.resize(rows.len(), None);
+        (Page { title: format!("Achievements · {title}"), lead, rows }, pics)
     }
 
     fn sort_achievements(&mut self, by: i32) {
@@ -573,8 +741,14 @@ fn achievement_sections<'a>(all: &[&'a Value], sort: usize) -> Vec<(&'static str
 fn achievement_row(a: &Value, steam: bool) -> Row {
     let earned = a["earned"] == true;
     let rarity = a["rarity"].as_f64();
+    let pts = a["points"].as_f64().filter(|n| *n > 0.0);
     let value = if steam {
-        if earned { "Earned" } else { "" }.into()
+        match (pts, earned) {
+            (Some(n), true) => format!("{n} · Earned"),
+            (Some(n), false) => n.to_string(),
+            (None, true) => "Earned".into(),
+            (None, false) => String::new(),
+        }
     } else if let Some(grade) = a["grade"].as_str() {
         grade.to_string()
     } else {

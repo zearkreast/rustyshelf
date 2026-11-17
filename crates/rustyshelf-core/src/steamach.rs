@@ -228,6 +228,24 @@ impl SteamAch {
         .unwrap_or_else(|_| json!({}))
     }
 
+    /// How many players have each of a game's achievements, in percent, by API name; Steam answers this without a key.
+    pub fn rarity(&self, appid: &str) -> HashMap<String, f64> {
+        let w = self.world(appid);
+        w.as_object().map(|o| o.iter().filter_map(|(k, v)| Some((k.clone(), v.as_f64()?))).collect()).unwrap_or_default()
+    }
+
+    /// steamhunters.com's points for each of a game's achievements, by API name (its public JSON, kept a week).
+    pub fn hunter_points(&self, appid: &str) -> HashMap<String, f64> {
+        if appid.is_empty() || !appid.bytes().all(|b| b.is_ascii_digit()) {
+            return HashMap::new();
+        }
+        let got = self.cached(&format!("hunters-{appid}"), 7 * 86_400_000, || -> Result<Value, String> {
+            let (_, j) = self.get(&format!("https://steamhunters.com/api/apps/{appid}/achievements"))?;
+            Ok(Value::Object(crate::js::items(Some(&j)).into_iter().filter_map(|a| Some((a.get("apiName")?.as_str()?.to_string(), a.get("points").cloned().filter(Value::is_number)?))).collect()))
+        });
+        got.ok().and_then(|v| v.as_object().map(|o| o.iter().filter_map(|(k, v)| Some((k.clone(), v.as_f64()?))).collect())).unwrap_or_default()
+    }
+
     /// The Trophies screen's Steam half: { user, pic, games, recent }, None without a key. `now` is seconds since 1970.
     pub fn trophies(&self, force: bool, now: f64) -> Result<Option<Value>, String> {
         if !self.enabled() {
