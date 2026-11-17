@@ -18,7 +18,7 @@ pub struct WhatsNew {
 
 /// The shelf is up and nothing else is: a card may show.
 pub fn quiet(lib: &LibraryRes, settings: &Settings, playing: &Playing, card: &Card) -> bool {
-    matches!(lib.0, LibraryState::Ready(_)) && !settings.open && !settings.keys_taken && !settings.just_closed && playing.title.is_none() && !card.is_open()
+    matches!(lib.0, LibraryState::Ready(_)) && !settings.open && !settings.keys_taken && !settings.just_closed && playing.title.is_none() && !card.is_open() && !crate::tour::ON.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut wn: ResMut<WhatsNew>, mut card: ResMut<Card>, mut settings: ResMut<Settings>, playing: Res<Playing>) {

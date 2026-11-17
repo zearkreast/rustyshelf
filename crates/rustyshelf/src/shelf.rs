@@ -155,6 +155,35 @@ impl Default for Inspect {
     }
 }
 
+impl Inspect {
+    /// Holds the chosen case up, as V does.
+    pub fn hold(&mut self, now: f32) {
+        if !self.on {
+            let held = self.held.now(now, HOLD_UP, EASE);
+            *self = Inspect { on: true, held: Eased { from: held, to: 1.0, since: now }, ..Inspect::default() };
+        }
+    }
+
+    /// Puts it back on the shelf, as Esc does.
+    pub fn put_down(&mut self, now: f32) {
+        if self.on {
+            let held = self.held.now(now, HOLD_UP, EASE);
+            (self.on, self.held) = (false, Eased { from: held, to: 0.0, since: now });
+        }
+    }
+
+    /// Turns it toward `target` degrees round at Inspect's own speed; false once it's there.
+    pub fn turn_toward(&mut self, target: f32, dt: f32) -> bool {
+        let left = (target - self.yaw + 540.0).rem_euclid(360.0) - 180.0;
+        if left.abs() < 0.5 {
+            self.yaw = target.rem_euclid(360.0);
+            return false;
+        }
+        self.yaw = (self.yaw + left.signum() * (SPIN * dt).min(left.abs())).rem_euclid(360.0);
+        true
+    }
+}
+
 /// seconds a case takes up into the hand and back
 const HOLD_UP: f32 = 0.45;
 /// seconds the chosen cover's rim light takes to fade out or back in

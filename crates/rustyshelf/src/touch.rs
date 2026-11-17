@@ -112,7 +112,7 @@ pub fn run(
     if !shelf && quick && d.x < -COMMIT * w && d.x.abs() > d.y.abs() * 1.5 && !card.is_open() {
         return press(KeyCode::Escape);
     }
-    if !moved && quick && (card.is_open() || (shelf && (fin.x - w / 2.0).abs() < 0.15 * w)) {
+    if !moved && quick && (card.is_open() || crate::tour::ON.load(std::sync::atomic::Ordering::Relaxed) || (shelf && (fin.x - w / 2.0).abs() < 0.15 * w)) {
         press(KeyCode::Enter);
     }
 }

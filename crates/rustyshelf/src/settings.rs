@@ -232,6 +232,19 @@ enum Pick {
     OwnBack,
 }
 
+/// What the shelf tour opens for a step.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TourPage {
+    Find,
+    Details,
+    /// the quick menu
+    Quick,
+    /// the chosen game's Art Studio, from its Details
+    Art,
+    /// Settings' Library tab
+    AddGames,
+}
+
 #[derive(Resource)]
 pub struct Settings {
     pub open: bool,
@@ -296,6 +309,8 @@ pub struct Settings {
     wanted: Option<Screen>,
     /// the Home menu or the manual reader is up: the keys and the pads are its own
     pub keys_taken: bool,
+    /// a screen the shelf tour wants opened, while it has the keys
+    pub tour_page: Option<TourPage>,
     /// Esc on the bare shelf: the quick menu opens next frame, rather than the app closing
     pub esc_quick: bool,
     /// the prompts of the controller in use
@@ -425,6 +440,7 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             keys_taken: false,
+            tour_page: None,
             esc_quick: false,
             pad_auto: Glyphs::Xbox,
             manual: None,
@@ -641,6 +657,19 @@ impl Settings {
 
     /// Closes Settings from outside, as backing out of every page would; false when it can't be left now (the
     /// first run's pages, a file dialog that's up).
+    /// Back to the plain shelf from whatever the shelf tour opened: a panel, Settings or Details.
+    pub fn tour_close(&mut self, now: f32) {
+        self.close_panel(now, true);
+        if self.open {
+            self.shut();
+        }
+    }
+
+    /// Settings, Details or a panel is in view.
+    pub fn tour_busy(&self) -> bool {
+        self.open || self.panels.is_open()
+    }
+
     pub fn shut(&mut self) -> bool {
         if self.wizard || self.picking.is_some() {
             return false;
@@ -2739,7 +2768,9 @@ pub fn input(
         s.gpu_vendor = adapter.map(|a| a.vendor);
     }
     s.poll_streaming(time.elapsed_secs(), playing.title.is_some());
-    if s.keys_taken {
+    // the shelf tour opens its screens while it holds the keys
+    let tour = if s.open { None } else { s.tour_page.take() };
+    if s.keys_taken && tour.is_none() {
         return;
     }
     if !s.open {
@@ -2774,12 +2805,14 @@ pub fn input(
         }
         let now = time.elapsed_secs();
         // a panel over the shelf has the keys
-        if s.panel_keys(&keys, &pads, now) {
+        if tour.is_none() && s.panel_keys(&keys, &pads, now) {
             s.keys_taken = true;
             return;
         }
         let start = (pad(GamepadButton::Start), pads.iter().any(|p| p.just_released(GamepadButton::Start)), pads.iter().any(|p| p.pressed(GamepadButton::Start)));
-        let panel = if playing.title.is_some() || s.wanted.is_some() {
+        let panel = if let Some(t) = tour {
+            (t == TourPage::Quick).then_some(panels::Which::Quick)
+        } else if playing.title.is_some() || s.wanted.is_some() {
             None
         } else if keys.just_pressed(KeyCode::KeyG) {
             Some(panels::Which::Sort)
@@ -2805,7 +2838,21 @@ pub fn input(
             }
             return;
         }
-        let first = if playing.title.is_some() {
+        let first = if let Some(t) = tour {
+            match t {
+                TourPage::Find => Some(Screen::Find),
+                TourPage::Details => Some(Screen::Details),
+                TourPage::Art => {
+                    s.then_art = true;
+                    Some(Screen::Details)
+                }
+                TourPage::AddGames => {
+                    s.tab = 0;
+                    Some(Screen::Root)
+                }
+                TourPage::Quick => None,
+            }
+        } else if playing.title.is_some() {
             None
         } else if let Some(page) = s.wanted.take() {
             Some(page)

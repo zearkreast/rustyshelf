@@ -1,4 +1,4 @@
-//! One card over the shelf, in Settings' look: What's new after an update, the shelf tour's steps, and a few choices
+//! One card over the shelf, in Settings' look: What's new after an update, the Steam Deck's hint, and a few choices
 //! one per row (the Switch 2 build to start in). ◀ ▶ moves between its buttons (▲ ▼ between its choices), Enter / A
 //! picks the lit one, Esc / B closes it. While it's up the shelf and Settings leave the keys to it.
 
@@ -57,10 +57,10 @@ impl Card {
 #[derive(Component)]
 pub struct CardRoot;
 
-const PAPER: Color = Color::srgba(0.07, 0.08, 0.12, 0.97);
-const INK: Color = Color::srgb(0.953, 0.961, 0.984);
-const DIM: Color = Color::srgba(0.953, 0.961, 0.984, 0.62);
-const ACCENT: Color = Color::srgb(0.48, 0.62, 1.0);
+pub(crate) const PAPER: Color = Color::srgba(0.07, 0.08, 0.12, 0.97);
+pub(crate) const INK: Color = Color::srgb(0.953, 0.961, 0.984);
+pub(crate) const DIM: Color = Color::srgba(0.953, 0.961, 0.984, 0.62);
+pub(crate) const ACCENT: Color = Color::srgb(0.48, 0.62, 1.0);
 
 pub fn setup(mut commands: Commands) {
     commands.spawn((

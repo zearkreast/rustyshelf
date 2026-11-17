@@ -327,7 +327,7 @@ pub fn run(
             });
         }
         // (keys_taken: the manual reader or Inspect had the keys last frame; Home and P are theirs)
-        None if !was_open && enabled && !settings.open && !settings.keys_taken && playing.title.is_none() && (keys.just_pressed(KeyCode::Home) || keys.just_pressed(KeyCode::KeyP) || pads.iter().any(|p| p.just_pressed(GamepadButton::Mode))) => {
+        None if !was_open && enabled && !settings.open && !settings.keys_taken && !crate::tour::ON.load(std::sync::atomic::Ordering::Relaxed) && playing.title.is_none() && (keys.just_pressed(KeyCode::Home) || keys.just_pressed(KeyCode::KeyP) || pads.iter().any(|p| p.just_pressed(GamepadButton::Mode))) => {
             let others = l.shelves.iter().filter(|s| s.id != "home");
             let info = Info {
                 title: "Home".into(),
