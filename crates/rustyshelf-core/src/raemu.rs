@@ -154,7 +154,8 @@ fn check_ini(file: Option<String>, emulator: &str, name: &str, hard: &str) -> Fo
     if !truthy(a.get("enabled")) {
         return ("off", user, format!("Achievements are turned off in {emulator}"));
     }
-    if value(&a, "token").is_empty() {
+    // PCSX2 2.x keeps the token in secrets.ini beside its settings
+    if value(&a, "token").is_empty() && value(&section(&js::join(&[&js::dirname(&f), "secrets.ini"]), name), "token").is_empty() {
         return ("signed-out", user, format!("Not signed in to RetroAchievements in {emulator}"));
     }
     ("ok", user, hardcore(truthy(a.get(hard))))
@@ -259,4 +260,23 @@ pub fn check(cfg: &Value, var: Var) -> Vec<Row> {
             row(state, user, detail)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pcsx2_token_in_secrets() {
+        let dir = std::env::temp_dir().join(format!("rustyshelf-raemu-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let ini = dir.join("PCSX2.ini");
+        std::fs::write(&ini, "[Achievements]\nEnabled = true\nUsername = someone\nChallengeMode = false\n").unwrap();
+        let f = || check_ini(Some(ini.to_string_lossy().into_owned()), "PCSX2", "achievements", "challengemode").0;
+        assert_eq!(f(), "signed-out");
+        std::fs::write(dir.join("secrets.ini"), "[Achievements]\nToken = abc\n").unwrap();
+        assert_eq!(f(), "ok");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
