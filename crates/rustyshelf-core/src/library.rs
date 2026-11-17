@@ -744,8 +744,8 @@ fn backs_for(pc: &Shelf, data_dir: &Path) -> Vec<(String, String, PathBuf)> {
         .collect()
 }
 
-/// LaunchBox's backs for the PC shelves' games with no back or only a made one, when Settings → PC games → Backs of
-/// the box from LaunchBox is on. True when one came in.
+/// LaunchBox's backs for the PC shelves' games with no back or only a made one (a port's from its console's
+/// release), when Settings → PC games → Backs of the box from LaunchBox is on. True when one came in.
 fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
     if !lib.config.pc_auto_backs() {
         return false;
@@ -759,6 +759,28 @@ fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
         .filter_map(crate::pcbacks::Want::of)
         .collect();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    // a port or recomp not in a console's folder: its console looked up by its title, as a recomp's is
+    let loose: Vec<(String, String)> = lib
+        .shelves
+        .iter()
+        .filter(|s| s.id == "ports")
+        .flat_map(|s| &s.games)
+        .filter(|g| g.art.back.is_none() || g.art.made_back)
+        .filter_map(|g| match &g.source {
+            Source::Pc(p) if p.port && p.port_of.is_empty() => Some((g.id.clone(), crate::recomps::title(p).to_string())),
+            _ => None,
+        })
+        .collect();
+    let mut wants = wants;
+    if !loose.is_empty() {
+        crate::recomps::detect(data_dir, &data_dir.join("boxart-cache"), &loose, &HashSet::new(), now);
+        let found = crate::recomps::found(data_dir);
+        for (id, title) in loose {
+            if let Some(plat) = found.get(&crate::recomps::key(&id, &title)).and_then(|sys| crate::covers::launchbox_platform(sys)) {
+                wants.push(crate::pcbacks::Want { id, title, store: true, plat });
+            }
+        }
+    }
     !wants.is_empty() && crate::pcbacks::run(data_dir, &data_dir.join("boxart-cache"), &wants, lib.config.art_region(), now) > 0
 }
 
