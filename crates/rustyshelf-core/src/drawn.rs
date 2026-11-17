@@ -581,6 +581,11 @@ pub fn front_from(look: &Look, title: &str, region: &str, scene_kind: Option<&st
 /// A back to match: the title, four small scenes, a few words about the game (`blurb`) and what's known of it
 /// (`facts`: a name and a value a line).
 pub fn back(look: &Look, title: &str, facts: &[(String, String)], blurb: &str) -> Picture {
+    back_with(look, title, facts, blurb, &[])
+}
+
+/// `back`, with the game's own screenshots in place of the scenes when it has some.
+pub fn back_with(look: &Look, title: &str, facts: &[(String, String)], blurb: &str, shots: &[image::RgbaImage]) -> Picture {
     let seed = hash(title);
     let hue = (seed % 360) as f32;
     let (mut c, height) = canvas(look);
@@ -595,7 +600,12 @@ pub fn back(look: &Look, title: &str, facts: &[(String, String)], blurb: &str) -
     let shot_w = W * 0.42;
     let (shot_h, top) = (shot_w * 0.6, top_band + 90.0);
     for (i, (sx, sy)) in [(W * 0.06, top), (W * 0.52, top), (W * 0.06, top + shot_h + 10.0), (W * 0.52, top + shot_h + 10.0)].into_iter().enumerate() {
-        scene(&mut c, sx, sy, shot_w, shot_h, hue + i as f32 * 35.0, &mut r, KINDS[((seed >> i) % 9) as usize]);
+        let frame = || Rect::from_xywh(sx, sy, shot_w, shot_h).map(PathBuilder::from_rect);
+        match shots.get(i).and_then(pixmap_of) {
+            Some(shot) => cover_into(&mut c, &shot, frame(), sx, sy, shot_w, shot_h),
+            None if shots.is_empty() => scene(&mut c, sx, sy, shot_w, shot_h, hue + i as f32 * 35.0, &mut r, KINDS[((seed >> i) % 9) as usize]),
+            None => c.rect(sx, sy, shot_w, shot_h, &solid(rgba(0, 0, 0, 0.3))),
+        }
         c.stroke(Rect::from_xywh(sx, sy, shot_w, shot_h).map(PathBuilder::from_rect), &solid(rgba(255, 255, 255, 0.7)), &width(2.0));
     }
     let mut y = top + shot_h * 2.0 + 44.0;
@@ -1072,5 +1082,23 @@ mod made_back_tests {
         if let Ok(out) = std::env::var("MADE_BACK_OUT") {
             image::RgbaImage::from_raw(p.width, p.height, p.rgba).unwrap().save(out).unwrap();
         }
+    }
+
+    #[test]
+    fn a_drawn_back_shows_the_games_screenshots() {
+        let look = crate::looks::look("sw");
+        let facts = [("Developer".to_string(), "Someone".to_string())];
+        let red = image::RgbaImage::from_pixel(320, 180, image::Rgba([230, 20, 20, 255]));
+        let made = back(look, "A Game", &facts, "Words.");
+        let shown = back_with(look, "A Game", &facts, "Words.", &[red]);
+        assert_eq!((made.width, made.height), (shown.width, shown.height));
+        let px = |p: &Picture, x: f32, y: f32| {
+            let i = ((y as u32 * p.width + x as u32) * 4) as usize;
+            [p.rgba[i], p.rgba[i + 1], p.rgba[i + 2]]
+        };
+        // a column through the first picture: the screenshot's red is there
+        let first = (0..shown.height).map(|y| px(&shown, (shown.width as f32 * 0.27).round(), y as f32)).filter(|c| c[0] > 200 && c[1] < 60 && c[2] < 60).count();
+        assert!(first > 20, "the screenshot is on the back");
+        assert_eq!(back_with(look, "A Game", &facts, "Words.", &[]).rgba, made.rgba);
     }
 }

@@ -978,7 +978,13 @@ pub fn build_shelf(
                 Some(path) => Art::File(path),
                 None => {
                     let facts = crate::settings::facts_of(g, &crate::settings::emulator_of(own), rustyshelf_core::shelfview::played(g, &plays.0));
-                    Art::Back { look: Box::new(look.clone()), title: g.title.clone(), facts: facts.into_iter().take(5).collect(), blurb: g.info.as_ref().and_then(|i| i.description()).unwrap_or_default() }
+                    Art::Back {
+                        look: Box::new(look.clone()),
+                        title: g.title.clone(),
+                        facts: facts.into_iter().take(5).collect(),
+                        blurb: g.info.as_ref().and_then(|i| i.description()).unwrap_or_default(),
+                        shots: g.info.as_ref().map_or(Vec::new(), |i| i.shots.iter().take(6).cloned().collect()),
+                    }
                 }
             },
             (back.clone(), sheet_w / sheet_h),

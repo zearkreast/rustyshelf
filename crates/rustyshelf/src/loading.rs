@@ -337,7 +337,8 @@ pub enum Art {
     Emulator { look: Box<Look>, name: String, exe: PathBuf, drawn: Box<Art> },
     /// a picture in greys, this bright and with this much contrast: a game that isn't installed
     Grey(Box<Art>, f32, f32),
-    Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String },
+    /// `shots`: the game's screenshots (files or addresses), for the four pictures
+    Back { look: Box<Look>, title: String, facts: Vec<(String, String)>, blurb: String, shots: Vec<String> },
     /// a spine painted `width` × `height` pixels, two to a pixel of the shelf: `edge` is the case's border there
     Spine { look: Box<Look>, title: String, label: String, width: u32, height: u32, edge: f32 },
 }
@@ -354,8 +355,8 @@ impl Art {
                 PathBuf::from(format!("drawn:{}|e|{name}|{}|{at}", look.id, exe.display()))
             }
             Art::Grey(of, bright, contrast) => PathBuf::from(format!("grey:{bright}:{contrast}:{}", of.key().display())),
-            Art::Back { look, title, facts, blurb } => {
-                let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).collect();
+            Art::Back { look, title, facts, blurb, shots } => {
+                let said: String = facts.iter().flat_map(|(n, v)| [n.as_str(), v.as_str()]).chain([blurb.as_str()]).chain(shots.iter().map(String::as_str)).collect();
                 PathBuf::from(format!("drawn:{}|b|{title}|{}", look.id, rustyshelf_core::drawn::hash(&said)))
             }
             Art::Spine { look, title, label, width, height, edge } => PathBuf::from(format!("drawn:{}|s|{title}|{label}|{width}x{height}|{edge}", look.id)),
@@ -383,7 +384,17 @@ impl Art {
                 }
                 (w, h, rgba)
             }),
-            Art::Back { look, title, facts, blurb } => drawn(rustyshelf_core::drawn::back(look, title, facts, blurb)),
+            Art::Back { look, title, facts, blurb, shots } => {
+                let data = rustyshelf_core::paths::data_dir(&rustyshelf_core::paths::app_root());
+                let pictures: Vec<image::RgbaImage> = shots
+                    .iter()
+                    .filter_map(|s| if s.starts_with("https://") { rustyshelf_core::info::shot_file(&data, s) } else { Some(std::path::PathBuf::from(s)) })
+                    .filter_map(|f| image::ImageReader::open(f).ok()?.with_guessed_format().ok()?.decode().ok())
+                    .map(|i| i.resize(480, 480, image::imageops::FilterType::Triangle).into_rgba8())
+                    .take(4)
+                    .collect();
+                drawn(rustyshelf_core::drawn::back_with(look, title, facts, blurb, &pictures))
+            }
             Art::Spine { look, title, label, width, height, edge } => drawn(rustyshelf_core::drawn::spine(look, title, label, *width, *height, *edge, 2.0)),
         }
     }
