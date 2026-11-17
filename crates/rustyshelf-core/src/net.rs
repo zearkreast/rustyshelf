@@ -98,6 +98,18 @@ pub fn get_json(url: &str, wait: Duration) -> Result<Value, Failure> {
 /// Downloads a file to `dest`, saying how far it is in percent (when the server says how big it is). Gives up after
 /// `cap`: a server trickling forever would keep a launch waiting.
 pub fn download(url: &str, dest: &Path, cap: Duration, on_pct: &mut dyn FnMut(u32)) -> Result<(), Failure> {
+    let mut last = None;
+    download_sized(url, dest, cap, &mut |got, total| {
+        let p = (got * 100).checked_div(total).unwrap_or(0) as u32;
+        if last != Some(p) {
+            last = Some(p);
+            on_pct(p);
+        }
+    })
+}
+
+/// [`download`], saying the bytes got and the size (0 when the server doesn't say) at most every 256 KB.
+pub fn download_sized(url: &str, dest: &Path, cap: Duration, on: &mut dyn FnMut(u64, u64)) -> Result<(), Failure> {
     let started = std::time::Instant::now();
     let res = AGENT.get(url).timeout(cap).call().map_err(|e| match e {
         ureq::Error::Status(code, _) => format!("the download server said {code}"),
@@ -106,7 +118,8 @@ pub fn download(url: &str, dest: &Path, cap: Duration, on_pct: &mut dyn FnMut(u3
     let total: u64 = res.header("content-length").and_then(|l| l.parse().ok()).unwrap_or(0);
     let mut r = res.into_reader();
     let mut w = std::fs::File::create(dest).map_err(|e| e.to_string())?;
-    let (mut buf, mut got, mut last) = (vec![0u8; 64 << 10], 0u64, None);
+    let (mut buf, mut got, mut said) = (vec![0u8; 64 << 10], 0u64, None);
+    on(0, total);
     loop {
         if started.elapsed() > cap {
             return Err("the download took too long".into());
@@ -117,10 +130,9 @@ pub fn download(url: &str, dest: &Path, cap: Duration, on_pct: &mut dyn FnMut(u3
         }
         w.write_all(&buf[..n]).map_err(|e| e.to_string())?;
         got += n as u64;
-        let p = (got * 100).checked_div(total).unwrap_or(0) as u32;
-        if last != Some(p) {
-            last = Some(p);
-            on_pct(p);
+        if said.is_none_or(|s| got - s >= 256 << 10) {
+            said = Some(got);
+            on(got, total);
         }
     }
     if total > 0 && got < total {

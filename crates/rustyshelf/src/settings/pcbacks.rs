@@ -45,16 +45,24 @@ impl Settings {
     /// Settings → PC games: LaunchBox's database downloaded again with its PC games in, asking twice before it starts.
     pub(super) fn launchbox_pc_row(&self) -> Row {
         let cache = paths::data_dir(&self.app_root).join("boxart-cache");
-        let value = if self.pc_backs.get.is_some() {
-            "Downloading…"
+        let value = if let Some((stage, _)) = &self.pc_backs.get {
+            let stage = stage.lock().unwrap();
+            let pct = stage.split_once("… ").and_then(|(_, r)| r.split_once('%')).map(|(p, _)| p).filter(|p| p.bytes().all(|b| b.is_ascii_digit()));
+            match (stage.starts_with("Reading"), pct) {
+                (false, Some(p)) => format!("Downloading… {p}%"),
+                (true, Some(p)) => format!("Reading… {p}%"),
+                (true, None) => "Reading…".into(),
+                _ if stage.starts_with("Unpacking") => "Unpacking…".into(),
+                _ => "Downloading…".into(),
+            }
         } else if boxart::has_pc_games(&cache) {
-            "Added"
+            "Added".into()
         } else {
-            "About 110 MB"
+            "About 110 MB".into()
         };
         Row {
             label: "Add LaunchBox's PC games".into(),
-            value: value.into(),
+            value,
             hint: "LaunchBox's free database again, with its PC games in, for the backs of their boxes: a download of about 110 MB".into(),
             press: Some(Box::new(|s: &mut Settings| s.add_launchbox_pc())),
             step: None,

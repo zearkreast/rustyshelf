@@ -432,7 +432,13 @@ fn index_with(cache_dir: &Path, need: Option<&str>, progress: &mut dyn FnMut(&st
         progress("Downloading the LaunchBox game database (one time, about a minute)…");
         std::fs::create_dir_all(cache_dir).map_err(|e| e.to_string())?;
         let part = cache_dir.join("Metadata.zip.part");
-        let got = crate::net::download(LB_ZIP, &part, Duration::from_secs(600), &mut |pct| progress(&format!("Downloading the LaunchBox game database… {pct}%"))).and_then(|()| std::fs::rename(&part, &zip).map_err(|e| e.to_string()));
+        let got = crate::net::download_sized(LB_ZIP, &part, Duration::from_secs(600), &mut |got, total| {
+            let mb = |b: u64| (b + (1 << 19)) >> 20;
+            match (got * 100).checked_div(total) {
+                Some(pct) => progress(&format!("Downloading the LaunchBox game database… {pct}% · {} / {} MB", mb(got), mb(total))),
+                None => progress(&format!("Downloading the LaunchBox game database… {} MB", mb(got))),
+            }
+        }).and_then(|()| std::fs::rename(&part, &zip).map_err(|e| e.to_string()));
         if let Err(e) = got {
             let _ = std::fs::remove_file(&part);
             return Err(format!("LaunchBox database: {e}"));
