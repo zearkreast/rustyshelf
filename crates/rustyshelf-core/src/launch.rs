@@ -1,6 +1,8 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
 // Boxshelf's main/launcher.js, the game launch in main.js, main/emucfg.js (resolveExe, launchArgs), main/linux.js
-// (retroCore) and main/linuxpc.js (cleanEnv), as RustyShelf has them; main/vita3k.js is RustyShelf's.
+// (retroCore) and main/linuxpc.js (cleanEnv), as RustyShelf has them; main/vita3k.js is RustyShelf's. Waking a Game
+// streaming host is from ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork
+// of Boxshelf: ported from its main.js.
 //! Starting a game: which emulator, with which options, and the per-console steps the Electron app takes.
 
 use std::path::{Path, PathBuf};
@@ -627,6 +629,7 @@ pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
             "gog" => "Check it in GOG Galaxy.",
             "hoyoplay" => "Check it in HoYoPlay.",
             "folder" => "Check its folder in the PC games folder.",
+            "moonlight" => "Install Moonlight, or choose it in Settings → Game streaming.",
             _ => "Remove it in Settings → Custom games and add it again.",
         };
         return refuse(format!("{} isn't at {} any more. {fix}", g.title, g.exe));
@@ -634,10 +637,17 @@ pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
     start_program(&g.exe, build_args(&g.args, ""), &g.title).map(Some)
 }
 
-/// A PC game as `launch_pc` starts it, and on Linux an Epic game, a PC games folder's game or a Windows program
-/// through legendary, Wine or Proton. The text is something to tell the player (an update waiting, Proton's runtime
-/// still downloading).
+/// A PC game as `launch_pc` starts it, a Game streaming app's host woken first when it has a MAC address, and on
+/// Linux an Epic game, a PC games folder's game or a Windows program through legendary, Wine or Proton. The text is
+/// something to tell the player (an update waiting, Proton's runtime still downloading).
 pub fn launch_pc_with(g: &PcGame, cfg: &Config, app_root: &Path) -> Result<(Option<Child>, Option<String>), LaunchError> {
+    // the wake-up isn't waited for: Moonlight waits for the host to show up
+    if g.source == "moonlight" {
+        let mac = cfg.moonlight().mac;
+        if !mac.is_empty() {
+            std::thread::spawn(move || crate::moonlight::wake(&mac));
+        }
+    }
     if is_linux_pc(g) {
         return launch_linux_pc(g, cfg, app_root).map(|(c, n)| (Some(c), n));
     }

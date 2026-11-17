@@ -155,6 +155,11 @@ impl Config {
         self.raw.get("pc").and_then(|p| p.get("consoleBox")).and_then(Value::as_bool).unwrap_or(false)
     }
 
+    /// Settings → Game streaming, with Zak's fork's defaults when the section isn't there.
+    pub fn moonlight(&self) -> crate::moonlight::Setup {
+        crate::moonlight::Setup::of(self.raw.get("moonlight"))
+    }
+
     /// Settings → Box art → download box art: Some(true) on, Some(false) off, None for a value that's neither.
     /// Settings → Box art → "Make missing backs and spines" (on unless turned off)
     pub fn make_backs(&self) -> bool {

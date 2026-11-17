@@ -1,7 +1,9 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the shelves of
-// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it.
+// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf is from
+// ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported
+// from its main.js.
 //! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
-//! the Custom shelf's Quiver apps and programs added by hand.
+//! the Custom shelf's Quiver apps and programs added by hand; the Game streaming shelf's apps of another PC.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -32,7 +34,7 @@ pub enum ShelfKind {
 
 #[derive(Debug, Clone)]
 pub struct Shelf {
-    /// the console's id, "pc", "custom", "ports" or "media"
+    /// the console's id, "pc", "custom", "ports", "streaming" or "media"
     pub id: String,
     pub name: String,
     pub kind: ShelfKind,
@@ -136,6 +138,12 @@ impl PcArt<'_> {
             source: Source::Pc(Box::new(g)),
             ..Game::default()
         }
+    }
+
+    /// A Game streaming app: the cover chosen for it, its console box, Moonlight's box art, else the automatic one.
+    fn streamed(&self, g: PcGame, boxart: Option<PathBuf>) -> Game {
+        let (art, box_plat) = self.case(&g.id, || boxart.or_else(|| pccovers::auto_cover(self.data, &g.id)));
+        Game { id: g.id.clone(), title: g.title.clone(), file: PathBuf::from(&g.exe), art, box_plat, source: Source::Pc(Box::new(g)), ..Game::default() }
     }
 }
 
@@ -401,7 +409,16 @@ impl Library {
                 None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) }, from: Vec::new() }),
             }
         }
-        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom), ("ports", "Ports & Recomps", ports)] {
+        let streamed: Vec<Game> = crate::moonlight::games(&config.moonlight())
+            .into_iter()
+            .map(|(mut g, boxart)| {
+                if let Some(t) = config.game_title(&g.id) {
+                    g.title = t.to_string();
+                }
+                art.streamed(g, boxart)
+            })
+            .collect();
+        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom), ("ports", "Ports & Recomps", ports), ("streaming", "Game streaming", streamed)] {
             if !games.is_empty() {
                 games.sort_by(|a, b| compare_plain(&a.title, &b.title));
                 shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games, from: Vec::new() });
@@ -833,5 +850,36 @@ mod tests {
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
         assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("ports", vec!["A Recomp"]), ("media", vec!["Stremio"])]);
+    }
+
+    #[test]
+    fn the_host_s_apps_on_the_game_streaming_shelf() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for f in ["tools/moonlight", "boxart/b.png", "data/pc-covers/moonlight-alpha.png", "data/pc-covers-auto/moonlight-gamma.jpg", "data/pc-covers-auto/moonlight-beta.jpg"] {
+            touch(&root.join(f));
+        }
+        let app = |name: &str, boxart: String| serde_json::json!({ "name": name, "id": 1, "hidden": false, "boxart": boxart });
+        let boxart = url::Url::from_file_path(root.join("boxart/b.png")).unwrap().to_string();
+        let mut cfg = serde_json::json!({
+            "steam": { "enabled": false },
+            "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false },
+            "moonlight": { "enabled": true, "path": root.join("tools/moonlight"), "host": "pc", "apps": [app("Gamma", String::new()), app("Beta", boxart), app("Alpha", String::new()), app("Desktop", String::new())] },
+            "games": { "moonlight-beta": { "title": "Beta Renamed" } },
+        });
+        touch(&root.join("data/config.json"));
+        let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let shelf = |cfg: &Value| {
+            std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+            Library::load_from(root).unwrap().shelves.into_iter().find(|s| s.id == "streaming")
+        };
+        let s = shelf(&cfg).unwrap();
+        let games: Vec<(&str, PathBuf)> = s.games.iter().map(|g| (g.title.as_str(), g.art.front.clone().unwrap())).collect();
+        let d = root.join("data");
+        assert_eq!(s.name, "Game streaming");
+        assert_eq!(games, [("Alpha", d.join("pc-covers/moonlight-alpha.png")), ("Beta Renamed", root.join("boxart/b.png")), ("Gamma", d.join("pc-covers-auto/moonlight-gamma.jpg"))]);
+        assert!(matches!(&s.games[0].source, Source::Pc(g) if g.source == "moonlight" && g.args == r#"stream "pc" "Alpha" --display-mode fullscreen"#));
+        cfg["moonlight"]["enabled"] = false.into();
+        assert!(shelf(&cfg).is_none());
     }
 }

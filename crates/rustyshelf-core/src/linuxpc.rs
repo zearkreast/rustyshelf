@@ -61,7 +61,12 @@ fn write_atomic(f: &Path, text: &str) -> std::io::Result<()> {
 
 /// A program on the PATH.
 pub fn which(name: &str) -> Option<PathBuf> {
-    std::env::var("PATH").unwrap_or_default().split(':').filter(|d| !d.is_empty()).map(|d| Path::new(d).join(name)).find(|f| is_exec(f))
+    which_in(name, &std::env::var("PATH").unwrap_or_default())
+}
+
+/// A program in one of the folders of `path` (a PATH's value).
+pub fn which_in(name: &str, path: &str) -> Option<PathBuf> {
+    path.split(':').filter(|d| !d.is_empty()).map(|d| Path::new(d).join(name)).find(|f| is_exec(f))
 }
 
 /// The folders (and links to them) in `d`.

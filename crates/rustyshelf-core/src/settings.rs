@@ -524,6 +524,10 @@ pub fn sanitize(cfg: &mut Value) {
     if let Some(Value::Object(pc)) = cfg.get_mut("pc") {
         sanitize_pc(pc);
     }
+    // Game streaming, as Zak's fork keeps it: not among the Electron app's defaults, so kept only when it's there
+    if cfg.get("moonlight").is_some() {
+        cfg["moonlight"] = crate::moonlight::sanitize(cfg.get("moonlight"));
+    }
     let e = cfg.get("emuSetup").filter(|e| e.is_object());
     let get = |k: &str| e.and_then(|e| e.get(k));
     // Set up for me's Picture choices: native only, so kept only when they're there
