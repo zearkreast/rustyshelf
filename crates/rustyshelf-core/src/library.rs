@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the shelves of
-// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf is from
-// ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported
-// from its main.js.
+// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf and PC games' backs
+// of the box are from ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of
+// Boxshelf: ported from its main.js.
 //! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
 //! the Custom shelf's Quiver apps and programs added by hand; the Game streaming shelf's apps of another PC.
 
@@ -80,15 +80,17 @@ impl PcArt<'_> {
         }
     }
 
-    /// A game's front, and with a console box its back, its spine and the console it's from. The player's pick comes
-    /// first, then its console box, then `auto`: the automatic covers, best first.
+    /// A game's front, its back, and with a console box its spine and the console it's from. The player's pick comes
+    /// first, then its console box, then `auto`: the automatic covers, best first. The back: the player's, the console
+    /// box's, else LaunchBox's PC game's unless "Made-up back" was chosen.
     fn case(&self, id: &str, auto: impl FnOnce() -> Option<PathBuf>) -> (Art, Option<String>) {
         let chosen = pccovers::cover(self.data, id);
         let boxed = if chosen.is_none() && self.boxes { pccovers::console_cover(self.data, id, "") } else { None };
         let plat = if chosen.is_some() || boxed.is_some() { pccovers::console_plat(self.data, id) } else { None };
         let in_box = boxed.is_some() || (chosen.is_some() && plat.is_some());
         let part = |p: &str| if in_box { pccovers::console_cover(self.data, id, p) } else { None };
-        let (back, spine) = (part("back"), part("spine"));
+        let launchbox = || if in_box || pccovers::made_up_back(self.data, id) { None } else { pccovers::auto_back(self.data, id) };
+        let (back, spine) = (pccovers::back(self.data, id).or_else(|| part("back")).or_else(launchbox), part("spine"));
         (Art { front: chosen.or(boxed).or_else(auto), back, spine, ..Art::default() }, plat)
     }
 
@@ -476,6 +478,7 @@ pub fn upkeep(lib: &Library) -> bool {
     }
     changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
     changed |= steam_fill(lib, &data_dir);
+    changed |= pc_backs(lib, &data_dir);
     // (before any picture is replaced: an HD upgrade asks it)
     if !crate::provenance::looked() {
         let art: Vec<PathBuf> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).flat_map(|s| &s.games).flat_map(|g| [&g.art.front, &g.art.back, &g.art.spine, &g.art.disc]).flatten().cloned().collect();
@@ -725,6 +728,24 @@ fn backs_for(pc: &Shelf, data_dir: &Path) -> Vec<(String, String, PathBuf)> {
         .collect()
 }
 
+/// LaunchBox's backs for the PC shelves' games with no back or only a made one, when Settings → PC games → Backs of
+/// the box from LaunchBox is on. True when one came in.
+fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
+    if !lib.config.pc_auto_backs() {
+        return false;
+    }
+    let wants: Vec<crate::pcbacks::Want> = lib
+        .shelves
+        .iter()
+        .filter(|s| matches!(s.kind, ShelfKind::Pc))
+        .flat_map(|s| &s.games)
+        .filter(|g| g.box_plat.is_none() && (g.art.back.is_none() || g.art.made_back))
+        .filter_map(crate::pcbacks::Want::of)
+        .collect();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    !wants.is_empty() && crate::pcbacks::run(data_dir, &data_dir.join("boxart-cache"), &wants, lib.config.art_region(), now) > 0
+}
+
 /// SteamGridDB posters for the PC games that aren't Steam's and have no cover at all, wherever they sit (a program
 /// can be on a console's shelf). Only with the player's SteamGridDB key. True when one came in.
 fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
@@ -823,6 +844,41 @@ mod tests {
         assert_eq!((g.art.front, g.art.spine, g.hero), (Some(d.join("pc-console-covers/custom-zeta.jpg")), Some(d.join("pc-console-covers/custom-zeta-spine.jpg")), None));
         let g = art.pc_game(PcGame { id: "epic-omega".into(), source: "epic", title: "Omega".into(), installed: Some(false), ..PcGame::default() });
         assert_eq!((g.art.front, g.hero, g.not_installed), (Some(d.join("steam-art/77_cover.jpg")), Some(d.join("steam-art/77_hero.jpg")), true));
+    }
+
+    #[test]
+    fn pc_backs_in_order() {
+        let t = tempfile::tempdir().unwrap();
+        let d = t.path();
+        for f in [
+            "steam-art/20_backmade.jpg",
+            "steam-art/21_backmade.jpg",
+            "pc-covers-auto/steam-20.back.jpg",
+            "pc-covers-auto/steam-21.back.jpg",
+            "pc-covers/steam-21.back.made",
+            "pc-covers-auto/steam-22.back.png",
+            "pc-covers/steam-22.back.webp",
+            "pc-console-covers/custom-zeta.jpg",
+            "pc-covers-auto/custom-zeta.back.jpg",
+            "pc-console-covers/custom-omega.jpg",
+            "pc-console-covers/custom-omega-back.jpg",
+            "pc-covers/custom-omega.back.png",
+        ] {
+            touch(&d.join(f));
+        }
+        let cfg = Config::parse("{}").unwrap();
+        let sizes = ScanData::default();
+        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::new(), steam_infos: HashMap::new(), sizes: &sizes };
+        let back = |appid: &str| {
+            let g = art.steam_game(SteamGame { appid: appid.into(), title: "Zeta".into(), size_bytes: 1, dir: None, minutes: 0, last_played: 0, front: Some("/s/f.jpg".into()), hero: None });
+            (g.art.back.map(|b| b.strip_prefix(d).unwrap().to_string_lossy().replace('\\', "/")), g.art.made_back)
+        };
+        assert_eq!(back("20"), (Some("pc-covers-auto/steam-20.back.jpg".into()), false), "LaunchBox's over the made one");
+        assert_eq!(back("21"), (Some("steam-art/21_backmade.jpg".into()), true), "Made-up back chosen");
+        assert_eq!(back("22"), (Some("pc-covers/steam-22.back.webp".into()), false), "the player's own first");
+        let custom = |id: &str| art.pc_game(PcGame { id: id.into(), source: "custom", title: "Zeta".into(), ..PcGame::default() }).art.back;
+        assert_eq!(custom("custom-zeta"), None, "no Windows back on a console box");
+        assert_eq!(custom("custom-omega"), Some(d.join("pc-covers/custom-omega.back.png")));
     }
 
     #[test]

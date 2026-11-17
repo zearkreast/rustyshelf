@@ -273,6 +273,10 @@ impl Settings {
         if self.art_pick.lb_get.is_some() {
             return;
         }
+        if self.pc_backs.get.is_some() {
+            self.say("LaunchBox's database is downloading already".into());
+            return;
+        }
         let cache = paths::data_dir(&self.app_root).join("boxart-cache");
         let (tx, rx) = channel();
         let stage = std::sync::Arc::new(Mutex::new("Starting the download…".to_string()));
@@ -283,6 +287,10 @@ impl Settings {
         });
         self.art_pick.lb_get = Some((stage, Mutex::new(rx)));
         self.say("LaunchBox art: downloading…".into());
+    }
+
+    pub(super) fn launchbox_downloading(&self) -> bool {
+        self.art_pick.lb_get.is_some()
     }
 
     /// Opens the chosen game's complete sets: the four parts' lists are read off the frame.

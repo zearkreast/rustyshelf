@@ -1,6 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
 // Boxshelf's main/pccovers.js (cover, autoCover, fetchAuto, fillMissing, folderCover, consoleCover, consolePlat), as
-// RustyShelf has it.
+// RustyShelf has it. The back of the box (back, own_back, reset_back) is from ZakAuMiel/boxshelf-source
+// (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: its main/pccovers.js.
 //! A PC game's cover files in the data folder, and a picture found in the game's own folder.
 
 use std::path::{Path, PathBuf};
@@ -49,6 +50,59 @@ pub fn own(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
     }
     std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
     Ok(dest)
+}
+
+fn back_id(id: &str) -> String {
+    format!("{id}.back")
+}
+
+/// The back of the box the player chose for a game (`data/pc-covers/<id>.back.<ext>`, as Zak's fork keeps it).
+pub fn back(data: &Path, id: &str) -> Option<PathBuf> {
+    cover(data, &back_id(id))
+}
+
+/// Makes a picture of the player's own the back of a game's box, as `own` does a cover.
+pub fn own_back(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
+    own(data, &back_id(id), file)
+}
+
+/// LaunchBox's back of a game's box, downloaded (`data/pc-covers-auto/<id>.back.<ext>`).
+pub fn auto_back(data: &Path, id: &str) -> Option<PathBuf> {
+    auto_cover(data, &back_id(id))
+}
+
+/// Downloads LaunchBox's back of a game's box, as `fetch_auto` does a cover.
+pub fn fetch_auto_back(data: &Path, id: &str, url: &str) -> Option<PathBuf> {
+    fetch_auto(data, &back_id(id), url)
+}
+
+fn made_up_marker(data: &Path, id: &str) -> PathBuf {
+    data.join("pc-covers").join(format!("{}.made", safe_id(&back_id(id))))
+}
+
+/// "Made-up back" was chosen for a game: LaunchBox's back isn't put on it by itself.
+pub fn made_up_back(data: &Path, id: &str) -> bool {
+    is_file(&made_up_marker(data, id))
+}
+
+fn remove_pictures(dir: &Path, id: &str) {
+    for e in ["jpg", "png", "webp"] {
+        let _ = std::fs::remove_file(dir.join(format!("{}.{e}", safe_id(id))));
+    }
+}
+
+/// "Made-up back": the player's back and LaunchBox's go, and LaunchBox's stays off.
+pub fn reset_back(data: &Path, id: &str) -> Result<(), String> {
+    remove_pictures(&data.join("pc-covers"), &back_id(id));
+    remove_pictures(&data.join("pc-covers-auto"), &back_id(id));
+    let _ = std::fs::remove_file(data.join("pc-covers-auto").join(format!("{}.from", safe_id(&back_id(id)))));
+    std::fs::create_dir_all(data.join("pc-covers")).and_then(|()| std::fs::write(made_up_marker(data, id), "")).map_err(|e| e.to_string())
+}
+
+/// LaunchBox's back asked for by hand: it goes on the case in place of the player's.
+pub fn prefer_auto_back(data: &Path, id: &str) {
+    remove_pictures(&data.join("pc-covers"), &back_id(id));
+    let _ = std::fs::remove_file(made_up_marker(data, id));
 }
 
 /// The store's own cover of a game, downloaded once (`data/pc-covers-auto`).
@@ -203,6 +257,17 @@ mod tests {
         assert_eq!(console_plat(d, "epic-a").as_deref(), Some("ps5"));
         std::fs::write(d.join("pc-covers/steam-10.plat"), " xone\n").unwrap();
         assert_eq!(console_plat(d, "steam-10").as_deref(), Some("xone"));
+        let pic = d.join("game/art/ZETA.png");
+        assert_eq!(own_back(d, "steam-10", &pic), Ok(d.join("pc-covers/steam-10.back.png")));
+        assert_eq!((cover(d, "steam-10"), back(d, "steam-10")), (Some(d.join("pc-covers/steam-10.png")), Some(d.join("pc-covers/steam-10.back.png"))));
+        std::fs::create_dir_all(d.join("pc-covers-auto")).unwrap();
+        std::fs::write(d.join("pc-covers-auto/steam-10.back.jpg"), b"").unwrap();
+        reset_back(d, "steam-10").unwrap();
+        assert_eq!((back(d, "steam-10"), auto_back(d, "steam-10"), made_up_back(d, "steam-10")), (None, None, true));
+        assert!(cover(d, "steam-10").is_some());
+        std::fs::write(d.join("pc-covers/steam-10.back.jpg"), b"").unwrap();
+        prefer_auto_back(d, "steam-10");
+        assert_eq!((back(d, "steam-10"), made_up_back(d, "steam-10")), (None, false));
         let exe = d.join("game/Zeta.exe");
         assert_eq!(folder_cover(&exe.to_string_lossy()), Some(d.join("game/art/ZETA.png")));
         assert_eq!(folder_cover(&d.join("nope").to_string_lossy()), None);

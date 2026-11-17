@@ -60,6 +60,7 @@ pub mod nx2;
 pub mod pads;
 pub mod paths;
 pub mod pcach;
+pub mod pcbacks;
 pub mod pccovers;
 pub mod pcfolder;
 pub mod pcgames;

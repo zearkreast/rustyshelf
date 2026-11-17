@@ -41,6 +41,7 @@ pub mod motion;
 mod notes;
 mod mstudio;
 mod linuxpc;
+mod pcbacks;
 mod phone;
 mod romm;
 pub mod setup;
@@ -218,6 +219,8 @@ enum Pick {
     Sw2Build,
     Sw2Folder,
     Moonlight,
+    /// a picture of the player's own as the chosen PC game's back of the box
+    OwnBack,
 }
 
 #[derive(Resource)]
@@ -342,6 +345,7 @@ pub struct Settings {
     romm: romm::RommUi,
     epic: linuxpc::EpicUi,
     streaming: streaming::StreamingUi,
+    pc_backs: pcbacks::PcBacksUi,
 }
 
 /// Settings → Sounds.
@@ -444,6 +448,7 @@ impl Default for Settings {
             romm: Default::default(),
             epic: Default::default(),
             streaming: Default::default(),
+            pc_backs: Default::default(),
         };
         SCALE.store(s.ui_scale().to_bits(), std::sync::atomic::Ordering::Relaxed);
         s
@@ -1146,6 +1151,7 @@ impl Settings {
             Pick::Playnite => self.read_playnite(Some(path)),
             Pick::OwnArt(cut) => self.own_art(path, cut),
             Pick::OwnManual => self.own_manual(path),
+            Pick::OwnBack => self.own_back(path),
             Pick::ThemePicture => match rustyshelf_core::customthemes::create(&rustyshelf_core::customthemes::root(&self.app_root), path, "") {
                 Ok(id) => {
                     self.set(&["ui", "theme"], json!(id));
@@ -1182,7 +1188,7 @@ impl Settings {
         }
         let mut page = self.screen_page();
         if self.kid_locked() && *screen == Screen::Details {
-            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Collections" | "Manual Studio"));
+            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Collections" | "Manual Studio" | "Back of the box…" | "Back from LaunchBox" | "Made-up back"));
         }
         page
     }
@@ -1769,6 +1775,8 @@ impl Settings {
                         })),
                     },
                     toggle("Console box art", &["pc", "consoleBox"], false, "A PC game in the box of its console release, where there is one"),
+                    toggle("Backs of the box from LaunchBox", &["pc", "autoBacks"], false, "A PC game with no back gets the one LaunchBox has for its name, behind the shelf, 30 games at a time. It needs LaunchBox's PC games, the next row."),
+                    self.launchbox_pc_row(),
                     open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
                 ];
                 if cfg!(target_os = "linux") {
@@ -2417,6 +2425,7 @@ impl Settings {
                 if self.can_pick_art() {
                     rows.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
                 }
+                rows.extend(self.pc_back_rows());
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());
                     let turn = move |s: &mut Settings, d: i32| {
@@ -2797,6 +2806,7 @@ pub fn input(
     s.poll_sw2();
     s.poll_deck();
     s.poll_art(time.elapsed_secs());
+    s.poll_pc_backs();
     // a dialog is up, or the emulator opened from here: the page waits for it
     if s.picking.is_some() || playing.title.is_some() {
         return;
