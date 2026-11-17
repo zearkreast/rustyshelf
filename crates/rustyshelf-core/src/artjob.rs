@@ -70,12 +70,13 @@ pub struct Ask {
 impl Remote {
     pub fn new(data_dir: &Path, sys: &str) -> Remote {
         let cache = crate::paths::boxart_cache(data_dir);
+        let (cfg, seal) = (Config::load(data_dir).ok(), crate::seal::key(&paths::env_var));
         Remote {
             index: boxart::ready_index(&cache),
             libretro: boxart::libretro_names(&cache, sys),
             tdb: if gametdb::has(sys) { gametdb::index(&cache, sys) } else { None },
-            sg: crate::steamgrid::SteamGrid::from_settings(data_dir),
-            ss: crate::screenscraper::ScreenScraper::from_settings(data_dir),
+            sg: cfg.as_ref().and_then(|c| crate::steamgrid::SteamGrid::from_config(c, data_dir, seal.as_ref())),
+            ss: cfg.as_ref().and_then(|c| crate::screenscraper::ScreenScraper::from_config(c, data_dir, seal.as_ref())),
             sys: sys.into(),
             cache,
         }

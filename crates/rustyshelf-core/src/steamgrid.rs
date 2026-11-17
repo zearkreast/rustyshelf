@@ -190,7 +190,12 @@ impl SteamGrid {
     /// With the key kept in Settings (`data/config.json`), or None when there's none.
     pub fn from_settings(data_dir: &Path) -> Option<SteamGrid> {
         let cfg = crate::config::Config::load(data_dir).ok()?;
-        let key = cfg.api_key("steamgriddb", crate::seal::key(&crate::paths::env_var).as_ref());
+        Self::from_config(&cfg, data_dir, crate::seal::key(&crate::paths::env_var).as_ref())
+    }
+
+    /// [`SteamGrid::from_settings`] from a config already read, with its seal key.
+    pub fn from_config(cfg: &crate::config::Config, data_dir: &Path, seal: Option<&[u8; 32]>) -> Option<SteamGrid> {
+        let key = cfg.api_key("steamgriddb", seal);
         let sg = SteamGrid::new(data_dir);
         sg.set_key(&key);
         sg.enabled().then_some(sg)

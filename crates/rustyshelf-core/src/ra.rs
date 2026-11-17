@@ -4,14 +4,15 @@
 //! the emulator; this reads the account through the site's web API and matches games by title.
 
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;
 
 use serde_json::{json, Map, Value};
 use sha1::{Digest, Sha1};
 use unicode_normalization::UnicodeNormalization;
+
+use crate::kept::Kept;
 
 const API: &str = "https://retroachievements.org/API/";
 const MEDIA: &str = "https://media.retroachievements.org";
@@ -168,10 +169,9 @@ struct Failed {
 
 /// The account in use and what's been read through it.
 pub struct Ra {
-    dir: PathBuf,
     /// the username and the web API key
     account: Mutex<(String, String)>,
-    kept: Mutex<HashMap<String, (u64, Value)>>,
+    kept: Kept,
     failed: Mutex<HashMap<String, Failed>>,
     fetch: Fetch,
 }
@@ -184,9 +184,7 @@ impl Ra {
 
     /// The same, asking through `fetch` (the tests' stand-in for the site).
     pub fn with(data_dir: &Path, fetch: Fetch) -> Ra {
-        let dir = data_dir.join("ra");
-        let _ = fs::create_dir_all(&dir);
-        Ra { dir, account: Mutex::default(), kept: Mutex::default(), failed: Mutex::default(), fetch }
+        Ra { account: Mutex::default(), kept: Kept::new(data_dir.join("ra")), failed: Mutex::default(), fetch }
     }
 
     pub fn set_credentials(&self, user: &str, key: &str) {
@@ -230,21 +228,9 @@ impl Ra {
     /// What `fetch` gives, kept in memory and on disk for `max_age_ms`. When the site can't be reached the last
     /// copy answers, and for a minute it isn't asked again (a forced look-up, age 0, always asks).
     fn cached(&self, name: &str, max_age_ms: u64, fetch: impl FnOnce() -> Result<Value, String>) -> Result<Value, String> {
-        let name: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
-        let file = self.dir.join(format!("{name}.json"));
-        let now = crate::now_ms();
-        let fresh = |at: u64| now.saturating_sub(at) < max_age_ms;
-        if let Some((_, data)) = self.kept.lock().unwrap().get(&name).filter(|k| fresh(k.0)) {
-            return Ok(data.clone());
-        }
-        let on_disk = || crate::files::read_json(&file);
-        if let Some(j) = on_disk() {
-            if let (Some(at), Some(data)) = (j.get("at").and_then(Value::as_u64), j.get("data")) {
-                if fresh(at) {
-                    self.kept.lock().unwrap().insert(name, (at, data.clone()));
-                    return Ok(data.clone());
-                }
-            }
+        let (name, now) = (Kept::name(name), crate::now_ms());
+        if let Some(data) = self.kept.fresh(&name, max_age_ms, now) {
+            return Ok(data);
         }
         if max_age_ms > 0 {
             if let Some(f) = self.failed.lock().unwrap().get(&name).filter(|f| now.saturating_sub(f.at) < RETRY_MS) {
@@ -253,13 +239,12 @@ impl Ra {
         }
         match fetch() {
             Ok(data) => {
-                self.kept.lock().unwrap().insert(name.clone(), (now, data.clone()));
                 self.failed.lock().unwrap().remove(&name);
-                let _ = fs::write(&file, json!({ "at": now, "data": data }).to_string());
+                self.kept.keep(&name, &data, now);
                 Ok(data)
             }
             Err(why) => {
-                let old = on_disk().and_then(|j| j.get("data").cloned());
+                let old = self.kept.last(&name);
                 let mut failed = self.failed.lock().unwrap();
                 if failed.len() >= 200 {
                     failed.clear();

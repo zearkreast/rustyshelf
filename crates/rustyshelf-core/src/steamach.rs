@@ -12,6 +12,7 @@ use regex::Regex;
 use serde_json::{json, Value};
 
 use crate::js::{number, round, text, truthy};
+use crate::kept::Kept;
 
 const API: &str = "https://api.steampowered.com";
 const MAX_GAMES: usize = 60;
@@ -86,11 +87,10 @@ pub fn steam_id(root: &Path) -> Option<String> {
 struct Private;
 
 pub struct SteamAch {
-    dir: PathBuf,
     key: String,
     root: Option<PathBuf>,
     fetch: Fetch,
-    mem: Mutex<HashMap<String, (u64, Value)>>,
+    kept: Kept,
 }
 
 impl SteamAch {
@@ -99,15 +99,18 @@ impl SteamAch {
     }
 
     pub fn with(data_dir: &Path, key: &str, steam_root: Option<PathBuf>, fetch: Fetch) -> SteamAch {
-        let dir = data_dir.join("steam-ach");
-        let _ = fs::create_dir_all(&dir);
-        SteamAch { dir, key: key.trim().to_string(), root: steam_root, fetch, mem: Mutex::new(HashMap::new()) }
+        SteamAch { key: key.trim().to_string(), root: steam_root, fetch, kept: Kept::new(data_dir.join("steam-ach")) }
     }
 
     /// The key and Steam's folder from the settings; None without a usable key.
     pub fn from_settings(data_dir: &Path) -> Option<SteamAch> {
         let cfg = crate::config::Config::load(data_dir).ok()?;
-        let key = cfg.api_key("steamweb", crate::seal::key(&crate::paths::env_var).as_ref());
+        Self::from_config(&cfg, data_dir, crate::seal::key(&crate::paths::env_var).as_ref())
+    }
+
+    /// [`SteamAch::from_settings`] from a config already read, with its seal key.
+    pub fn from_config(cfg: &crate::config::Config, data_dir: &Path, seal: Option<&[u8; 32]>) -> Option<SteamAch> {
+        let key = cfg.api_key("steamweb", seal);
         let root = crate::steam::main_root(&cfg.steam().1);
         let s = SteamAch::new(data_dir, &key, root);
         s.enabled().then_some(s)
@@ -133,30 +136,17 @@ impl SteamAch {
     }
 
     fn cached<E>(&self, name: &str, max_age_ms: u64, fetch: impl FnOnce() -> Result<Value, E>) -> Result<Value, E> {
-        let name: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
-        let file = self.dir.join(format!("{name}.json"));
-        let now = crate::now_ms();
-        let fresh = |at: u64| now.saturating_sub(at) < max_age_ms;
-        if let Some((_, d)) = self.mem.lock().unwrap().get(&name).filter(|m| fresh(m.0)) {
-            return Ok(d.clone());
-        }
-        let on_disk = || crate::files::read_json(&file);
-        if let Some(j) = on_disk() {
-            if let (Some(at), Some(d)) = (j.get("at").and_then(Value::as_u64), j.get("data")) {
-                if fresh(at) {
-                    self.mem.lock().unwrap().insert(name, (at, d.clone()));
-                    return Ok(d.clone());
-                }
-            }
+        let (name, now) = (Kept::name(name), crate::now_ms());
+        if let Some(d) = self.kept.fresh(&name, max_age_ms, now) {
+            return Ok(d);
         }
         match fetch() {
             Ok(d) => {
-                self.mem.lock().unwrap().insert(name, (now, d.clone()));
-                let _ = fs::write(&file, json!({ "at": now, "data": d }).to_string());
+                self.kept.keep(&name, &d, now);
                 Ok(d)
             }
             // offline: the last copy
-            Err(e) => on_disk().and_then(|j| j.get("data").cloned()).ok_or(e),
+            Err(e) => self.kept.last(&name).ok_or(e),
         }
     }
 

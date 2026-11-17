@@ -466,7 +466,9 @@ impl Settings {
         self.shots_answer = Some(Mutex::new(rx));
         std::thread::spawn(move || {
             use rustyshelf_core::moreshots::{self, Source};
-            let (ss, ig) = (ScreenScraper::from_settings(&data), rustyshelf_core::igdb::Igdb::from_settings(&data));
+            let (cfg, seal) = (rustyshelf_core::config::Config::load(&data).ok(), seal::key(&paths::env_var));
+            let ss = cfg.as_ref().and_then(|c| ScreenScraper::from_config(c, &data, seal.as_ref()));
+            let ig = cfg.as_ref().and_then(|c| rustyshelf_core::igdb::Igdb::from_config(c, seal.as_ref()));
             let cache = paths::boxart_cache(&data);
             let lr = moreshots::Libretro { cache_dir: &cache, region: &art_region };
             let (ss, ig) = (ss.as_ref().map(moreshots::Ss), ig.as_ref().map(|client| moreshots::Igdb { client, data_dir: &data }));

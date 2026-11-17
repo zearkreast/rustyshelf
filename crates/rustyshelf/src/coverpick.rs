@@ -195,8 +195,9 @@ fn start(ask: Ask, batch: Option<&Batch>, data: PathBuf, now: f32) -> Open {
     let (tx, rx) = channel();
     let job = ask.clone();
     std::thread::spawn(move || {
-        let sg = rustyshelf_core::steamgrid::SteamGrid::from_settings(&data);
-        let region = rustyshelf_core::config::Config::load(&data).map(|c| c.art_region().to_string()).unwrap_or_default();
+        let cfg = rustyshelf_core::config::Config::load(&data).ok();
+        let sg = cfg.as_ref().and_then(|c| rustyshelf_core::steamgrid::SteamGrid::from_config(c, &data, rustyshelf_core::seal::key(&rustyshelf_core::paths::env_var).as_ref()));
+        let region = cfg.as_ref().map(|c| c.art_region().to_string()).unwrap_or_default();
         let found = pccovers::options(&data, &job.id, job.appid.as_deref(), if job.term.is_empty() { &job.title } else { &job.term }, !job.term.is_empty(), &region, sg.as_ref());
         let t: Vec<Option<PathBuf>> = found.list.iter().map(|c| Some(c.thumb.clone())).collect();
         let t = decode_all(&t);

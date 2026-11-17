@@ -91,12 +91,13 @@ pub fn run(time: Res<Time>, base: Res<Base>, settings: Res<Settings>, playing: R
 fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings: &Settings) {
     let data = paths::data_dir(&paths::app_root());
     let (auto, shots) = (settings.auto_covers(), settings.more_shots());
-    let ig = igdb::Igdb::from_settings(&data).map(Arc::new);
+    let (cfg, seal) = (rustyshelf_core::config::Config::load(&data).ok(), rustyshelf_core::seal::key(&paths::env_var));
+    let ig = cfg.as_ref().and_then(|c| igdb::Igdb::from_config(c, seal.as_ref())).map(Arc::new);
     bg.queue.clear();
     if !(auto && shots) && ig.is_none() {
         return;
     }
-    let ss = if auto { screenscraper::ScreenScraper::from_settings(&data).map(Arc::new) } else { None };
+    let ss = if auto { cfg.as_ref().and_then(|c| screenscraper::ScreenScraper::from_config(c, &data, seal.as_ref())).map(Arc::new) } else { None };
     bg.pass = Some(Arc::new(Pass { ss, igdb: ig, auto, shots, art_region: settings.art_region() }));
     for shelf in lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })) {
         for g in shelf.games.iter().filter(|g| g.source == From::Rom && !g.file.as_os_str().is_empty()) {

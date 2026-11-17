@@ -812,12 +812,7 @@ fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
     if bare.is_empty() {
         return false;
     }
-    let key = lib.config.api_key("steamgriddb", crate::seal::key(&paths::env_var).as_ref());
-    if key.is_empty() {
-        return false;
-    }
-    let sg = crate::steamgrid::SteamGrid::new(data_dir);
-    sg.set_key(&key);
+    let Some(sg) = crate::steamgrid::SteamGrid::from_config(&lib.config, data_dir, crate::seal::key(&paths::env_var).as_ref()) else { return false };
     crate::pccovers::fill_missing(data_dir, &bare, &sg).1 > 0
 }
 

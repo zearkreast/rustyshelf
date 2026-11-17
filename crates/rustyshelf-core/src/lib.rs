@@ -60,6 +60,7 @@ pub mod i18n;
 pub mod igdb;
 pub mod info;
 pub mod keepsetup;
+pub(crate) mod kept;
 pub mod js;
 pub mod kyty;
 pub mod launch;

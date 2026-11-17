@@ -416,8 +416,12 @@ impl ScreenScraper {
     /// The account kept in Settings (`data/config.json`), or None when there's none.
     pub fn from_settings(data_dir: &Path) -> Option<ScreenScraper> {
         let cfg = crate::config::Config::load(data_dir).ok()?;
-        let seal = crate::seal::key(&crate::paths::env_var);
-        let k = |n: &str| cfg.api_key(n, seal.as_ref());
+        Self::from_config(&cfg, data_dir, crate::seal::key(&crate::paths::env_var).as_ref())
+    }
+
+    /// [`ScreenScraper::from_settings`] from a config already read, with its seal key.
+    pub fn from_config(cfg: &crate::config::Config, data_dir: &Path, seal: Option<&[u8; 32]>) -> Option<ScreenScraper> {
+        let k = |n: &str| cfg.api_key(n, seal);
         let site = ScreenScraper::new(data_dir);
         site.set_creds(Creds { user: k("ssUser"), pass: k("ssPass"), dev_id: k("ssDevId"), dev_pass: k("ssDevPass") });
         site.configured().then_some(site)

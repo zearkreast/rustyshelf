@@ -138,8 +138,12 @@ impl Igdb {
     /// With the keys kept in Settings (`data/config.json`); None when there are none.
     pub fn from_settings(data_dir: &Path) -> Option<Igdb> {
         let cfg = crate::config::Config::load(data_dir).ok()?;
-        let seal = crate::seal::key(&crate::paths::env_var);
-        let c = Igdb::new(&cfg.api_key("igdbId", seal.as_ref()), &cfg.api_key("igdbSecret", seal.as_ref()));
+        Self::from_config(&cfg, crate::seal::key(&crate::paths::env_var).as_ref())
+    }
+
+    /// [`Igdb::from_settings`] from a config already read, with its seal key.
+    pub fn from_config(cfg: &crate::config::Config, seal: Option<&[u8; 32]>) -> Option<Igdb> {
+        let c = Igdb::new(&cfg.api_key("igdbId", seal), &cfg.api_key("igdbSecret", seal));
         c.ready().then_some(c)
     }
 
