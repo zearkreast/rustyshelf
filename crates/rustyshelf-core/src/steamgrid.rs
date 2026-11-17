@@ -4,7 +4,6 @@
 //! user's own key, which goes only into the Authorization header to www.steamgriddb.com. What the site answers is
 //! kept in the data folder's `sgdb-cache.json`, the file the Electron app keeps too.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, LazyLock, Mutex};
 use std::time::Duration;
@@ -205,7 +204,7 @@ impl SteamGrid {
     fn cache<T>(&self, with: impl FnOnce(&mut Cache) -> T) -> T {
         let mut s = self.state.lock().unwrap();
         let cache = s.cache.get_or_insert_with(|| {
-            let read = fs::read(&self.file).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
+            let read = crate::files::read_json(&self.file);
             match read.as_ref().map(|j| (&j["ids"], &j["lists"])) {
                 Some((Value::Object(ids), Value::Object(lists))) => Cache { ids: ids.clone(), lists: lists.clone() },
                 _ => Cache::default(),

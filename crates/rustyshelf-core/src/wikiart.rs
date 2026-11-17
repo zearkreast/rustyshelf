@@ -99,7 +99,7 @@ fn search(cache_dir: &Path, words: &str, now: f64, ask: &dyn Fn(&str) -> Result<
     static ONE: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _one = ONE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let file = cache_dir.join("wikiart.json");
-    let mut cache = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).filter(|j| j["v"].as_u64() == Some(CACHE_V) && j["q"].is_object()).unwrap_or_else(|| json!({ "v": CACHE_V, "q": {} }));
+    let mut cache = crate::files::read_json(&file).filter(|j| j["v"].as_u64() == Some(CACHE_V) && j["q"].is_object()).unwrap_or_else(|| json!({ "v": CACHE_V, "q": {} }));
     let key = norm(words);
     if let Some(hit) = cache["q"].get(&key).filter(|h| now - js::number(h.get(0)) < TTL) {
         return Ok(hit[1].as_array().cloned().unwrap_or_default());

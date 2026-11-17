@@ -64,7 +64,7 @@ pub struct Index {
 impl Index {
     pub fn load(data_dir: &Path) -> Index {
         let dir = data_dir.join("more-shots");
-        let read: Option<Value> = std::fs::read(dir.join("index.json")).ok().and_then(|b| serde_json::from_slice(&b).ok());
+        let read = crate::files::read_json(&dir.join("index.json"));
         let games = read.filter(|j| j["v"] == 1).and_then(|j| j["games"].as_object().cloned()).unwrap_or_default();
         Index { dir, games }
     }

@@ -51,10 +51,7 @@ pub struct DirSizes {
 impl DirSizes {
     pub fn load(data_dir: &Path) -> DirSizes {
         let file = data_dir.join("dir-sizes.json");
-        let cache = match std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-            Some(Value::Object(m)) => m,
-            _ => Map::new(),
-        };
+        let cache = crate::files::read_object(&file);
         DirSizes { file, cache }
     }
 

@@ -284,7 +284,7 @@ pub fn libretro_names(cache_dir: &Path, console_id: &str) -> Option<LibretroName
     let sys = covers::libretro_system(console_id)?;
     let file = cache_dir.join(format!("libretro-{console_id}.json"));
     let strings = |v: &Value| v.as_array().map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>());
-    let cached: Option<Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
+    let cached = crate::files::read_json(&file);
     if let Some(names) = cached.as_ref().filter(|c| crate::now_ms() as f64 - js::number(c.get("at")) < 7.0 * DAY).and_then(|c| strings(&c["names"])) {
         return Some(LibretroNames::new(names));
     }
@@ -324,7 +324,7 @@ impl Index {
     /// One platform's games and their pictures.
     pub fn platform(&mut self, plat: &str) -> Option<&ShardFile> {
         let dir = &self.cache_dir;
-        self.shards.entry(plat.to_string()).or_insert_with(|| std::fs::read(lbindex::shard_file_name(dir, plat)).ok().and_then(|b| serde_json::from_slice(&b).ok())).as_ref()
+        self.shards.entry(plat.to_string()).or_insert_with(|| crate::files::read_json_as(&lbindex::shard_file_name(dir, plat))).as_ref()
     }
 }
 
@@ -351,7 +351,7 @@ pub(crate) fn index_stamp(cache_dir: &Path) -> Option<u64> {
 /// The split's details, when it's the split of the index file that's there (its stamp is that file's date).
 fn shard_meta(cache_dir: &Path) -> Option<ShardsMeta> {
     let stamp = index_stamp(cache_dir)?;
-    let m: ShardsMeta = serde_json::from_slice(&std::fs::read(cache_dir.join("launchbox-shards.json")).ok()?).ok()?;
+    let m: ShardsMeta = crate::files::read_json_as(&cache_dir.join("launchbox-shards.json"))?;
     (m.stamp != 0 && m.stamp == stamp).then_some(m)
 }
 

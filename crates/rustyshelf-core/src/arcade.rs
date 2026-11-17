@@ -31,8 +31,7 @@ pub enum Set {
 impl Names {
     /// None when the list hasn't been fetched yet.
     pub fn load(data_dir: &Path) -> Option<Names> {
-        let text = std::fs::read_to_string(data_dir.join("arcade-names.json")).ok()?;
-        serde_json::from_str(&text).ok()
+        crate::files::read_json_as(&data_dir.join("arcade-names.json"))
     }
 
     pub fn lookup(&self, set: &str) -> Option<Set> {

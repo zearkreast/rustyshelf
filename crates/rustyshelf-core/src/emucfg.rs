@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::{LazyLock, Mutex};
 
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::js;
 use crate::paths::is_file;
@@ -167,7 +167,7 @@ fn number_in(m: &regex::Captures) -> u64 {
 fn restore_citron_gamedirs(f: &str) -> bool {
     let marker = citron_marker(f);
     let saved = SAVED_GAMEDIRS.lock().unwrap().get(f).cloned().or_else(|| {
-        let j: Value = serde_json::from_slice(&std::fs::read(&marker).ok()?).ok()?;
+        let j = crate::files::read_json(Path::new(&marker))?;
         let lines = j.get("lines")?.as_array()?.iter().map(|l| js::string(Some(l))).collect();
         Some(Gamedirs { original_size: js::number(j.get("originalSize")) as u64, lines })
     });

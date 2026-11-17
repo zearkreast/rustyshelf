@@ -14,7 +14,7 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::art::resolve;
-use crate::files::{read_json, write_atomic};
+use crate::files::{read_json, read_object, write_atomic};
 use crate::js;
 use crate::paths::{is_dir, is_file};
 use crate::scanner::read_dir_sorted;
@@ -1221,10 +1221,7 @@ pub fn steam_search(term: &str, exact: bool) -> Vec<(String, String)> {
 pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {
     const WEEK: f64 = 7.0 * 86_400_000.0;
     let file = data_dir.join("pc-steam.json");
-    let mut map = match read_json(&file) {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
+    let mut map = read_object(&file);
     let (mut matched, mut asked, mut seen) = (0, 0, HashSet::new());
     for t in titles.iter().filter(|t| !t.is_empty() && seen.insert(t.as_str())) {
         let k = t.to_lowercase();

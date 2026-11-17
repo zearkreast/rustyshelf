@@ -295,7 +295,7 @@ pub fn index(web: &dyn Web, cache_dir: &Path, col: &Collection, now: f64) -> Res
     static CONSOLE: LazyLock<Regex> = LazyLock::new(|| re(r"^(GCN|AGB)_"));
     let folder = if col.folder.is_empty() { String::new() } else { format!("-{}", NOT_PLAIN.replace_all(col.folder, "_")) };
     let file = cache_dir.join(format!("ia-{}{folder}.json", col.id));
-    if let Some(kept) = fs::read(&file).ok().and_then(|b| serde_json::from_slice::<Index>(&b).ok()).filter(|c| c.v == INDEX_V && now - c.at < INDEX_DAYS * DAY) {
+    if let Some(kept) = crate::files::read_json_as::<Index>(&file).filter(|c| c.v == INDEX_V && now - c.at < INDEX_DAYS * DAY) {
         return Ok(kept);
     }
     let meta = web.json(&format!("https://archive.org/metadata/{}", js::encode_uri_component(col.id))).map_err(|e| e.words())?;
@@ -570,10 +570,7 @@ pub struct Memo {
 impl Memo {
     pub fn load(data_dir: &Path) -> Memo {
         let file = data_dir.join("manual-collections.json");
-        let seen = match fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-            Some(Value::Object(m)) => m,
-            _ => Map::new(),
-        };
+        let seen = crate::files::read_object(&file);
         Memo { file, seen }
     }
 

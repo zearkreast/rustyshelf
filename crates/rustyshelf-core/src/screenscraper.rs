@@ -459,7 +459,7 @@ impl ScreenScraper {
     fn cache<T>(&self, with: impl FnOnce(&mut Cache) -> T) -> T {
         let mut s = self.state.lock().unwrap();
         let cache = s.cache.get_or_insert_with(|| {
-            let read = fs::read(&self.file).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
+            let read = crate::files::read_json(&self.file);
             match read.as_ref().map(|j| (&j["games"], &j["hashes"])) {
                 Some((Value::Object(games), Value::Object(hashes))) => Cache { games: games.clone(), hashes: hashes.clone() },
                 _ => Cache::default(),

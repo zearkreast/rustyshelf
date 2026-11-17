@@ -25,16 +25,12 @@ pub struct Places {
     popups: String,
 }
 
-fn read_text(p: &Path) -> Option<String> {
-    std::fs::read_to_string(p).ok().map(|t| t.trim_start_matches('\u{feff}').to_string())
-}
-
 /// Beside the program when portable.txt is there, else Documents\Xenia.
 pub fn places(exe: &Path, var: Var) -> Places {
     let dir = exe.parent().unwrap_or(Path::new("")).to_path_buf();
     let home = PathBuf::from(home(var));
     let roots = if dir.join("portable.txt").is_file() { vec![dir] } else { vec![home.join("Documents").join("Xenia"), home.join("OneDrive").join("Documents").join("Xenia")] };
-    let found = roots.iter().flat_map(|r| CONFIGS.iter().map(move |n| r.join(n))).find_map(|f| read_text(&f).map(|t| (f, t)));
+    let found = roots.iter().flat_map(|r| CONFIGS.iter().map(move |n| r.join(n))).find_map(|f| crate::files::read_utf8(&f).map(|t| (f, t)));
     let root = found.as_ref().and_then(|(f, _)| f.parent().map(Path::to_path_buf)).unwrap_or_else(|| roots[0].clone());
     let text = found.as_ref().map_or(String::new(), |(_, t)| t.clone());
     let val = |k: &str| {

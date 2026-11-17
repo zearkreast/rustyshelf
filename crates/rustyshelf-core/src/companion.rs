@@ -610,7 +610,7 @@ impl Companion {
     pub fn new(data_dir: &Path, host: Arc<dyn Host>) -> Arc<Companion> {
         static HASH: LazyLock<Regex> = LazyLock::new(|| re("^[0-9a-f]{64}$"));
         let store = data_dir.join("companion.json");
-        let saved: Value = fs::read(&store).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null);
+        let saved = crate::files::read_json(&store).unwrap_or(Value::Null);
         let mut phones: Vec<Phone> = saved["phones"]
             .as_array()
             .into_iter()

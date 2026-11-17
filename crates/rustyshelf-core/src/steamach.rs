@@ -55,7 +55,7 @@ fn valid(key: &str) -> bool {
 pub fn steam_id(root: &Path) -> Option<String> {
     static ID: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"^7656\d{13}$").unwrap());
     if let Ok(t) = fs::read_to_string(root.join("config").join("loginusers.vdf")) {
-        let d = crate::vdf::parse(t.trim_start_matches('\u{feff}'));
+        let d = crate::vdf::parse(&t);
         let mut best: Option<(&str, f64)> = None;
         for (id, u) in d.get(&["users"]).map(|u| u.entries()).unwrap_or_default() {
             if !ID.is_match(id) {
@@ -140,7 +140,7 @@ impl SteamAch {
         if let Some((_, d)) = self.mem.lock().unwrap().get(&name).filter(|m| fresh(m.0)) {
             return Ok(d.clone());
         }
-        let on_disk = || fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok());
+        let on_disk = || crate::files::read_json(&file);
         if let Some(j) = on_disk() {
             if let (Some(at), Some(d)) = (j.get("at").and_then(Value::as_u64), j.get("data")) {
                 if fresh(at) {

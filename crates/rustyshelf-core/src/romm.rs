@@ -1200,7 +1200,7 @@ impl Romm {
             return id;
         }
         let f = self.data_dir.join("romm-device.json");
-        let saved = fs::read(&f).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).and_then(|o| opt_text(o.get("id")));
+        let saved = crate::files::read_json(&f).and_then(|o| opt_text(o.get("id")));
         let id = saved.unwrap_or_else(|| {
             let mut b = [0u8; 16];
             let _ = getrandom::getrandom(&mut b);
@@ -1379,7 +1379,7 @@ impl Romm {
         if let Some(c) = self.st().cache.clone().filter(|c| c.server == base) {
             return c;
         }
-        let read = fs::read(self.cache_file()).ok().and_then(|b| serde_json::from_slice::<Cache>(&b).ok()).filter(|c| c.v == 1 && c.server == base);
+        let read = crate::files::read_json_as::<Cache>(&self.cache_file()).filter(|c| c.v == 1 && c.server == base);
         let c = read.unwrap_or_else(|| Cache { v: 1, server: base, ..Cache::default() });
         self.st().cache = Some(c.clone());
         c
@@ -2075,14 +2075,14 @@ pub fn folder(rom_dirs: &[String], data_dir: &Path, console: &str, app_root: &Pa
 
 /// `romm-local.json`: where each downloaded RomM game ended up, by its RomM id.
 pub fn local_files(data_dir: &Path) -> HashMap<String, String> {
-    fs::read(data_dir.join("romm-local.json")).ok().and_then(|b| serde_json::from_slice::<serde_json::Map<String, Value>>(&b).ok()).map_or_else(HashMap::new, |m| {
+    crate::files::read_json_as::<serde_json::Map<String, Value>>(&data_dir.join("romm-local.json")).map_or_else(HashMap::new, |m| {
         m.into_iter().filter_map(|(k, v)| Some((k, v.as_str()?.to_string()))).collect()
     })
 }
 
 pub fn set_local_file(data_dir: &Path, romm_id: u64, file: &Path) {
     let f = data_dir.join("romm-local.json");
-    let mut m: serde_json::Map<String, Value> = fs::read(&f).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+    let mut m: serde_json::Map<String, Value> = crate::files::read_json_as(&f).unwrap_or_default();
     m.insert(romm_id.to_string(), json!(file.to_string_lossy()));
     let _ = fs::create_dir_all(data_dir).and_then(|_| fs::write(&f, Value::Object(m).to_string()));
 }

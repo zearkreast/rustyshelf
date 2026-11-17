@@ -40,10 +40,6 @@ fn norm(s: &str) -> String {
     NOT.replace_all(&s, " ").trim().to_string()
 }
 
-fn read_text(p: &Path) -> Option<String> {
-    std::fs::read_to_string(p).ok().map(|t| t.trim_start_matches('\u{feff}').to_string())
-}
-
 /// One trophy in a TROP.SFM.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Trophy {
@@ -147,7 +143,7 @@ fn titles_of(root: &Path, dirs: &[String]) -> HashMap<String, String> {
     }
     let mut map = HashMap::new();
     for n in dirs {
-        if let Some(t) = read_text(&root.join(n).join("TROP.SFM")) {
+        if let Some(t) = crate::files::read_utf8(&root.join(n).join("TROP.SFM")) {
             let k = norm(&read_sfm(&t).0);
             if !k.is_empty() {
                 map.entry(k).or_insert_with(|| n.clone());
@@ -171,7 +167,7 @@ fn own_ids(file: &Path) -> Vec<String> {
 /// A trophy folder (RPCS3's, or one unpacked from the game's pack) in the shape `ra::progress` gives. `earned`: what's
 /// earned (none for a game not played yet).
 pub fn from_dir(dir: &Path, id: &str, earned: &HashMap<u32, i64>) -> Option<Value> {
-    let text = read_text(&dir.join("TROP.SFM")).or_else(|| read_text(&dir.join("TROPCONF.SFM")))?;
+    let text = crate::files::read_utf8(&dir.join("TROP.SFM")).or_else(|| crate::files::read_utf8(&dir.join("TROPCONF.SFM")))?;
     let (title, trophies) = read_sfm(&text);
     if trophies.is_empty() {
         return None;
@@ -311,7 +307,7 @@ pub fn progress(exe: &Path, title: &str, file: &Path, cache: Option<&Path>, now:
 
 fn config_file(exe: &Path) -> Option<(PathBuf, String)> {
     let dir = exe.parent().unwrap_or(Path::new(""));
-    [dir.join("config").join("config.yml"), dir.join("config.yml")].into_iter().find_map(|f| read_text(&f).map(|t| (f, t)))
+    [dir.join("config").join("config.yml"), dir.join("config.yml")].into_iter().find_map(|f| crate::files::read_utf8(&f).map(|t| (f, t)))
 }
 
 static POP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^(\s*Show trophy popups:\s*)(true|false)[ \t]*\r?$").unwrap());

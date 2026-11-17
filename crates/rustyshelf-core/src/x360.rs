@@ -216,8 +216,7 @@ struct TitleFile {
 impl TitleList {
     /// An empty list when the Electron app hasn't downloaded one yet.
     pub fn load(data_dir: &Path) -> TitleList {
-        let text = std::fs::read_to_string(data_dir.join("x360-titles.json")).unwrap_or_default();
-        let titles = serde_json::from_str::<TitleFile>(&text).map(|f| f.titles).unwrap_or_default();
+        let titles = crate::files::read_json_as::<TitleFile>(&data_dir.join("x360-titles.json")).map(|f| f.titles).unwrap_or_default();
         TitleList { titles }
     }
 
@@ -250,7 +249,7 @@ pub fn refresh(data_dir: &Path) -> Result<bool, String> {
     const WEEK: f64 = 7.0 * 86_400_000.0;
     let file = data_dir.join("x360-titles.json");
     let now = crate::now_ms();
-    let saved: Option<serde_json::Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
+    let saved = crate::files::read_json(&file);
     if saved.as_ref().is_some_and(|j| j.get("titles").is_some_and(|t| t.is_object()) && now as f64 - crate::js::number(j.get("at").or(Some(&serde_json::Value::Null))) < WEEK) {
         return Ok(false);
     }

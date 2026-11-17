@@ -363,7 +363,7 @@ fn opens_nup(exe: &Path, m: &fs::Metadata, memo_file: &Path) -> bool {
         .unwrap()
         .entry(memo_file.to_path_buf())
         .or_insert_with(|| {
-            let read = fs::read(memo_file).ok().and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+            let read = crate::files::read_json(memo_file);
             read.and_then(|v| v.as_object().cloned()).unwrap_or_default().into_iter().filter(|(_, v)| v.is_boolean()).collect()
         })
         .get(&key)

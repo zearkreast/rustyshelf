@@ -42,7 +42,7 @@ pub fn init(data_dir: &Path) {
 
 fn read(file: Option<&Path>) -> Map<String, Value> {
     let fresh = || json!({ "v": V, "at": 0, "files": {}, "base": {} }).as_object().cloned().unwrap_or_default();
-    let Some(j) = file.and_then(|f| std::fs::read(f).ok()).and_then(|b| serde_json::from_slice::<Value>(&b).ok()) else { return fresh() };
+    let Some(j) = file.and_then(crate::files::read_json) else { return fresh() };
     if j["v"].as_u64() != Some(V) || !j["files"].is_object() || !j["base"].is_object() {
         return fresh();
     }

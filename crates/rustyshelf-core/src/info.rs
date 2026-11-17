@@ -176,7 +176,7 @@ impl InfoCache {
     pub fn load(cache_dir: &Path) -> InfoCache {
         let file = cache_dir.join("gameinfo-cache.json");
         let stamp = boxart::index_stamp(cache_dir).unwrap_or(0);
-        let saved: Option<Value> = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok());
+        let saved = crate::files::read_json(&file);
         let map = match saved {
             Some(mut j) if j["stamp"].as_u64() == Some(stamp) && j["v"].as_u64() == Some(MATCH_V) => j["map"].as_object_mut().map(std::mem::take).unwrap_or_default(),
             _ => Map::new(),
@@ -210,7 +210,7 @@ impl InfoCache {
 
 /// Steam's store info by app id (`data/steam-info.json`), for the apps the store answered for.
 pub fn steam_infos(data_dir: &Path) -> HashMap<String, Info> {
-    let Some(Value::Object(all)) = std::fs::read(data_dir.join("steam-info.json")).ok().and_then(|b| serde_json::from_slice(&b).ok()) else { return HashMap::new() };
+    let Some(Value::Object(all)) = crate::files::read_json(&data_dir.join("steam-info.json")) else { return HashMap::new() };
     all.into_iter().filter(|(_, d)| js::truthy(d.get("ok"))).filter_map(|(id, d)| Some((id, serde_json::from_value(d).ok()?))).collect()
 }
 

@@ -358,7 +358,7 @@ pub struct Store {
 impl Store {
     pub fn load(data_dir: &Path) -> Store {
         let file = data_dir.join("igdb-info").join("index.json");
-        let j: Value = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+        let j = crate::files::read_json(&file).unwrap_or_default();
         let games = if j["v"] == 1 { j["games"].as_object().cloned().unwrap_or_default() } else { Map::new() };
         Store { file, games }
     }

@@ -238,7 +238,7 @@ impl Ra {
         if let Some((_, data)) = self.kept.lock().unwrap().get(&name).filter(|k| fresh(k.0)) {
             return Ok(data.clone());
         }
-        let on_disk = || fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok());
+        let on_disk = || crate::files::read_json(&file);
         if let Some(j) = on_disk() {
             if let (Some(at), Some(data)) = (j.get("at").and_then(Value::as_u64), j.get("data")) {
                 if fresh(at) {

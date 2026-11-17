@@ -240,10 +240,7 @@ static TRIED: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(|| Mutex::new(Has
 pub fn fill(data_dir: &Path, games: &[Wanted]) -> (u32, u32) {
     let dir = data_dir.join("steam-art");
     let info_file = data_dir.join("steam-info.json");
-    let mut info = match std::fs::read(&info_file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
+    let mut info = crate::files::read_object(&info_file);
     let need: Vec<&Wanted> = {
         let mut tried = TRIED.lock().unwrap();
         games.iter().filter(|g| tried.insert(g.appid.clone())).collect()

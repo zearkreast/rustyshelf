@@ -367,7 +367,7 @@ fn new_dirs(c: &Running) -> Vec<String> {
 }
 
 fn load(file: &Path) -> Vec<Item> {
-    let Some(Value::Array(j)) = std::fs::read(file).ok().and_then(|b| serde_json::from_slice(&b).ok()) else { return Vec::new() };
+    let Some(Value::Array(j)) = crate::files::read_json(file) else { return Vec::new() };
     let kept: Vec<&Value> = j.iter().filter(|i| i.is_object() && linuxpc::is_app_name(&js::string(i.get("appName")))).collect();
     let mut seq = 0;
     kept[kept.len().saturating_sub(200)..]

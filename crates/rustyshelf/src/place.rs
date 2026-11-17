@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::loading::{LibraryRes, LibraryState};
 use crate::shelf::Cursor;
@@ -18,7 +18,7 @@ fn file(data_dir: &Path) -> PathBuf {
 
 /// The shelf and game left on last time, by id.
 pub fn read(data_dir: &Path) -> Option<(String, String)> {
-    let v: Value = serde_json::from_str(&std::fs::read_to_string(file(data_dir)).ok()?).ok()?;
+    let v = rustyshelf_core::files::read_json(&file(data_dir))?;
     Some((v["shelf"].as_str()?.to_string(), v["game"].as_str().unwrap_or_default().to_string()))
 }
 

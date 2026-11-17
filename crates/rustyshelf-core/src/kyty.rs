@@ -39,8 +39,7 @@ pub struct Param {
 
 /// sce_sys/param.json of the game a shelf file (or folder) belongs to.
 pub fn read_param(file: &Path) -> Option<Param> {
-    let text = std::fs::read_to_string(game_dir(file).join("sce_sys").join("param.json")).ok()?;
-    let j: Value = serde_json::from_str(&text).ok()?;
+    let j = crate::files::read_json(&game_dir(file).join("sce_sys").join("param.json"))?;
     let l = j.get("localizedParameters");
     let lang = l.and_then(|l| l.get("defaultLanguage")).and_then(Value::as_str).unwrap_or("en-US");
     let name = |lang: &str| l.and_then(|l| l.get(lang)).and_then(|o| o.get("titleName")).filter(|v| truthy(v)).map(text_of);
@@ -347,7 +346,7 @@ fn preset_env(preset: &Path) -> Option<Vec<(String, String)>> {
     if !is_file(preset) {
         return None;
     }
-    let p: Value = serde_json::from_str(&std::fs::read_to_string(preset).ok()?).ok()?;
+    let p = crate::files::read_json(preset)?;
     let mut env: Vec<(String, String)> = std::env::vars_os()
         .map(|(k, v)| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned()))
         .filter(|(k, _)| {

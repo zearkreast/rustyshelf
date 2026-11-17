@@ -966,12 +966,8 @@ const DAY: f64 = 86_400_000.0;
 
 impl Stores {
     pub fn load(data_dir: &Path) -> Stores {
-        let read = |name: &str| fs::read(data_dir.join(name)).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
-        let map = |v: Option<Value>| match v {
-            Some(Value::Object(m)) => m,
-            _ => Map::new(),
-        };
-        Stores { data_dir: data_dir.to_path_buf(), auto_file: data_dir.join("manual-auto.json"), auto: map(read("manual-auto.json")), rejects: map(read("manual-rejects.json")), studio: read("manual-studio.json").unwrap_or(Value::Null) }
+        let object = |name: &str| crate::files::read_object(&data_dir.join(name));
+        Stores { data_dir: data_dir.to_path_buf(), auto_file: data_dir.join("manual-auto.json"), auto: object("manual-auto.json"), rejects: object("manual-rejects.json"), studio: crate::files::read_json(&data_dir.join("manual-studio.json")).unwrap_or(Value::Null) }
     }
 
     pub fn save(&self) {

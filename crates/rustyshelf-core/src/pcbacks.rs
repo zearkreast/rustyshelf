@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::boxart::{self, Index};
 use crate::covers::{self, LB_PC};
@@ -93,10 +93,7 @@ pub fn run(data: &Path, cache_dir: &Path, wants: &[Want], region: &str, now: u64
 
 fn run_with(data: &Path, idx: &mut Index, wants: &[Want], region: &str, now: u64, get: &dyn Fn(&Want, &str) -> Option<PathBuf>) -> usize {
     let file = data.join("pc-covers").join("back-miss.json");
-    let mut miss = match std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    };
+    let mut miss = crate::files::read_object(&file);
     let (mut tried, mut got, mut missed) = (0, 0, false);
     for w in wants {
         if tried >= RUN_MAX {
@@ -137,7 +134,7 @@ mod tests {
     use serde_json::json;
 
     fn cache_with(dir: &Path, plats: &[&str]) {
-        let games: Map<String, Value> = plats
+        let games: serde_json::Map<String, Value> = plats
             .iter()
             .map(|p| {
                 let list = if *p == "Nintendo 64" {

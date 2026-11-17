@@ -38,7 +38,7 @@ pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut wn: ResMut<WhatsNew>, mut 
     let notes = crate::settings::notes();
     let Some(top) = notes.first() else { return };
     let file = paths::data_dir(&paths::app_root()).join("native-whatsnew.json");
-    let seen = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok()).and_then(|v| v["seen"].as_str().map(str::to_string)).unwrap_or_default();
+    let seen = rustyshelf_core::files::read_json(&file).and_then(|v| v["seen"].as_str().map(str::to_string)).unwrap_or_default();
     if seen == top.version {
         return;
     }

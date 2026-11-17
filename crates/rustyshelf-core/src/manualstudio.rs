@@ -261,10 +261,7 @@ pub struct Db {
 impl Db {
     pub fn load(data_dir: &Path) -> Db {
         let file = data_dir.join("manual-studio.json");
-        let mut all = match fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-            Some(Value::Object(m)) => m,
-            _ => Map::new(),
-        };
+        let mut all = crate::files::read_object(&file);
         for k in ["prefs", "locks", "cur", "hist"] {
             if !all.get(k).is_some_and(Value::is_object) {
                 all.insert(k.into(), json!({}));
@@ -385,7 +382,7 @@ pub fn earlier_cands(g: &Game) -> Vec<Cand> {
         if pages.is_empty() || !seen.insert(sig(&full, &pages)) {
             continue;
         }
-        let side: Value = fs::read(full.join(SIDE)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(json!({}));
+        let side = crate::files::read_json(&full.join(SIDE)).unwrap_or(json!({}));
         let when = if d.len() >= 10 && d.as_bytes()[4] == b'-' { format!(" ({}/{}/{})", &d[8..10], &d[5..7], &d[..4]) } else { String::new() };
         let label = side["label"].as_str().filter(|l| !l.is_empty()).map_or(String::new(), |l| format!("{l} · "));
         out.push(Cand {

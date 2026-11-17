@@ -2,13 +2,39 @@
 
 use std::path::{Path, PathBuf};
 
-use serde_json::Value;
+use serde::de::DeserializeOwned;
+use serde_json::{Map, Value};
 
 /// A JSON file's value (a byte-order mark allowed, bytes that aren't UTF-8 replaced); None when it's missing or isn't
 /// JSON.
 pub fn read_json(f: &Path) -> Option<Value> {
-    let text = String::from_utf8_lossy(&std::fs::read(f).ok()?).into_owned();
+    read_json_as(f)
+}
+
+/// [`read_json`] into a type; None also when the JSON doesn't fit it.
+pub fn read_json_as<T: DeserializeOwned>(f: &Path) -> Option<T> {
+    let bytes = std::fs::read(f).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
     serde_json::from_str(text.strip_prefix('\u{feff}').unwrap_or(&text)).ok()
+}
+
+/// [`read_json`]'s object, or an empty one when the file is missing or holds anything else.
+pub fn read_object(f: &Path) -> Map<String, Value> {
+    match read_json(f) {
+        Some(Value::Object(m)) => m,
+        _ => Map::new(),
+    }
+}
+
+/// A text file without its byte-order mark, bytes that aren't UTF-8 replaced; None when it can't be read.
+pub fn read_text(f: &Path) -> Option<String> {
+    let text = String::from_utf8_lossy(&std::fs::read(f).ok()?).into_owned();
+    Some(text.strip_prefix('\u{feff}').map(str::to_string).unwrap_or(text))
+}
+
+/// A UTF-8 text file without its byte-order mark; None when it can't be read or isn't UTF-8.
+pub fn read_utf8(f: &Path) -> Option<String> {
+    std::fs::read_to_string(f).ok().map(|t| t.trim_start_matches('\u{feff}').to_string())
 }
 
 /// A file's modification time in ms since 1970; None when it isn't there.

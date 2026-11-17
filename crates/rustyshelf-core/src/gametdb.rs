@@ -92,7 +92,7 @@ fn kept_file(cache_dir: &Path, console: &str) -> PathBuf {
 pub fn index(cache_dir: &Path, console: &str) -> Option<Map<String, Value>> {
     let (zip, _, types) = db(console)?;
     let file = kept_file(cache_dir, console);
-    let kept = fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()).filter(|j| j["v"] == V && j["map"].is_object());
+    let kept = crate::files::read_json(&file).filter(|j| j["v"] == V && j["map"].is_object());
     let (now, map_of) = (crate::now_ms(), |j: &Value| j["map"].as_object().cloned().unwrap_or_default());
     if let Some(j) = &kept {
         let fresh = |key: &str, age: u64| j[key].as_u64().is_some_and(|at| now.saturating_sub(at) < age);

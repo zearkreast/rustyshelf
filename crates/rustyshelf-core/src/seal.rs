@@ -55,7 +55,7 @@ mod dpapi {
 /// None where there's none.
 pub fn key(var: Var) -> Option<[u8; 32]> {
     let state = crate::js::join(&[&crate::emucfg::get(var, "APPDATA")?, "RustyShelf", "Local State"]);
-    let state: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(state).ok()?).ok()?;
+    let state = crate::files::read_json(std::path::Path::new(&state))?;
     let wrapped = base64::engine::general_purpose::STANDARD.decode(state["os_crypt"]["encrypted_key"].as_str()?).ok()?;
     let wrapped = wrapped.strip_prefix(b"DPAPI")?;
     #[cfg(windows)]

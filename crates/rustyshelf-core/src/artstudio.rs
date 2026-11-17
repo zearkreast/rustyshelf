@@ -643,10 +643,7 @@ impl Studio {
     }
 
     fn missing(&self) -> serde_json::Map<String, Value> {
-        match std::fs::read(self.data_dir.join("art-missing.json")).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-            Some(Value::Object(m)) => m,
-            _ => serde_json::Map::new(),
-        }
+        crate::files::read_object(&self.data_dir.join("art-missing.json"))
     }
 
     fn mark_missing(&self, url: &str, now: f64) {

@@ -37,10 +37,7 @@ pub fn title(g: &PcGame) -> &str {
 }
 
 fn read(data: &Path) -> Map<String, Value> {
-    match std::fs::read(data.join(FILE)).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-        Some(Value::Object(m)) => m,
-        _ => Map::new(),
-    }
+    crate::files::read_object(&data.join(FILE))
 }
 
 /// Whether LaunchBox's name is the title, or the title with an edition note off.

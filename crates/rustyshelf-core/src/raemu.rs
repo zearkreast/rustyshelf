@@ -79,7 +79,7 @@ fn exists(p: &str) -> bool {
 }
 
 fn read(p: &str) -> String {
-    std::fs::read_to_string(p).map(|t| t.trim_start_matches('\u{feff}').to_string()).unwrap_or_default()
+    crate::files::read_utf8(Path::new(p)).unwrap_or_default()
 }
 
 fn first_existing(list: impl IntoIterator<Item = String>) -> Option<String> {

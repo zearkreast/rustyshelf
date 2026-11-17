@@ -357,7 +357,7 @@ pub fn read_pack(app_root: &Path, id: &str) -> Option<Pack> {
         return None;
     }
     let dir = packs_dir(app_root).join(id);
-    let p: Value = serde_json::from_slice(&std::fs::read(dir.join("pack.json")).ok()?).ok()?;
+    let p = crate::files::read_json(&dir.join("pack.json"))?;
     let mut files: Vec<String> = std::fs::read_dir(&dir).ok()?.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|f| AUDIO.is_match(f)).collect();
     files.sort_by(|a, b| natural(a, b));
     let matches = MOMENTS.iter().map(|k| (k.to_string(), json!(p["matches"][k].as_str().filter(|f| files.iter().any(|x| x == f)).unwrap_or("")))).collect();

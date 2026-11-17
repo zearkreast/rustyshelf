@@ -131,7 +131,7 @@ pub struct ScanData {
 impl ScanData {
     pub fn load(data_dir: &Path) -> ScanData {
         let sizes: HashMap<String, serde_json::Value> =
-            fs::read_to_string(data_dir.join("dir-sizes.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+            crate::files::read_json_as(&data_dir.join("dir-sizes.json")).unwrap_or_default();
         ScanData {
             x360: x360::TitleList::load(data_dir),
             arcade: arcade::Names::load(data_dir),

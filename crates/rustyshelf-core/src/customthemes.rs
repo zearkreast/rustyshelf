@@ -60,7 +60,7 @@ fn theme_json(dir: &Path) -> Value {
     if fs::metadata(&file).map_or(true, |m| m.len() > MOST_JSON) {
         return json!({});
     }
-    fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Value>(t.trim_start_matches('\u{feff}')).ok()).filter(Value::is_object).unwrap_or(json!({}))
+    crate::files::read_json(&file).filter(Value::is_object).unwrap_or(json!({}))
 }
 
 /// Every theme in the folder, by name. `shelf_ids`: the shelves a theme can have its own picture for. The folder

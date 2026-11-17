@@ -660,10 +660,7 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
         return false;
     }
     let file = data_dir.join("cover-checks.json");
-    let mut memo = match std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-        Some(Value::Object(m)) => m,
-        _ => serde_json::Map::new(),
-    };
+    let mut memo = crate::files::read_object(&file);
     let now = crate::now_ms();
     // a made back or spine still wants a real scan
     let incomplete = |g: &Game| g.art.front.is_none() || g.art.back.is_none() || g.art.made_back || g.art.spine.is_none() || g.art.made_spine;

@@ -123,7 +123,7 @@ fn folders_file(data_dir: &Path) -> PathBuf {
 
 /// The picked folders: path → tree address.
 pub fn folders(data_dir: &Path) -> Map<String, Value> {
-    std::fs::read(folders_file(data_dir)).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).and_then(|v| v.as_object().cloned()).unwrap_or_default()
+    crate::files::read_json(&folders_file(data_dir)).and_then(|v| v.as_object().cloned()).unwrap_or_default()
 }
 
 /// Keeps a picked folder (its path, for `romDirs`, is answered).

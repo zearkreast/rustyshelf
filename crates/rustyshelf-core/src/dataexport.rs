@@ -294,7 +294,7 @@ pub fn export_size(i: &Install) -> (u64, u64) {
 }
 
 fn manifest_of(dir: &Path) -> Option<Value> {
-    serde_json::from_slice(&fs::read(dir.join("manifest.json")).ok()?).ok()
+    crate::files::read_json_as(&dir.join("manifest.json"))
 }
 
 fn is_export(dir: &Path) -> bool {

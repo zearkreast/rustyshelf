@@ -184,8 +184,7 @@ fn first_file(list: impl IntoIterator<Item = String>) -> Option<String> {
 }
 
 fn read_text(f: &str) -> String {
-    let t = std::fs::read(f).map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
-    t.strip_prefix('\u{feff}').map(String::from).unwrap_or(t)
+    crate::files::read_text(Path::new(f)).unwrap_or_default()
 }
 
 static SECTION: LazyLock<Regex> = LazyLock::new(|| Regex::new("^\\s*\\[([^\n\r\u{2028}\u{2029}]+)\\]\\s*$").unwrap());
@@ -770,10 +769,7 @@ impl Setup<'_> {
 
     /// What was set up: `{ "<kind>|<program>": { kind, exe, files, created, groups, at } }`.
     fn manifest(&self) -> Map<String, Value> {
-        match std::fs::read(self.manifest_file()).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
-            Some(Value::Object(m)) => m,
-            _ => Map::new(),
-        }
+        crate::files::read_object(&self.manifest_file())
     }
 
     fn save_manifest(&self, m: Map<String, Value>) {
