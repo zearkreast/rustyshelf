@@ -1,7 +1,10 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the shelves of
-// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it.
+// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf, PC games' backs of
+// the box, and recomps on their console's shelf (by hand or by themselves) in its whole case are from
+// ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported
+// from its main.js.
 //! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
-//! the Custom shelf's Quiver apps and programs added by hand.
+//! the Custom shelf's Quiver apps and programs added by hand; the Game streaming shelf's apps of another PC.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -32,7 +35,7 @@ pub enum ShelfKind {
 
 #[derive(Debug, Clone)]
 pub struct Shelf {
-    /// the console's id, "pc", "custom", "ports" or "media"
+    /// the console's id, "pc", "custom", "ports", "streaming" or "media"
     pub id: String,
     pub name: String,
     pub kind: ShelfKind,
@@ -78,15 +81,17 @@ impl PcArt<'_> {
         }
     }
 
-    /// A game's front, and with a console box its back, its spine and the console it's from. The player's pick comes
-    /// first, then its console box, then `auto`: the automatic covers, best first.
+    /// A game's front, its back, and with a console box its spine and the console it's from. The player's pick comes
+    /// first, then its console box, then `auto`: the automatic covers, best first. The back: the player's, the console
+    /// box's, else LaunchBox's PC game's unless "Made-up back" was chosen.
     fn case(&self, id: &str, auto: impl FnOnce() -> Option<PathBuf>) -> (Art, Option<String>) {
         let chosen = pccovers::cover(self.data, id);
         let boxed = if chosen.is_none() && self.boxes { pccovers::console_cover(self.data, id, "") } else { None };
         let plat = if chosen.is_some() || boxed.is_some() { pccovers::console_plat(self.data, id) } else { None };
         let in_box = boxed.is_some() || (chosen.is_some() && plat.is_some());
         let part = |p: &str| if in_box { pccovers::console_cover(self.data, id, p) } else { None };
-        let (back, spine) = (part("back"), part("spine"));
+        let launchbox = || if in_box || pccovers::made_up_back(self.data, id) { None } else { pccovers::auto_back(self.data, id) };
+        let (back, spine) = (pccovers::back(self.data, id).or_else(|| part("back")).or_else(launchbox), part("spine"));
         (Art { front: chosen.or(boxed).or_else(auto), back, spine, ..Art::default() }, plat)
     }
 
@@ -136,6 +141,22 @@ impl PcArt<'_> {
             source: Source::Pc(Box::new(g)),
             ..Game::default()
         }
+    }
+
+    /// A PC game on a console's shelf, with the spine, disc and manual the Art Studio and Details gave it.
+    fn on_console(&self, mut g: Game) -> Game {
+        if let Some(spine) = pccovers::part(self.data, &g.id, "spine") {
+            (g.art.spine, g.art.made_spine) = (Some(spine), false);
+        }
+        g.art.disc = pccovers::part(self.data, &g.id, "disc");
+        (g.art.manual, g.art.manual_pdf) = pccovers::manual(self.data, &g.id);
+        g
+    }
+
+    /// A Game streaming app: the cover chosen for it, its console box, Moonlight's box art, else the automatic one.
+    fn streamed(&self, g: PcGame, boxart: Option<PathBuf>) -> Game {
+        let (art, box_plat) = self.case(&g.id, || boxart.or_else(|| pccovers::auto_cover(self.data, &g.id)));
+        Game { id: g.id.clone(), title: g.title.clone(), file: PathBuf::from(&g.exe), art, box_plat, source: Source::Pc(Box::new(g)), ..Game::default() }
     }
 }
 
@@ -209,7 +230,7 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
     mine.extend(pcfolder::scan_ports(js::str_of(get("portsDir")).unwrap_or("")));
     for g in stores.iter_mut().chain(mine.iter_mut()) {
         if let Some(t) = cfg.game_title(&g.id) {
-            g.title = t.to_string();
+            g.file_title = Some(std::mem::replace(&mut g.title, t.to_string()));
         }
     }
     (stores, mine)
@@ -323,6 +344,7 @@ impl Library {
             let shelves: Vec<Shelf> = jobs.into_iter().filter_map(|j| j.join().ok()).collect();
             (shelves, steam.join().unwrap_or_default(), pc.join().unwrap_or_default())
         });
+        let own_shelf: HashSet<String> = shelves.iter().map(|s| s.id.clone()).collect();
         let romm = crate::romm::Setup::from_config(&config, crate::seal::key(&paths::env_var).as_ref());
         if romm.on() && romm.cloud {
             let lib = romm.client(&data_dir).cached();
@@ -379,16 +401,21 @@ impl Library {
         // own program. A console that's switched off sends its games back to Custom
         let (mut custom, mut ports, mut back) = (Vec::new(), Vec::new(), Vec::new());
         let mut moved: HashMap<String, Vec<Game>> = HashMap::new();
+        let found = if config.recomp_detect() { crate::recomps::found(&data_dir) } else { HashMap::new() };
         for g in mine {
             let (shelf, port) = (g.shelf.clone(), g.port);
+            let on = Some(&g).filter(|g| crate::recomps::candidate(g)).and_then(|g| found.get(&crate::recomps::key(&g.id, crate::recomps::title(g)))).filter(|sys| own_shelf.contains(*sys)).cloned();
             let game = art.pc_game(g);
             match shelf.as_deref() {
                 // Ports & Recomps: a program set there, and Quiver's ports and recompilations
                 Some("ports") => ports.push(game),
                 None if port => ports.push(game),
-                None => custom.push(game),
+                None => match on {
+                    Some(sys) => moved.entry(sys).or_default().push(art.on_console(game)),
+                    None => custom.push(game),
+                },
                 Some("pc") => pc.push(game),
-                Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(game),
+                Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(art.on_console(game)),
                 Some(_) => back.push(game),
             }
         }
@@ -401,7 +428,16 @@ impl Library {
                 None => shelves.push(Shelf { id: c.id.clone(), name: c.name.clone(), games, kind: ShelfKind::Console { console: Box::new(c.clone()), config: config.system(c) }, from: Vec::new() }),
             }
         }
-        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom), ("ports", "Ports & Recomps", ports)] {
+        let streamed: Vec<Game> = crate::moonlight::games(&config.moonlight())
+            .into_iter()
+            .map(|(mut g, boxart)| {
+                if let Some(t) = config.game_title(&g.id) {
+                    g.title = t.to_string();
+                }
+                art.streamed(g, boxart)
+            })
+            .collect();
+        for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom), ("ports", "Ports & Recomps", ports), ("streaming", "Game streaming", streamed)] {
             if !games.is_empty() {
                 games.sort_by(|a, b| compare_plain(&a.title, &b.title));
                 shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games, from: Vec::new() });
@@ -459,6 +495,8 @@ pub fn upkeep(lib: &Library) -> bool {
     }
     changed |= crate::dirsize::DirSizes::load(&data_dir).measure_stale(&dirs);
     changed |= steam_fill(lib, &data_dir);
+    changed |= pc_backs(lib, &data_dir);
+    changed |= recomp_consoles(lib, &data_dir);
     // (before any picture is replaced: an HD upgrade asks it)
     if !crate::provenance::looked() {
         let art: Vec<PathBuf> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).flat_map(|s| &s.games).flat_map(|g| [&g.art.front, &g.art.back, &g.art.spine, &g.art.disc]).flatten().cloned().collect();
@@ -481,7 +519,8 @@ fn convert_pdf_manuals(lib: &Library) -> bool {
         for g in shelf.games.iter().filter(|g| g.art.manual.is_empty()) {
             let Some(pdf) = &g.art.manual_pdf else { continue };
             let Some(dir) = pdf.parent() else { continue };
-            changed |= crate::manuals::pdf_to_pages(pdf, dir, &crate::art::art_base(&g.file)).is_ok_and(|n| n > 0);
+            let base = if matches!(g.source, Source::Pc(_)) { pccovers::safe_id(&g.id) } else { crate::art::art_base(&g.file) };
+            changed |= crate::manuals::pdf_to_pages(pdf, dir, &base).is_ok_and(|n| n > 0);
         }
     }
     changed
@@ -708,6 +747,45 @@ fn backs_for(pc: &Shelf, data_dir: &Path) -> Vec<(String, String, PathBuf)> {
         .collect()
 }
 
+/// LaunchBox's backs for the PC shelves' games with no back or only a made one, when Settings → PC games → Backs of
+/// the box from LaunchBox is on. True when one came in.
+fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
+    if !lib.config.pc_auto_backs() {
+        return false;
+    }
+    let wants: Vec<crate::pcbacks::Want> = lib
+        .shelves
+        .iter()
+        .filter(|s| matches!(s.kind, ShelfKind::Pc))
+        .flat_map(|s| &s.games)
+        .filter(|g| g.box_plat.is_none() && (g.art.back.is_none() || g.art.made_back))
+        .filter_map(crate::pcbacks::Want::of)
+        .collect();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    !wants.is_empty() && crate::pcbacks::run(data_dir, &data_dir.join("boxart-cache"), &wants, lib.config.art_region(), now) > 0
+}
+
+/// The Custom shelf's games that may be recomps, looked up in LaunchBox's database for their console, when Settings →
+/// Custom games → Put recomps on their console's shelf is on. True when one was found for a console with a shelf.
+fn recomp_consoles(lib: &Library, data_dir: &Path) -> bool {
+    if !lib.config.recomp_detect() {
+        return false;
+    }
+    let games: Vec<(String, String)> = lib
+        .shelves
+        .iter()
+        .filter(|s| s.id == "custom")
+        .flat_map(|s| &s.games)
+        .filter_map(|g| match &g.source {
+            Source::Pc(p) if crate::recomps::candidate(p) => Some((g.id.clone(), crate::recomps::title(p).to_string())),
+            _ => None,
+        })
+        .collect();
+    let shelves: HashSet<&str> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).map(|s| s.id.as_str()).collect();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64);
+    !games.is_empty() && crate::recomps::detect(data_dir, &data_dir.join("boxart-cache"), &games, &shelves, now)
+}
+
 /// SteamGridDB posters for the PC games that aren't Steam's and have no cover at all, wherever they sit (a program
 /// can be on a console's shelf). Only with the player's SteamGridDB key. True when one came in.
 fn poster_fill(lib: &Library, data_dir: &Path) -> bool {
@@ -809,6 +887,59 @@ mod tests {
     }
 
     #[test]
+    fn a_program_on_a_console_s_shelf_has_its_whole_case() {
+        let t = tempfile::tempdir().unwrap();
+        let d = t.path();
+        for f in ["pc-covers/custom-zeta.png", "pc-covers/custom-zeta.back.jpg", "pc-covers/custom-zeta.spine.png", "pc-covers/custom-zeta.disc.webp", "pc-covers/custom-zeta-manual-01.jpg", "pc-console-covers/custom-omega.jpg", "pc-console-covers/custom-omega-spine.jpg", "pc-covers/custom-omega-manual.pdf"] {
+            touch(&d.join(f));
+        }
+        let (cfg, sizes) = (Config::parse("{}").unwrap(), ScanData::default());
+        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::new(), steam_infos: HashMap::new(), sizes: &sizes };
+        let on = |id: &str| art.on_console(art.pc_game(PcGame { id: id.into(), source: "custom", title: "Zeta".into(), ..PcGame::default() })).art;
+        let p = |f: &str| Some(d.join(f));
+        let zeta = on("custom-zeta");
+        assert_eq!((zeta.front, zeta.back, zeta.spine, zeta.disc), (p("pc-covers/custom-zeta.png"), p("pc-covers/custom-zeta.back.jpg"), p("pc-covers/custom-zeta.spine.png"), p("pc-covers/custom-zeta.disc.webp")));
+        assert_eq!((zeta.manual, zeta.manual_pdf), (vec![d.join("pc-covers/custom-zeta-manual-01.jpg")], None));
+        let omega = on("custom-omega");
+        assert_eq!((omega.spine, omega.disc, omega.manual_pdf), (p("pc-console-covers/custom-omega-spine.jpg"), None, p("pc-covers/custom-omega-manual.pdf")));
+    }
+
+    #[test]
+    fn pc_backs_in_order() {
+        let t = tempfile::tempdir().unwrap();
+        let d = t.path();
+        for f in [
+            "steam-art/20_backmade.jpg",
+            "steam-art/21_backmade.jpg",
+            "pc-covers-auto/steam-20.back.jpg",
+            "pc-covers-auto/steam-21.back.jpg",
+            "pc-covers/steam-21.back.made",
+            "pc-covers-auto/steam-22.back.png",
+            "pc-covers/steam-22.back.webp",
+            "pc-console-covers/custom-zeta.jpg",
+            "pc-covers-auto/custom-zeta.back.jpg",
+            "pc-console-covers/custom-omega.jpg",
+            "pc-console-covers/custom-omega-back.jpg",
+            "pc-covers/custom-omega.back.png",
+        ] {
+            touch(&d.join(f));
+        }
+        let cfg = Config::parse("{}").unwrap();
+        let sizes = ScanData::default();
+        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::new(), steam_infos: HashMap::new(), sizes: &sizes };
+        let back = |appid: &str| {
+            let g = art.steam_game(SteamGame { appid: appid.into(), title: "Zeta".into(), size_bytes: 1, dir: None, minutes: 0, last_played: 0, front: Some("/s/f.jpg".into()), hero: None });
+            (g.art.back.map(|b| b.strip_prefix(d).unwrap().to_string_lossy().replace('\\', "/")), g.art.made_back)
+        };
+        assert_eq!(back("20"), (Some("pc-covers-auto/steam-20.back.jpg".into()), false), "LaunchBox's over the made one");
+        assert_eq!(back("21"), (Some("steam-art/21_backmade.jpg".into()), true), "Made-up back chosen");
+        assert_eq!(back("22"), (Some("pc-covers/steam-22.back.webp".into()), false), "the player's own first");
+        let custom = |id: &str| art.pc_game(PcGame { id: id.into(), source: "custom", title: "Zeta".into(), ..PcGame::default() }).art.back;
+        assert_eq!(custom("custom-zeta"), None, "no Windows back on a console box");
+        assert_eq!(custom("custom-omega"), Some(d.join("pc-covers/custom-omega.back.png")));
+    }
+
+    #[test]
     fn hand_added_games_on_their_shelves() {
         let t = tempfile::tempdir().unwrap();
         let root = t.path();
@@ -833,5 +964,71 @@ mod tests {
         let lib = Library::load_from(root).unwrap();
         let shelves: Vec<(&str, Vec<&str>)> = lib.shelves.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.title.as_str()).collect())).collect();
         assert_eq!(shelves, [("snes", vec!["Zeta", "On SNES"]), ("nes", vec!["No Emulator"]), ("xboxone", vec!["Ported"]), ("pc", vec!["Renamed"]), ("custom", vec!["Console Off", "On Custom"]), ("ports", vec!["A Recomp"]), ("media", vec!["Stremio"])]);
+    }
+
+    #[test]
+    fn recomps_found_go_on_their_console_s_shelf_when_asked() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for f in ["tools/a.exe", "tools/b.exe", "tools/c.exe", "tools/d.exe", "n64/Omega (USA).z64"] {
+            touch(&root.join(f));
+        }
+        let at = |f: &str| root.join(f).to_string_lossy().replace('\\', "/");
+        let mut cfg = serde_json::json!({
+            "steam": { "enabled": false },
+            "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false, "custom": [
+                { "title": "Zeta Run", "exe": at("tools/a.exe") }, { "title": "Placed", "exe": at("tools/b.exe"), "shelf": "pc" },
+                { "title": "Ported", "exe": at("tools/c.exe"), "shelf": "ports", "portOf": "n64" }, { "title": "Snes Only", "exe": at("tools/d.exe") } ] },
+            "systems": { "n64": { "romDirs": [at("n64")] } },
+        });
+        let hit = |sys: &str, name: &str| serde_json::json!({ "sys": sys, "name": name });
+        let memo = serde_json::json!({ "custom-zeta-run|Zeta Run": hit("n64", "Zeta Run"), "custom-placed|Placed": hit("n64", "Placed"), "custom-ported|Ported": hit("n64", "Ported"), "custom-snes-only|Snes Only": hit("snes", "Snes Only") });
+        touch(&root.join("data/config.json"));
+        std::fs::write(root.join("data/recomp-detect.json"), memo.to_string()).unwrap();
+        let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let shelves = |cfg: &Value| {
+            std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+            Library::load_from(root).unwrap().shelves.into_iter().map(|s| (s.id, s.games.into_iter().map(|g| g.title).collect::<Vec<_>>())).collect::<Vec<_>>()
+        };
+        let mine = |n64: &[&str], custom: &[&str]| -> Vec<(String, Vec<String>)> {
+            let v = |l: &[&str]| l.iter().map(|x| x.to_string()).collect();
+            vec![("n64".into(), v(n64)), ("pc".into(), v(&["Placed"])), ("custom".into(), v(custom)), ("ports".into(), v(&["Ported"]))]
+        };
+        assert_eq!(shelves(&cfg), mine(&["Omega"], &["Snes Only", "Zeta Run"]));
+        cfg["pc"]["recompDetect"] = true.into();
+        assert_eq!(shelves(&cfg), mine(&["Omega", "Zeta Run"], &["Snes Only"]), "no SNES shelf");
+        cfg["games"] = serde_json::json!({ "custom-zeta-run": { "title": "Zeta 64" } });
+        assert_eq!(shelves(&cfg), mine(&["Omega", "Zeta 64"], &["Snes Only"]), "found by its own title");
+    }
+
+    #[test]
+    fn the_host_s_apps_on_the_game_streaming_shelf() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for f in ["tools/moonlight", "boxart/b.png", "data/pc-covers/moonlight-alpha.png", "data/pc-covers-auto/moonlight-gamma.jpg", "data/pc-covers-auto/moonlight-beta.jpg"] {
+            touch(&root.join(f));
+        }
+        let app = |name: &str, boxart: String| serde_json::json!({ "name": name, "id": 1, "hidden": false, "boxart": boxart });
+        let boxart = url::Url::from_file_path(root.join("boxart/b.png")).unwrap().to_string();
+        let mut cfg = serde_json::json!({
+            "steam": { "enabled": false },
+            "pc": { "epic": false, "gog": false, "ubisoft": false, "ea": false, "xbox": false, "hoyoplay": false, "quiver": false },
+            "moonlight": { "enabled": true, "path": root.join("tools/moonlight"), "host": "pc", "apps": [app("Gamma", String::new()), app("Beta", boxart), app("Alpha", String::new()), app("Desktop", String::new())] },
+            "games": { "moonlight-beta": { "title": "Beta Renamed" } },
+        });
+        touch(&root.join("data/config.json"));
+        let _one = ONE_LOAD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let shelf = |cfg: &Value| {
+            std::fs::write(root.join("data/config.json"), cfg.to_string()).unwrap();
+            Library::load_from(root).unwrap().shelves.into_iter().find(|s| s.id == "streaming")
+        };
+        let s = shelf(&cfg).unwrap();
+        let games: Vec<(&str, PathBuf)> = s.games.iter().map(|g| (g.title.as_str(), g.art.front.clone().unwrap())).collect();
+        let d = root.join("data");
+        assert_eq!(s.name, "Game streaming");
+        assert_eq!(games, [("Alpha", d.join("pc-covers/moonlight-alpha.png")), ("Beta Renamed", root.join("boxart/b.png")), ("Gamma", d.join("pc-covers-auto/moonlight-gamma.jpg"))]);
+        assert!(matches!(&s.games[0].source, Source::Pc(g) if g.source == "moonlight" && g.args == r#"stream "pc" "Alpha" --display-mode fullscreen"#));
+        cfg["moonlight"]["enabled"] = false.into();
+        assert!(shelf(&cfg).is_none());
     }
 }

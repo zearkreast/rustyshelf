@@ -22,9 +22,11 @@ use crate::systems::systems;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PcGame {
     pub id: String,
-    /// "epic", "gog", "ubisoft", "ea", "xbox", "hoyoplay", "folder", "quiver" or "custom"
+    /// "epic", "gog", "ubisoft", "ea", "xbox", "hoyoplay", "folder", "quiver", "custom" or "moonlight"
     pub source: &'static str,
     pub title: String,
+    /// its title before Details → Rename, when it was renamed
+    pub file_title: Option<String>,
     /// the game's own program; empty when only its store can start it
     pub exe: String,
     pub args: String,
@@ -60,6 +62,11 @@ fn read_json(f: &Path) -> Option<Value> {
 }
 
 pub fn slug(s: &str) -> String {
+    slug_or(s, "game")
+}
+
+/// `slug`, with `empty` for a name that has no letter or digit.
+pub fn slug_or(s: &str, empty: &str) -> String {
     static RUN: LazyLock<Regex> = LazyLock::new(|| Regex::new("[^a-z0-9]+").unwrap());
     let l = s.to_lowercase();
     let t = RUN.replace_all(&l, "-");
@@ -67,7 +74,7 @@ pub fn slug(s: &str) -> String {
     let t = t.strip_suffix('-').unwrap_or(t);
     let t = js::slice(t, 60);
     if t.is_empty() {
-        "game".into()
+        empty.into()
     } else {
         t.to_string()
     }

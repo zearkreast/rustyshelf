@@ -513,6 +513,33 @@ pub struct GameArt {
     pub base: String,
     /// the picture in use for each of `PARTS`
     pub current: [Option<PathBuf>; 4],
+    /// a PC game on a console's shelf: its art is kept as its chosen cover is, `<id>.<ext>`, `<id>.back.<ext>` …
+    pub pc: bool,
+}
+
+impl GameArt {
+    /// What a part's file name ends with, before its type.
+    pub fn suffix(&self, part: &str) -> &'static str {
+        if !self.pc {
+            return suffix(part);
+        }
+        match part {
+            "back" => ".back",
+            "spine" => ".spine",
+            "disc" => ".disc",
+            _ => "",
+        }
+    }
+
+    /// The type a picture is kept as: a PC game's art is only read as a JPG, PNG or WebP.
+    fn ext<'a>(&self, ext: &'a str) -> &'a str {
+        match ext {
+            _ if !self.pc => ext,
+            e if e.eq_ignore_ascii_case(".png") => ".png",
+            e if e.eq_ignore_ascii_case(".webp") => ".webp",
+            _ => ".jpg",
+        }
+    }
 }
 
 fn part_index(part: &str) -> usize {
@@ -674,7 +701,7 @@ impl Studio {
         for d in dirs {
             let old = d.join("replaced");
             let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-            for (name, stamp) in covers::replaced_for(&names, &g.base, suffix(part)).into_iter().take(12) {
+            for (name, stamp) in covers::replaced_for(&names, &g.base, g.suffix(part)).into_iter().take(12) {
                 let when = date_word(&stamp).map_or(String::new(), |w| format!(" · {w}"));
                 let mut c = local_cand(&old.join(name), "earlier", format!("Earlier{when}"));
                 c.in_use = false;
@@ -749,7 +776,18 @@ impl Studio {
     }
 
     fn incoming(g: &GameArt, part: &str, ext: &str, now: f64) -> PathBuf {
-        g.dir.join(format!("{}{}.incoming-{:08x}{ext}", g.base, suffix(part), (now as u64 ^ u64::from(std::process::id()) << 20) & 0xffff_ffff))
+        g.dir.join(format!("{}{}.incoming-{:08x}{}", g.base, g.suffix(part), (now as u64 ^ u64::from(std::process::id()) << 20) & 0xffff_ffff, g.ext(ext)))
+    }
+
+    fn place(g: &GameArt, part: &str, inc: &Path, ext: &str, origin: &str) -> std::io::Result<PathBuf> {
+        let (dest, _) = crate::boxart::place_art_as(&g.dir, &g.base, g.suffix(part), inc, g.ext(ext), origin)?;
+        // a PC game's front picked here is no longer the console box it may have been picked as
+        if g.pc && part == "front" {
+            for note in ["plat", "from"] {
+                let _ = std::fs::remove_file(g.dir.join(format!("{}.{note}", g.base)));
+            }
+        }
+        Ok(dest)
     }
 
     /// A picture from `replaced\` back in use (the one in use goes to `replaced\` in its turn).
@@ -759,8 +797,8 @@ impl Studio {
         // out of replaced\ first: it mustn't be taken for an old one there
         let inc = Self::incoming(g, part, &ext, now);
         std::fs::rename(file, &inc).map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { "That earlier picture is no longer there.".to_string() } else { e.to_string() })?;
-        match crate::boxart::place_art_as(&g.dir, &g.base, suffix(part), &inc, &ext, "restored") {
-            Ok((dest, _)) => {
+        match Self::place(g, part, &inc, &ext, "restored") {
+            Ok(dest) => {
                 g.current[part_index(part)] = Some(dest);
                 Ok(true)
             }
@@ -788,8 +826,8 @@ impl Studio {
         std::fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
         let inc = Self::incoming(g, part, &c.ext, now);
         std::fs::copy(&src, &inc).map_err(|e| e.to_string())?;
-        match crate::boxart::place_art_as(&g.dir, &g.base, suffix(part), &inc, &c.ext, "studio") {
-            Ok((dest, _)) => {
+        match Self::place(g, part, &inc, &c.ext, "studio") {
+            Ok(dest) => {
                 g.current[part_index(part)] = Some(dest);
                 Ok(true)
             }
@@ -808,7 +846,7 @@ impl Studio {
         for d in dirs {
             let old = d.join("replaced");
             let names: Vec<String> = std::fs::read_dir(&old).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-            earlier.extend(covers::replaced_for(&names, &g.base, suffix(part)).into_iter().map(|(name, stamp)| (stamp, old.join(name))));
+            earlier.extend(covers::replaced_for(&names, &g.base, g.suffix(part)).into_iter().map(|(name, stamp)| (stamp, old.join(name))));
         }
         // (the newest stamp first; of two the same, the first found)
         let last = earlier.iter().fold(None::<&(String, PathBuf)>, |best, e| if best.is_none_or(|b| e.0 > b.0) { Some(e) } else { best }).ok_or("Nothing to undo")?.1.clone();
@@ -898,9 +936,9 @@ impl Studio {
         } else {
             std::fs::copy(src, &inc).map(|_| ())
         };
-        let placed = made.and_then(|()| crate::boxart::place_art_as(&g.dir, &g.base, suffix(part), &inc, if cut { ".jpg" } else { ext }, "own"));
+        let placed = made.and_then(|()| Self::place(g, part, &inc, if cut { ".jpg" } else { ext }, "own"));
         match placed {
-            Ok((dest, _)) => {
+            Ok(dest) => {
                 g.current[i] = Some(dest);
                 Ok(())
             }
@@ -916,4 +954,34 @@ impl Studio {
 /// really downloaded.
 pub fn shown(list: &[Cand]) -> impl Iterator<Item = &Cand> {
     list.iter().filter(|c| c.dup.is_none() && !(c.guess && !c.cached && !c.in_use))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pc_game_s_art_is_kept_beside_its_cover() {
+        let t = tempfile::tempdir().unwrap();
+        let dir = t.path().join("pc-covers");
+        std::fs::create_dir_all(&dir).unwrap();
+        let pic = t.path().join("mine.png");
+        image::RgbImage::from_fn(200, 300, |x, y| image::Rgb([x as u8, y as u8, (x ^ y) as u8])).save(&pic).unwrap();
+        for f in ["custom-zeta.jpg", "custom-zeta.plat", "custom-zeta.from"] {
+            std::fs::write(dir.join(f), b"x").unwrap();
+        }
+        let mut g = GameArt { sys: "n64".into(), title: "Zeta".into(), file: "Zeta".into(), dir: dir.clone(), base: "custom-zeta".into(), current: [Some(dir.join("custom-zeta.jpg")), None, None, None], pc: true, ..GameArt::default() };
+        assert_eq!([".JPEG", ".png", ".webp", ".gif"].map(|e| g.ext(e)), [".jpg", ".png", ".webp", ".jpg"]);
+        let st = Studio::new(t.path());
+        st.own(&mut g, "spine", &pic, false, 1.0).unwrap();
+        assert_eq!(g.current[2], Some(dir.join("custom-zeta.spine.png")));
+        assert!(dir.join("custom-zeta.plat").is_file(), "a spine leaves the front as it was picked");
+        st.own(&mut g, "front", &pic, false, 2.0).unwrap();
+        assert_eq!(g.current[0], Some(dir.join("custom-zeta.png")));
+        assert!(["jpg", "plat", "from"].iter().all(|e| !dir.join(format!("custom-zeta.{e}")).exists()));
+        assert_eq!((crate::pccovers::cover(t.path(), "custom-zeta"), crate::pccovers::part(t.path(), "custom-zeta", "spine")), (g.current[0].clone(), g.current[2].clone()));
+        st.undo(&mut g, "front", 3.0).unwrap();
+        assert_eq!(g.current[0], Some(dir.join("custom-zeta.jpg")));
+        assert!(st.undo(&mut g, "spine", 4.0).is_err(), "the front's earlier pictures aren't the spine's");
+    }
 }

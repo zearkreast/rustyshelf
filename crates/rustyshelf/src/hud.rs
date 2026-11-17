@@ -254,6 +254,7 @@ pub fn store_name(source: &str) -> &'static str {
         "ea" => "EA",
         "xbox" => "Xbox",
         "hoyoplay" => "HoYoPlay",
+        "moonlight" => "Moonlight",
         _ => "Steam",
     }
 }

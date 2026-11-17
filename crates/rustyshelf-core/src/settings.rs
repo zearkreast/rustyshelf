@@ -137,8 +137,6 @@ fn merge(base: &Value, saved: &Value) -> Value {
 /// Older default launch options that move to today's by themselves (main/config.js OLD_DEFAULTS).
 const OLD_DEFAULTS: &[(&str, &[&str])] = &[("gc", &["-b -e \"{rom}\""]), ("wii", &["-b -e \"{rom}\""])];
 
-const THEMES: &[&str] = &["spectrum", "classic", "keys", "arcade", "aurora", "midnight", "artwork", "blur", "cube", "blueshift", "swirl", "pocket", "oled", "walnut", "forest", "crt", "vhs", "synth"];
-
 fn one_of(v: Option<&Value>, list: &[&str]) -> bool {
     js::str_of(v).is_some_and(|x| list.contains(&x))
 }
@@ -152,9 +150,15 @@ fn one_of_or(v: Option<&Value>, list: &[&str], fallback: &str) -> bool {
     }
 }
 
+/// Any well-formed theme or voice id is kept, as in beta.14: where it's used, an unknown one falls back. One that
+/// isn't set is kept too.
+fn ok_id(v: Option<&Value>) -> bool {
+    static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[A-Za-z0-9][A-Za-z0-9:_-]{0,63}$").unwrap());
+    !js::truthy(v) || v.and_then(Value::as_str).is_some_and(|x| ID.is_match(x))
+}
+
 /// Values of older versions moved to today's.
 fn upgrade(cfg: &mut Value) {
-    static CUSTOM: LazyLock<Regex> = LazyLock::new(|| Regex::new("^custom-[a-z0-9-]{1,48}$").unwrap());
     if let Some(Value::Object(ui)) = cfg.get_mut("ui") {
         let set = |ui: &mut Map<String, Value>, k: &str, v: Value| {
             ui.insert(k.to_string(), v);
@@ -195,11 +199,10 @@ fn upgrade(cfg: &mut Value) {
             set(ui, "theme", json!("artwork"));
             set(ui, "background", json!("blur"));
         }
-        // custom-…: a picture theme from Custom themes\
-        if !one_of_or(ui.get("theme"), THEMES, "spectrum") && !CUSTOM.is_match(&js::string(ui.get("theme"))) {
+        if !ok_id(ui.get("theme")) {
             set(ui, "theme", json!("spectrum"));
         }
-        if !one_of_or(ui.get("soundTheme"), &["aero", "melody", "musicbox"], "aero") {
+        if !ok_id(ui.get("soundTheme")) {
             set(ui, "soundTheme", json!("aero"));
         }
         // 1.77: the ambient tracks took over from Calm / Lounge / Chime
@@ -520,6 +523,10 @@ pub fn sanitize(cfg: &mut Value) {
 
     if let Some(Value::Object(pc)) = cfg.get_mut("pc") {
         sanitize_pc(pc);
+    }
+    // Game streaming, as Zak's fork keeps it: not among the Electron app's defaults, so kept only when it's there
+    if cfg.get("moonlight").is_some() {
+        cfg["moonlight"] = crate::moonlight::sanitize(cfg.get("moonlight"));
     }
     let e = cfg.get("emuSetup").filter(|e| e.is_object());
     let get = |k: &str| e.and_then(|e| e.get(k));
@@ -976,5 +983,25 @@ mod background_tests {
         assert_eq!(on_disk["n"], 49);
         assert!(write_errors().is_empty());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod id_tests {
+    use super::*;
+
+    #[test]
+    fn a_well_formed_theme_or_voice_is_kept_after_a_restart() {
+        let loaded = |theme: Value, voice: Value| {
+            let ui = read(&json!({ "ui": { "theme": theme, "soundTheme": voice } }).to_string()).unwrap()["ui"].clone();
+            (ui["theme"].clone(), ui["soundTheme"].clone())
+        };
+        for (theme, voice) in [("nebula", "living"), ("pastelpop", "disc"), ("custom-my-theme", "pack:retro-1"), ("crt", "kenney-ui")] {
+            assert_eq!(loaded(json!(theme), json!(voice)), (json!(theme), json!(voice)));
+        }
+        for bad in [json!("bad id!"), json!(5), json!("-x"), json!("a".repeat(65))] {
+            assert_eq!(loaded(bad.clone(), bad), (json!("spectrum"), json!("aero")));
+        }
+        assert_eq!(loaded(json!("gallery"), json!("jazz")), (json!("midnight"), json!("melody")));
     }
 }

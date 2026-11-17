@@ -1,5 +1,6 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
-// Boxshelf's main/covers.js, as RustyShelf has it.
+// Boxshelf's main/covers.js, as RustyShelf has it. LB_PC is from ZakAuMiel/boxshelf-source
+// (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: its main/covers.js.
 //! Finding a game's box art: which entry of libretro's thumbnail list or of the LaunchBox Games Database is this
 //! game, and which of its pictures to take. A title is compared after `norm` (case, accents, punctuation, articles
 //! and Roman numerals off); a region chosen in Settings puts that region's scans first.
@@ -48,6 +49,9 @@ pub fn pc_box_platforms() -> &'static [(String, String)] {
 pub fn art_name<'a>(cfg: &'a Value, id: &str) -> Option<&'a str> {
     cfg["games"][id]["artName"].as_str().map(str::trim).filter(|n| !n.is_empty())
 }
+
+/// LaunchBox's platform of PC games.
+pub const LB_PC: &str = "Windows";
 
 /// Where the box images are served from.
 pub const LB_IMG: &str = "https://images.launchbox-app.com/";

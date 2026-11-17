@@ -2316,7 +2316,7 @@ fn art_studio_lists_and_places_pictures_as_the_js_does() {
     let shard: ShardFile = serde_json::from_value(json!({ "v": 1, "plat": "Nintendo GameCube", "games": f["index"]["games"]["Nintendo GameCube"], "images": f["index"]["images"] })).unwrap();
     let libretro = LibretroNames::new(f["libretro"].as_array().unwrap().iter().map(|n| n.as_str().unwrap().to_string()).collect());
     let file = roms.join("Zeta Run (USA).iso");
-    let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: file.clone(), region: "USA".into(), dir: roms.join("covers"), base: "Zeta Run (USA)".into(), current: [Some(roms.join("covers/Zeta Run (USA).png")), None, None, None] };
+    let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: file.clone(), region: "USA".into(), dir: roms.join("covers"), base: "Zeta Run (USA)".into(), current: [Some(roms.join("covers/Zeta Run (USA).png")), None, None, None], pc: false };
     let rel = |p: &Path| p.to_string_lossy().replace(&dir, "<tmp>");
     let list = |g: &GameArt, part: &str| {
         let from = Sources { launchbox: Some(&shard), libretro: Some(&libretro), gametdb: None, disc_id: rustyshelf_core::covers::disc_id(&g.file), region: "usa", wiki: None };

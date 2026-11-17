@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use rustyshelf_core::art::{art_base, ArtLibrary};
 use rustyshelf_core::manuals::{self, Candidate, Got, Online, Rejected, Stores};
-use rustyshelf_core::{manualcoll, paths};
+use rustyshelf_core::{manualcoll, paths, pccovers};
 
 use super::*;
 
@@ -30,17 +30,24 @@ fn now_ms() -> f64 {
 }
 
 impl Settings {
-    /// Where the chosen game's manual goes, and the name its art has.
+    /// Where the chosen game's manual goes, and the name its art has: a PC game's on a console's shelf is kept with
+    /// its art, under its id.
     fn manual_place(&self) -> Option<(PathBuf, String)> {
         let c = self.chosen.as_ref()?;
-        let config = Config::from_value(&self.cfg)?;
         let console = systems().console(&c.console)?;
-        Some((ArtLibrary::from_config(&config, &self.app_root).manual_dir_for(&config.system(console), &c.game.file, &self.app_root), art_base(&c.game.file)))
+        match c.game.source {
+            Source::Rom => {
+                let config = Config::from_value(&self.cfg)?;
+                Some((ArtLibrary::from_config(&config, &self.app_root).manual_dir_for(&config.system(console), &c.game.file, &self.app_root), art_base(&c.game.file)))
+            }
+            Source::Pc(_) => Some((paths::data_dir(&self.app_root).join("pc-covers"), pccovers::safe_id(&c.game.id))),
+            _ => None,
+        }
     }
 
-    /// Whether Details offers the search: a console's game with no manual yet.
+    /// Whether Details offers the search: a console's game, or a PC game on a console's shelf, with no manual yet.
     pub(super) fn can_find_manual(&self) -> bool {
-        self.chosen.as_ref().is_some_and(|c| c.game.source == Source::Rom && c.game.art.manual.is_empty() && c.game.art.manual_pdf.is_none() && systems().console(&c.console).is_some())
+        self.manual_place().is_some() && self.chosen.as_ref().is_some_and(|c| c.game.art.manual.is_empty() && c.game.art.manual_pdf.is_none())
     }
 
     pub(super) fn find_manual(&mut self) {
@@ -68,9 +75,9 @@ impl Settings {
         self.redraw = true;
     }
 
-    /// The chosen game as the manual stores know it, when it's a console's game.
+    /// The chosen game as the manual stores know it, when it's a console's game or a PC game on a console's shelf.
     pub(super) fn manual_game(&self) -> Option<manualcoll::Game> {
-        let c = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom)?;
+        let c = self.chosen.as_ref()?;
         let (dir, base) = self.manual_place()?;
         let system = systems().console(&c.console)?.name.clone();
         Some(manualcoll::Game { sys: c.console.clone(), system, title: c.game.title.clone(), title_id: c.game.title_id.clone(), file: c.game.file.to_string_lossy().into_owned(), region: c.game.region.clone(), dir, base })

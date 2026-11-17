@@ -1,5 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): ported from
-// Boxshelf's main/covers.js and main/spreads.js (sizeOf), as RustyShelf has them.
+// Boxshelf's main/covers.js and main/spreads.js (sizeOf), as RustyShelf has them. LaunchBox's PC games in the index
+// are from ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf:
+// its main/covers.js.
 //! Downloading box art. Front covers come from the libretro thumbnail library (names match No-Intro file names);
 //! backs, spines, discs, and the fronts libretro doesn't have, from the LaunchBox Games Database. Neither needs an
 //! account. A picture is saved next to the games in `<games folder>\covers` (or the art library) as
@@ -317,9 +319,19 @@ pub fn libretro_names(cache_dir: &Path, console_id: &str) -> Option<LibretroName
 pub struct Index {
     cache_dir: PathBuf,
     shards: HashMap<String, Option<ShardFile>>,
+    plats: Vec<String>,
 }
 
 impl Index {
+    fn of(cache_dir: &Path, m: ShardsMeta) -> Index {
+        Index { cache_dir: cache_dir.to_path_buf(), shards: HashMap::new(), plats: m.plats }
+    }
+
+    /// Whether the index was built with this platform in it.
+    pub fn has(&self, plat: &str) -> bool {
+        self.plats.iter().any(|p| p == plat)
+    }
+
     /// One platform's games and their pictures.
     pub fn platform(&mut self, plat: &str) -> Option<&ShardFile> {
         let dir = &self.cache_dir;
@@ -360,7 +372,12 @@ fn ensure_shards(cache_dir: &Path) -> Option<ShardsMeta> {
 
 /// The index if it's on disk already: never downloads or builds it. An older one past its 60 days still serves.
 pub fn ready_index(cache_dir: &Path) -> Option<Index> {
-    ensure_shards(cache_dir).filter(|m| m.v >= 8).map(|_| Index { cache_dir: cache_dir.to_path_buf(), shards: HashMap::new() })
+    ensure_shards(cache_dir).filter(|m| m.v >= 8).map(|m| Index::of(cache_dir, m))
+}
+
+/// Whether the index on disk has LaunchBox's PC games, without reading or splitting it.
+pub fn has_pc_games(cache_dir: &Path) -> bool {
+    shard_meta(cache_dir).is_some_and(|m| m.v >= 8 && m.plats.iter().any(|p| p == covers::LB_PC))
 }
 
 /// A Metadata.xml that's all there: it ends with `</LaunchBox>`.
@@ -406,12 +423,22 @@ fn unpack(zip: &Path, cache_dir: &Path) -> Result<(), String> {
 /// The index, downloaded and built if there's none, it's of another format, misses a platform or is over 60 days
 /// old. `progress`: what's going on, for the screen.
 pub fn launchbox_index(cache_dir: &Path, progress: &mut dyn FnMut(&str)) -> Result<Index, String> {
+    index_with(cache_dir, None, progress)
+}
+
+/// The index with LaunchBox's PC games in it: downloaded and built again when it has none (about 110 MB).
+pub fn with_pc_games(cache_dir: &Path, progress: &mut dyn FnMut(&str)) -> Result<Index, String> {
+    index_with(cache_dir, Some(covers::LB_PC), progress)
+}
+
+fn index_with(cache_dir: &Path, need: Option<&str>, progress: &mut dyn FnMut(&str)) -> Result<Index, String> {
     let (zip, xml, idx) = (cache_dir.join("Metadata.zip"), cache_dir.join("Metadata.xml"), index_file(cache_dir));
     let plats = all_platforms();
-    let fresh = |m: &ShardsMeta| m.v == IDX_V && now() as f64 - (m.at as f64) < IDX_DAYS * DAY && plats.iter().all(|p| m.plats.contains(p));
-    if ensure_shards(cache_dir).is_some_and(|m| fresh(&m)) {
+    // LaunchBox's PC games only when asked for: the Electron app builds the shared index without them
+    let fresh = |m: &ShardsMeta| m.v == IDX_V && now() as f64 - (m.at as f64) < IDX_DAYS * DAY && plats.iter().map(String::as_str).chain(need).all(|p| m.plats.iter().any(|x| x == p));
+    if let Some(m) = ensure_shards(cache_dir).filter(|m| fresh(m)) {
         let _ = std::fs::remove_file(&xml);
-        return Ok(Index { cache_dir: cache_dir.to_path_buf(), shards: HashMap::new() });
+        return Ok(Index::of(cache_dir, m));
     }
     let age = |f: &Path| f.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).map(|d| d.as_millis() as f64);
     // a Metadata.xml left by a build that was cut short: read it rather than download it again, unless it's cut off
@@ -430,6 +457,10 @@ pub fn launchbox_index(cache_dir: &Path, progress: &mut dyn FnMut(&str)) -> Resu
         unpacked?;
     }
     progress("Reading the game database… 0%");
+    let mut plats = plats;
+    if !plats.iter().any(|p| p == covers::LB_PC) {
+        plats.push(covers::LB_PC.to_string());
+    }
     let built = lbindex::build_index_file(&xml, &idx, &plats, IDX_V, Some(cache_dir), |pct| progress(&format!("Reading the game database… {pct}%"))).map_err(|e| e.to_string());
     // the 500 MB XML is only needed while the index is built
     let _ = std::fs::remove_file(&xml);
@@ -1018,5 +1049,27 @@ mod match_tests {
         assert_eq!(art_matches(&cache, "ps2", "clank ratchet").0.len(), 2, "every word, in any order");
         assert!(art_matches(&cache, "ps2", "  ").0.is_empty());
         let _ = fs::remove_dir_all(&cache);
+    }
+}
+
+#[cfg(test)]
+mod index_tests {
+    use super::*;
+
+    fn index_of(dir: &Path, plats: &[String]) {
+        let games: serde_json::Map<String, Value> = plats.iter().map(|p| (p.clone(), json!([]))).collect();
+        fs::write(index_file(dir), json!({ "v": IDX_V, "at": now(), "games": games, "images": {} }).to_string()).unwrap();
+    }
+
+    #[test]
+    fn an_index_without_pc_games_is_fresh_until_they_are_asked_for() {
+        let t = tempfile::tempdir().unwrap();
+        index_of(t.path(), &all_platforms());
+        assert!(launchbox_index(t.path(), &mut |_: &str| panic!("downloaded")).is_ok_and(|i| !i.has(covers::LB_PC)));
+        assert!(!has_pc_games(t.path()));
+        let t = tempfile::tempdir().unwrap();
+        index_of(t.path(), &[all_platforms(), vec![covers::LB_PC.to_string()]].concat());
+        assert!(with_pc_games(t.path(), &mut |_: &str| panic!("downloaded")).is_ok_and(|i| i.has(covers::LB_PC)));
+        assert!(has_pc_games(t.path()));
     }
 }

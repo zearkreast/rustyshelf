@@ -293,7 +293,7 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
         let parts = if sets_mode { PARTS.to_vec() } else { parts_to_redo(bases, after, lock, current.clone().map(|c| c.is_some()), &game.region) };
         if !parts.is_empty() {
             let title = covers::art_name(cfg, &game.id).unwrap_or(&game.title).to_string();
-            let g = GameArt { sys: sys.into(), title, file: game.file.clone(), region: game.region.clone(), dir: lib.dir_for(&sc, &game.file, app_root), base: art_base(&game.file), current };
+            let g = GameArt { sys: sys.into(), title, file: game.file.clone(), region: game.region.clone(), dir: lib.dir_for(&sc, &game.file, app_root), base: art_base(&game.file), current, pc: false };
             work.push((g, parts));
         }
     }
@@ -530,11 +530,11 @@ impl Studio {
             std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
             let ext = cur.extension().map_or(String::new(), |e| format!(".{}", e.to_string_lossy()));
             let stamp = boxart::art_stamp();
-            let mut to = dir.join(format!("{}{} ({stamp}){ext}", g.base, studio::suffix(p)));
+            let mut to = dir.join(format!("{}{} ({stamp}){ext}", g.base, g.suffix(p)));
             let mut n = 2;
             // never over an earlier one
             while to.symlink_metadata().is_ok() {
-                to = dir.join(format!("{}{} ({stamp}-{n}){ext}", g.base, studio::suffix(p)));
+                to = dir.join(format!("{}{} ({stamp}-{n}){ext}", g.base, g.suffix(p)));
                 n += 1;
             }
             std::fs::rename(&cur, &to).map_err(|e| e.to_string())?;
@@ -593,7 +593,7 @@ mod tests {
         std::fs::copy(pic("old.png", 9), &old_front).unwrap();
         let cand = |f: PathBuf| Cand { key: f.to_string_lossy().into(), source: "launchbox".into(), ext: ".png".into(), file: Some(f), ..Cand::default() };
         let set = Set { id: "usa-launchbox".into(), label: "USA".into(), region: "usa".into(), source: "launchbox".into(), hd: false, same: false, parts: [cand(pic("f.png", 1)), cand(pic("b.png", 2)), cand(pic("s.png", 3)), cand(pic("d.png", 4))] };
-        let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: tmp.path().join("Zeta Run (USA).iso"), region: "USA".into(), dir: art.clone(), base: "Zeta Run (USA)".into(), current: [Some(old_front.clone()), None, None, None] };
+        let mut g = GameArt { sys: "gc".into(), title: "Zeta Run".into(), file: tmp.path().join("Zeta Run (USA).iso"), region: "USA".into(), dir: art.clone(), base: "Zeta Run (USA)".into(), current: [Some(old_front.clone()), None, None, None], pc: false };
         let st = Studio::new(&data);
         let done = st.apply_set(&mut g, &set, 1.0).unwrap();
         assert_eq!((done.changed.len(), done.had), (4, [true, false, false, false]));
@@ -612,7 +612,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let front = tmp.path().join("Zeta Run.png");
         image::RgbImage::from_fn(300, 480, |x, y| image::Rgb([(x % 256) as u8, (y % 256) as u8, 90])).save(&front).unwrap();
-        let g = |sys: &str| GameArt { sys: sys.into(), title: "Zeta Run".into(), file: tmp.path().join("Zeta Run.nsp"), region: String::new(), dir: tmp.path().into(), base: "Zeta Run".into(), current: [Some(front.clone()), None, None, None] };
+        let g = |sys: &str| GameArt { sys: sys.into(), title: "Zeta Run".into(), file: tmp.path().join("Zeta Run.nsp"), region: String::new(), dir: tmp.path().into(), base: "Zeta Run".into(), current: [Some(front.clone()), None, None, None], pc: false };
         let st = Studio::new(&tmp.path().join("data"));
         let list = st.list_for(&g("sw"), "disc", Vec::new(), 1.0);
         let made: Vec<&Cand> = list.iter().filter(|c| c.source == "made").collect();

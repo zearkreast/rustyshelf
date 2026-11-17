@@ -87,6 +87,11 @@ Box art and manuals are © their publishers.
   games' own settings pages with a Platform (Custom, PC or any console's shelf) and launch arguments, the Xbox One shelf for
   PC ports, automatic SteamGridDB posters for PC games without a cover, hiding the Open emulator and Surprise me tiles, and
   the Electron app's localization guide. These came into RustyShelf on top of Boxshelf beta.10.
+- [Zak](https://github.com/ZakAuMiel) made, in [their Boxshelf fork](https://github.com/ZakAuMiel/boxshelf-source), the
+  shelf of games streamed from another PC through Moonlight with its Settings page, the Pastel Pop theme, a French
+  translation, recomps on their console's shelf, and PC games' backs of the box from LaunchBox. These came into the
+  native app on top of Boxshelf beta.14: Game streaming, Pastel Pop, their French merged into ours, Art Studio and
+  manuals for a PC game on a console's shelf (it stays a PC game here), and backs of the box.
 - The Electron app's Linux start script's idea of finishing Electron's unpacking comes from wouldja's boxshelf-linux.
 
 <!-- fork-survey credits: made by `node scripts/fork-survey.js --credits` from the commit history; edits here are replaced -->
@@ -99,6 +104,7 @@ Brought into RustyShelf from other people's forks (they are the authors or co-au
 - [Haseo](https://github.com/Haseosama): Français (Settings → Display → Language, in both apps), games folders found in a folder, the drives to search, and the museum with huge libraries
 - [supalii](https://github.com/supalii): Custom games on any shelf, the Xbox One shelf, PC posters and hidden tiles (from supalii's fork)
 - [TrapEmAll](https://github.com/TrapEmAll): Retro TV guide: the progress line no longer stops the guide drawing; Retro TV: live progress for the commercial search and ad downloads; Credit TrapEmAll for the Museum's look-around; Museum: look left and right, and the side displays reachable from the wide view
+- [ZakAuMiel](https://github.com/ZakAuMiel): Recomps go to their console's shelf by themselves; Backs of the box for PC games, from LaunchBox's database; PC games can have a back of the box; Recomps on a console's shelf get the full case, Art Studio and manuals; French translation, with a language setting; Theme: Pastel Pop; Settings: a Streaming page in Library; Streaming shelf: play games from another PC through Moonlight
 
 <!-- /fork-survey credits -->
 

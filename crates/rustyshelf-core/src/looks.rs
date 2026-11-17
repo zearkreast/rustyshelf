@@ -220,10 +220,18 @@ pub fn media_word_lower(console: &str) -> String {
 
 static TABLE: LazyLock<Table> = LazyLock::new(|| serde_json::from_str(include_str!("../data/looks.json")).expect("data/looks.json"));
 
-/// A shelf's looks; the Media shelf's for a shelf the table doesn't have (a collection takes Home's).
+/// The table's shelf whose looks another shelf takes: a collection takes Home's, Game streaming the PC's.
+fn styled_as(shelf: &str) -> &str {
+    match shelf {
+        s if s.starts_with("col-") => "home",
+        "streaming" => "pc",
+        s => s,
+    }
+}
+
+/// A shelf's looks; the Media shelf's for a shelf the table doesn't have.
 pub fn look(shelf: &str) -> &'static Look {
-    let id = if shelf.starts_with("col-") { "home" } else { shelf };
-    TABLE.style.get(id).unwrap_or_else(|| &TABLE.style["media"])
+    TABLE.style.get(styled_as(shelf)).unwrap_or_else(|| &TABLE.style["media"])
 }
 
 /// A shelf's name as the shelf writes it large, and the line under it.
@@ -233,8 +241,7 @@ pub fn wordmark(shelf: &str) -> Option<(&'static str, &'static str)> {
 
 /// The colours a shelf's name is lettered in; white for a shelf without its own.
 pub fn lettering(shelf: &str) -> &'static Lettering {
-    let id = if shelf.starts_with("col-") { "home" } else { shelf };
-    TABLE.lettering.get(id).unwrap_or_else(|| &TABLE.lettering[""])
+    TABLE.lettering.get(styled_as(shelf)).unwrap_or_else(|| &TABLE.lettering[""])
 }
 
 /// The boot slide of the shelf `shelf`: its console's own, the Switch's for the Switch 2, and for a console
@@ -263,7 +270,7 @@ pub fn boot(shelf: &str) -> Boot {
 pub fn look_for(shelf: &str, g: &Game) -> Look {
     let boxed = g.box_plat.as_deref().and_then(|p| TABLE.style.get(p));
     let base = boxed.unwrap_or_else(|| look(shelf));
-    let pc = matches!(g.source, Source::Steam { .. }) || shelf == "pc" || shelf == "custom";
+    let pc = matches!(g.source, Source::Steam { .. }) || matches!(shelf, "pc" | "custom" | "streaming");
     if pc {
         Look { edge: 0.0, spine_band: look("pc").spine_band.clone(), ..base.clone() }
     } else {
@@ -307,6 +314,9 @@ mod tests {
         let boxed = look_for("pc", &Game { box_plat: Some("gc".into()), ..steam });
         assert_eq!((boxed.id.as_str(), boxed.edge, boxed.spine_band.map(|b| b.label)), ("gc", 0.0, Some("PC".into())));
         assert_eq!(look_for("gc", &Game::default()).edge, 0.022);
+        let streamed = look_for("streaming", &Game { box_plat: Some("gc".into()), ..Game::default() });
+        assert_eq!((look("streaming").id.as_str(), streamed.id.as_str(), streamed.edge, streamed.spine_band.map(|b| b.label)), ("pc", "gc", 0.0, Some("PC".into())));
+        assert_eq!(wordmark("streaming"), Some(("Streaming", "Games from another PC")));
 
         let on = gc.on_shelf("gc");
         assert!((on.depth - 0.07476).abs() < 1e-6 && on.edge == on.edge_in && (on.rc - 0.712 * 0.03).abs() < 1e-6);
