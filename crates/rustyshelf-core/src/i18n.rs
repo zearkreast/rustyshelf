@@ -334,6 +334,7 @@ mod tests {
         assert_eq!(tr("tr", "3 of 5 ready"), "5 emülatörden 3 tanesi hazır");
         assert_eq!(tr("tr", "4.2% · 15 pts"), "%4.2 · 15 puan");
         assert_eq!(tr("tr", "How to get it"), "Nasıl alınır?");
+        assert_eq!(tr("tr", "Needs attention · 40"), "Dikkat gerekiyor · 40");
         assert_eq!(tr("pt", "3 of 5 ready"), "3 de 5 prontos");
         assert_eq!(tr("fr", "21 · Earned"), "21 · Obtenu");
         assert_eq!(tr("tr", "LaunchBox's PC games: Reading the game database… 12%"), "LaunchBox'ın PC oyunları: Oyun veritabanı okunuyor… %12");

@@ -3641,7 +3641,14 @@ pub fn draw(
     let preview = s.art_preview(&mut images);
     let pics = s.row_pics(&mut images);
     let n = page.rows.len();
-    let at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
+    let mut at = s.stack.last().map_or(0, |p| p.1).min(n.saturating_sub(1));
+    // a page that opens on a section's heading starts on the row under it
+    if let Some(i) = (at..n).find(|i| !heading(&page.rows[*i].label) || page.rows[*i].press.is_some()).filter(|i| *i != at) {
+        at = i;
+        if let Some(p) = s.stack.last_mut() {
+            p.1 = i;
+        }
+    }
     let (highlight, scroll) = s.motion.now(now);
     let mv = ListMotion { lang: s.text(&["ui", "language"]), highlight, scroll, slid: s.motion.slid(now), flipped: s.motion.flipped(now), pressed: s.motion.just_pressed(now), pics };
     let lang = s.text(&["ui", "language"]);
