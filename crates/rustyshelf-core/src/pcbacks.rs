@@ -117,7 +117,7 @@ fn run_with(data: &Path, idx: &mut Index, wants: &[Want], region: &str, now: u64
     }
     if missed {
         let tmp = file.with_extension("json.tmp");
-        if std::fs::write(&tmp, Value::Object(miss).to_string()).is_ok() {
+        if file.parent().is_some_and(|d| std::fs::create_dir_all(d).is_ok()) && std::fs::write(&tmp, Value::Object(miss).to_string()).is_ok() {
             let _ = std::fs::rename(&tmp, &file);
         }
     }
@@ -199,6 +199,18 @@ mod tests {
         run_with(&data, &mut idx, &many, "auto", 1_000, &get);
         let memo: Value = serde_json::from_slice(&std::fs::read(data.join("pc-covers/back-miss.json")).unwrap()).unwrap();
         assert_eq!(memo.as_object().unwrap().len(), 1 + RUN_MAX);
+    }
+
+    #[test]
+    fn a_miss_is_kept_with_no_pc_covers_folder_yet() {
+        let t = tempfile::tempdir().unwrap();
+        let (data, cache) = (t.path().join("data"), t.path().join("cache"));
+        std::fs::create_dir_all(&cache).unwrap();
+        cache_with(&cache, &[LB_PC]);
+        let mut idx = index(&cache).unwrap();
+        assert_eq!(run_with(&data, &mut idx, &[want("custom-a", "Nothing Like It", false)], "auto", 1_000, &|_, _| None), 0);
+        let memo: Value = serde_json::from_slice(&std::fs::read(data.join("pc-covers/back-miss.json")).unwrap()).unwrap();
+        assert_eq!(memo, json!({ "custom-a|Nothing Like It": 1_000 }));
     }
 
     #[test]
