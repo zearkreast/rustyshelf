@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   windows:
-    name: Windows exe (native app)
+    name: Windows zip and installer (native app)
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -46,15 +46,16 @@ jobs:
           RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
           RUSTYSHELF_VERSION: ${{ inputs.version }}
         run: cargo build --release --locked -p rustyshelf
-      - name: Name it for the release
+      - name: Zip and installer
         shell: bash
         run: |
-          mkdir out
-          cp target/release/rustyshelf.exe "out/RustyShelf-native-${{ inputs.version }}-windows.exe"
+          bash .github/windows/package.sh target/release/rustyshelf.exe "RustyShelf-native-${{ inputs.version }}" "${{ inputs.version }}" out
       - uses: actions/upload-artifact@v4
         with:
           name: alpha-windows
-          path: out/*.exe
+          path: |
+            out/*.zip
+            out/*.exe
           if-no-files-found: error
           retention-days: 14
 

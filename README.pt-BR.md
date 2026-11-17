@@ -29,8 +29,9 @@ e se jogam com um só controle.
 ## Instalação
 
 As versões para Windows, Linux e Android estão na [página de releases](https://github.com/zearkreast/rustyshelf/releases):
-`RustyShelf-<versão>-windows.exe` (sem instalador), `RustyShelf-<versão>-linux.AppImage` e
-`RustyShelf-<versão>-android.apk`. Ou execute a partir do código-fonte:
+`RustyShelf-<versão>-windows-setup.exe` (um instalador, só para o seu usuário, sem direitos de administrador) ou
+`RustyShelf-<versão>-windows.zip` (descompacte em qualquer lugar: a pasta RustyShelf tem o app e a pasta `data`, que
+ficam juntas), `RustyShelf-<versão>-linux.AppImage` e `RustyShelf-<versão>-android.apk`. Ou execute a partir do código-fonte:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

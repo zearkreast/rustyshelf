@@ -29,8 +29,9 @@ Les jeux de console émulés, les jeux Steam et autres jeux PC se tiennent côte
 ## Installation
 
 Les versions pour Windows, Linux et Android sont sur la [page des releases](https://github.com/zearkreast/rustyshelf/releases) :
-`RustyShelf-<version>-windows.exe` (sans installateur), `RustyShelf-<version>-linux.AppImage` et
-`RustyShelf-<version>-android.apk`. Ou lancez-la depuis les sources :
+`RustyShelf-<version>-windows-setup.exe` (un installateur, pour votre seul compte, sans droits d'administrateur) ou
+`RustyShelf-<version>-windows.zip` (à décompresser n'importe où : le dossier RustyShelf contient l'application et son
+dossier `data`, qui restent ensemble), `RustyShelf-<version>-linux.AppImage` et `RustyShelf-<version>-android.apk`. Ou lancez-la depuis les sources :
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed

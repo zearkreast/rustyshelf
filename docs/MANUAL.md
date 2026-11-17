@@ -394,9 +394,9 @@ what to do from the commit message:
 | Commit message contains | Result |
 |---|---|
 | Nothing special | The check stops; nothing is built |
-| `For build` | The Windows exe, the Linux AppImage and the Android APK are built (`build.yml`) and kept as the run's downloads for 14 days; no release |
+| `For build` | The Windows zip and installer, the Linux AppImage and the Android APK are built (`build.yml`) and kept as the run's downloads for 14 days; no release |
 | `For version 0.5.0` | The same builds, then the GitHub release `v0.5.0` (`release.yml`) with their SHA-256 sums, marked as the latest; its text is `.github/release-notes/v0.5.0.md` when that file is there, else the commit message |
-| `For alpha` | The Windows exe and the Android APK, published as a prerelease `A.B.C-alpha.N` (`alpha.yml`) |
+| `For alpha` | The Windows zip and installer and the Android APK, published as a prerelease `A.B.C-alpha.N` (`alpha.yml`) |
 
 A release is `A.B.C`, the Cargo workspace's version (`Cargo.toml`), which the app shows; a build is `A.B.C.DDDD`, `DDDD`
 the build of it, counted from the release. `For build` and `For version` fail when they name another version than Cargo's: change the workspace

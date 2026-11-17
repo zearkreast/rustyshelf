@@ -1,6 +1,6 @@
-# RustyShelf builds of the native app (crates/): Windows (exe), Linux (AppImage) and Android (APK), as the run's
-# downloads. Called by build-release-check.yml (a "For build" commit) and by release.yml (a release). Nothing is
-# published here.
+# RustyShelf builds of the native app (crates/): Windows (a zip with the app and its data folder, and an installer),
+# Linux (AppImage) and Android (APK), as the run's downloads. Called by build-release-check.yml (a "For build" commit) and by
+# release.yml (a release). Nothing is published here.
 name: Build
 
 on:
@@ -70,7 +70,7 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Windows exe
+    name: Windows zip and installer
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -93,15 +93,16 @@ jobs:
           RUSTYSHELF_SS_DEV_PASS: ${{ secrets.SS_DEV_PASS }}
           RUSTYSHELF_VERSION: ${{ inputs.version }}
         run: cargo build --release --locked -p rustyshelf
-      - name: Name it for the build
+      - name: Zip and installer
         shell: bash
         run: |
-          mkdir out
-          cp target/release/rustyshelf.exe "out/RustyShelf-${{ inputs.version }}-windows.exe"
+          bash .github/windows/package.sh target/release/rustyshelf.exe "RustyShelf-${{ inputs.version }}" "${{ inputs.version }}" out
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: out/*.exe
+          path: |
+            out/*.zip
+            out/*.exe
           if-no-files-found: error
           retention-days: 14
 

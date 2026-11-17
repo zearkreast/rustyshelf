@@ -44,8 +44,9 @@ The manual lists [what works so far](docs/MANUAL.md#what-works) and what isn't i
 ## Install
 
 Windows, Linux and Android builds are on the [releases page](https://github.com/zearkreast/rustyshelf/releases):
-`RustyShelf-<version>-windows.exe` (no installer), `RustyShelf-<version>-linux.AppImage` and
-`RustyShelf-<version>-android.apk`. Or run it from source:
+`RustyShelf-<version>-windows-setup.exe` (an installer, for your user alone, no admin rights needed) or
+`RustyShelf-<version>-windows.zip` (unzip it anywhere: the RustyShelf folder holds the app and its `data` folder,
+which stay together), `RustyShelf-<version>-linux.AppImage` and `RustyShelf-<version>-android.apk`. Or run it from source:
 
 ```bash
 cargo run -p rustyshelf --release -- --windowed
