@@ -307,12 +307,8 @@ pub fn navigate(
         toast.until = time.elapsed_secs() + 3.0;
         return;
     }
-    if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() {
-        if settings.kid_on() {
-            (toast.text, toast.until) = (KID_SAYS.into(), time.elapsed_secs() + 3.0);
-        } else {
-            exit.write(AppExit::Success);
-        }
+    if keys.just_pressed(KeyCode::Escape) && !asked && playing.watched.is_none() && playing.title.is_none() {
+        settings.esc_quick = true;
     }
     if playing.title.is_some() {
         // a combo still held from closing the game mustn't count on the shelf

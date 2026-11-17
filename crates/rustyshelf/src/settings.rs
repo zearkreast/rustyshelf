@@ -291,6 +291,8 @@ pub struct Settings {
     wanted: Option<Screen>,
     /// the Home menu or the manual reader is up: the keys and the pads are its own
     pub keys_taken: bool,
+    /// Esc on the bare shelf: the quick menu opens next frame, rather than the app closing
+    pub esc_quick: bool,
     /// the prompts of the controller in use
     pub pad_auto: Glyphs,
     /// a manual to be opened in the reader: its pages
@@ -415,6 +417,7 @@ impl Default for Settings {
             open_emulator: None,
             wanted: None,
             keys_taken: false,
+            esc_quick: false,
             pad_auto: Glyphs::Xbox,
             manual: None,
             gallery: false,
@@ -2758,7 +2761,7 @@ pub fn input(
             None
         } else if keys.just_pressed(KeyCode::KeyG) {
             Some(panels::Which::Sort)
-        } else if keys.just_pressed(KeyCode::Tab) {
+        } else if keys.just_pressed(KeyCode::Tab) || std::mem::take(&mut s.esc_quick) {
             Some(panels::Which::Quick)
         } else {
             s.start_button(start.0, start.1, start.2, now)

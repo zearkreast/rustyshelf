@@ -292,7 +292,7 @@ const KEYS: [(&[&str], &str); 11] = [
     (&["/"], "Find"),
     (&["G"], "Sort"),
     (&["S"], "Settings"),
-    (&["Esc"], "Exit"),
+    (&["Esc"], "Quick menu"),
 ];
 /// (the pad's buttons by `pads::cap`'s keys)
 const PAD_KEYS: [(&[&str], &str); 8] = [

@@ -355,12 +355,12 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Favorite | H | hold Y |
 | Details | I | X |
 | Sort and filter (the Sort panel) | G | hold Menu |
-| Quick menu: Favorite, Details, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab | Menu |
+| Quick menu: Favorite, Details, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab or Esc | Menu |
 | Settings | S | View |
 | Surprise me | R | left stick click |
 | Find a game | / | hold the left stick |
 | Home menu | Home / P | Guide (over a game: Guide, or hold View) |
-| Quit | Esc | |
+| Quit | Esc, then Power → Exit RustyShelf | |
 
 ## For developers
 
