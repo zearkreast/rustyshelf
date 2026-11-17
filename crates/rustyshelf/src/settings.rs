@@ -448,10 +448,20 @@ pub struct SoundPrefs {
     pub by_shelf: std::collections::HashMap<String, String>,
 }
 
+/// What the menu music needs of SoundPrefs, borrowed from the settings.
+pub struct MusicPrefs<'a> {
+    pub on: bool,
+    pub volume: f32,
+    pub voice: &'a str,
+    pub music: &'a str,
+    pub music_level: f32,
+}
+
 impl Default for Settings {
     fn default() -> Self {
         let app_root = paths::app_root();
-        let cfg = Config::load(&paths::data_dir(&app_root)).unwrap_or_default();
+        let data = paths::data_dir(&app_root);
+        let cfg = Config::load(&data).unwrap_or_default();
         let wizard = !cfg.setup_done();
         let other = if wizard { other_setup(&app_root) } else { None };
         let mut s = Settings {
@@ -516,7 +526,7 @@ impl Default for Settings {
             kid_open: false,
             tab: 0,
             finding: Default::default(),
-            ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&paths::data_dir(&paths::app_root()))),
+            ra: std::sync::Arc::new(rustyshelf_core::ra::Ra::new(&data)),
             ra_answer: None,
             igdb_answer: None,
             shots_asked: std::collections::HashSet::new(),
@@ -604,18 +614,34 @@ impl Settings {
     }
 
     pub fn sound(&self) -> SoundPrefs {
-        let number = |path: &[&str], unset: f32| at(&self.cfg, path).and_then(Value::as_f64).map_or(unset, |v| v as f32).clamp(0.0, 1.0);
+        let m = self.music_prefs();
         SoundPrefs {
-            on: self.flag(&["ui", "sound"], true),
-            volume: number(&["ui", "volume"], 0.7),
-            voice: self.text(&["ui", "soundTheme"]),
+            on: m.on,
+            volume: m.volume,
+            voice: m.voice.into(),
             boot: Some(self.text(&["ui", "bootSound"])).filter(|b| !b.is_empty()).unwrap_or_else(|| "chime".into()),
-            boot_volume: number(&["ui", "bootVolume"], 1.0),
-            music: Some(self.text(&["ui", "music"])).filter(|m| !m.is_empty()).unwrap_or_else(|| "off".into()),
-            music_level: number(&["ui", "musicLevel"], 0.4),
+            boot_volume: self.level(&["ui", "bootVolume"], 1.0),
+            music: m.music.into(),
+            music_level: m.music_level,
             built_in_songs: self.flag(&["ui", "builtInSongs"], true),
             by_shelf: self.cfg["ui"]["soundByShelf"].as_object().map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str().filter(|v| !v.is_empty())?.to_string()))).collect()).unwrap_or_default(),
         }
+    }
+
+    pub fn music_prefs(&self) -> MusicPrefs<'_> {
+        let text = |path: &[&str]| at(&self.cfg, path).and_then(Value::as_str).unwrap_or("");
+        MusicPrefs {
+            on: self.flag(&["ui", "sound"], true),
+            volume: self.level(&["ui", "volume"], 0.7),
+            voice: text(&["ui", "soundTheme"]),
+            music: Some(text(&["ui", "music"])).filter(|m| !m.is_empty()).unwrap_or("off"),
+            music_level: self.level(&["ui", "musicLevel"], 0.4),
+        }
+    }
+
+    /// A level from 0 to 1 in the settings.
+    fn level(&self, path: &[&str], unset: f32) -> f32 {
+        at(&self.cfg, path).and_then(Value::as_f64).map_or(unset, |v| v as f32).clamp(0.0, 1.0)
     }
 
     /// The sounds there are to choose from: the built-in voices, then your custom sounds; by id and name.

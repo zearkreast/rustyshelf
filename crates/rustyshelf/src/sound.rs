@@ -93,8 +93,9 @@ impl Default for Sounds {
             }
         });
         let mut state = cues::Sound::default();
-        state.set_songs(rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root()).0, true, 0.0);
-        Sounds { root: rustyshelf_core::paths::app_root(), state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: HashMap::new(), packs: Vec::new(), pack: None, last_pack_tick: 0.0, ducked: None }
+        let root = rustyshelf_core::paths::app_root();
+        state.set_songs(rustyshelf_core::usermusic::songs(&root).0, true, 0.0);
+        Sounds { root, state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: HashMap::new(), packs: Vec::new(), pack: None, last_pack_tick: 0.0, ducked: None }
     }
 }
 
@@ -152,14 +153,14 @@ pub fn run(mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<
         sounds.on = s.on;
         sounds.volume = s.volume;
         (sounds.voice, sounds.by_shelf) = (s.voice.clone(), s.by_shelf.clone());
-        sounds.packs = soundpacks::list(&rustyshelf_core::paths::app_root());
+        sounds.packs = soundpacks::list(&sounds.root);
         sounds.choose();
         sounds.state.set_boot(&s.boot, s.boot_volume);
         let now = sounds.started.elapsed().as_secs_f64() * 1000.0;
         sounds.state.with_built_in(s.built_in_songs, now);
     }
     if std::mem::take(&mut settings.reload_songs) {
-        let (songs, skipped) = rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root());
+        let (songs, skipped) = rustyshelf_core::usermusic::songs(&sounds.root);
         let found = format!("{} song{} loaded", songs.len(), plural_s(songs.len()));
         settings.say(if skipped.is_empty() { found } else { format!("{found} · {} couldn't be read", skipped.len()) });
         let (with, now) = (settings.sound().built_in_songs, sounds.started.elapsed().as_secs_f64() * 1000.0);

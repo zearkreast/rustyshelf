@@ -282,7 +282,7 @@ pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, mut settings: R
         settings.say(format!("{n} track{} found", plural_s(n)));
         music.reload = true;
     }
-    let prefs = settings.sound();
+    let prefs = settings.music_prefs();
     let shelf = match &lib.0 {
         LibraryState::Ready(l) => l.shelves.get(cursor.shelf),
         _ => None,
@@ -290,14 +290,14 @@ pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, mut settings: R
     let heard = prefs.on && prefs.music_level > 0.0 && prefs.volume > 0.0 && playing.title.is_none() && shelf.is_some();
     // a sound pack with music of its own plays it in place of the track chosen
     let pack = sounds.pack_music().filter(|_| heard && prefs.music != "off");
-    let track = music::track(&prefs.music).filter(|_| heard && pack.is_none());
-    let wanted = match &pack {
-        Some(f) => Some(format!("pack:{}", f.display())),
-        None => track.map(|t| t.id.to_string()).or((heard && prefs.music == "own").then(|| "own".to_string())),
+    let track = music::track(prefs.music).filter(|_| heard && pack.is_none());
+    let wanted: Option<std::borrow::Cow<str>> = match &pack {
+        Some(f) => Some(format!("pack:{}", f.display()).into()),
+        None => track.map(|t| t.id.into()).or((heard && prefs.music == "own").then_some("own".into())),
     };
-    let tonic = music::tonic(cues::theme(&prefs.voice).root(), shelf.map_or(0, |s| cues::key_of(&s.id).0));
-    if wanted != music.track || (std::mem::take(&mut music.reload) && wanted.as_deref() == Some("own")) {
-        music.track = wanted.clone();
+    let tonic = music::tonic(cues::theme(prefs.voice).root(), shelf.map_or(0, |s| cues::key_of(&s.id).0));
+    if wanted.as_deref() != music.track.as_deref() || (std::mem::take(&mut music.reload) && wanted.as_deref() == Some("own")) {
+        music.track = wanted.as_deref().map(String::from);
         music.tonic = tonic;
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.subsec_nanos() ^ d.as_secs() as u32);
         let _ = music.ask.send(match (track, &wanted) {

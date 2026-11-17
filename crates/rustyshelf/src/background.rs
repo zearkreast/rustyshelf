@@ -39,6 +39,7 @@ struct Pass {
     auto: bool,
     shots: bool,
     art_region: String,
+    data: std::path::PathBuf,
 }
 
 #[derive(Resource, Default)]
@@ -89,7 +90,7 @@ pub fn run(time: Res<Time>, base: Res<Base>, settings: Res<Settings>, playing: R
 }
 
 fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings: &Settings) {
-    let data = paths::data_dir(&paths::app_root());
+    let data = paths::data_dir(&lib.app_root);
     let (auto, shots) = (settings.auto_covers(), settings.more_shots());
     let (cfg, seal) = (rustyshelf_core::config::Config::load(&data).ok(), rustyshelf_core::seal::key(&paths::env_var));
     let ig = cfg.as_ref().and_then(|c| igdb::Igdb::from_config(c, seal.as_ref())).map(Arc::new);
@@ -98,7 +99,7 @@ fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings:
         return;
     }
     let ss = if auto { cfg.as_ref().and_then(|c| screenscraper::ScreenScraper::from_config(c, &data, seal.as_ref())).map(Arc::new) } else { None };
-    bg.pass = Some(Arc::new(Pass { ss, igdb: ig, auto, shots, art_region: settings.art_region() }));
+    bg.pass = Some(Arc::new(Pass { ss, igdb: ig, auto, shots, art_region: settings.art_region(), data }));
     for shelf in lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })) {
         for g in shelf.games.iter().filter(|g| g.source == From::Rom && !g.file.as_os_str().is_empty()) {
             let info = g.info.clone().unwrap_or_default();
@@ -111,11 +112,11 @@ fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings:
 
 /// One game: its screenshots topped up, then IGDB's info for its gaps. Whether ScreenScraper was asked.
 fn look(pass: &Pass, item: &Item, ss_left: bool) -> bool {
-    let data = paths::data_dir(&paths::app_root());
-    let cache = paths::boxart_cache(&data);
+    let data = &pass.data;
+    let cache = paths::boxart_cache(data);
     let lr = moreshots::Libretro { cache_dir: &cache, region: &pass.art_region };
     let ss = pass.ss.as_deref().filter(|_| pass.auto && ss_left).map(moreshots::Ss);
-    let ig = pass.igdb.as_deref().map(|client| moreshots::Igdb { client, data_dir: &data });
+    let ig = pass.igdb.as_deref().map(|client| moreshots::Igdb { client, data_dir: data });
     let mut sources: Vec<&dyn Source> = Vec::new();
     if pass.auto {
         sources.extend(ss.as_ref().map(|s| s as &dyn Source));
@@ -124,7 +125,7 @@ fn look(pass: &Pass, item: &Item, ss_left: bool) -> bool {
     sources.extend(ig.as_ref().map(|s| s as &dyn Source));
     let mut asked_ss = false;
     if pass.shots {
-        let mut index = moreshots::Index::load(&data);
+        let mut index = moreshots::Index::load(data);
         if index.need(&item.sys, &item.file, &item.title, &item.info.shots, &sources) {
             asked_ss = ss.is_some();
             let game = moreshots::Game { file: &item.file, title: &item.title, region: &item.region };
@@ -133,7 +134,7 @@ fn look(pass: &Pass, item: &Item, ss_left: bool) -> bool {
     }
     if let Some(client) = pass.igdb.as_deref().filter(|c| !c.is_refused() && igdb::gaps(Some(&item.info))) {
         let mut info = item.info.clone();
-        igdb::lookup_info(Some(client), &data, &item.sys, &item.file, &item.title, &mut info);
+        igdb::lookup_info(Some(client), data, &item.sys, &item.file, &item.title, &mut info);
     }
     asked_ss
 }

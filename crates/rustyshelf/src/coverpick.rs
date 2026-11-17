@@ -325,13 +325,13 @@ pub fn run(
     (mut refresh, base): (ResMut<crate::loading::Refresh>, Res<crate::loading::Base>),
 ) {
     let now = time.elapsed_secs();
-    let root = rustyshelf_core::paths::app_root();
+    let lib = base.0.as_deref();
+    let root = lib.map_or_else(rustyshelf_core::paths::app_root, |l| l.app_root.clone());
     let data = rustyshelf_core::paths::data_dir(&root);
     let pick = &mut *pick;
     if pick.reload && crate::loading::read_again(&mut refresh, &root) {
         (pick.reload, pick.recount) = (false, true);
     }
-    let lib = base.0.as_deref();
     if base.is_changed() || pick.recount {
         pick.recount = false;
         pick.missing = lib.map(|l| missing(l, &data).len());
