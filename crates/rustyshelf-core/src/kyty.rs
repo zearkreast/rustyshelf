@@ -2,8 +2,9 @@
 // Boxshelf's main/kyty.js, as RustyShelf has it.
 //! PS5 games through Kyty: folders with eboot.bin and sce_sys/param.json, started straight in kyty_emulator.exe the way
 //! Kyty's own launcher does, so a game boots with the settings chosen there.
-//!   - the launcher's settings (%ProgramData%\Kyty\Kyty.ini) become kyty_emulator's options; fullscreen and the hidden
-//!     cursor are always on
+//!   - the launcher's settings (Kyty.ini beside it in a portable setup, else %ProgramData%\Kyty\Kyty.ini on Windows
+//!     and ~/.config/Kyty/Kyty.ini on Linux) become kyty_emulator's options; fullscreen and the hidden cursor are
+//!     always on
 //!   - a u59-preset.json beside the emulator (KytyJets) is applied as environment variables, after clearing inherited
 //!     KYTY_* / TRACY_* ones, as its launcher does
 //!   - the game's patch file: _Patches\<title id>.json beside the emulator
@@ -97,9 +98,18 @@ pub fn read_ini(file: &Path) -> Option<HashMap<String, HashMap<String, String>>>
     Some(out)
 }
 
-fn ini_path() -> PathBuf {
-    let base = std::env::var_os("ProgramData").filter(|v| !v.is_empty()).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("C:\\ProgramData"));
-    base.join("Kyty").join("Kyty.ini")
+/// Where the launcher beside `exe` keeps its settings, as it looks for them.
+fn ini_path(exe: &Path) -> PathBuf {
+    let portable = exe.with_file_name("Kyty.ini");
+    if is_file(&portable) {
+        return portable;
+    }
+    let var = |n: &str| std::env::var_os(n).filter(|v| !v.is_empty()).map(PathBuf::from);
+    if cfg!(windows) {
+        var("ProgramData").unwrap_or_else(|| PathBuf::from("C:\\ProgramData")).join("Kyty").join("Kyty.ini")
+    } else {
+        var("XDG_CONFIG_HOME").or_else(|| var("HOME").map(|h| h.join(".config"))).unwrap_or_default().join("Kyty").join("Kyty.ini")
+    }
 }
 
 /// option → what it takes ("" for a plain switch)
@@ -117,9 +127,9 @@ pub fn parse_options(help: &str) -> Option<Options> {
 /// The options this build understands, from its own help: builds differ, and one handed an option it doesn't know
 /// prints its help and quits. Kept per program and date.
 fn options_of(exe: &Path) -> Option<Options> {
-    let name = exe.file_name()?.to_string_lossy().to_lowercase();
+    let name = exe.file_stem()?.to_string_lossy().to_lowercase();
     // only the emulator prints its options; the launcher would open its window
-    if !name.ends_with("kyty_emulator.exe") {
+    if name != "kyty_emulator" {
         return None;
     }
     let mtime = std::fs::metadata(exe).ok()?.modified().ok()?;
@@ -198,7 +208,7 @@ pub struct Spec {
 }
 
 pub fn spec(exe: &Path, file: &Path) -> Spec {
-    let ini = read_ini(&ini_path()).unwrap_or_default();
+    let ini = read_ini(&ini_path(exe)).unwrap_or_default();
     let opts = options_of(exe);
     spec_with(exe, file, &ini, opts.as_ref())
 }
@@ -370,6 +380,15 @@ fn js_number(n: &serde_json::Number) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_portable_launchers_settings_come_first() {
+        let t = tempfile::tempdir().unwrap();
+        let emu = t.path().join(if cfg!(windows) { "kyty_emulator.exe" } else { "kyty_emulator" });
+        assert!(ini_path(&emu).ends_with("Kyty/Kyty.ini"));
+        std::fs::write(t.path().join("Kyty.ini"), "").unwrap();
+        assert_eq!(ini_path(&emu), t.path().join("Kyty.ini"));
+    }
 
     #[test]
     fn param() {

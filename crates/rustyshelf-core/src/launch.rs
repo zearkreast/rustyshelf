@@ -398,8 +398,9 @@ pub fn plan(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cf
     }
     if id == "ps5" && via_launcher {
         // the launcher itself, where the game is started; it takes no game to open
-        let Some(ui) = ["kyty_launcher.exe", "launcher.exe"].iter().map(|n| exe.with_file_name(n)).find(|p| is_file(p)) else {
-            return refuse("Kyty's launcher (kyty_launcher.exe) isn't next to kyty_emulator.exe. Turn off \"Start games through Kyty's launcher\" in Settings → PS5, or check the emulator path.");
+        let names: &[&str] = if cfg!(windows) { &["kyty_launcher.exe", "launcher.exe"] } else { &["kyty_launcher"] };
+        let Some(ui) = names.iter().map(|n| exe.with_file_name(n)).find(|p| is_file(p)) else {
+            return refuse("KytyPS5's launcher (kyty_launcher) isn't next to kyty_emulator. Turn off \"Start games through KytyPS5's launcher\" in Settings → PS5, or check the emulator path.");
         };
         exe = ui;
         game_args = String::new();

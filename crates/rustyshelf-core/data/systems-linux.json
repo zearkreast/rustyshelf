@@ -415,9 +415,13 @@
   {
    "id": "ps5",
    "name": "PS5",
-   "emulatorName": "Kyty",
-   "exeNames": [],
+   "emulatorName": "KytyPS5",
+   "exeNames": [
+    "kyty_emulator"
+   ],
    "emulatorFolders": [
+    "{app}/KytyPS5",
+    "{app}/Emulators/KytyPS5",
     "{app}",
     "{app}/Emulators",
     "%HOME%/Applications",
@@ -430,12 +434,15 @@
     "/opt",
     "%HOME%/Emulation/tools",
     "%HOME%/Desktop",
-    "%HOME%/Downloads"
+    "%HOME%/Downloads",
+    "%HOME%/Applications/KytyPS5",
+    "%HOME%/KytyPS5"
    ],
    "romFolderNames": [
     "ps5",
     "playstation 5",
-    "kyty"
+    "kyty",
+    "kytyps5"
    ],
    "extensions": [
     "bin"

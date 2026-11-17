@@ -41,7 +41,7 @@ const KNOWN: &[(&str, &str)] = &[
     ("vbam", "VisualBoyAdvance-M"),
     ("flycast", "Flycast"),
     ("rmg", "RMG"),
-    ("kyty", "Kyty"),
+    ("kyty", "KytyPS5"),
     ("xemu", "xemu"),
     ("emuhawk", "BizHawk"),
     ("bizhawk", "BizHawk"),
@@ -107,7 +107,8 @@ fn rest(s: &str, emu: &str) -> String {
     let mut out: Vec<String> = Vec::new();
     for t in tokens(s) {
         let l = t.to_lowercase();
-        if NOISE.is_match(&t) || l == e {
+        // "kyty" of kyty_emulator is KytyPS5's own word, not a build's
+        if NOISE.is_match(&t) || l == e || (l.chars().count() >= 4 && e.starts_with(&l)) {
             continue;
         }
         let len = t.chars().count();
@@ -166,5 +167,17 @@ pub fn known_name(p: &str) -> &'static str {
     match known(segs.pop().unwrap_or("")) {
         "" => known(segs.pop().unwrap_or("")),
         k => k,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kyty_emulator_is_kytyps5_and_not_a_build_of_it() {
+        assert_eq!(label(r"C:\Emulators\KytyPS5\kyty_emulator.exe"), "KytyPS5");
+        assert_eq!(label("/home/me/Applications/KytyPS5/kyty_emulator"), "KytyPS5");
+        assert_eq!(label(r"C:\Emulators\Kytyps5\KytyJets\kyty_emulator.exe"), "KytyPS5 · KytyJets");
     }
 }

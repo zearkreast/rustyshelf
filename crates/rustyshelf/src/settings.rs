@@ -1843,10 +1843,10 @@ impl Settings {
                 }
                 if id == "ps5" {
                     rows.push(self.switch(
-                        "Start games through Kyty's launcher",
+                        "Start games through KytyPS5's launcher",
                         &["systems", id, "viaLauncher"],
                         false,
-                        "Off: Play starts the game straight away, with the settings you chose in Kyty's launcher. On: Play opens Kyty's launcher and you start the game there.",
+                        "Off: Play starts the game straight away, with the settings you chose in KytyPS5's launcher. On: Play opens KytyPS5's launcher and you start the game there.",
                     ));
                 }
                 rows.push(self.typed("Game launch options", &["systems", id, "gameArgs"], "What RustyShelf passes to the emulator when you play. {rom} is the game file."));
