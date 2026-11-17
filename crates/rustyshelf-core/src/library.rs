@@ -1,7 +1,7 @@
 // Based on Boxshelf by sassiestrhihno (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the shelves of
-// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf and PC games' backs
-// of the box are from ZakAuMiel/boxshelf-source (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of
-// Boxshelf: ported from its main.js.
+// Boxshelf's main.js library build (buildLibrary), as RustyShelf has it. The Game streaming shelf, PC games' backs of
+// the box and a recomp's whole case on its console's shelf are from ZakAuMiel/boxshelf-source
+// (https://github.com/ZakAuMiel/boxshelf-source, GPL-3.0), Zak's fork of Boxshelf: ported from its main.js.
 //! Every shelf: each console's, read from the settings and the games folders; the PC shelf's Steam and store games;
 //! the Custom shelf's Quiver apps and programs added by hand; the Game streaming shelf's apps of another PC.
 
@@ -140,6 +140,16 @@ impl PcArt<'_> {
             source: Source::Pc(Box::new(g)),
             ..Game::default()
         }
+    }
+
+    /// A PC game on a console's shelf, with the spine, disc and manual the Art Studio and Details gave it.
+    fn on_console(&self, mut g: Game) -> Game {
+        if let Some(spine) = pccovers::part(self.data, &g.id, "spine") {
+            (g.art.spine, g.art.made_spine) = (Some(spine), false);
+        }
+        g.art.disc = pccovers::part(self.data, &g.id, "disc");
+        (g.art.manual, g.art.manual_pdf) = pccovers::manual(self.data, &g.id);
+        g
     }
 
     /// A Game streaming app: the cover chosen for it, its console box, Moonlight's box art, else the automatic one.
@@ -398,7 +408,7 @@ impl Library {
                 None if port => ports.push(game),
                 None => custom.push(game),
                 Some("pc") => pc.push(game),
-                Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(game),
+                Some(id) if systems().console(id).is_some_and(|c| config.system(c).enabled) => moved.entry(id.to_string()).or_default().push(art.on_console(game)),
                 Some(_) => back.push(game),
             }
         }
@@ -501,7 +511,8 @@ fn convert_pdf_manuals(lib: &Library) -> bool {
         for g in shelf.games.iter().filter(|g| g.art.manual.is_empty()) {
             let Some(pdf) = &g.art.manual_pdf else { continue };
             let Some(dir) = pdf.parent() else { continue };
-            changed |= crate::manuals::pdf_to_pages(pdf, dir, &crate::art::art_base(&g.file)).is_ok_and(|n| n > 0);
+            let base = if matches!(g.source, Source::Pc(_)) { pccovers::safe_id(&g.id) } else { crate::art::art_base(&g.file) };
+            changed |= crate::manuals::pdf_to_pages(pdf, dir, &base).is_ok_and(|n| n > 0);
         }
     }
     changed
@@ -844,6 +855,24 @@ mod tests {
         assert_eq!((g.art.front, g.art.spine, g.hero), (Some(d.join("pc-console-covers/custom-zeta.jpg")), Some(d.join("pc-console-covers/custom-zeta-spine.jpg")), None));
         let g = art.pc_game(PcGame { id: "epic-omega".into(), source: "epic", title: "Omega".into(), installed: Some(false), ..PcGame::default() });
         assert_eq!((g.art.front, g.hero, g.not_installed), (Some(d.join("steam-art/77_cover.jpg")), Some(d.join("steam-art/77_hero.jpg")), true));
+    }
+
+    #[test]
+    fn a_program_on_a_console_s_shelf_has_its_whole_case() {
+        let t = tempfile::tempdir().unwrap();
+        let d = t.path();
+        for f in ["pc-covers/custom-zeta.png", "pc-covers/custom-zeta.back.jpg", "pc-covers/custom-zeta.spine.png", "pc-covers/custom-zeta.disc.webp", "pc-covers/custom-zeta-manual-01.jpg", "pc-console-covers/custom-omega.jpg", "pc-console-covers/custom-omega-spine.jpg", "pc-covers/custom-omega-manual.pdf"] {
+            touch(&d.join(f));
+        }
+        let (cfg, sizes) = (Config::parse("{}").unwrap(), ScanData::default());
+        let art = PcArt { cfg: &cfg, data: d, boxes: true, steam_ids: HashMap::new(), steam_infos: HashMap::new(), sizes: &sizes };
+        let on = |id: &str| art.on_console(art.pc_game(PcGame { id: id.into(), source: "custom", title: "Zeta".into(), ..PcGame::default() })).art;
+        let p = |f: &str| Some(d.join(f));
+        let zeta = on("custom-zeta");
+        assert_eq!((zeta.front, zeta.back, zeta.spine, zeta.disc), (p("pc-covers/custom-zeta.png"), p("pc-covers/custom-zeta.back.jpg"), p("pc-covers/custom-zeta.spine.png"), p("pc-covers/custom-zeta.disc.webp")));
+        assert_eq!((zeta.manual, zeta.manual_pdf), (vec![d.join("pc-covers/custom-zeta-manual-01.jpg")], None));
+        let omega = on("custom-omega");
+        assert_eq!((omega.spine, omega.disc, omega.manual_pdf), (p("pc-console-covers/custom-omega-spine.jpg"), None, p("pc-covers/custom-omega-manual.pdf")));
     }
 
     #[test]

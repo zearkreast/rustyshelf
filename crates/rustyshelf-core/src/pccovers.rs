@@ -61,6 +61,22 @@ pub fn back(data: &Path, id: &str) -> Option<PathBuf> {
     cover(data, &back_id(id))
 }
 
+/// A part of the case of a game on a console's shelf, put in by the Art Studio (`data/pc-covers/<id>.<part>.<ext>`):
+/// "back", "spine" or "disc".
+pub fn part(data: &Path, id: &str, part: &str) -> Option<PathBuf> {
+    cover(data, &format!("{id}.{part}"))
+}
+
+/// The manual of a game on a console's shelf (`data/pc-covers/<id>-manual-01.jpg` …): its pages in order, else its
+/// PDF.
+pub fn manual(data: &Path, id: &str) -> (Vec<PathBuf>, Option<PathBuf>) {
+    let dir = data.join("pc-covers");
+    let (pdf, mut pages): (Vec<String>, Vec<String>) = crate::manualcoll::manual_files(&dir, &safe_id(id)).into_iter().partition(|f| f.to_lowercase().ends_with(".pdf"));
+    pages.sort_by(|a, b| crate::collate::compare(a, b));
+    let pdf = pdf.first().filter(|_| pages.is_empty()).map(|f| dir.join(f));
+    (pages.into_iter().map(|f| dir.join(f)).collect(), pdf)
+}
+
 /// Makes a picture of the player's own the back of a game's box, as `own` does a cover.
 pub fn own_back(data: &Path, id: &str, file: &Path) -> Result<PathBuf, String> {
     own(data, &back_id(id), file)
@@ -268,6 +284,12 @@ mod tests {
         std::fs::write(d.join("pc-covers/steam-10.back.jpg"), b"").unwrap();
         prefer_auto_back(d, "steam-10");
         assert_eq!((back(d, "steam-10"), made_up_back(d, "steam-10")), (None, false));
+        for f in ["pc-covers/steam-10.spine.webp", "pc-covers/steam-10-manual-10.jpg", "pc-covers/steam-10-manual-2.jpg", "pc-covers/steam-10-manual.pdf", "pc-covers/epic-a-manual.pdf"] {
+            std::fs::write(d.join(f), b"").unwrap();
+        }
+        assert_eq!((part(d, "steam-10", "spine"), part(d, "steam-10", "disc")), (Some(d.join("pc-covers/steam-10.spine.webp")), None));
+        assert_eq!(manual(d, "steam-10"), (vec![d.join("pc-covers/steam-10-manual-2.jpg"), d.join("pc-covers/steam-10-manual-10.jpg")], None));
+        assert_eq!(manual(d, "epic-a"), (Vec::new(), Some(d.join("pc-covers/epic-a-manual.pdf"))));
         let exe = d.join("game/Zeta.exe");
         assert_eq!(folder_cover(&exe.to_string_lossy()), Some(d.join("game/art/ZETA.png")));
         assert_eq!(folder_cover(&d.join("nope").to_string_lossy()), None);

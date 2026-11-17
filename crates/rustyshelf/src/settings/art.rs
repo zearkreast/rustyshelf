@@ -6,7 +6,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use rustyshelf_core::art::{art_base, ArtLibrary};
 use rustyshelf_core::artjob::{self, Ask, Job, Remote, Set, SetDone};
 use rustyshelf_core::artstudio::{self as studio, Cand, Ctx, GameArt, Studio};
-use rustyshelf_core::{looks, paths};
+use rustyshelf_core::{looks, paths, pccovers};
 use std::sync::atomic::Ordering;
 
 use super::*;
@@ -101,21 +101,48 @@ fn source_name(source: &str) -> &str {
 }
 
 impl Settings {
-    /// The chosen game as the Art Studio works on it, when it's a console's game.
+    /// The chosen game as the Art Studio works on it, when it's a console's game or a PC game on a console's shelf.
     fn art_game(&self) -> Option<GameArt> {
-        let c = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom)?;
-        let config = Config::from_value(&self.cfg)?;
+        let c = self.chosen.as_ref()?;
         let console = systems().console(&c.console)?;
         let art = &c.game.art;
-        Some(GameArt {
-            sys: c.console.clone(),
-            title: c.game.title.clone(),
-            file: c.game.file.clone(),
-            region: c.game.region.clone(),
-            dir: ArtLibrary::from_config(&config, &self.app_root).dir_for(&config.system(console), &c.game.file, &self.app_root),
-            base: art_base(&c.game.file),
-            current: [art.front.clone(), art.back.clone().filter(|_| !art.made_back), art.spine.clone().filter(|_| !art.made_spine), art.disc.clone()],
-        })
+        let current = [art.front.clone(), art.back.clone().filter(|_| !art.made_back), art.spine.clone().filter(|_| !art.made_spine), art.disc.clone()];
+        match &c.game.source {
+            Source::Rom => {
+                let config = Config::from_value(&self.cfg)?;
+                Some(GameArt {
+                    sys: c.console.clone(),
+                    title: c.game.title.clone(),
+                    file: c.game.file.clone(),
+                    region: c.game.region.clone(),
+                    dir: ArtLibrary::from_config(&config, &self.app_root).dir_for(&config.system(console), &c.game.file, &self.app_root),
+                    base: art_base(&c.game.file),
+                    current,
+                    pc: false,
+                })
+            }
+            Source::Pc(_) => Some(GameArt {
+                sys: c.console.clone(),
+                title: c.game.title.clone(),
+                // the sources go by its title, not its program's name or contents
+                file: PathBuf::from(c.game.title.replace(['/', '\\'], " ")),
+                region: String::new(),
+                dir: paths::data_dir(&self.app_root).join("pc-covers"),
+                base: pccovers::safe_id(&c.game.id),
+                current,
+                pc: true,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Keeps a part chosen here as it is: the automatic art check leaves it alone (it never looks at a PC game's).
+    fn lock_part(&mut self, g: &GameArt, part: &str, lock: Value) {
+        if g.pc {
+            self.changed = true;
+        } else {
+            self.set(&["art", "locks", &studio::lock_key(&g.sys, &g.file), part], lock);
+        }
     }
 
     /// The row of a console's page that says which version of a box its games get.
@@ -439,7 +466,7 @@ impl Settings {
                     let key = studio::lock_key(&g.sys, &g.file);
                     let before = self.cfg["art"]["locks"][key.as_str()].clone();
                     for (p, c) in studio::PARTS.iter().zip(&set.parts) {
-                        self.set(&["art", "locks", &key, p], json!({ "look": "exact", "key": c.key, "at": now_ms() }));
+                        self.lock_part(&g, p, json!({ "look": "exact", "key": c.key, "at": now_ms() }));
                     }
                     self.art_now(&g);
                     self.say(if done.changed.is_empty() { "That set is in use already.".into() } else { format!("{} is in use now; the shelf shows it when Settings closes.", set.label) });
@@ -519,7 +546,7 @@ impl Settings {
                     if let Some(key) = &key {
                         lock["key"] = json!(key);
                     }
-                    self.set(&["art", "locks", &studio::lock_key(&g.sys, &g.file), part], lock);
+                    self.lock_part(&g, part, lock);
                     if let Some(c) = self.chosen.as_mut() {
                         let now = g.current[studio::PARTS.iter().position(|p| *p == part).unwrap_or(0)].clone();
                         match part {
@@ -712,5 +739,27 @@ impl Settings {
             rows.push(Row { label: "Put the earlier picture back".into(), hint: "The picture this part had before the one in use.".into(), press: Some(Box::new(|s: &mut Settings| s.place_art(None))), ..Row::default() });
         }
         Page { title, lead, rows }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pc_game_on_a_console_s_shelf_has_the_art_studio_and_manuals() {
+        let r = std::env::temp_dir().join(format!("rustyshelf-pcart-{}", std::process::id()));
+        let mut s = Settings { wizard: false, stack: vec![(Screen::Details, 0)], app_root: r.clone(), ..Settings::default() };
+        let pc = rustyshelf_core::pcgames::PcGame { id: "custom-zeta".into(), source: "custom", ..Default::default() };
+        let game = Game { id: "custom-zeta".into(), title: "Zeta: Run/Again".into(), file: PathBuf::from("/games/zeta.exe"), source: Source::Pc(Box::new(pc)), ..Game::default() };
+        s.chosen = Some(Chosen { console: "custom".into(), emulator: String::new(), game, plays: None });
+        assert!(s.art_game().is_none() && !s.can_find_manual() && s.manual_game().is_none());
+        s.chosen.as_mut().unwrap().console = "n64".into();
+        let g = s.art_game().unwrap();
+        let dir = paths::data_dir(&r).join("pc-covers");
+        assert_eq!((g.sys.as_str(), g.file, &g.dir, g.base.as_str(), g.pc), ("n64", PathBuf::from("Zeta: Run Again"), &dir, "custom-zeta", true));
+        assert!(s.can_find_manual());
+        let m = s.manual_game().unwrap();
+        assert_eq!((m.dir, m.base.as_str(), m.file.as_str()), (dir, "custom-zeta", "/games/zeta.exe"));
     }
 }
