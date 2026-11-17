@@ -59,7 +59,7 @@ pub fn find(shard: &ShardFile, title: &str, store: bool, region: &str) -> Option
     let g = &shard.games[hit.filter(|i| backs(*i) > 0)?];
     let imgs = shard.images.get(&g.id)?;
     let urls = covers::pick_images(imgs, "Box - Back", region).into_iter().chain(covers::pick_images(imgs, "Box - Back - Reconstructed", region));
-    Some((g.name.clone(), urls.map(|im| format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file))).collect()))
+    Some((g.name.clone(), urls.map(|im| covers::lb_url(&im.file)).collect()))
 }
 
 /// One game's back looked up and downloaded with `get`.

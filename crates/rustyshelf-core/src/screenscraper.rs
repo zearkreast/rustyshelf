@@ -142,7 +142,7 @@ impl Creds {
     /// A fingerprint of the sign-in, never its values.
     fn sig(&self) -> String {
         let hash = sha2::Sha256::digest([self.user.as_str(), &self.pass, &self.dev_id, &self.dev_pass].join("\0").as_bytes());
-        hash.iter().take(8).map(|b| format!("{b:02x}")).collect()
+        crate::files::hex(&hash[..8])
     }
 
     fn has_dev(&self) -> bool {
@@ -210,11 +210,11 @@ fn rom_type(file: &str, is_dir: bool) -> &'static str {
 pub type Fetch = Box<dyn Fn(&str, bool) -> Result<(u16, Vec<u8>), bool> + Send + Sync>;
 
 fn over_the_net(url: &str, media: bool) -> Result<(u16, Vec<u8>), bool> {
-    let agent = format!("RustyShelf/{}", crate::VERSION);
+    let agent = crate::net::agent();
     let (status, _, body) = if media {
-        crate::net::ask(url, &[("User-Agent", agent.as_str())], Duration::from_secs(45), 30_000_000)?
+        crate::net::ask(url, &[("User-Agent", agent)], Duration::from_secs(45), 30_000_000)?
     } else {
-        crate::net::ask(url, &[("User-Agent", agent.as_str()), ("Accept", "application/json")], Duration::from_secs(15), 8_000_000)?
+        crate::net::ask(url, &[("User-Agent", agent), ("Accept", "application/json")], Duration::from_secs(15), 8_000_000)?
     };
     Ok((status, body))
 }

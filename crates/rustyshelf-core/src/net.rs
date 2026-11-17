@@ -16,6 +16,12 @@ static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
     b.build()
 });
 
+/// `RustyShelf/<version>`, the User-Agent the app's own requests name.
+pub fn agent() -> &'static str {
+    static NAME: LazyLock<String> = LazyLock::new(|| format!("RustyShelf/{}", crate::VERSION));
+    &NAME
+}
+
 /// What went wrong, in the words the shelf shows.
 pub type Failure = String;
 

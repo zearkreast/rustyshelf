@@ -39,7 +39,7 @@ pub(super) struct Adding {
 }
 
 fn plural(n: usize, one: &str) -> String {
-    format!("{n} {one}{}", if n == 1 { "" } else { "s" })
+    format!("{n} {one}{}", plural_s(n))
 }
 
 impl Settings {

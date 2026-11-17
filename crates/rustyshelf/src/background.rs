@@ -111,7 +111,7 @@ fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings:
 /// One game: its screenshots topped up, then IGDB's info for its gaps. Whether ScreenScraper was asked.
 fn look(pass: &Pass, item: &Item, ss_left: bool) -> bool {
     let data = paths::data_dir(&paths::app_root());
-    let cache = data.join("boxart-cache");
+    let cache = paths::boxart_cache(&data);
     let lr = moreshots::Libretro { cache_dir: &cache, region: &pass.art_region };
     let ss = pass.ss.as_deref().filter(|_| pass.auto && ss_left).map(moreshots::Ss);
     let ig = pass.igdb.as_deref().map(|client| moreshots::Igdb { client, data_dir: &data });

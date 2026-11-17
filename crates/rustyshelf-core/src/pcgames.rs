@@ -13,7 +13,7 @@ use regex::Regex;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
-use crate::art::resolve;
+use crate::art::{path_key, resolve};
 use crate::files::{read_json, read_object, write_atomic};
 use crate::js;
 use crate::paths::{is_dir, is_file};
@@ -1021,7 +1021,7 @@ fn quiver_app_dirs(apps_dir: &str, grouped: bool) -> Vec<String> {
 /// ones the list already gave.
 fn quiver_loose(apps_dir: &str, listed: &[String], names: &HashMap<String, Named>, grouped: bool) -> Vec<QuiverApp> {
     static MARKS: LazyLock<Regex> = LazyLock::new(|| Regex::new("[_.]+").unwrap());
-    let inside: Vec<String> = listed.iter().map(|e| resolve(Path::new(e)).to_string_lossy().to_lowercase()).collect();
+    let inside: Vec<String> = listed.iter().map(|e| path_key(Path::new(e))).collect();
     let mut out = Vec::new();
     for d in quiver_app_dirs(apps_dir, grouped) {
         let name = js::basename(&d);
@@ -1196,8 +1196,7 @@ pub fn steam_search(term: &str, exact: bool) -> Vec<(String, String)> {
     let items = match memo {
         Some(i) => i,
         None => {
-            let url = format!("https://store.steampowered.com/api/storesearch/?term={}&l=english&cc=US", js::encode_uri_component(&t));
-            let Ok(r) = crate::net::get_json(&url, Duration::from_secs(8)) else { return Vec::new() };
+            let Ok(r) = crate::net::get_json(&store_search(&t), Duration::from_secs(8)) else { return Vec::new() };
             let items: Vec<(String, String)> = r
                 .get("items")
                 .and_then(Value::as_array)
@@ -1216,6 +1215,10 @@ pub fn steam_search(term: &str, exact: bool) -> Vec<(String, String)> {
     items.into_iter().filter(|(_, name)| !exact || norm(name) == want).take(3).collect()
 }
 
+fn store_search(term: &str) -> String {
+    format!("https://store.steampowered.com/api/storesearch/?term={}&l=english&cc=US", js::encode_uri_component(term))
+}
+
 /// Asks Steam's store for the titles not matched yet (at most 40 a run, a pause between), and keeps the answers in
 /// `data/pc-steam.json`; a miss is tried again after a week. Returns how many were matched.
 pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {
@@ -1232,9 +1235,8 @@ pub fn match_steam(data_dir: &Path, titles: &[String]) -> u32 {
         if asked > 40 {
             break;
         }
-        let url = format!("https://store.steampowered.com/api/storesearch/?term={}&l=english&cc=US", js::encode_uri_component(t));
         // offline or rate-limited: tried again next time
-        let Ok(r) = crate::net::get_json(&url, Duration::from_secs(12)) else { break };
+        let Ok(r) = crate::net::get_json(&store_search(t), Duration::from_secs(12)) else { break };
         let hit = steam_hit(r.get("items").and_then(Value::as_array).map_or(&[][..], Vec::as_slice), t);
         map.insert(k, serde_json::json!({ "id": js::num(hit.unwrap_or(0.0)), "at": crate::now_ms() }));
         matched += u32::from(hit.is_some());

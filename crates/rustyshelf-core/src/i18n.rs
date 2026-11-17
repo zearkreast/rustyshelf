@@ -118,6 +118,11 @@ pub fn tr(lang: &str, text: &str) -> String {
     dict(lang).map_or_else(|| text.to_string(), |d| d.tr(text))
 }
 
+/// English's plural ending for a count: "" for 1, else "s".
+pub fn plural_s(n: impl TryInto<u64>) -> &'static str {
+    if n.try_into().ok() == Some(1) { "" } else { "s" }
+}
+
 /// A part of a Portuguese template's output: words, a group's text (itself translated), or one of two words by a
 /// group (a plural).
 enum Piece {

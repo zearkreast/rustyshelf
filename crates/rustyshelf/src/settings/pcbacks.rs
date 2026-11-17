@@ -46,7 +46,7 @@ impl Settings {
 
     /// Settings → PC games: LaunchBox's database downloaded again with its PC games in, asking twice before it starts.
     pub(super) fn launchbox_pc_row(&self) -> Row {
-        let cache = paths::data_dir(&self.app_root).join("boxart-cache");
+        let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
         let value = if let Some((stage, _)) = &self.pc_backs.get {
             launchbox_value(&stage.lock().unwrap())
         } else if boxart::has_pc_games(&cache) {
@@ -69,7 +69,7 @@ impl Settings {
     }
 
     fn add_launchbox_pc(&mut self) {
-        let cache = paths::data_dir(&self.app_root).join("boxart-cache");
+        let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
         if self.pc_backs.get.is_some() || self.launchbox_downloading() {
             self.say("LaunchBox's database is downloading already".into());
             return;
@@ -126,7 +126,7 @@ impl Settings {
         let (id, title) = (want.id.clone(), want.title.clone());
         let (tx, rx) = channel();
         std::thread::spawn(move || {
-            let _ = tx.send(pcbacks::fetch(&data, &data.join("boxart-cache"), &want, &region));
+            let _ = tx.send(pcbacks::fetch(&data, &paths::boxart_cache(&data), &want, &region));
         });
         self.pc_backs.looking = Some((id, title, Mutex::new(rx)));
         self.say("Looking for the back of the box…".into());

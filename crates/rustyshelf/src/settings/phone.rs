@@ -49,7 +49,7 @@ impl Settings {
                 value: format!("{} {}", st.pin.get(..3).unwrap_or(""), st.pin.get(3..).unwrap_or("")),
                 hint: match st.locked {
                     0 => "The phone asks for it once. A PIN pairs one phone; Enter makes a new one.".into(),
-                    n => format!("Too many wrong PINs: pairing is locked for {n} more minute{}. Enter makes a new PIN and ends that.", if n == 1 { "" } else { "s" }),
+                    n => format!("Too many wrong PINs: pairing is locked for {n} more minute{}. Enter makes a new PIN and ends that.", plural_s(n)),
                 },
                 press: Some(Box::new(move |s: &mut Settings| {
                     renew.renew_pin();

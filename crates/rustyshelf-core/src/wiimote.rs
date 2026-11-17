@@ -86,7 +86,7 @@ pub static REMOTE: LazyLock<Wiimote> = LazyLock::new(|| {
 
 fn dll_path(cache_dir: &Path) -> PathBuf {
     use sha1::Digest;
-    let h: String = sha1::Sha1::digest(SOURCE.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let h = crate::files::hex(&sha1::Sha1::digest(SOURCE.as_bytes()));
     cache_dir.join(format!("wm-{}.dll", &h[..12]))
 }
 

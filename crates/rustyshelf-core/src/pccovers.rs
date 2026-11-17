@@ -124,8 +124,7 @@ pub struct ConsoleBox {
 /// downloaded for this).
 pub fn console_boxes(data: &Path, title: &str, region: &str) -> Vec<ConsoleBox> {
     use crate::covers;
-    let Some(mut idx) = crate::boxart::ready_index(&data.join("boxart-cache")).filter(|_| !title.is_empty()) else { return Vec::new() };
-    let url = |im: &crate::lbindex::GameImage| format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file));
+    let Some(mut idx) = crate::boxart::ready_index(&crate::paths::boxart_cache(data)).filter(|_| !title.is_empty()) else { return Vec::new() };
     let mut out = Vec::new();
     for (plat, platform) in covers::pc_box_platforms() {
         let Some(shard) = idx.platform(platform) else { continue };
@@ -133,7 +132,7 @@ pub fn console_boxes(data: &Path, title: &str, region: &str) -> Vec<ConsoleBox> 
         let fronts = |i: usize| shard.images.get(&shard.games[i].id).map_or(0, |l| l.iter().filter(|im| im.r#type == "Box - Front").count());
         let Some(hit) = covers::match_name(&names, title, &fronts).map(|i| &shard.games[i]) else { continue };
         let all = shard.images.get(&hit.id).map_or(&[][..], Vec::as_slice);
-        let first = |kind: &str| covers::pick_images(all, kind, region).first().map(|im| url(im));
+        let first = |kind: &str| covers::pick_images(all, kind, region).first().map(|im| covers::lb_url(&im.file));
         let Some(front) = first("Box - Front") else { continue };
         out.push(ConsoleBox { plat: plat.clone(), platform: platform.clone(), name: hit.name.clone(), url: front, back: first("Box - Back").unwrap_or_default(), spine: first("Box - Spine").unwrap_or_default() });
     }
@@ -214,7 +213,7 @@ pub struct Options {
 fn thumb(data: &Path, url: &str) -> Option<PathBuf> {
     use sha1::Digest;
     let dir = data.join("pc-cover-cache");
-    let name: String = sha1::Sha1::digest(url.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>().chars().take(24).collect();
+    let name = crate::files::hex(&sha1::Sha1::digest(url.as_bytes())[..12]);
     let base = dir.join(&name).display().to_string();
     if let Some(had) = ["jpg", "png", "webp"].iter().map(|e| PathBuf::from(format!("{base}.{e}"))).find(|f| is_file(f)) {
         return Some(had);
@@ -647,7 +646,7 @@ mod picker_tests {
     /// A LaunchBox index of one PS5 game, as `boxart::ready_index` reads it.
     fn index_with(data: &Path, name: &str) {
         use crate::lbindex::{norm, shard_file_name, Game, GameImage, ShardFile, ShardsMeta};
-        let cache = data.join("boxart-cache");
+        let cache = crate::paths::boxart_cache(data);
         std::fs::create_dir_all(&cache).unwrap();
         std::fs::write(cache.join("launchbox-index.json"), "{}").unwrap();
         let stamp = cache.join("launchbox-index.json").metadata().unwrap().modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;

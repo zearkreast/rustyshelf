@@ -467,12 +467,12 @@ impl Settings {
         std::thread::spawn(move || {
             use rustyshelf_core::moreshots::{self, Source};
             let (ss, ig) = (ScreenScraper::from_settings(&data), rustyshelf_core::igdb::Igdb::from_settings(&data));
-            let cache = data.join("boxart-cache");
+            let cache = paths::boxart_cache(&data);
             let lr = moreshots::Libretro { cache_dir: &cache, region: &art_region };
             let (ss, ig) = (ss.as_ref().map(moreshots::Ss), ig.as_ref().map(|client| moreshots::Igdb { client, data_dir: &data }));
             let sources: Vec<&dyn Source> = [ss.as_ref().map(|s| s as &dyn Source), Some(&lr as &dyn Source), ig.as_ref().map(|s| s as &dyn Source)].into_iter().flatten().collect();
             let mut index = moreshots::Index::load(&data);
-            let lb = |u: &str| u.starts_with("https://images.launchbox-app.com/").then(|| rustyshelf_core::net::get(u, std::time::Duration::from_secs(30), 32 << 20, "RustyShelf").ok()).flatten().filter(|r| r.0 == 200).map(|r| r.1);
+            let lb = |u: &str| u.starts_with(rustyshelf_core::covers::LB_IMG).then(|| rustyshelf_core::net::get(u, std::time::Duration::from_secs(30), 32 << 20, "RustyShelf").ok()).flatten().filter(|r| r.0 == 200).map(|r| r.1);
             moreshots::top_up(&mut index, &sys, &moreshots::Game { file: &file, title: &title, region: &region }, &base, &sources, &lb);
             let _ = tx.send((id, index.list(&sys, &file, &title, &base)));
         });

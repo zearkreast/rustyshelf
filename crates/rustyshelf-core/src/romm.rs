@@ -546,10 +546,9 @@ impl Hasher {
     }
 
     fn result(self) -> Hashed {
-        let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
         let value = match self.st {
-            HashState::Sha1(h) => Some(hex(&sha1::Digest::finalize(h))),
-            HashState::Md5(h) => Some(hex(&md5::Digest::finalize(h))),
+            HashState::Sha1(h) => Some(crate::files::hex(&sha1::Digest::finalize(h))),
+            HashState::Md5(h) => Some(crate::files::hex(&md5::Digest::finalize(h))),
             HashState::Crc(h) => Some(format!("{:08x}", h.finalize())),
             HashState::None => None,
         };
@@ -1206,7 +1205,7 @@ impl Romm {
             let _ = getrandom::getrandom(&mut b);
             b[6] = (b[6] & 0x0f) | 0x40;
             b[8] = (b[8] & 0x3f) | 0x80;
-            let h: String = b.iter().map(|x| format!("{x:02x}")).collect();
+            let h = crate::files::hex(&b);
             let id = format!("{}-{}-{}-{}-{}", &h[..8], &h[8..12], &h[12..16], &h[16..20], &h[20..]);
             let _ = fs::create_dir_all(&self.data_dir).and_then(|_| fs::write(&f, json!({ "id": id }).to_string()));
             id

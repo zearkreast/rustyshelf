@@ -56,6 +56,14 @@ pub const LB_PC: &str = "Windows";
 /// Where the box images are served from.
 pub const LB_IMG: &str = "https://images.launchbox-app.com/";
 
+/// A LaunchBox picture's address, from its index file name.
+pub fn lb_url(file: &str) -> String {
+    format!("{LB_IMG}{}", js::encode_uri(file))
+}
+
+/// libretro's thumbnail server, folders by libretro's console name.
+pub const LIBRETRO_THUMBS: &str = "https://thumbnails.libretro.com/";
+
 /// A box art region chosen in Settings: how each source names it.
 pub struct ArtRegion {
     /// LaunchBox's region of a picture
@@ -333,7 +341,7 @@ impl LibretroNames {
 /// A libretro cover's address.
 pub fn libretro_url(console_id: &str, name: &str) -> Option<String> {
     let sys = libretro_system(console_id)?;
-    Some(format!("https://thumbnails.libretro.com/{}/Named_Boxarts/{}", js::encode_uri_component(sys), js::encode_uri_component(&format!("{name}.png"))))
+    Some(format!("{LIBRETRO_THUMBS}{}/Named_Boxarts/{}", js::encode_uri_component(sys), js::encode_uri_component(&format!("{name}.png"))))
 }
 
 /// A release's edition from its own words: "reprint" (Player's Choice, Greatest Hits …), "special" (collector's,

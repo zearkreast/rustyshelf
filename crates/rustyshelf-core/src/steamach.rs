@@ -22,7 +22,7 @@ const CONCURRENCY: usize = 4;
 pub type Fetch = Box<dyn Fn(&str) -> Result<(u16, Option<Value>), String> + Send + Sync>;
 
 fn online(url: &str) -> Result<(u16, Option<Value>), String> {
-    match crate::net::ask(url, &[("User-Agent", "RustyShelf")], Duration::from_secs(20), 32 << 20) {
+    match crate::net::ask(url, &[], Duration::from_secs(20), 32 << 20) {
         Ok((status, _, body)) => Ok((status, serde_json::from_slice(&body).ok())),
         Err(true) => Err("Steam took too long to answer.".into()),
         Err(false) => Err("Steam couldn't be reached.".into()),

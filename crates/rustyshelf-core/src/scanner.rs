@@ -11,9 +11,10 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::arcade::{self, Set};
-use crate::art::{resolve, Art, ArtIndex};
+use crate::art::{path_key, resolve, Art, ArtIndex};
 use crate::config::SystemConfig;
 use crate::gamelist::Gamelists;
+use crate::paths::is_file;
 use crate::systems::Console;
 use crate::titles::{clean_title, CleanTitle};
 use crate::x360::{self, Package};
@@ -171,10 +172,6 @@ fn ext_of(name: &str) -> String {
         Some(i) if i > 0 && i + 1 < name.len() => name[i + 1..].to_lowercase(),
         _ => String::new(),
     }
-}
-
-fn is_file(p: &Path) -> bool {
-    p.metadata().map(|m| m.is_file()).unwrap_or(false)
 }
 
 /// A folder's entries in the order node's readdir gives them: by name on Unix (libuv sorts them), as stored on Windows.
@@ -495,20 +492,20 @@ fn join_x360_discs(sc: &SystemConfig, by_title: &mut HashMap<String, Found>, ord
             firsts.insert(by_name.get(k).cloned(), k.clone());
         }
     }
-    let roots: Vec<String> = sc.rom_dirs.iter().map(|d| resolve(Path::new(d)).to_string_lossy().to_lowercase()).collect();
+    let roots: Vec<String> = sc.rom_dirs.iter().map(|d| path_key(Path::new(d))).collect();
     let sep = std::path::MAIN_SEPARATOR_STR;
     for k in order {
         let Some(g) = by_title.get(k).filter(|g| later(g)) else { continue };
         let mut host = firsts.get(&by_name.get(k).cloned()).cloned();
         if host.is_none() {
-            let dir = g.game.file.parent().map(|d| resolve(d).to_string_lossy().to_lowercase()).unwrap_or_default();
+            let dir = g.game.file.parent().map(path_key).unwrap_or_default();
             if !roots.contains(&dir) {
                 let inside = dir + sep;
                 host = order
                     .iter()
                     .filter(|h| *h != k)
                     .find(|h| {
-                        by_title.get(*h).is_some_and(|h| !later(h) && resolve(&h.game.file).to_string_lossy().to_lowercase().starts_with(&inside))
+                        by_title.get(*h).is_some_and(|h| !later(h) && path_key(&h.game.file).starts_with(&inside))
                     })
                     .cloned();
             }

@@ -13,6 +13,7 @@ use rustyshelf_core::config::Config;
 use rustyshelf_core::detect::{Detected, Detector};
 use rustyshelf_core::history::Played;
 use rustyshelf_core::homemenu::Glyphs;
+use rustyshelf_core::i18n::plural_s;
 use rustyshelf_core::library::ShelfKind;
 use rustyshelf_core::scanner::{Game, Source};
 use rustyshelf_core::shelfview::{self, SORTS};
@@ -1240,14 +1241,14 @@ impl Settings {
                 if !retroarch.is_empty() && self.text(&["retroarch"]).is_empty() {
                     self.set(&["retroarch"], json!(retroarch));
                 }
-                self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", if set == 1 { "" } else { "s" }) });
+                self.say(if set == 0 { "No emulator RustyShelf knows was found in that folder".into() } else { format!("Found {set} emulator{} there", plural_s(set)) });
             }
             Pick::Sw2Build => self.sw2_picked(false, path),
             Pick::Sw2Folder => self.sw2_picked(true, path),
             Pick::SoundPack => {
                 match rustyshelf_core::soundpacks::import_from(&self.app_root, &[path.to_path_buf()], None) {
                     Ok(pack) => {
-                        let left = if pack.unsupported.is_empty() { String::new() } else { format!(" · {} file{} couldn't be used", pack.unsupported.len(), if pack.unsupported.len() == 1 { "" } else { "s" }) };
+                        let left = if pack.unsupported.is_empty() { String::new() } else { format!(" · {} file{} couldn't be used", pack.unsupported.len(), plural_s(pack.unsupported.len())) };
                         self.say(format!("Added \"{}\" to the sound list{left}", pack.name));
                     }
                     Err(why) => self.say(why),
@@ -1268,7 +1269,7 @@ impl Settings {
                     self.set(&["systems", id, "romDirs"], json!(have));
                 }
                 self.say(if added > 0 {
-                    format!("Added {added} games folder{}", if added == 1 { "" } else { "s" })
+                    format!("Added {added} games folder{}", plural_s(added))
                 } else if !found.is_empty() {
                     "Those folders were already added".into()
                 } else {
@@ -1310,7 +1311,7 @@ impl Settings {
     fn status(&self, c: &Console) -> String {
         let (emu, n) = (self.text(&["systems", &c.id, "emulator"]), self.list(&["systems", &c.id, "romDirs"]).len());
         let name = if c.emulator_name.is_empty() { "Emulator" } else { &c.emulator_name };
-        let folders = format!("{n} game folder{}", if n == 1 { "" } else { "s" });
+        let folders = format!("{n} game folder{}", plural_s(n));
         match (emu.is_empty(), n) {
             (false, 0) => format!("{name} found"),
             (false, _) => format!("{name} found · {folders}"),
@@ -1653,7 +1654,7 @@ impl Settings {
                         })),
                     },
                     open("Emulator", if emu.is_empty() { "Not set".into() } else { emuname::label(&emu) }, &short(&emu), Screen::Emulator(e)),
-                    open("Games folders", format!("{n} folder{}", if n == 1 { "" } else { "s" }), "", Screen::Folders(f)),
+                    open("Games folders", format!("{n} folder{}", plural_s(n)), "", Screen::Folders(f)),
                 ];
                 if id == "sw2" {
                     rows.insert(2, self.sw2_row());
@@ -2277,7 +2278,7 @@ impl Settings {
                     rows.push(Row {
                         label: p.name.clone(),
                         value: "Remove".into(),
-                        hint: format!("{n} file{}. Removing it puts anything that used it back to Aero.", if n == 1 { "" } else { "s" }),
+                        hint: format!("{n} file{}. Removing it puts anything that used it back to Aero.", plural_s(n)),
                         press: Some(Box::new(move |s: &mut Settings| {
                             if !s.twice(&format!("sndrm-{id}"), "Press again to remove these sounds") {
                                 return;
@@ -2378,7 +2379,7 @@ impl Settings {
                         press: Some(Box::new(|s: &mut Settings| {
                             let emus: Vec<(String, String)> = systems().consoles.iter().map(|c| (c.id.clone(), paths::expand(&s.text(&["systems", &c.id, "emulator"]), &s.app_root))).collect();
                             let n = emucfg::restore_backups(&emus, &paths::env_var).len();
-                            s.note = if n == 0 { "Nothing to put back.".into() } else { format!("{n} settings file{} put back.", if n == 1 { "" } else { "s" }) };
+                            s.note = if n == 0 { "Nothing to put back.".into() } else { format!("{n} settings file{} put back.", plural_s(n)) };
                             s.redraw = true;
                         })),
                         ..Row::default()
@@ -2706,7 +2707,7 @@ impl Settings {
                 });
                 Page {
                     title: "You're set".into(),
-                    lead: format!("{on} console{} with games. Everything here can be changed later in Settings (S, or View on the pad).", if on == 1 { "" } else { "s" }),
+                    lead: format!("{on} console{} with games. Everything here can be changed later in Settings (S, or View on the pad).", plural_s(on)),
                     rows,
                 }
             }
@@ -2767,7 +2768,7 @@ pub fn facts_of(g: &Game, emulator: &str, plays: Option<Played>) -> Vec<(String,
     let hours = |ms: u64| format!("{:.1} hours", ms as f64 / 3_600_000.0);
     let playtime = match plays {
         Some(p) if p.ms > 0 => hours(p.ms),
-        Some(p) if p.count > 0 => format!("Started {} time{}", p.count, if p.count == 1 { "" } else { "s" }),
+        Some(p) if p.count > 0 => format!("Started {} time{}", p.count, plural_s(p.count)),
         _ => "Not played yet".into(),
     };
     let known = i.release.is_some() || i.year.is_some();

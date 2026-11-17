@@ -172,7 +172,7 @@ fn md5_of(f: &str) -> Option<String> {
             n => h.update(&buf[..n]),
         }
     }
-    Some(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+    Some(crate::files::hex(&h.finalize()))
 }
 
 /// The BIOS state for one console, looking in each of `dirs` (the first good file wins). None: the console needs

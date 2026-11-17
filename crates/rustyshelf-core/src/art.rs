@@ -57,6 +57,15 @@ pub fn resolve(p: &Path) -> PathBuf {
     out
 }
 
+/// A path as a case-blind key: resolved, lowercased.
+pub fn path_key(p: &Path) -> String {
+    resolve(p).to_string_lossy().to_lowercase()
+}
+
+pub fn same_path(a: &Path, b: &Path) -> bool {
+    path_key(a) == path_key(b)
+}
+
 fn console_folder_names() -> &'static std::collections::HashSet<String> {
     static NAMES: LazyLock<std::collections::HashSet<String>> = LazyLock::new(|| {
         let mut s: std::collections::HashSet<String> =
@@ -126,7 +135,7 @@ impl ArtLibrary {
         let root = (!want.is_empty()).then(|| resolve(Path::new(&expand(&want, app_root))));
         let mut roots: Vec<String> = Vec::new();
         for r in cfg.library_roots() {
-            let r = resolve(Path::new(&r)).to_string_lossy().to_lowercase();
+            let r = path_key(Path::new(&r));
             if !roots.contains(&r) {
                 roots.push(r);
             }
@@ -171,7 +180,7 @@ impl ArtLibrary {
             return PathBuf::from(expand(&sc.art_dir, app_root));
         }
         let inside = |d: &&String| {
-            let (f, d) = (resolve(file).to_string_lossy().to_lowercase(), resolve(Path::new(d)).to_string_lossy().to_lowercase());
+            let (f, d) = (path_key(file), path_key(Path::new(d)));
             f.starts_with(&if d.ends_with(std::path::MAIN_SEPARATOR) { d } else { format!("{d}{}", std::path::MAIN_SEPARATOR) })
         };
         let root = sc.rom_dirs.iter().find(inside).map(PathBuf::from).unwrap_or_else(|| file.parent().unwrap_or(Path::new("")).to_path_buf());

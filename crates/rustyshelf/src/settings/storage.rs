@@ -69,7 +69,7 @@ impl Settings {
                 (Some(free), Some(total)) => format!("{} free of {} · ", size(free), size(total)),
                 _ => String::new(),
             };
-            rows.push(Row { label: d.root.clone(), value: format!("{room}games {}", size(d.games_bytes)), hint: format!("{} game{} on this drive", d.games.len(), if d.games.len() == 1 { "" } else { "s" }), ..Row::default() });
+            rows.push(Row { label: d.root.clone(), value: format!("{room}games {}", size(d.games_bytes)), hint: format!("{} game{} on this drive", d.games.len(), plural_s(d.games.len())), ..Row::default() });
             for g in &d.games {
                 let store = g.source.chars().next().map_or(String::new(), |c| format!(" · {}{}", c.to_uppercase(), &g.source[c.len_utf8()..]));
                 rows.push(Row { label: format!("    {}", g.title), value: if g.bytes > 0 { size(g.bytes) } else { "…".into() }, hint: format!("{}{store}", g.dir), ..Row::default() });

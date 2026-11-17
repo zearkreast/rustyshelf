@@ -90,6 +90,11 @@ pub fn data_dir(app_root: &Path) -> PathBuf {
     app_root.join("data")
 }
 
+/// The web art cache (`data/boxart-cache`): LaunchBox and libretro indexes, game info.
+pub fn boxart_cache(data_dir: &Path) -> PathBuf {
+    data_dir.join("boxart-cache")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

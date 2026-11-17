@@ -361,7 +361,7 @@ impl Library {
         }
         // a console game's info goes by the name its art is looked up under: the one picked by hand (Details → Art
         // match), else the title read from its file
-        let mut infos = crate::info::InfoCache::load(&data_dir.join("boxart-cache"));
+        let mut infos = crate::info::InfoCache::load(&crate::paths::boxart_cache(&data_dir));
         // what IGDB gave, kept from Details' lookups, fills the gaps LaunchBox leaves (nothing is asked here)
         let igdb = crate::igdb::Store::load(&data_dir);
         let more = crate::moreshots::Index::load(&data_dir);
@@ -687,7 +687,7 @@ fn auto_covers(lib: &Library, data_dir: &Path) -> bool {
     }
     let art = ArtLibrary::from_config(&lib.config, &lib.app_root);
     let cancel = std::sync::atomic::AtomicBool::new(false);
-    let cache = data_dir.join("boxart-cache");
+    let cache = crate::paths::boxart_cache(data_dir);
     let raw = Value::Object(lib.config.raw().clone());
     let run = crate::boxart::Run { art: &art, app_root: &lib.app_root, cache_dir: &cache, kinds: &["front", "back", "spine", "disc"], region: lib.config.art_region(), hd: lib.config.art_hd(), explicit: false, cfg: &raw, index_ready_only: false };
     let report = crate::boxart::download(&run, &wanted, &|_, _, _| {}, &cancel);
@@ -773,7 +773,7 @@ fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
         .collect();
     let mut wants = wants;
     if !loose.is_empty() {
-        crate::recomps::detect(data_dir, &data_dir.join("boxart-cache"), &loose, &HashSet::new(), now);
+        crate::recomps::detect(data_dir, &crate::paths::boxart_cache(data_dir), &loose, &HashSet::new(), now);
         let found = crate::recomps::found(data_dir);
         for (id, title) in loose {
             if let Some(plat) = found.get(&crate::recomps::key(&id, &title)).and_then(|sys| crate::covers::launchbox_platform(sys)) {
@@ -781,7 +781,7 @@ fn pc_backs(lib: &Library, data_dir: &Path) -> bool {
             }
         }
     }
-    !wants.is_empty() && crate::pcbacks::run(data_dir, &data_dir.join("boxart-cache"), &wants, lib.config.art_region(), now) > 0
+    !wants.is_empty() && crate::pcbacks::run(data_dir, &crate::paths::boxart_cache(data_dir), &wants, lib.config.art_region(), now) > 0
 }
 
 /// The Custom shelf's games that may be recomps, looked up in LaunchBox's database for their console, when Settings →
@@ -802,7 +802,7 @@ fn recomp_consoles(lib: &Library, data_dir: &Path) -> bool {
         .collect();
     let shelves: HashSet<&str> = lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })).map(|s| s.id.as_str()).collect();
     let now = crate::now_ms();
-    !games.is_empty() && crate::recomps::detect(data_dir, &data_dir.join("boxart-cache"), &games, &shelves, now)
+    !games.is_empty() && crate::recomps::detect(data_dir, &crate::paths::boxart_cache(data_dir), &games, &shelves, now)
 }
 
 /// SteamGridDB posters for the PC games that aren't Steam's and have no cover at all, wherever they sit (a program

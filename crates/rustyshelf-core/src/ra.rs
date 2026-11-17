@@ -119,8 +119,7 @@ pub fn match_game<'a>(list: &'a [Listed], title: &str) -> Option<&'a Listed> {
 pub type Fetch = Box<dyn Fn(&str) -> Result<Value, String> + Send + Sync>;
 
 fn over_the_net(url: &str) -> Result<Value, String> {
-    let agent = format!("RustyShelf/{}", crate::VERSION);
-    let (status, body) = crate::net::get(url, Duration::from_secs(20), 8_000_000, &agent)?;
+    let (status, body) = crate::net::get(url, Duration::from_secs(20), 8_000_000, crate::net::agent())?;
     match status {
         200 => serde_json::from_slice(&body).map_err(|_| "RetroAchievements sent an answer RustyShelf couldn't read. Try again in a moment.".to_string()),
         429 => Err("RetroAchievements is busy (too many requests). Try again in a minute.".into()),
@@ -216,7 +215,7 @@ impl Ra {
         if (1..=64).contains(&user.len()) && user.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
             user
         } else {
-            format!("u{}", Sha1::digest(user.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>().chars().take(16).collect::<String>())
+            format!("u{}", crate::files::hex(&Sha1::digest(user.as_bytes())[..8]))
         }
     }
 

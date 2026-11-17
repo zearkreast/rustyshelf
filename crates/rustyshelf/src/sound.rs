@@ -11,6 +11,7 @@ use std::time::Instant;
 use bevy::audio::{AudioPlayer, AudioSource, PlaybackSettings};
 use bevy::prelude::*;
 use rustyshelf_core::cues;
+use rustyshelf_core::i18n::plural_s;
 use rustyshelf_core::soundpacks::{self, Pack};
 use rustyshelf_core::synth::{self, Tone, Voice};
 
@@ -159,7 +160,7 @@ pub fn run(mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<
     }
     if std::mem::take(&mut settings.reload_songs) {
         let (songs, skipped) = rustyshelf_core::usermusic::songs(&rustyshelf_core::paths::app_root());
-        let found = format!("{} song{} loaded", songs.len(), if songs.len() == 1 { "" } else { "s" });
+        let found = format!("{} song{} loaded", songs.len(), plural_s(songs.len()));
         settings.say(if skipped.is_empty() { found } else { format!("{found} · {} couldn't be read", skipped.len()) });
         let (with, now) = (settings.sound().built_in_songs, sounds.started.elapsed().as_secs_f64() * 1000.0);
         sounds.state.set_songs(songs, with, now);

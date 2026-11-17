@@ -21,14 +21,11 @@ use serde_json::{json, Value};
 
 use crate::files::{read_json, write_atomic};
 use crate::js;
+use crate::paths::is_dir;
 use crate::pcgames::slug;
 
 fn home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_default())
-}
-
-fn is_dir(p: &Path) -> bool {
-    p.is_dir()
 }
 
 fn is_exec(p: &Path) -> bool {
@@ -340,7 +337,7 @@ pub fn umu_id(data_dir: &Path, store: &str, codename: &str) -> Option<String> {
         }
     }
     let url = format!("https://umu.openwinecomponents.org/umu_api.php?{}", js::query(&[("store", store.to_string()), ("codename", codename.to_string())]));
-    let id = crate::net::ask(&url, &[("User-Agent", "RustyShelf")], Duration::from_secs(4), 100_000).ok().and_then(|(_, _, b)| serde_json::from_slice::<Value>(&b).ok()).and_then(|j| {
+    let id = crate::net::ask(&url, &[], Duration::from_secs(4), 100_000).ok().and_then(|(_, _, b)| serde_json::from_slice::<Value>(&b).ok()).and_then(|j| {
         let x = if j.is_array() { j.get(0).cloned() } else { Some(j) }?;
         js::str_of(x.get("umu_id")).filter(|i| ID.is_match(i)).map(str::to_string)
     });
@@ -366,7 +363,7 @@ pub fn legendary_bin(custom: &str, app_root: &Path) -> Option<PathBuf> {
 pub fn get_legendary(app_root: &Path) -> Result<PathBuf, String> {
     use sha2::Digest;
     let buf = crate::net::get_bytes(LEGENDARY_URL, Duration::from_secs(300), 200 << 20).ok().flatten().ok_or("Couldn't download legendary. Check the internet connection.")?;
-    let hash: String = sha2::Sha256::digest(&buf).iter().map(|b| format!("{b:02x}")).collect();
+    let hash = crate::files::hex(&sha2::Sha256::digest(&buf));
     if hash != LEGENDARY_SHA256 {
         return Err("The legendary download was damaged. Try again.".into());
     }

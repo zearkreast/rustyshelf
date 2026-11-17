@@ -44,17 +44,13 @@ fn random(n: usize) -> Vec<u8> {
     b
 }
 
-fn hex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-
 fn base64url(b: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b)
 }
 
 fn sha(s: &str) -> String {
-    hex(&Sha256::digest(s.as_bytes()))
+    crate::files::hex(&Sha256::digest(s.as_bytes()))
 }
 
 fn hmac(key: &[u8], message: &[u8]) -> Vec<u8> {
@@ -954,7 +950,7 @@ impl Companion {
             Some(n) if js::truthy(Some(n)) => js::string(Some(n)),
             _ => String::new(),
         };
-        let phone = Phone { id: hex(&random(6)), name: phone_name(&given_name, req.headers.get("user-agent").map_or("", String::as_str)), hash: sha(&token), added: now, seen: now };
+        let phone = Phone { id: crate::files::hex(&random(6)), name: phone_name(&given_name, req.headers.get("user-agent").map_or("", String::as_str)), hash: sha(&token), added: now, seen: now };
         let name = phone.name.clone();
         inner.phones.push(phone);
         let extra = inner.phones.len().saturating_sub(MAX_PHONES);

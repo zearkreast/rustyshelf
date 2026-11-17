@@ -6,7 +6,7 @@ use std::time::Duration;
 use sha1::{Digest, Sha1};
 
 fn file_for(data_dir: &Path, url: &str) -> PathBuf {
-    let hex: String = Sha1::digest(url.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let hex = crate::files::hex(&Sha1::digest(url.as_bytes()));
     data_dir.join("ach-icons").join(&hex[..2]).join(hex)
 }
 

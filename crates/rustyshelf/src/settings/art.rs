@@ -333,7 +333,7 @@ impl Settings {
             self.say("LaunchBox's database is downloading already".into());
             return;
         }
-        let cache = paths::data_dir(&self.app_root).join("boxart-cache");
+        let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
         let (tx, rx) = channel();
         let stage = std::sync::Arc::new(Mutex::new("Starting the download…".to_string()));
         let at = stage.clone();
@@ -500,7 +500,7 @@ impl Settings {
             let title = self.chosen.as_ref().map_or(g.title.clone(), |c| c.game.title.clone());
             self.say(match changed {
                 0 => format!("{title}: nothing changed"),
-                n => format!("{title}: {n} picture{} changed", if n == 1 { "" } else { "s" }),
+                n => format!("{title}: {n} picture{} changed", plural_s(n)),
             });
             self.changed |= changed > 0;
         }
@@ -807,7 +807,7 @@ impl Settings {
         self.say(match todo.len() {
             0 if kept > 0 => format!("Unlocked{own}"),
             0 => "Unlocked · already matches the shelf style".into(),
-            n => format!("Unlocked · re-picking {n} part{} for the shelf style{own}", if n == 1 { "" } else { "s" }),
+            n => format!("Unlocked · re-picking {n} part{} for the shelf style{own}", plural_s(n)),
         });
         if todo.is_empty() {
             return;

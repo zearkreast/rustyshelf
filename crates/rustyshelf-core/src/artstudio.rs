@@ -30,7 +30,7 @@ pub fn suffix(part: &str) -> &'static str {
 }
 
 fn sha(s: &str) -> String {
-    Sha1::digest(s.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+    crate::files::hex(&Sha1::digest(s.as_bytes()))
 }
 
 // ---------- styles and looks ----------
@@ -189,11 +189,6 @@ fn title_case(s: &str) -> String {
     OWNS.replace_all(&upper, "'s").into_owned()
 }
 
-fn ext_of(file: &str) -> String {
-    let ext = js::extname(file).to_lowercase();
-    if matches!(ext.as_str(), ".png" | ".jpg" | ".jpeg" | ".webp") { ext } else { ".jpg".into() }
-}
-
 /// A picture of LaunchBox's as a candidate.
 pub fn lb_cand(im: &GameImage) -> Cand {
     let kind_of = im.r#type.as_str();
@@ -211,9 +206,9 @@ pub fn lb_cand(im: &GameImage) -> Cand {
         "Box scan"
     };
     Cand {
-        url: format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file)),
-        ext: if full { ".jpg".into() } else { ext_of(&im.file) },
-        src: full.then(|| ext_of(&im.file)),
+        url: covers::lb_url(&im.file),
+        ext: if full { ".jpg".into() } else { crate::boxart::picture_ext(&im.file) },
+        src: full.then(|| crate::boxart::picture_ext(&im.file)),
         source: "launchbox".into(),
         kind_of: kind_of.into(),
         region: region.into(),
@@ -548,7 +543,7 @@ fn part_index(part: &str) -> usize {
 
 /// The name a game's locks are kept under in the settings (`art.locks`).
 pub fn lock_key(sys: &str, file: &Path) -> String {
-    format!("{sys}|{}", crate::art::resolve(file).to_string_lossy().to_lowercase())
+    format!("{sys}|{}", crate::art::path_key(file))
 }
 
 /// The parts automatic work must leave alone: a locked game's every part (missing ones too), else the parts locked one
@@ -580,7 +575,7 @@ fn date_word(stamp: &str) -> Option<String> {
 fn local_cand(file: &Path, source: &str, label: String) -> Cand {
     let info = file_info(file);
     Cand {
-        key: format!("{}{}", if source == "current" { "c" } else { "e" }, &sha(&crate::art::resolve(file).to_string_lossy().to_lowercase())[..15]),
+        key: format!("{}{}", if source == "current" { "c" } else { "e" }, &sha(&crate::art::path_key(file))[..15]),
         source: source.into(),
         file: Some(file.to_path_buf()),
         ext: js::extname(&file.to_string_lossy()).to_lowercase(),
@@ -914,9 +909,8 @@ impl Studio {
         }
         std::fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
         let i = part_index(part);
-        let same = |a: &Path, b: &Path| crate::art::resolve(a).to_string_lossy().to_lowercase() == crate::art::resolve(b).to_string_lossy().to_lowercase();
         // the picture already in use, picked again: nothing to copy
-        if !cut && g.current[i].as_ref().is_some_and(|cur| same(cur, src)) {
+        if !cut && g.current[i].as_ref().is_some_and(|cur| crate::art::same_path(cur, src)) {
             return check_image(src, part, false).map(|_| ());
         }
         let (ext, _, _) = check_image(src, part, cut)?;

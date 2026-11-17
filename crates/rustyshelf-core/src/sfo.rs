@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::bytes::{le16, le32};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SfoValue {
     Text(String),
@@ -24,14 +26,6 @@ pub fn text<'a>(sfo: &'a Sfo, key: &str) -> Option<&'a str> {
     }
 }
 
-fn u16_at(b: &[u8], at: usize) -> Option<u16> {
-    Some(u16::from_le_bytes(b.get(at..at + 2)?.try_into().ok()?))
-}
-
-fn u32_at(b: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?))
-}
-
 fn zstr(b: &[u8], from: usize, max: usize) -> Option<String> {
     let s = b.get(from..max.min(b.len()))?;
     let end = s.iter().position(|&c| c == 0).unwrap_or(s.len());
@@ -39,19 +33,19 @@ fn zstr(b: &[u8], from: usize, max: usize) -> Option<String> {
 }
 
 pub fn parse(b: &[u8]) -> Option<Sfo> {
-    if u32_at(b, 0)? != 0x4653_5000 {
+    if le32(b, 0)? != 0x4653_5000 {
         return None;
     }
-    let key_tab = u32_at(b, 8)? as usize;
-    let data_tab = u32_at(b, 12)? as usize;
-    let n = u32_at(b, 16)? as usize;
+    let key_tab = le32(b, 8)? as usize;
+    let data_tab = le32(b, 12)? as usize;
+    let n = le32(b, 16)? as usize;
     let mut out = Sfo::new();
     for i in 0..n {
         let e = 20 + i * 16;
-        let key_off = u16_at(b, e)? as usize;
-        let fmt = u16_at(b, e + 2)?;
-        let len = u32_at(b, e + 4)? as usize;
-        let data_off = u32_at(b, e + 12)? as usize;
+        let key_off = le16(b, e)? as usize;
+        let fmt = le16(b, e + 2)?;
+        let len = le32(b, e + 4)? as usize;
+        let data_off = le32(b, e + 12)? as usize;
         let key = zstr(b, key_tab + key_off, b.len())?;
         let at = data_tab + data_off;
         match fmt {
@@ -59,7 +53,7 @@ pub fn parse(b: &[u8]) -> Option<Sfo> {
                 out.insert(key, SfoValue::Text(zstr(b, at, at + len)?));
             }
             0x0404 => {
-                out.insert(key, SfoValue::Int(u32_at(b, at)?));
+                out.insert(key, SfoValue::Int(le32(b, at)?));
             }
             _ => {}
         }

@@ -6,6 +6,7 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
+use rustyshelf_core::i18n::plural_s;
 use rustyshelf_core::ra;
 use rustyshelf_core::scanner::Source;
 use serde_json::Value;
@@ -66,7 +67,7 @@ pub fn run(
             }
             Answer::Unlocked(Ok(list)) if !list.is_empty() => {
                 let names: Vec<&str> = list.iter().filter_map(|a| a["title"].as_str()).take(3).collect();
-                toast.text = format!("{} achievement{} unlocked: {}{}", list.len(), if list.len() == 1 { "" } else { "s" }, names.join(", "), if list.len() > names.len() { "…" } else { "" });
+                toast.text = format!("{} achievement{} unlocked: {}{}", list.len(), plural_s(list.len()), names.join(", "), if list.len() > names.len() { "…" } else { "" });
                 toast.until = now + 8.0;
                 // the shelves' marks are out of date now
                 c.shelves.clear();

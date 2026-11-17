@@ -75,7 +75,7 @@ box boxart art cover front back final release standard physical version packagin
 
 /// The wiki's own search, asked of the web: the answer's JSON, or why not.
 pub fn ask(words: &str) -> Result<Value, String> {
-    let agent = format!("RustyShelf/{} (box art for a personal game launcher)", crate::VERSION);
+    let agent = format!("{} (box art for a personal game launcher)", crate::net::agent());
     let query = js::query(&[
         ("action", "query".into()),
         ("format", "json".into()),

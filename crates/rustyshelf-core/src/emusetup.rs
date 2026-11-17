@@ -22,7 +22,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 use serde_json::{json, Map, Value};
 
-use crate::art::resolve;
+use crate::art::{path_key, same_path};
 use crate::emucfg::{self, Var};
 use crate::js;
 use crate::paths::{is_dir, is_file};
@@ -244,7 +244,7 @@ fn has_bios_files(d: &str) -> bool {
 
 fn file_hash(f: &str) -> Option<String> {
     use sha1::Digest;
-    std::fs::read(f).ok().map(|b| sha1::Sha1::digest(&b).iter().map(|x| format!("{x:02x}")).collect())
+    std::fs::read(f).ok().map(|b| crate::files::hex(&sha1::Sha1::digest(&b)))
 }
 
 /// The copy of a file as it was when setup first touched it (main/emusetup.js).
@@ -542,7 +542,7 @@ impl Setup<'_> {
         for d in [conf.clone(), js::dirname(&self.ra_cfg(exe)), js::join(&[&sh, "presets"])] {
             for e in ["slangp", "glslp", "cgp"] {
                 let f = js::join(&[&d, &format!("global.{e}")]);
-                let ours = files.iter().find(|x| resolve(Path::new(&x.0)).to_string_lossy().to_lowercase() == resolve(Path::new(&f)).to_string_lossy().to_lowercase());
+                let ours = files.iter().find(|x| same_path(Path::new(&x.0), Path::new(&f)));
                 if is_file(Path::new(&f)) && ours.is_none_or(|o| read_text(&f).trim() != preset_text(&o.1)) {
                     return Err("it already uses a shader of your own");
                 }
@@ -777,7 +777,7 @@ impl Setup<'_> {
     }
 
     fn key_of(kind: Kind, exe: &str) -> String {
-        format!("{}|{}", kind.id(), resolve(Path::new(exe)).to_string_lossy().to_lowercase())
+        format!("{}|{}", kind.id(), path_key(Path::new(exe)))
     }
 
     /// Applies the groups that are switched on. `on`: a group and whether it's on; one that isn't listed has its
@@ -1012,10 +1012,6 @@ pub struct Auto {
     pub pending: Vec<String>,
 }
 
-fn same_path(a: &Path, b: &Path) -> bool {
-    resolve(a).to_string_lossy().to_lowercase() == resolve(b).to_string_lossy().to_lowercase()
-}
-
 impl Setup<'_> {
     /// Sets up each emulator once: `emulators` as the settings have them (the consoles switched on), `resolved` turns
     /// one into its path. One that hasn't run yet waits for its settings file; one used before is left alone.
@@ -1024,7 +1020,7 @@ impl Setup<'_> {
         let mut seen: Vec<String> = Vec::new();
         for emu in emulators.iter().filter(|e| !e.is_empty()) {
             let path = resolved(emu);
-            let key = resolve(&path).to_string_lossy().to_lowercase();
+            let key = path_key(&path);
             if seen.contains(&key) {
                 continue;
             }

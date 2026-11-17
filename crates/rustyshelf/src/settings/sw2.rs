@@ -113,7 +113,7 @@ impl Settings {
         let hint = match &self.sw2.list {
             None => "Looking for emulators…".to_string(),
             Some(l) if l.is_empty() => "None yet · add one here".into(),
-            Some(l) => format!("{} emulator{} · add or remove here", l.len(), if l.len() == 1 { "" } else { "s" }),
+            Some(l) => format!("{} emulator{} · add or remove here", l.len(), plural_s(l.len())),
         };
         Row {
             label: "Emulators (forks)".into(),

@@ -148,7 +148,7 @@ impl Igdb {
     }
 
     fn pair(&self) -> String {
-        Sha1::digest(format!("{}\n{}", self.id, self.secret).as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+        crate::files::hex(&Sha1::digest(format!("{}\n{}", self.id, self.secret).as_bytes()))
     }
 
     /// The keys were turned down a moment ago.

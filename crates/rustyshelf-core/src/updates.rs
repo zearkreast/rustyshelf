@@ -168,7 +168,7 @@ fn sha256_of(path: &Path) -> Result<String, String> {
         }
         h.update(&buf[..n]);
     }
-    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+    Ok(crate::files::hex(&h.finalize()))
 }
 
 /// The file's sum in a SHA256SUMS.txt (`<hex>  <name>` lines).

@@ -169,7 +169,7 @@ impl Settings {
             let n = col["ids"].as_array().map_or(0, Vec::len);
             rows.push(Row {
                 label: name.clone(),
-                value: if col.get("rule").is_some() { "Automatic".into() } else { format!("{n} game{}", if n == 1 { "" } else { "s" }) },
+                value: if col.get("rule").is_some() { "Automatic".into() } else { format!("{n} game{}", plural_s(n)) },
                 hint: format!("Open {name}: search for games to add, take games off, rename or delete it."),
                 press: Some(Box::new(move |s: &mut Settings| {
                     s.shelf_q.clear();
@@ -190,7 +190,7 @@ impl Settings {
             let (g2, on) = (g.clone(), has(g));
             rows.push(Row {
                 label: format!("Add a tag shelf: {g}"),
-                value: format!("{n} game{}{}", if *n == 1 { "" } else { "s" }, if on { " · on your shelves" } else { "" }),
+                value: format!("{n} game{}{}", plural_s(*n), if on { " · on your shelves" } else { "" }),
                 hint: format!("A shelf of every {g} game, from every console. You can still add other games to it from their Details (Collections)."),
                 press: Some(Box::new(move |s: &mut Settings| s.add_tag_shelf(&g2))),
                 step: None,
@@ -301,7 +301,7 @@ impl Settings {
                 rows.extend(hits.iter().take(40).map(|(gid, t, _)| toggle(gid, t)));
             }
             let on: Vec<(&String, &String)> = ids.iter().filter_map(|g| self.titles.get(g).map(|t| (g, t))).collect();
-            rows.push(Row { label: "On this shelf".into(), value: format!("{} game{}", on.len(), if on.len() == 1 { "" } else { "s" }), ..Row::default() });
+            rows.push(Row { label: "On this shelf".into(), value: format!("{} game{}", on.len(), plural_s(on.len())), ..Row::default() });
             if on.is_empty() {
                 rows.push(Row { label: "No games yet".into(), hint: "Search above and switch a game on to add it".into(), ..Row::default() });
             }

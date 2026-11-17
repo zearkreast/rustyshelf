@@ -20,6 +20,7 @@ use regex::Regex;
 use serde_json::{json, Map, Value};
 
 use crate::js;
+use crate::paths::is_dir;
 
 /// What's left out of the data folder, by name at its top level: the Electron app's engine caches, logs,
 /// sign-ins and locks.
@@ -29,10 +30,6 @@ static SKIP: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 const APP_DIRS: [&str; 6] = ["Library", "themes", "Custom themes", "Guides", "Magazines", "Songs"];
-
-fn is_dir(p: &Path) -> bool {
-    p.is_dir()
-}
 
 fn lower(p: &Path) -> String {
     js::normalize(&p.to_string_lossy()).to_string_lossy().to_lowercase()

@@ -28,6 +28,7 @@ pub mod artjob;
 pub mod artstudio;
 pub mod bflyt;
 pub mod boxart;
+pub(crate) mod bytes;
 pub mod collate;
 pub mod companion;
 pub mod config;

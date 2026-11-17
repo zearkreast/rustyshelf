@@ -67,13 +67,9 @@ pub trait Web: Sync {
 /// The sites themselves.
 pub struct Online;
 
-fn agent() -> String {
-    format!("RustyShelf/{}", env!("CARGO_PKG_VERSION"))
-}
-
 impl Web for Online {
     fn json(&self, url: &str) -> Result<Value, WebError> {
-        let (status, _, body) = crate::net::ask(url, &[("User-Agent", agent().as_str())], Duration::from_secs(60), 8_000_000).map_err(|slow| WebError::Offline(if slow { "timed out" } else { "couldn't reach the site" }.into()))?;
+        let (status, _, body) = crate::net::ask(url, &[("User-Agent", crate::net::agent())], Duration::from_secs(60), 8_000_000).map_err(|slow| WebError::Offline(if slow { "timed out" } else { "couldn't reach the site" }.into()))?;
         if status != 200 {
             return Err(WebError::Http(status));
         }
@@ -81,7 +77,7 @@ impl Web for Online {
     }
 
     fn text(&self, url: &str) -> Result<String, WebError> {
-        let (status, _, body) = crate::net::ask(url, &[("User-Agent", agent().as_str()), ("Accept", "text/html")], Duration::from_secs(40), 2_000_000).map_err(|slow| WebError::Offline(if slow { "timed out" } else { "couldn't reach the site" }.into()))?;
+        let (status, _, body) = crate::net::ask(url, &[("User-Agent", crate::net::agent()), ("Accept", "text/html")], Duration::from_secs(40), 2_000_000).map_err(|slow| WebError::Offline(if slow { "timed out" } else { "couldn't reach the site" }.into()))?;
         if status != 200 {
             return Err(WebError::Http(status));
         }
@@ -89,7 +85,7 @@ impl Web for Online {
     }
 
     fn file(&self, url: &str, dest: &Path) -> Result<bool, WebError> {
-        let (status, _, body) = crate::net::ask(url, &[("User-Agent", agent().as_str())], Duration::from_secs(300), 600_000_000).map_err(|slow| WebError::Offline(if slow { "timed out" } else { "couldn't reach the site" }.into()))?;
+        let (status, _, body) = crate::net::ask(url, &[("User-Agent", crate::net::agent())], Duration::from_secs(300), 600_000_000).map_err(|slow| WebError::Offline(if slow { "timed out" } else { "couldn't reach the site" }.into()))?;
         if status != 200 || body.len() < 2048 {
             return Ok(false);
         }

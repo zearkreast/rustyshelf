@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use crate::art::resolve;
+use crate::art::path_key;
 use crate::js;
 use crate::paths::is_dir;
 
@@ -43,7 +43,7 @@ pub fn pref_dirs(exe: &str, var: &dyn Fn(&str) -> Option<String>) -> Vec<String>
     }
     out.push(home);
     let mut seen = std::collections::HashSet::new();
-    out.retain(|d| seen.insert(resolve(Path::new(d)).to_string_lossy().to_lowercase()));
+    out.retain(|d| seen.insert(path_key(Path::new(d))));
     out
 }
 

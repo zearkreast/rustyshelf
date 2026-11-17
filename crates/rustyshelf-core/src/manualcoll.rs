@@ -627,7 +627,7 @@ fn sharper_pdf(web: &dyn Web, g: &Game, base: &str, coll_count: usize, coll_byte
     let tries: Vec<&str> = if bare == t { vec![t.as_str()] } else { vec![t.as_str(), bare.as_str()] };
     let hit = tries.iter().find_map(|x| manuals::search_games_database(web, &g.sys, x))?;
     let url = hit.id.strip_prefix("gdb:")?.to_string();
-    let tag: String = <sha1::Sha1 as sha1::Digest>::digest(format!("{}|{url}", g.key()).as_bytes()).iter().take(6).map(|b| format!("{b:02x}")).collect();
+    let tag = crate::files::hex(&<sha1::Sha1 as sha1::Digest>::digest(format!("{}|{url}", g.key()).as_bytes())[..6]);
     let stage = std::env::temp_dir().join(format!("rustyshelf-manual-gdb-{}-{tag}", std::process::id()));
     let _ = fs::remove_dir_all(&stage);
     fs::create_dir_all(&stage).ok()?;
@@ -770,7 +770,7 @@ pub fn one(web: &dyn Web, g: &Game, hit: &Hit, memo: &mut Memo, now: f64, force:
 pub fn fetch_for(web: &dyn Web, data_dir: &Path, g: &Game, stores: &Stores, memo: &mut Memo, now: &dyn Fn() -> f64, skip: Option<&str>) -> Option<(usize, String)> {
     let key = g.key();
     for col in collections(&g.sys) {
-        let Ok(ix) = index(web, &data_dir.join("boxart-cache"), col, now()) else { continue };
+        let Ok(ix) = index(web, &crate::paths::boxart_cache(data_dir), col, now()) else { continue };
         let Some(e) = matches(&ix.entries, g).into_iter().find(|x| {
             let id = format!("{}/{}", col.id, x.name);
             Some(id.as_str()) != skip && !stores.rejected(&key, &format!("coll:{id}"))
@@ -798,7 +798,7 @@ pub struct Change {
 /// without a manual first, then the ones whose manual a collection can better. `skip(console)`: a console set
 /// to another language or region (the collections are English, North American). Returns what changed.
 pub fn run(web: &dyn Web, data_dir: &Path, games: &[Game], stores: &Stores, now: &dyn Fn() -> f64, skip: &dyn Fn(&str) -> bool, cancelled: &(dyn Fn() -> bool + Sync)) -> Vec<Change> {
-    let cache_dir = data_dir.join("boxart-cache");
+    let cache_dir = crate::paths::boxart_cache(data_dir);
     let mut memo = Memo::load(data_dir);
     let mut indexes: Vec<(String, Vec<(&'static Collection, Index)>)> = Vec::new();
     let mut jobs: Vec<(u8, &Game, usize, usize, Entry)> = Vec::new();

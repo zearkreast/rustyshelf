@@ -113,7 +113,7 @@ impl Settings {
                             self.streaming.unreached = false;
                             if told {
                                 let n = at(&self.cfg, &["moonlight", "apps"]).and_then(Value::as_array).map_or(0, Vec::len);
-                                self.say(format!("{n} game{} from {host}", if n == 1 { "" } else { "s" }));
+                                self.say(format!("{n} game{} from {host}", plural_s(n)));
                             }
                         }
                         Err(why) if told => {
@@ -197,7 +197,7 @@ impl Settings {
                     } else if self.streaming.unreached {
                         "Couldn't reach it".into()
                     } else if n > 0 {
-                        format!("{n} app{} on the host", if n == 1 { "" } else { "s" })
+                        format!("{n} app{} on the host", plural_s(n))
                     } else {
                         "Refresh".into()
                     },

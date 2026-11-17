@@ -15,6 +15,8 @@ use regex::Regex;
 use serde_json::{json, Value};
 use unicode_normalization::UnicodeNormalization;
 
+use crate::bytes::{be32, be64};
+
 /// A grade's type, name and PSN's points for it.
 fn grade(g: &str) -> (&'static str, &'static str, u32) {
     match g {
@@ -75,14 +77,6 @@ pub fn read_sfm(t: &str) -> (String, Vec<Trophy>) {
         .collect();
     list.sort_by_key(|t| t.id);
     (inner(&TITLE, t), list)
-}
-
-fn be32(b: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_be_bytes(b.get(at..at + 4)?.try_into().ok()?))
-}
-
-fn be64(b: &[u8], at: usize) -> Option<u64> {
-    Some(u64::from_be_bytes(b.get(at..at + 8)?.try_into().ok()?))
 }
 
 /// TROPUSR.DAT: each earned trophy's id and when, in ms since 1970 (0 when the time isn't known). `now`: ms now.

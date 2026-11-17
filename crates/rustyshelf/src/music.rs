@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 use bevy::audio::{AddAudioSource, AudioPlayer, ChannelCount, Decodable, PlaybackSettings, Sample, SampleRate, Source};
 use bevy::prelude::*;
 use rustyshelf_core::cues;
+use rustyshelf_core::i18n::plural_s;
 use rustyshelf_core::music::{self, Chain, Player, Score, Track};
 
 use crate::loading::{LibraryRes, LibraryState};
@@ -278,7 +279,7 @@ fn start(music: Res<Music>, mut sources: ResMut<Assets<MusicSource>>, mut comman
 pub fn run(mut music: ResMut<Music>, mut sounds: ResMut<Sounds>, mut settings: ResMut<Settings>, lib: Res<LibraryRes>, cursor: Res<Cursor>, playing: Res<Playing>) {
     if std::mem::take(&mut settings.reload_music) {
         let n = rustyshelf_core::usermusic::music_files(&rustyshelf_core::paths::app_root()).len();
-        settings.say(format!("{n} track{} found", if n == 1 { "" } else { "s" }));
+        settings.say(format!("{n} track{} found", plural_s(n)));
         music.reload = true;
     }
     let prefs = settings.sound();

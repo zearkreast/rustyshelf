@@ -11,6 +11,7 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
+use rustyshelf_core::i18n::plural_s;
 use rustyshelf_core::pccovers::{self, CoverOption};
 
 use rustyshelf_core::library::Library;
@@ -275,7 +276,7 @@ fn gallery(lib: &Library, data: &std::path::Path, now: f32) -> Option<Open> {
         .collect();
     let made = items.iter().filter(|i| i.made).count();
     let n = items.len();
-    let count = format!("{n} game{}{}", if n == 1 { "" } else { "s" }, if made > 0 { format!(" · {made} with a made-up case") } else { String::new() });
+    let count = format!("{n} game{}{}", plural_s(n), if made > 0 { format!(" · {made} with a made-up case") } else { String::new() });
     let (tx, rx) = channel();
     std::thread::spawn(move || {
         let _ = tx.send(decode_all(&fronts));
@@ -301,7 +302,7 @@ fn missing(lib: &Library, data: &std::path::Path) -> Vec<(String, String)> {
 fn note_for(found: &pccovers::Options, term: &str) -> String {
     let n = found.list.iter().filter(|c| c.source == "steamgriddb").count();
     let ns = found.list.iter().filter(|c| matches!(c.source, "steamstore" | "steam")).count();
-    let s = |k: usize| if k == 1 { "" } else { "s" };
+    let s = |k: usize| plural_s(k);
     if n > 0 {
         format!("{n} cover{} from SteamGridDB{}{}.", s(n), if term.is_empty() { String::new() } else { format!(" for \"{term}\"") }, if ns > 0 { ", and Steam's own" } else { "" })
     } else if !term.is_empty() {
@@ -320,7 +321,7 @@ fn note_for(found: &pccovers::Options, term: &str) -> String {
 }
 
 fn covers_count(n: usize) -> String {
-    format!("New covers for {n} game{}", if n == 1 { "" } else { "s" })
+    format!("New covers for {n} game{}", plural_s(n))
 }
 
 /// A line for the player: on Settings' page while it's open, else over the shelf.
@@ -373,7 +374,7 @@ pub fn run(
                 }
                 pick.undo = got.into_iter().map(|g| g.0).collect();
                 pick.reload = true;
-                format!("New covers for {} of {of} game{}. Don't like them? Settings → Custom games → Undo", pick.undo.len(), if of == 1 { "" } else { "s" })
+                format!("New covers for {} of {of} game{}. Don't like them? Settings → Custom games → Undo", pick.undo.len(), plural_s(of))
             }
         };
         say(&mut settings, &mut toast, text, now);
@@ -400,7 +401,7 @@ pub fn run(
             }
             Job::Best if pick.best.is_none() => {
                 let n = list.len();
-                say(&mut settings, &mut toast, format!("Finding covers for {n} game{}…", if n == 1 { "" } else { "s" }), now);
+                say(&mut settings, &mut toast, format!("Finding covers for {n} game{}…", plural_s(n)), now);
                 let (tx, rx) = channel();
                 let data = data.clone();
                 std::thread::spawn(move || {
@@ -424,7 +425,7 @@ pub fn run(
                 }
                 if !gone.is_empty() {
                     sounds.play("toast", 1);
-                    say(&mut settings, &mut toast, format!("{} cover{} put back", gone.len(), if gone.len() == 1 { "" } else { "s" }), now);
+                    say(&mut settings, &mut toast, format!("{} cover{} put back", gone.len(), plural_s(gone.len())), now);
                     pick.reload = true;
                 }
             }

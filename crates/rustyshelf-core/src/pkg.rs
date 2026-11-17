@@ -10,11 +10,8 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
+use crate::bytes::be32;
 use crate::sfo::{self, Sfo};
-
-fn be32(b: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_be_bytes(b.get(at..at + 4)?.try_into().ok()?))
-}
 
 fn read_exact_at(f: &mut File, pos: u64, len: usize) -> Option<Vec<u8>> {
     f.seek(SeekFrom::Start(pos)).ok()?;

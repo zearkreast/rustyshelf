@@ -89,13 +89,13 @@ impl Settings {
         }
         let hid = f.games.iter().filter(|g| g.hidden).count();
         let all = f.games.len() - hid;
-        let on = format!("{all} game{} on your shelves{}", if all == 1 { "" } else { "s" }, if hid > 0 { format!(" · {hid} hidden") } else { String::new() });
+        let on = format!("{all} game{} on your shelves{}", plural_s(all), if hid > 0 { format!(" · {hid} hidden") } else { String::new() });
         let lead = match (f.typed.trim().is_empty(), total) {
             (true, 0) => format!("{on}."),
             (true, _) => format!("{on}. Played last:"),
             (false, 0) => "No game with that in its title.".into(),
             (false, n) if n > found.len() => format!("The first {} of {n} games found.", found.len()),
-            (false, n) => format!("{n} game{} found.", if n == 1 { "" } else { "s" }),
+            (false, n) => format!("{n} game{} found.", plural_s(n)),
         };
         Page { title: "Find a game".into(), lead, rows }
     }

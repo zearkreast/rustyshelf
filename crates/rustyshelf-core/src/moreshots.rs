@@ -150,7 +150,7 @@ fn same(a: &[String; 2], b: &[String; 2]) -> bool {
 }
 
 fn marks(b: &[u8]) -> [String; 2] {
-    let sha = Sha1::digest(b).iter().map(|x| format!("{x:02x}")).collect();
+    let sha = crate::files::hex(&Sha1::digest(b));
     [sha, dhash(b).unwrap_or_default()]
 }
 
@@ -184,7 +184,7 @@ pub fn top_up(index: &mut Index, sys: &str, game: &Game, base: &[String], source
     let (mut busy, mut urls, mut base_marked) = (HashSet::new(), HashSet::new(), false);
     let sub_name: String = sys.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
     let sub = index.dir.join(&sub_name);
-    let name: String = Sha1::digest(key.as_bytes()).iter().map(|x| format!("{x:02x}")).collect::<String>()[..16].to_string();
+    let name = crate::files::hex(&Sha1::digest(key.as_bytes())[..8]);
     for (c, src) in cands {
         if base.len() + count(&e) >= WANT || base.len() + count(&e) >= MAX {
             break;
@@ -300,7 +300,7 @@ impl Source for Libretro<'_> {
             return Ok(Vec::new());
         }
         let Some(name) = names.find(game.file, game.title, game.region, self.region) else { return Ok(Vec::new()) };
-        let u = |d: &str| format!("https://thumbnails.libretro.com/{}/{d}/{}", crate::js::encode_uri_component(lr), crate::js::encode_uri_component(&format!("{name}.png")));
+        let u = |d: &str| format!("{}{}/{d}/{}", crate::covers::LIBRETRO_THUMBS, crate::js::encode_uri_component(lr), crate::js::encode_uri_component(&format!("{name}.png")));
         Ok(vec![Cand { url: u("Named_Snaps"), kind: "play" }, Cand { url: u("Named_Titles"), kind: "title" }])
     }
     fn get(&self, url: &str, dest: &Path) -> Got {

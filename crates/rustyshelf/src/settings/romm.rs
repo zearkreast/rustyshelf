@@ -106,8 +106,8 @@ impl Settings {
                 Answer::Synced(lib) => {
                     self.changed = true;
                     self.say(match &lib.error {
-                        None => format!("RomM: {} game{}", lib.count, if lib.count == 1 { "" } else { "s" }),
-                        Some(_) if lib.offline => format!("RomM: {} game{} (the saved list: the server isn't reachable)", lib.count, if lib.count == 1 { "" } else { "s" }),
+                        None => format!("RomM: {} game{}", lib.count, plural_s(lib.count)),
+                        Some(_) if lib.offline => format!("RomM: {} game{} (the saved list: the server isn't reachable)", lib.count, plural_s(lib.count)),
                         Some(e) => format!("RomM: {}", e.code()),
                     });
                 }
@@ -128,7 +128,7 @@ impl Settings {
             return "Not paired yet".into();
         }
         let lib = setup.client(&paths::data_dir(&self.app_root)).cached();
-        format!("{} game{}", lib.count, if lib.count == 1 { "" } else { "s" })
+        format!("{} game{}", lib.count, plural_s(lib.count))
     }
 
     pub(super) fn romm_page(&self) -> Page {

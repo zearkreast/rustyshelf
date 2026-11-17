@@ -5,6 +5,11 @@ use std::path::{Path, PathBuf};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
+/// Bytes as lowercase hex.
+pub fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
 /// A JSON file's value (a byte-order mark allowed, bytes that aren't UTF-8 replaced); None when it's missing or isn't
 /// JSON.
 pub fn read_json(f: &Path) -> Option<Value> {

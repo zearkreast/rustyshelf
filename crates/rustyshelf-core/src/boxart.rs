@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::art::{art_base, ArtLibrary};
+use crate::art::{art_base, same_path, ArtLibrary};
 use crate::config::SystemConfig;
 use crate::covers::{self, LibretroNames};
 use crate::js;
@@ -38,10 +38,6 @@ const ART_EXT: [&str; 4] = ["png", "jpg", "jpeg", "webp"];
 /// The parts of a game's box and the end of each one's file name.
 pub const KINDS: [(&str, &str); 4] = [("front", ""), ("back", "-back"), ("spine", "-spine"), ("disc", "-disc")];
 const REPLACED: &str = "replaced";
-
-fn user_agent() -> String {
-    format!("RustyShelf/{}", crate::VERSION)
-}
 
 fn ext_forms() -> Vec<String> {
     ART_EXT.iter().flat_map(|e| [e.to_string(), e.to_uppercase()]).collect()
@@ -100,10 +96,6 @@ pub fn size_of(file: &Path) -> Option<(u32, u32)> {
 pub fn art_file(dir: &Path, base: &str, suffix: &str) -> Option<PathBuf> {
     let forms = if cfg!(target_os = "linux") { ext_forms() } else { ART_EXT.iter().map(|e| e.to_string()).collect() };
     forms.iter().map(|e| dir.join(format!("{base}{suffix}.{e}"))).find(|f| is_file(f))
-}
-
-fn same_path(a: &Path, b: &Path) -> bool {
-    crate::art::resolve(a).to_string_lossy().to_lowercase() == crate::art::resolve(b).to_string_lossy().to_lowercase()
 }
 
 /// A stamp for a replaced picture's name: the time, to the millisecond, with dashes.
@@ -192,7 +184,7 @@ pub fn download_ex(url: &str, dest: &Path, zip: bool) -> Result<Outcome, String>
     let mut tries = 0;
     loop {
         tries += 1;
-        let (status, buf) = match crate::net::get(url, Duration::from_secs(45), 256 << 20, &user_agent()) {
+        let (status, buf) = match crate::net::get(url, Duration::from_secs(45), 256 << 20, crate::net::agent()) {
             Ok(r) => r,
             Err(_) if tries == 1 => {
                 std::thread::sleep(Duration::from_millis(1200));
@@ -283,8 +275,8 @@ pub fn libretro_names(cache_dir: &Path, console_id: &str) -> Option<LibretroName
     if let Some(names) = cached.as_ref().filter(|c| crate::now_ms() as f64 - js::number(c.get("at")) < 7.0 * DAY).and_then(|c| strings(&c["names"])) {
         return Some(LibretroNames::new(names));
     }
-    let url = format!("https://thumbnails.libretro.com/{}/Named_Boxarts/", js::encode_uri_component(sys));
-    let (status, html) = crate::net::get(&url, Duration::from_secs(30), 64 << 20, &user_agent()).ok()?;
+    let url = format!("{}{}/Named_Boxarts/", covers::LIBRETRO_THUMBS, js::encode_uri_component(sys));
+    let (status, html) = crate::net::get(&url, Duration::from_secs(30), 64 << 20, crate::net::agent()).ok()?;
     if !(200..300).contains(&status) {
         return None;
     }
@@ -530,7 +522,8 @@ fn styled_fallback(kind: &str) -> &'static [&'static str] {
     }
 }
 
-fn ext_of(file: &str) -> String {
+/// A picture's extension from its name (dotted, lowercase); `.jpg` when it isn't one of ours.
+pub(crate) fn picture_ext(file: &str) -> String {
     let e = js::extname(file).to_lowercase();
     if matches!(e.as_str(), ".png" | ".jpg" | ".jpeg" | ".webp") {
         e
@@ -558,7 +551,7 @@ fn launchbox_images(shard: &ShardFile, title: &str, kind: &str, region: &str, st
 }
 
 fn lb_url(im: &GameImage) -> (String, String) {
-    (format!("{}{}", covers::LB_IMG, js::encode_uri(&im.file)), ext_of(&im.file))
+    (covers::lb_url(&im.file), picture_ext(&im.file))
 }
 
 /// A case's front and its spine, each for its height, by console: what a full cover scan is cut by (the Electron
@@ -665,7 +658,7 @@ fn wrap_spine(wraps: &[String], console: &str, dir: &Path, base: &str, replacing
         }
         let ext = Some(js::extname(file)).filter(|e| !e.is_empty()).unwrap_or(".jpg".into());
         let tmp = cache_dir.join(format!(".wrap-{}-{}{ext}", std::process::id(), COUNT.fetch_add(1, Ordering::Relaxed)));
-        let got = matches!(download_ex(&format!("{}{}", covers::LB_IMG, js::encode_uri(file)), &tmp, false), Ok(Outcome::Ok));
+        let got = matches!(download_ex(&covers::lb_url(file), &tmp, false), Ok(Outcome::Ok));
         // (wider than tall, or it isn't a wrap)
         let placed = got && !size_of(&tmp).is_some_and(|(w, h)| (w as f32) < h as f32 * 1.2) && cut_wrap(&tmp, console, "spine").is_some_and(|cut| place_cut(&cut, dir, base, "-spine", replacing));
         let _ = fs::remove_file(&tmp);

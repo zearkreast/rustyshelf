@@ -113,7 +113,7 @@ impl Settings {
                 value: match state.missing {
                     None => "Looking…".into(),
                     Some(0) => "Every game has one".into(),
-                    Some(n) => format!("{n} game{} without a cover", if n == 1 { "" } else { "s" }),
+                    Some(n) => format!("{n} game{} without a cover", plural_s(n)),
                 },
                 hint: "Goes through every custom game without a cover of its own: SteamGridDB's covers for each (with a free SteamGridDB key, Settings → Accounts & services) or a picture of yours. A uses one, Skip moves on, B stops.".into(),
                 press: Some(Box::new(move |s: &mut Settings| {

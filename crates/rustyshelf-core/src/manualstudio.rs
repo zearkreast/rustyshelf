@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
+use crate::i18n::plural_s;
 use crate::manualcoll::{self, Game};
 use crate::manuals::{self, Web};
 use crate::{js, spreads};
@@ -135,12 +136,12 @@ pub fn completeness(c: &Cand, expect: &BTreeMap<String, u32>) -> (Option<bool>, 
         return (Some(false), 0, "Incomplete (says the upload)".into());
     }
     if c.junk > 0 {
-        return (Some(false), c.junk, format!("{} blank page{}", c.junk, if c.junk == 1 { "" } else { "s" }));
+        return (Some(false), c.junk, format!("{} blank page{}", c.junk, plural_s(c.junk)));
     }
     let want = expect.get(if c.lang.is_empty() { "en" } else { &c.lang }).copied().or(c.expected).filter(|w| *w > 0);
     match (c.pages.filter(|p| *p > 0), want) {
         (Some(p), Some(w)) if p >= w => (Some(true), 0, "Complete".into()),
-        (Some(p), Some(w)) => (Some(false), w - p, format!("{} page{} missing", w - p, if w - p == 1 { "" } else { "s" })),
+        (Some(p), Some(w)) => (Some(false), w - p, format!("{} page{} missing", w - p, plural_s(w - p))),
         _ => (None, 0, String::new()),
     }
 }
@@ -406,7 +407,7 @@ pub fn earlier_cands(g: &Game) -> Vec<Cand> {
 
 /// Where a candidate's first page and PDF are kept (`data/manual-cand`).
 fn cache_name(data_dir: &Path, key: &str, ext: &str) -> PathBuf {
-    let h: String = <sha1::Sha1 as sha1::Digest>::digest(key.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let h = crate::files::hex(&<sha1::Sha1 as sha1::Digest>::digest(key.as_bytes()));
     data_dir.join("manual-cand").join(format!("{}{ext}", &h[..24]))
 }
 
@@ -433,7 +434,7 @@ pub fn search(web: &dyn Web, data_dir: &Path, g: &Game, skip: &[String], now: f6
             found.push((c, r));
         }
     };
-    let cache = data_dir.join("boxart-cache");
+    let cache = crate::paths::boxart_cache(data_dir);
     for col in manualcoll::collections(&g.sys) {
         let Ok(ix) = manualcoll::index(web, &cache, col, now) else { continue };
         for e in manualcoll::matches(&ix.entries, g).into_iter().take(3) {

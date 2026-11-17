@@ -12,6 +12,7 @@ use base64::Engine;
 use regex::Regex;
 use serde_json::{json, Value};
 
+use crate::bytes::{be16, be32, be64};
 use crate::emucfg::{home, Var};
 
 const CONFIGS: [&str; 2] = ["xenia-canary.config.toml", "xenia.config.toml"];
@@ -82,18 +83,6 @@ pub struct Gpd {
     pub achievements: Vec<Achievement>,
     pub title: String,
     pub icon: Option<Vec<u8>>,
-}
-
-fn be16(b: &[u8], at: usize) -> Option<u16> {
-    Some(u16::from_be_bytes(b.get(at..at + 2)?.try_into().ok()?))
-}
-
-fn be32(b: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_be_bytes(b.get(at..at + 4)?.try_into().ok()?))
-}
-
-fn be64(b: &[u8], at: usize) -> Option<u64> {
-    Some(u64::from_be_bytes(b.get(at..at + 8)?.try_into().ok()?))
 }
 
 /// A UTF-16BE string ending in a 0 or at `end`, and where the next one starts.

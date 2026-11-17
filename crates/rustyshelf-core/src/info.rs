@@ -221,7 +221,7 @@ pub fn shot_file(data_dir: &Path, url: &str) -> Option<std::path::PathBuf> {
     if !url.starts_with("https://") {
         return None;
     }
-    let name: String = sha1::Sha1::digest(url.as_bytes()).iter().take(12).map(|b| format!("{b:02x}")).collect();
+    let name = crate::files::hex(&sha1::Sha1::digest(url.as_bytes())[..12]);
     let dir = data_dir.join("shot-cache");
     let file = dir.join(format!("{name}.img"));
     if crate::paths::is_file(&file) {

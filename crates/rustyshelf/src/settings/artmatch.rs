@@ -48,7 +48,7 @@ impl Settings {
         let term = term.split_whitespace().collect::<Vec<_>>().join(" ");
         self.art_match.term = term.clone();
         let Some(sys) = self.chosen.as_ref().map(|c| c.console.clone()).filter(|_| !term.is_empty()) else { return };
-        let cache = paths::data_dir(&self.app_root).join("boxart-cache");
+        let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
         let q: String = term.chars().take(120).collect();
         let (tx, rx) = channel();
         std::thread::spawn(move || {
@@ -87,7 +87,7 @@ impl Settings {
             let (Some(config), Some(console)) = (Config::from_value(&cfg), systems().console(&sys)) else { return };
             let sc = config.system(console);
             let art = ArtLibrary::from_config(&config, &root);
-            let cache = paths::data_dir(&root).join("boxart-cache");
+            let cache = paths::boxart_cache(&paths::data_dir(&root));
             let run = boxart::Run { art: &art, app_root: &root, cache_dir: &cache, kinds: &["redo-front", "redo-back", "redo-spine", "redo-disc"], region: config.art_region(), hd: config.art_hd(), explicit: true, cfg: &cfg, index_ready_only: true };
             let report = boxart::download(&run, &[boxart::Wanted { console, config: &sc, games: vec![&game] }], &|_, _, _| {}, &std::sync::atomic::AtomicBool::new(false));
             if report.systems.iter().any(|r| r.front + r.back + r.spine + r.disc > 0) {
@@ -132,7 +132,7 @@ impl Settings {
             Some((list, _)) => {
                 rows.push(Row { label: format!("— Found ({}) —", list.len()), ..Row::default() });
                 for m in list {
-                    let what = if m.launchbox { format!("LaunchBox · {} picture{}", m.pictures, if m.pictures == 1 { "" } else { "s" }) } else { "libretro · front cover".into() };
+                    let what = if m.launchbox { format!("LaunchBox · {} picture{}", m.pictures, plural_s(m.pictures)) } else { "libretro · front cover".into() };
                     let name = m.name.clone();
                     rows.push(Row {
                         label: m.name.clone(),

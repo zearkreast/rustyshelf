@@ -30,7 +30,7 @@ static SKIP_DIR: LazyLock<Regex> = LazyLock::new(|| {
 fn id_of(folder: &str, used: &mut HashSet<String>) -> String {
     let mut id = format!("pc-{}", slug(folder));
     if !folder.is_ascii() || used.contains(&id) {
-        let hex: String = Sha1::digest(folder.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+        let hex = crate::files::hex(&Sha1::digest(folder.as_bytes()));
         id = format!("{id}-{}", &hex[..8]);
     }
     used.insert(id.clone());

@@ -11,18 +11,12 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::bytes::{be32, le32};
+
 const SECTOR: u64 = 2048;
 /// extracted / XGD3 / XGD2 / XGD1
 const PARTITIONS: [u64; 4] = [0, 0x208_0000, 0xFD9_0000, 0x1830_0000];
 const MAGIC: &[u8] = b"MICROSOFT*XBOX*MEDIA";
-
-fn be32(b: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_be_bytes(b.get(at..at + 4)?.try_into().ok()?))
-}
-
-fn le32(b: &[u8], at: usize) -> Option<u32> {
-    Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?))
-}
 
 fn read_at(f: &mut File, pos: u64, len: usize) -> Option<Vec<u8>> {
     f.seek(SeekFrom::Start(pos)).ok()?;

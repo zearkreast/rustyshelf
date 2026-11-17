@@ -12,6 +12,7 @@ use serde_json::Value;
 use crate::art::{art_base, ArtLibrary};
 use crate::artstudio::{self as studio, Cand, Ctx, GameArt, Sources, Studio, PARTS};
 use crate::config::Config;
+use crate::i18n::plural_s;
 use crate::scanner::{self, ScanData};
 use crate::{boxart, covers, gametdb, js, paths, systems};
 
@@ -68,7 +69,7 @@ pub struct Ask {
 
 impl Remote {
     pub fn new(data_dir: &Path, sys: &str) -> Remote {
-        let cache = data_dir.join("boxart-cache");
+        let cache = crate::paths::boxart_cache(data_dir);
         Remote {
             index: boxart::ready_index(&cache),
             libretro: boxart::libretro_names(&cache, sys),
@@ -240,7 +241,7 @@ fn summary(changed: usize, total: usize, not_found: usize, failed: usize, net_er
     if offline {
         return "Couldn't reach the art sites. Check the internet connection and try again.".into();
     }
-    let s = |n: usize| if n == 1 { "" } else { "s" };
+    let s = |n: usize| plural_s(n);
     let extra: Vec<String> = [(not_found, format!("{not_found} not found")), (failed, format!("{failed} failed")), (net_err, format!("{net_err} connection error{}", s(net_err)))].into_iter().filter(|x| x.0 > 0).map(|x| x.1).collect();
     let mut msg = if changed > 0 {
         format!("{changed} picture{} changed", s(changed))
@@ -376,10 +377,10 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
         }
     });
     if job.cancel.load(Ordering::Relaxed) && !offline.load(Ordering::Relaxed) {
-        return format!("Stopped · {} picture{} changed", changed.load(Ordering::Relaxed), if changed.load(Ordering::Relaxed) == 1 { "" } else { "s" });
+        return format!("Stopped · {} picture{} changed", changed.load(Ordering::Relaxed), plural_s(changed.load(Ordering::Relaxed)));
     }
     if sets_mode && !offline.load(Ordering::Relaxed) {
-        let s = |n: usize| if n == 1 { "" } else { "s" };
+        let s = |n: usize| plural_s(n);
         let full = sets_full.into_inner();
         return format!("{full} full set{} · {} partly · {} skipped (locked)", s(full), sets_partial.into_inner(), sets_skipped.into_inner());
     }
