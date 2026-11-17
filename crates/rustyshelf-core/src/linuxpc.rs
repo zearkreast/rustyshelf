@@ -253,8 +253,6 @@ pub struct WinCommand {
     pub args: Vec<String>,
     pub cwd: PathBuf,
     pub env: Vec<(String, String)>,
-    /// what runs it, for the log ("GE-Proton10-4 (umu-run)")
-    pub how: String,
 }
 
 pub struct WinProgram<'a> {
@@ -295,13 +293,13 @@ pub fn windows_command(p: WinProgram) -> Result<WinCommand, String> {
             if !env.iter().any(|(k, v)| k == "UMU_RUNTIME_UPDATE" && !v.is_empty()) {
                 set(&mut env, "UMU_RUNTIME_UPDATE", "1".into());
             }
-            return Ok(WinCommand { cmd: umu, args: std::iter::once(exe).chain(p.args).collect(), cwd: dir, env, how: format!("{} (umu-run)", runner.name) });
+            return Ok(WinCommand { cmd: umu, args: std::iter::once(exe).chain(p.args).collect(), cwd: dir, env });
         }
         let args = ["waitforexitandrun".to_string(), exe].into_iter().chain(p.args).collect();
-        return Ok(WinCommand { cmd: runner.path.join("proton"), args, cwd: dir, env, how: runner.name.clone() });
+        return Ok(WinCommand { cmd: runner.path.join("proton"), args, cwd: dir, env });
     }
     set(&mut env, "WINEPREFIX", prefix);
-    Ok(WinCommand { cmd: runner.path.clone(), args: std::iter::once(exe).chain(p.args).collect(), cwd: dir, env, how: runner.name.clone() })
+    Ok(WinCommand { cmd: runner.path.clone(), args: std::iter::once(exe).chain(p.args).collect(), cwd: dir, env })
 }
 
 /// umu-run's Steam Linux Runtime isn't there yet: the first Proton start downloads it (about 700 MB) before the game
@@ -321,21 +319,6 @@ pub fn wineserver(runner: &Runner, prefix: &Path) -> Option<(PathBuf, PathBuf)> 
     let ws = if runner.proton { runner.path.join("files/bin/wineserver") } else { runner.path.parent()?.join("wineserver") };
     let pfx = if runner.proton && prefix.join("pfx").is_dir() { prefix.join("pfx") } else { prefix.to_path_buf() };
     is_exec(&ws).then_some((ws, pfx))
-}
-
-/// Ends whatever is left in a prefix (wineserver) once its game has closed or been forced.
-pub fn end_prefix(runner: &Runner, prefix: &Path) {
-    let Some((ws, pfx)) = wineserver(runner, prefix) else { return };
-    if let Ok(mut c) = Command::new(&ws).arg("-k").env("WINEPREFIX", pfx).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
-        std::thread::spawn(move || {
-            let end = Instant::now() + Duration::from_secs(10);
-            while Instant::now() < end && matches!(c.try_wait(), Ok(None)) {
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            let _ = c.kill();
-            let _ = c.wait();
-        });
-    }
 }
 
 pub fn is_windows_program(exe: &str) -> bool {
@@ -368,7 +351,6 @@ pub fn umu_id(data_dir: &Path, store: &str, codename: &str) -> Option<String> {
 
 // ---------- legendary (Epic Games)
 
-pub const LEGENDARY_VERSION: &str = "0.21.1";
 const LEGENDARY_URL: &str = "https://github.com/derrod/legendary/releases/download/0.21.1/legendary_linux_x64";
 const LEGENDARY_SHA256: &str = "dbed33bbe96031e65858233e4badf0a1d401bb6cb0cc995d1237cf3a0c826a45";
 
@@ -680,12 +662,11 @@ fn unfinished_file(data_dir: &Path) -> PathBuf {
 }
 
 /// The folders of Epic installs stopped half way (legendary picks them up next time), kept in
-/// data/epic-unfinished.json: `{ "<folder>": "<app name>" }`. They aren't games of the PC games folder. `running`: the
-/// folders of the install going on now.
-pub fn epic_unfinished(data_dir: &Path, running: Vec<String>) -> Vec<String> {
+/// data/epic-unfinished.json: `{ "<folder>": "<app name>" }`. They aren't games of the PC games folder.
+pub fn epic_unfinished(data_dir: &Path) -> Vec<String> {
     let m = read_json(&unfinished_file(data_dir)).and_then(|v| v.as_object().cloned()).unwrap_or_default();
     let done: std::collections::HashSet<PathBuf> = epic_installed(data_dir).into_iter().map(|g| crate::art::resolve(Path::new(&g.dir))).collect();
-    m.keys().filter(|d| !done.contains(&crate::art::resolve(Path::new(d)))).cloned().chain(running).collect()
+    m.keys().filter(|d| !done.contains(&crate::art::resolve(Path::new(d)))).cloned().collect()
 }
 
 /// An install stopped (its new folders are noted) or finished (its folders are forgotten).
@@ -853,9 +834,9 @@ esac"#,
         assert_eq!(l.args, vec!["-windowed".to_string(), "-AUTH_PASSWORD=fake-code".into()]);
         assert_eq!((l.cwd, l.env, l.offline, l.outdated), (game.join("Binaries"), vec![("FROM_LEGENDARY".into(), "1".into())], false, true));
         note_unfinished(&data, &["/x/half".into()], "Half", false);
-        assert_eq!(epic_unfinished(&data, vec!["/x/now".into()]), vec!["/x/half".to_string(), "/x/now".into()]);
+        assert_eq!(epic_unfinished(&data), vec!["/x/half".to_string()]);
         note_unfinished(&data, &[], "Half", true);
-        assert!(epic_unfinished(&data, vec![]).is_empty());
+        assert!(epic_unfinished(&data).is_empty());
         assert!(epic_sign_out(&bin, &data) && !library_file(&data).exists());
         assert_eq!(epic_install_dir("", "/games", tmp.path()), PathBuf::from("/games"));
         assert_eq!(epic_install_dir("rel", "", tmp.path()), tmp.path().join("Epic Games"));

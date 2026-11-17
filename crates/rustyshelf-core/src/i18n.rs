@@ -19,9 +19,6 @@ const FR: &str = include_str!("../assets/i18n/fr.json");
 const TR: &str = include_str!("../assets/i18n/tr.json");
 const PT: &str = include_str!("../assets/i18n/pt.json");
 
-/// The languages there's a dictionary for, by `ui.language`.
-pub const LANGS: [&str; 3] = ["fr", "tr", "pt"];
-
 /// The dictionary for a language ("fr", "tr"); None for English or one there's none for.
 pub fn dict(lang: &str) -> Option<&'static Dict> {
     static FRD: OnceLock<Option<Dict>> = OnceLock::new();

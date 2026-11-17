@@ -158,3 +158,24 @@ pub fn make_cart(front: &DynamicImage, sys: &str) -> DynamicImage {
 
     DynamicImage::ImageRgba8(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cart_operation() {
+        let mut img = RgbaImage::new(400, 600);
+        for pixel in img.pixels_mut() {
+            *pixel = Rgba([255, 0, 0, 255]);
+        }
+        let dynamic = DynamicImage::ImageRgba8(img);
+        let cart_sw = make_cart(&dynamic, "sw");
+        assert_eq!(cart_sw.height(), 1000);
+        assert_eq!(cart_sw.width(), 677);
+
+        let cart_3ds = make_cart(&dynamic, "n3ds");
+        assert_eq!(cart_3ds.height(), 1000);
+        assert_eq!(cart_3ds.width(), 1061);
+    }
+}

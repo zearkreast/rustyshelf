@@ -1006,15 +1006,6 @@ pub struct Test {
     pub outcome: Result<usize, Error>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Status {
-    pub server: String,
-    pub has_token: bool,
-    pub pairing: bool,
-    pub syncing: bool,
-    pub downloads: Vec<u64>,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct CoverRun {
     /// game id -> its cover
@@ -1050,7 +1041,6 @@ pub struct Romm {
     data_dir: PathBuf,
     s: Mutex<State>,
     sync_lock: Mutex<()>,
-    syncing: AtomicBool,
     active: Mutex<HashSet<u64>>,
     active_done: Condvar,
     sign_outs: AtomicU64,
@@ -1105,7 +1095,6 @@ impl Romm {
                 agent: None,
             }),
             sync_lock: Mutex::new(()),
-            syncing: AtomicBool::new(false),
             active: Mutex::new(HashSet::new()),
             active_done: Condvar::new(),
             sign_outs: AtomicU64::new(0),
@@ -1170,13 +1159,6 @@ impl Romm {
             s.pair = None;
         }
         s.token = nt;
-    }
-
-    pub fn status(&self) -> Status {
-        let s = self.st();
-        let mut downloads: Vec<u64> = self.active.lock().map(|a| a.iter().copied().collect()).unwrap_or_default();
-        downloads.sort_unstable();
-        Status { server: s.base.clone(), has_token: s.token.is_some(), pairing: s.pair.is_some(), syncing: self.syncing.load(Ordering::Relaxed), downloads }
     }
 
     fn timeouts(&self) -> Timeouts {
@@ -1355,10 +1337,6 @@ impl Romm {
         }
     }
 
-    pub fn pair_cancel(&self) {
-        self.st().pair = None;
-    }
-
     /// Signs in with the 8-digit code RomM 4.8-4.9 shows; the token on success.
     pub fn pair_with_code(&self, code: &str) -> Result<String, Error> {
         if self.st().base.is_empty() {
@@ -1486,10 +1464,7 @@ impl Romm {
         if !token {
             return Shown { error: Some(Error::NoToken), ..self.out(&c) };
         }
-        self.syncing.store(true, Ordering::Relaxed);
-        let r = self.sync(c, on_progress, cancel);
-        self.syncing.store(false, Ordering::Relaxed);
-        r
+        self.sync(c, on_progress, cancel)
     }
 
     /// Every page of a platform's ROMs (after `since` when given), one after another.

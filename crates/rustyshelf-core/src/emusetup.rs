@@ -30,8 +30,6 @@ use crate::paths::{is_dir, is_file};
 /// Windows for now: the emulators keep their settings elsewhere on Linux.
 pub const ON: bool = cfg!(windows);
 
-pub const GROUPS: &[&str] = &["controller", "hotkeys", "bios", "graphics", "quit", "resume", "picture"];
-
 /// A group's name in Settings.
 pub fn group_name(group: &str) -> &'static str {
     match group {

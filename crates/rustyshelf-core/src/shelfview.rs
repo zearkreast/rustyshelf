@@ -179,10 +179,6 @@ pub const AUTO_SHELVES: [(&str, &str, &str); 5] = [("recent", "Recently played",
 
 /// The shelves made of games from every console: Home, All, the automatic ones switched on and your collections.
 /// `status` is each game's Status from Details (`games.<id>.status`), by id.
-pub fn mixed_shelves(shelves: &[Shelf], ui: Option<&Value>, history: &History) -> Vec<Shelf> {
-    mixed_shelves_with(shelves, ui, history, &|_| String::new())
-}
-
 pub fn mixed_shelves_with(shelves: &[Shelf], ui: Option<&Value>, history: &History, status: &dyn Fn(&str) -> String) -> Vec<Shelf> {
     let view = View::from_ui(ui);
     let all: Vec<(&Game, &str)> = shelves.iter().filter(|s| !matches!(s.kind, ShelfKind::Mixed)).flat_map(|s| s.games.iter().map(move |g| (g, s.id.as_str()))).filter(|(g, _)| !view.hidden.contains(&g.id)).collect();
@@ -419,7 +415,7 @@ mod tests {
             shelf("pc", vec![g("c", "Alpha Tale", "Sports;  racing "), g("d", "Phi", "Racingish"), g("e", "Delta", "Action, Racing")]),
         ];
         let ui = serde_json::json!({ "hidden": ["h"], "collections": [{ "id": "t", "name": "Racing", "ids": ["b", "a"], "tag": "Racing" }, { "id": "u", "name": "Nothing", "ids": [], "tag": "Puzzle" }] });
-        let mixed = mixed_shelves(&shelves, Some(&ui), &history);
+        let mixed = mixed_shelves_with(&shelves, Some(&ui), &history, &|_| String::new());
         let ids: Vec<(&str, Vec<&str>)> = mixed.iter().map(|s| (s.id.as_str(), s.games.iter().map(|g| g.id.as_str()).collect())).collect();
         // the ones added by hand first, then the rest by title; hidden games and lookalike genres aren't on it
         assert_eq!(ids, [("col-t", vec!["b", "a", "c", "e"])]);
@@ -456,7 +452,7 @@ mod tests {
         let shelves = vec![shelf("gc", vec![plain("a", "Alpha"), plain("b", "beta"), plain("h", "Hidden")]), shelf("pc", vec![plain("c", "Gamma"), plain("d", "Delta"), plain("e", "Épsilon"), plain("f", "Zeta")])];
         let ui = serde_json::json!({ "favorites": ["f", "e", "d"], "hidden": ["h"], "allShelf": true,
             "collections": [{ "id": "c1", "name": "Couch", "ids": ["f", "gone", "a"] }, { "id": "c2", "name": "Empty", "ids": ["gone"] }, { "id": "", "name": "No id", "ids": ["a"] }, { "id": "c3", "ids": ["b"] }] });
-        let mixed = mixed_shelves(&shelves, Some(&ui), &history);
+        let mixed = mixed_shelves_with(&shelves, Some(&ui), &history, &|_| String::new());
         let shown: Vec<(&str, &str, Vec<&str>, Vec<&str>)> = mixed.iter().map(|s| (s.id.as_str(), s.name.as_str(), s.games.iter().map(|g| g.id.as_str()).collect(), s.from.iter().map(String::as_str).collect())).collect();
         assert_eq!(
             shown,
@@ -470,11 +466,11 @@ mod tests {
         );
         let mut ui = ui;
         ui["favShelf"] = serde_json::json!(true);
-        let favs = mixed_shelves(&shelves, Some(&ui), &history).into_iter().find(|s| s.id == "favorites").unwrap();
+        let favs = mixed_shelves_with(&shelves, Some(&ui), &history, &|_| String::new()).into_iter().find(|s| s.id == "favorites").unwrap();
         assert_eq!(favs.games.iter().map(|g| g.id.as_str()).collect::<Vec<_>>(), ["d", "e", "f"]);
         assert!(mixed.iter().all(|s| matches!(s.kind, ShelfKind::Mixed)));
         // nothing played, no favourite, no All shelf asked for: no shelf of the kind
-        assert!(mixed_shelves(&shelves, Some(&serde_json::json!({})), &History::default()).is_empty());
+        assert!(mixed_shelves_with(&shelves, Some(&serde_json::json!({})), &History::default(), &|_| String::new()).is_empty());
     }
 
     #[test]

@@ -1056,11 +1056,6 @@ impl Stores {
         self.studio.get("locks").and_then(Value::as_object).map(|l| l.iter().filter(|(_, v)| js::truthy(Some(v))).map(|(k, _)| k.clone()).collect()).unwrap_or_default()
     }
 
-    /// Whether the player locked a game's manual.
-    pub fn is_locked(&self, key: &str) -> bool {
-        js::truthy(self.studio.get("locks").and_then(|l| l.get(key)))
-    }
-
     /// A console's choice of language or region; "best" when none was made.
     pub fn pref(&self, sys: &str) -> String {
         self.studio.get("prefs").and_then(|p| p.get(sys)).and_then(Value::as_str).filter(|p| !p.is_empty()).unwrap_or("best").to_string()

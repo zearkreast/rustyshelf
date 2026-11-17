@@ -753,10 +753,6 @@ pub fn launch_app(name: &str, path: &str, app_root: &Path) -> Result<Child, Laun
     start_program(&exe.to_string_lossy(), Vec::new(), name)
 }
 
-pub fn launch_game(console: &Console, sc: &SystemConfig, file: &Path, game_id: &str, cfg: &Config, app_root: &Path) -> Result<Child, LaunchError> {
-    start(&plan(console, sc, file, game_id, cfg, app_root, None, &mut |_| {})?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

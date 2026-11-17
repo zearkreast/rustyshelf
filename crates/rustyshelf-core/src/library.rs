@@ -219,7 +219,10 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
         }
     }
     // Epic's installs in the PC games folder are already on the shelf
-    let taken: Vec<String> = stores.iter().map(|g| g.dir.clone()).collect();
+    let mut taken: Vec<String> = stores.iter().map(|g| g.dir.clone()).collect();
+    if cfg!(target_os = "linux") {
+        taken.extend(crate::linuxpc::epic_unfinished(data));
+    }
     stores.extend(pcfolder::scan(js::str_of(get("gamesDir")).unwrap_or(""), js::str_of(get("userGamesDir")).unwrap_or(""), get("programs"), &taken));
     stores.extend(pcgames::store_games_of(pc, data));
     let mut mine = Vec::new();

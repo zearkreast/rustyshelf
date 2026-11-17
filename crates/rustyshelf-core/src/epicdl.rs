@@ -159,12 +159,6 @@ impl Downloads {
         i.items.iter().find(|x| x.id == id).cloned()
     }
 
-    /// The folders of the install going on now.
-    pub fn unfinished_dirs(&self) -> Vec<String> {
-        let i = self.lock();
-        i.cur.as_ref().map(new_dirs).unwrap_or_default()
-    }
-
     fn pump(&self) {
         let next = {
             let i = self.lock();
@@ -327,10 +321,6 @@ impl Downloads {
         true
     }
 
-    pub fn cancel_current(&self) -> bool {
-        self.current().is_some_and(|c| self.stop(c.id))
-    }
-
     pub fn remove(&self, id: u64) -> bool {
         let mut i = self.lock();
         let Some(at) = i.items.iter().position(|x| x.id == id) else { return false };
@@ -370,11 +360,6 @@ impl Downloads {
             self.changed(i, true);
         }
         gone
-    }
-
-    /// Starts the first waiting install, when none runs (the queue as it was found at the start).
-    pub fn start(&self) {
-        self.pump();
     }
 }
 

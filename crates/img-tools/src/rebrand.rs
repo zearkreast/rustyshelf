@@ -16,8 +16,6 @@ fn band_height_for_plat(plat: &str) -> f32 {
 
 struct BandEnd {
     y: u32,
-    #[allow(dead_code)]
-    sure: bool,
 }
 
 fn band_end(img: &DynamicImage, w: u32, h: u32, plat: &str, part: &str) -> Option<BandEnd> {
@@ -68,7 +66,6 @@ fn band_end(img: &DynamicImage, w: u32, h: u32, plat: &str, part: &str) -> Optio
         } else {
             Some(BandEnd {
                 y: (h as f32 * band_height_for_plat(plat)).round() as u32,
-                sure: false,
             })
         };
     }
@@ -91,7 +88,6 @@ fn band_end(img: &DynamicImage, w: u32, h: u32, plat: &str, part: &str) -> Optio
             if k as usize >= need {
                 return Some(BandEnd {
                     y: lo.max(y.saturating_sub(1)),
-                    sure: true,
                 });
             }
         }
@@ -124,7 +120,6 @@ fn band_end(img: &DynamicImage, w: u32, h: u32, plat: &str, part: &str) -> Optio
             let delta = ((best_k as f32 * 0.4).min(h as f32 * 0.012)).round() as u32;
             return Some(BandEnd {
                 y: hi.min(best_y + delta),
-                sure: true,
             });
         }
         return None;
@@ -137,7 +132,6 @@ fn band_end(img: &DynamicImage, w: u32, h: u32, plat: &str, part: &str) -> Optio
             if run >= 3 {
                 return Some(BandEnd {
                     y: y.saturating_sub(2),
-                    sure: true,
                 });
             }
         } else {
@@ -150,7 +144,6 @@ fn band_end(img: &DynamicImage, w: u32, h: u32, plat: &str, part: &str) -> Optio
     } else {
         Some(BandEnd {
             y: (h as f32 * band_height_for_plat(plat)).round() as u32,
-            sure: false,
         })
     }
 }

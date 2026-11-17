@@ -100,3 +100,31 @@ pub fn cut_spine(
         Some(img.crop_imm(x0_u, 0, sw_u, h_orig))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    #[test]
+    fn test_spine_cut_operation() {
+        let mut img = RgbaImage::new(1500, 1000);
+        for (x, y, pixel) in img.enumerate_pixels_mut() {
+            if x < 700 {
+                *pixel = Rgba([50, 50, 50, 255]);
+            } else if x < 800 {
+                *pixel = Rgba([200, 200, 200, 255]);
+            } else {
+                *pixel = Rgba([50, 50, 50, 255]);
+            }
+            if y < 50 {
+                *pixel = Rgba([0, 0, 0, 255]);
+            }
+        }
+        let dynamic = DynamicImage::ImageRgba8(img);
+        let spine_cut = cut_spine(&dynamic, Some(0.71), Some(0.074), "spine");
+        assert!(spine_cut.is_some());
+        let back_cut = cut_spine(&dynamic, Some(0.71), Some(0.074), "back");
+        assert!(back_cut.is_some());
+    }
+}

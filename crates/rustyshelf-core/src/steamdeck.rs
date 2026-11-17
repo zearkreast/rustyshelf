@@ -306,9 +306,7 @@ pub enum Refusal {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Added {
-    pub users: usize,
     pub updated: bool,
-    pub reopened: bool,
     /// for the log: what was done for each Steam account, by its place in the list, never its number
     pub notes: Vec<String>,
 }
@@ -386,7 +384,7 @@ pub fn add_to_steam(var: Var, home: &Path, exe: &str, icon: Option<&[u8]>, data_
     if done == 0 {
         return Err(Refusal::WriteFailed);
     }
-    Ok(Added { users: done, updated, reopened, notes })
+    Ok(Added { updated, notes })
 }
 
 #[cfg(test)]

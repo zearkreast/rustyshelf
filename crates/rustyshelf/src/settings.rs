@@ -592,8 +592,7 @@ impl Settings {
 
     /// A PC game's window mode (Details → Window): "", "borderless" or "windowed".
     pub fn window_mode(&self, id: &str) -> &'static str {
-        let mode = self.text(&["games", id, "window"]);
-        rustyshelf_core::windowmode::MODES.into_iter().find(|m| *m == mode).unwrap_or("")
+        rustyshelf_core::windowmode::mode_named(&self.text(&["games", id, "window"]))
     }
 
     /// The clock in the corner: whether the day is shown with the time, and whether the time counts 24 hours;

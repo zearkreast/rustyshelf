@@ -207,14 +207,6 @@ impl Score {
         self.start + self.step as f64 * self.eighth
     }
 
-    /// The clock ran on without the music (the app was held up): it carries on from the next bar, not with a pile
-    /// of late notes.
-    pub fn catch_up(&mut self, now: f64) {
-        if self.next_at() < now - 0.1 {
-            self.step = ((now + 0.15 - self.start) / (8.0 * self.eighth)).ceil() as usize * 8;
-        }
-    }
-
     /// A pentatonic step (0 the tonic) as a note in the lullaby's octave.
     fn degree_note(&self, degree: i32) -> i32 {
         self.tonic + 24 + PENTA[degree.rem_euclid(5) as usize] + 12 * degree.div_euclid(5)

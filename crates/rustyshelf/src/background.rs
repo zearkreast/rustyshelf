@@ -28,7 +28,6 @@ struct Item {
     file: std::path::PathBuf,
     title: String,
     region: String,
-    shots: Vec<String>,
     info: rustyshelf_core::info::Info,
 }
 
@@ -102,7 +101,7 @@ fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings:
     for shelf in lib.shelves.iter().filter(|s| matches!(s.kind, ShelfKind::Console { .. })) {
         for g in shelf.games.iter().filter(|g| g.source == From::Rom && !g.file.as_os_str().is_empty()) {
             let info = g.info.clone().unwrap_or_default();
-            bg.queue.push(Item { sys: shelf.id.clone(), file: g.file.clone(), title: g.title.clone(), region: g.region.clone(), shots: info.shots.clone(), info });
+            bg.queue.push(Item { sys: shelf.id.clone(), file: g.file.clone(), title: g.title.clone(), region: g.region.clone(), info });
         }
     }
     // taken from the end: the shelves' own order first
@@ -125,10 +124,10 @@ fn look(pass: &Pass, item: &Item, ss_left: bool) -> bool {
     let mut asked_ss = false;
     if pass.shots {
         let mut index = moreshots::Index::load(&data);
-        if index.need(&item.sys, &item.file, &item.title, &item.shots, &sources) {
+        if index.need(&item.sys, &item.file, &item.title, &item.info.shots, &sources) {
             asked_ss = ss.is_some();
             let game = moreshots::Game { file: &item.file, title: &item.title, region: &item.region };
-            moreshots::top_up(&mut index, &item.sys, &game, &item.shots, &sources, &|_| None);
+            moreshots::top_up(&mut index, &item.sys, &game, &item.info.shots, &sources, &|_| None);
         }
     }
     if let Some(client) = pass.igdb.as_deref().filter(|c| !c.is_refused() && igdb::gaps(Some(&item.info))) {

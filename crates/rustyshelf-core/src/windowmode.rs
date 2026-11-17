@@ -23,7 +23,11 @@ pub const SOURCES: [&str; 5] = ["custom", "quiver", "gog", "hoyoplay", "folder"]
 
 /// A game's window mode; "" for one that has none or one that isn't a mode.
 pub fn mode_of(cfg: &Config, id: &str) -> &'static str {
-    let m = cfg.game(id).and_then(|g| g.get("window")).and_then(|w| w.as_str()).unwrap_or("");
+    mode_named(cfg.game(id).and_then(|g| g.get("window")).and_then(|w| w.as_str()).unwrap_or(""))
+}
+
+/// The mode of that name; "" for one that isn't a mode.
+pub fn mode_named(m: &str) -> &'static str {
     MODES.into_iter().find(|x| *x == m).unwrap_or("")
 }
 

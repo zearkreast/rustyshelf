@@ -231,7 +231,6 @@ pub fn scan_folder(root: &Path, limit: usize) -> Scan {
 pub struct Playnite {
     pub app: PathBuf,
     pub library: PathBuf,
-    pub portable: bool,
 }
 
 /// Looks for Playnite: in `extra` (a folder the player chose), where it installs itself, and in a few usual
@@ -240,7 +239,7 @@ pub fn find(extra: Option<&Path>, var: crate::emucfg::Var) -> Option<Playnite> {
     let home = crate::emucfg::home(var);
     let data = |name: &str, under: &[&str]| crate::emucfg::get(var, name).map_or_else(|| PathBuf::from(&home).join(under.iter().collect::<PathBuf>()), PathBuf::from);
     let (local, roaming) = (data("LOCALAPPDATA", &["AppData", "Local"]), data("APPDATA", &["AppData", "Roaming"]));
-    let try_one = |app: &Path, library: PathBuf| (app.join("LiteDB.dll").is_file() && library.join("games.db").is_file()).then(|| Playnite { portable: library.parent().is_some_and(|p| js::normalize(&p.to_string_lossy()) == js::normalize(&app.to_string_lossy())), app: app.to_path_buf(), library });
+    let try_one = |app: &Path, library: PathBuf| (app.join("LiteDB.dll").is_file() && library.join("games.db").is_file()).then(|| Playnite { app: app.to_path_buf(), library });
     let dirs = [extra.map(Path::to_path_buf), Some(local.join("Playnite")), Some(PathBuf::from("C:\\Program Files\\Playnite")), Some(PathBuf::from("C:\\Playnite")), Some(PathBuf::from("D:\\Playnite")), Some(PathBuf::from(&home).join("Playnite"))];
     dirs.into_iter().flatten().filter(|d| !d.as_os_str().is_empty()).find_map(|d| try_one(&d, d.join("library")).or_else(|| try_one(&d, roaming.join("Playnite").join("library"))))
 }

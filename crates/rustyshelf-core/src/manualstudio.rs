@@ -228,11 +228,6 @@ pub fn from_json(v: &Value) -> Cand {
     }
 }
 
-/// The expected counts as JSON, for a fixture.
-pub fn expect_json(e: &BTreeMap<String, u32>) -> Value {
-    Value::Object(e.iter().map(|(k, v)| (k.clone(), json!(v))).collect::<Map<String, Value>>())
-}
-
 // ---------- the games, and what's on disk ----------
 
 /// what a backup folder's manual was (for its Earlier card)

@@ -1411,7 +1411,7 @@ fn adding_many_games_matches_the_js() {
         fs::create_dir_all(file.parent().unwrap()).unwrap();
         fs::write(file, "x").unwrap();
     }
-    let planned = plan(&fx["lib"], &Playnite { app: "C:\\Playnite".into(), library, portable: false });
+    let planned = plan(&fx["lib"], &Playnite { app: "C:\\Playnite".into(), library });
     let planned: Value = serde_json::from_str(&planned.to_string().replace(serde_json::to_string(&root).unwrap().trim_matches('"'), "<tmp>")).unwrap();
     assert_eq!(planned, fx["plan"]);
 }
@@ -2195,13 +2195,14 @@ fn manual_collections_and_spreads_match_the_js() {
     stores.set_lock(&key("Sigma, The (USA)"), true, true, 5.0);
     let kept = Stores::load(&data);
     assert_eq!((kept.pref("gc").as_str(), kept.pref("wii").as_str()), ("lang:fr", "best"));
-    assert!(kept.is_locked(&key("Sigma, The (USA)")) && kept.locked(&key("Sigma, The (USA)")) && kept.is_locked(&key("Locked Game (USA)")) && !kept.is_locked(&key("Phi (USA)")));
+    let locks = kept.locked_keys();
+    assert!(locks.contains(&key("Sigma, The (USA)")) && kept.locked(&key("Sigma, The (USA)")) && locks.contains(&key("Locked Game (USA)")) && !locks.contains(&key("Phi (USA)")));
     // (the games that found nothing under the old choice are looked up again)
     assert_eq!(read("manual-auto.json").as_object().unwrap().len(), 1);
     assert_eq!(read("manual-studio.json")["locks"][key("Sigma, The (USA)").replace(&dir.to_lowercase(), "<tmp>")], json!({ "at": 5, "src": "cur" }));
     stores.set_pref("gc", "best").unwrap();
     stores.set_lock(&key("Sigma, The (USA)"), false, true, 6.0);
-    assert!(read("manual-studio.json")["prefs"].as_object().unwrap().is_empty() && !Stores::load(&data).is_locked(&key("Sigma, The (USA)")));
+    assert!(read("manual-studio.json")["prefs"].as_object().unwrap().is_empty() && !Stores::load(&data).locked_keys().contains(&key("Sigma, The (USA)")));
 
     // a console set to another language is left alone
     let before = asked();
@@ -2540,7 +2541,7 @@ fn manual_studio_ranks_as_electron() {
     }
     for e in fx["expect"].as_array().unwrap() {
         let list: Vec<ms::Cand> = e[0].as_array().unwrap().iter().map(ms::from_json).collect();
-        assert_eq!(ms::expect_json(&ms::expect_of(&list)), e[1]);
+        assert_eq!(serde_json::to_value(ms::expect_of(&list)).unwrap(), e[1]);
     }
     let cands: Vec<ms::Cand> = fx["cands"].as_array().unwrap().iter().map(ms::from_json).collect();
     let expect: std::collections::BTreeMap<String, u32> = fx["expectUsed"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_u64().unwrap() as u32)).collect();
