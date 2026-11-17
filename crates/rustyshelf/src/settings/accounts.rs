@@ -130,11 +130,18 @@ impl Settings {
 
     fn ask_ra(&mut self, work: impl FnOnce(&Ra) -> RaAnswer + Send + 'static) {
         let (ra, (user, key)) = (self.ra.clone(), self.ra_account());
+        self.answer_later(move || {
+            ra.set_credentials(&user, &key);
+            work(&ra)
+        });
+    }
+
+    /// `work` on its own thread, its answer picked up by poll_ra.
+    fn answer_later(&mut self, work: impl FnOnce() -> RaAnswer + Send + 'static) {
         let (tx, rx) = std::sync::mpsc::channel();
         self.ra_answer = Some(Mutex::new(rx));
         std::thread::spawn(move || {
-            ra.set_credentials(&user, &key);
-            let _ = tx.send(work(&ra));
+            let _ = tx.send(work());
         });
     }
 
@@ -320,12 +327,9 @@ impl Settings {
             press: Some(Box::new(move |s: &mut Settings| {
                 let (key, dir, given) = (steamweb.clone(), paths::data_dir(&s.app_root), s.text(&["steam", "path"]));
                 s.say("Asking Steam…".into());
-                let (tx, rx) = std::sync::mpsc::channel();
-                s.ra_answer = Some(Mutex::new(rx));
-                std::thread::spawn(move || {
+                s.answer_later(move || {
                     let r = SteamAch::new(&dir, &key, rustyshelf_core::steam::main_root(&given)).test(&key);
-                    let said = if r["ok"] == true { Ok(format!("Steam: the key works · {}", r["user"].as_str().unwrap_or(""))) } else { Err(format!("Steam: {}", r["error"].as_str().unwrap_or("not accepted"))) };
-                    let _ = tx.send(RaAnswer::Tested(said));
+                    RaAnswer::Tested(if r["ok"] == true { Ok(format!("Steam: the key works · {}", r["user"].as_str().unwrap_or(""))) } else { Err(format!("Steam: {}", r["error"].as_str().unwrap_or("not accepted"))) })
                 });
             })),
             ..Row::default()
@@ -357,12 +361,7 @@ impl Settings {
             press: Some(Box::new(move |s: &mut Settings| {
                 let (key, dir) = (sgdb.clone(), paths::data_dir(&s.app_root));
                 s.say("Asking SteamGridDB…".into());
-                let (tx, rx) = std::sync::mpsc::channel();
-                s.ra_answer = Some(Mutex::new(rx));
-                std::thread::spawn(move || {
-                    let said = SteamGrid::new(&dir).test(&key).map(|()| "SteamGridDB: the key works".to_string()).map_err(|why| format!("SteamGridDB: {why}"));
-                    let _ = tx.send(RaAnswer::Tested(said));
-                });
+                s.answer_later(move || RaAnswer::Tested(SteamGrid::new(&dir).test(&key).map(|()| "SteamGridDB: the key works".to_string()).map_err(|why| format!("SteamGridDB: {why}"))));
             })),
             ..Row::default()
         });
@@ -391,11 +390,7 @@ impl Settings {
             press: Some(Box::new(move |s: &mut Settings| {
                 let c = rustyshelf_core::igdb::Igdb::new(&igdb_id, &igdb_secret);
                 s.say("Asking Twitch…".into());
-                let (tx, rx) = std::sync::mpsc::channel();
-                s.ra_answer = Some(Mutex::new(rx));
-                std::thread::spawn(move || {
-                    let _ = tx.send(RaAnswer::Tested(c.test().map(|()| "IGDB: the keys work".to_string()).map_err(|why| format!("IGDB: {why}"))));
-                });
+                s.answer_later(move || RaAnswer::Tested(c.test().map(|()| "IGDB: the keys work".to_string()).map_err(|why| format!("IGDB: {why}"))));
             })),
             ..Row::default()
         });
@@ -424,17 +419,14 @@ impl Settings {
             press: Some(Box::new(move |s: &mut Settings| {
                 let (creds, dir) = (ss.clone(), paths::data_dir(&s.app_root));
                 s.say("Asking ScreenScraper…".into());
-                let (tx, rx) = std::sync::mpsc::channel();
-                s.ra_answer = Some(Mutex::new(rx));
-                std::thread::spawn(move || {
+                s.answer_later(move || {
                     let site = ScreenScraper::new(&dir);
                     site.set_creds(creds);
-                    let said = match site.test() {
+                    RaAnswer::Tested(match site.test() {
                         Ok(Some(left)) => Ok(format!("ScreenScraper: working · {left} lookups left today")),
                         Ok(None) => Ok("ScreenScraper: working".to_string()),
                         Err(why) => Err(format!("ScreenScraper: {why}")),
-                    };
-                    let _ = tx.send(RaAnswer::Tested(said));
+                    })
                 });
             })),
             ..Row::default()

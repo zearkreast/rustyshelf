@@ -210,15 +210,7 @@ pub fn recheck_folders(time: Res<Time>, mut next: Local<f32>, base: Res<Base>, m
     }
     *next = time.elapsed_secs() + 60.0;
     let Some(root) = base.0.as_ref().map(|l| l.app_root.clone()).filter(|_| rustyshelf_core::library::folders_gone()) else { return };
-    let (tx, rx) = channel();
-    thread::spawn(move || {
-        if rustyshelf_core::library::folders_back() {
-            if let Ok(fresh) = Library::load_from(&root) {
-                let _ = tx.send(fresh);
-            }
-        }
-    });
-    refresh.0 = Some(Mutex::new(rx));
+    read_again_if(&mut refresh, root, rustyshelf_core::library::folders_back);
 }
 
 /// Something outside the shelf changed what's on it (a RomM game downloaded, an Epic install finished): it's read
@@ -230,15 +222,21 @@ pub fn read_again(refresh: &mut Refresh, root: &std::path::Path) -> bool {
     if refresh.0.is_some() {
         return false;
     }
+    read_again_if(refresh, root.to_path_buf(), || true);
+    true
+}
+
+/// Reads the library again behind the shelf when `first`, run on the same thread, says to.
+fn read_again_if(refresh: &mut Refresh, root: std::path::PathBuf, first: impl FnOnce() -> bool + Send + 'static) {
     let (tx, rx) = channel();
-    let root = root.to_path_buf();
     thread::spawn(move || {
-        if let Ok(fresh) = Library::load_from(&root) {
-            let _ = tx.send(fresh);
+        if first() {
+            if let Ok(fresh) = Library::load_from(&root) {
+                let _ = tx.send(fresh);
+            }
         }
     });
     refresh.0 = Some(Mutex::new(rx));
-    true
 }
 
 pub fn start_library() -> LibraryRes {
@@ -268,16 +266,8 @@ pub fn poll_library(
         match got {
             Ok(Ok(l)) => {
                 // what the shelves want from outside comes in behind them; a library that shows more is read again
-                let (tx, rx) = channel();
                 let seen = l.clone();
-                thread::spawn(move || {
-                    if rustyshelf_core::library::upkeep(&seen) {
-                        if let Ok(fresh) = Library::load_from(&seen.app_root) {
-                            let _ = tx.send(fresh);
-                        }
-                    }
-                });
-                refresh.0 = Some(Mutex::new(rx));
+                read_again_if(&mut refresh, l.app_root.clone(), move || rustyshelf_core::library::upkeep(&seen));
                 let shelves = shown(&l, &plays.0);
                 let open_into = l.config.raw().get("ui").and_then(|u| u.get("openInto")).and_then(|v| v.as_str()).unwrap_or("last").to_string();
                 crate::place::open_into(&open_into, &rustyshelf_core::paths::data_dir(&l.app_root), &shelves, &mut cursor);

@@ -556,8 +556,38 @@ pub fn inspect(dir: &Path, base: &str) -> Seen {
     Seen { count: real.len(), junk: widths.len() - real.len(), width: real.get(real.len() / 2).copied().unwrap_or(0), files }
 }
 
-fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
+pub(crate) fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
     fs::rename(from, to).or_else(|_| fs::copy(from, to).and_then(|_| fs::remove_file(from)))
+}
+
+/// The old manual's files `olds` into the backup folder `keep`, then the staged `pages` in as `<base>-manual-NN`:
+/// a failed move puts everything back, so the game never ends up with half a manual. The pages put in.
+pub(crate) fn put_pages(dir: &Path, base: &str, olds: &[String], keep: Option<&Path>, stage: &Path, pages: &[String]) -> std::io::Result<Vec<PathBuf>> {
+    let (mut moved, mut placed) = (Vec::new(), Vec::new());
+    let put = (|| -> std::io::Result<()> {
+        for f in olds {
+            move_file(&dir.join(f), &keep.expect("a backup folder").join(f))?;
+            moved.push(f);
+        }
+        for (i, f) in pages.iter().enumerate() {
+            let d = dir.join(format!("{}-manual-{:02}{}", base, i + 1, js::extname(f).to_lowercase()));
+            move_file(&stage.join(f), &d)?;
+            placed.push(d);
+        }
+        Ok(())
+    })();
+    if let Err(e) = put {
+        for d in &placed {
+            let _ = fs::remove_file(d);
+        }
+        for f in &moved {
+            let _ = move_file(&keep.expect("a backup folder").join(f), &dir.join(f));
+        }
+        // (only goes when everything went back)
+        let _ = keep.map(fs::remove_dir);
+        return Err(e);
+    }
+    Ok(placed)
 }
 
 /// What the collections did for each game (`manual-collections.json` in the data folder, the Electron app's
@@ -722,32 +752,10 @@ pub fn one(web: &dyn Web, g: &Game, hit: &Hit, memo: &mut Memo, now: f64, force:
         pages.sort_by(|a, b| collate::compare(a, b));
         stopped()?;
         fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
-        // the pages there always go to a backup folder of their own; a failed move puts everything back, so
-        // the game never ends up with half a manual
+        // the pages there always go to a backup folder of their own
         let olds = manual_files(&g.dir, &g.base);
         let keep = if olds.is_empty() { None } else { Some(spreads::backup_dir(&g.dir, &g.base).map_err(|e| e.to_string())?) };
-        let (mut moved, mut placed) = (Vec::new(), Vec::new());
-        let put = (|| -> std::io::Result<()> {
-            for f in &olds {
-                move_file(&g.dir.join(f), &keep.as_ref().expect("a backup folder").join(f))?;
-                moved.push(f);
-            }
-            for (i, f) in pages.iter().enumerate() {
-                let d = g.dir.join(format!("{}-manual-{:02}{}", g.base, i + 1, js::extname(f).to_lowercase()));
-                move_file(&stage.join(f), &d)?;
-                placed.push(d);
-            }
-            Ok(())
-        })();
-        if let Err(e) = put {
-            for d in &placed {
-                let _ = fs::remove_file(d);
-            }
-            for f in &moved {
-                let _ = move_file(&keep.as_ref().expect("a backup folder").join(f), &g.dir.join(f));
-            }
-            // (only goes when everything went back)
-            let _ = keep.as_ref().map(fs::remove_dir);
+        if let Err(e) = put_pages(&g.dir, &g.base, &olds, keep.as_deref(), &stage, &pages) {
             return Err(format!("could not put the new manual in place ({e}), the old one was kept"));
         }
         let number = |v: Option<&Value>| Some(js::number(v)).filter(|n| !n.is_nan()).unwrap_or(0.0);

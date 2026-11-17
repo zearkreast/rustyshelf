@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Map, Value};
 
 use crate::i18n::plural_s;
-use crate::manualcoll::{self, Game};
+use crate::manualcoll::{self, move_file, Game};
 use crate::manuals::{self, Web};
 use crate::{js, spreads};
 
@@ -612,37 +612,12 @@ fn swap_in(g: &Game, stage: &Path, prev: Option<&Value>) -> Result<(Option<PathB
     fs::create_dir_all(&g.dir).map_err(|e| e.to_string())?;
     let olds = manualcoll::manual_files(&g.dir, &g.base);
     let keep = if olds.is_empty() { None } else { Some(spreads::backup_dir(&g.dir, &g.base).map_err(|e| e.to_string())?) };
-    let (mut moved, mut placed) = (Vec::new(), Vec::new());
-    let put = (|| -> std::io::Result<()> {
-        for f in &olds {
-            move_file(&g.dir.join(f), &keep.as_ref().expect("a backup folder").join(f))?;
-            moved.push(f.clone());
-        }
-        for (i, f) in pages.iter().enumerate() {
-            let d = g.dir.join(format!("{}-manual-{:02}{}", g.base, i + 1, js::extname(f).to_lowercase()));
-            move_file(&stage.join(f), &d)?;
-            placed.push(d);
-        }
-        Ok(())
-    })();
-    if let Err(e) = put {
-        for d in &placed {
-            let _ = fs::remove_file(d);
-        }
-        for f in &moved {
-            let _ = move_file(&keep.as_ref().expect("a backup folder").join(f), &g.dir.join(f));
-        }
-        let _ = keep.as_ref().map(fs::remove_dir);
-        return Err(format!("Couldn't put the manual in place ({e}). Is a page open in another program? The old one was kept."));
-    }
+    let placed = manualcoll::put_pages(&g.dir, &g.base, &olds, keep.as_deref(), stage, &pages)
+        .map_err(|e| format!("Couldn't put the manual in place ({e}). Is a page open in another program? The old one was kept."))?;
     if let Some(k) = &keep {
         let _ = fs::write(k.join(SIDE), prev.cloned().unwrap_or(json!({ "label": "Manual from before" })).to_string());
     }
     Ok((keep, placed.len()))
-}
-
-fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
-    fs::rename(from, to).or_else(|_| fs::copy(from, to).and_then(|_| fs::remove_file(from)))
 }
 
 /// What a manual put in from a card is on record as.

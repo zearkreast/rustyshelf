@@ -37,7 +37,7 @@ pub(super) struct ArtPick {
     /// the sources not set up that could add versions of this part
     missing: Vec<&'static str>,
     /// LaunchBox's art database being downloaded: how far it is, and how it ends
-    lb_get: Option<(std::sync::Arc<Mutex<String>>, Mutex<Receiver<Result<(), String>>>)>,
+    lb_get: Option<Staged>,
     /// the accounts as they were when one of them was opened from here, to look again on coming back
     acct_at: Option<String>,
     /// a picture being put in use (or the last one put back), and the lock to keep when it has worked
@@ -333,14 +333,10 @@ impl Settings {
             return;
         }
         let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
-        let (tx, rx) = channel();
-        let stage = std::sync::Arc::new(Mutex::new("Starting the download…".to_string()));
-        let at = stage.clone();
-        std::thread::spawn(move || {
+        self.art_pick.lb_get = Some(Staged::spawn("Starting the download…", move |set| {
             let _ = std::fs::create_dir_all(&cache);
-            let _ = tx.send(rustyshelf_core::boxart::launchbox_index(&cache, &mut |s| *at.lock().unwrap() = s.to_string()).map(|_| ()));
-        });
-        self.art_pick.lb_get = Some((stage, Mutex::new(rx)));
+            rustyshelf_core::boxart::launchbox_index(&cache, &mut |s| set(s.to_string())).map(|_| ())
+        }));
         self.say("LaunchBox art: downloading…".into());
     }
 
@@ -564,9 +560,9 @@ impl Settings {
                 }
             }
         }
-        if let Some((stage, rx)) = &self.art_pick.lb_get {
-            let said = format!("LaunchBox art: {}", stage.lock().unwrap());
-            let ended = rx.lock().unwrap().try_recv().ok();
+        if let Some(job) = &self.art_pick.lb_get {
+            let said = format!("LaunchBox art: {}", job.stage());
+            let ended = job.poll();
             if self.note != said && ended.is_none() {
                 self.say(said);
             }

@@ -161,6 +161,38 @@ fn other_setup(app_root: &Path) -> Option<rustyshelf_core::keepsetup::Install> {
 }
 
 /// Starts RustyShelf again (a change waiting in data\.pending goes in as it starts).
+/// A job on its own thread that says what it's at while it runs, then how it ended.
+struct Staged {
+    stage: std::sync::Arc<Mutex<String>>,
+    ended: Mutex<Receiver<Result<(), String>>>,
+}
+
+impl Staged {
+    /// `work` is handed a setter for the stage, which starts as `first`.
+    fn spawn(first: &str, work: impl FnOnce(&dyn Fn(String)) -> Result<(), String> + Send + 'static) -> Staged {
+        let stage = std::sync::Arc::new(Mutex::new(first.to_string()));
+        let at = stage.clone();
+        let (tx, rx) = channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(work(&|s| *at.lock().unwrap() = s));
+        });
+        Staged { stage, ended: Mutex::new(rx) }
+    }
+
+    fn stage(&self) -> String {
+        self.stage.lock().unwrap().clone()
+    }
+
+    /// How it ended, once it has: a thread that died ends it with "it stopped".
+    fn poll(&self) -> Option<Result<(), String>> {
+        match self.ended.lock().unwrap().try_recv() {
+            Ok(r) => Some(r),
+            Err(TryRecvError::Disconnected) => Some(Err("it stopped".into())),
+            Err(TryRecvError::Empty) => None,
+        }
+    }
+}
+
 fn restart() {
     // an AppImage's own binary is inside its mount, which goes when this one quits
     let program = std::env::var_os("APPIMAGE").filter(|a| !a.is_empty()).map(PathBuf::from).or_else(|| std::env::current_exe().ok());
@@ -384,7 +416,7 @@ pub struct Settings {
     /// another RustyShelf's finished setup this new one could start from (the first run only)
     other_setup: Option<rustyshelf_core::keepsetup::Install>,
     /// a setup being brought over: how far it is, and how it ends
-    bringing: Option<(std::sync::Arc<Mutex<String>>, Mutex<Receiver<Result<(), String>>>)>,
+    bringing: Option<Staged>,
     /// the Discord switch or id changed since they were last handed over
     pub discord_changed: bool,
     /// the same for the sound settings
@@ -1427,22 +1459,17 @@ impl Settings {
     fn bring_over(&mut self, extras: bool) {
         let Some(from) = self.other_setup.clone().filter(|_| self.bringing.is_none()) else { return };
         let to = rustyshelf_core::keepsetup::Install { data_dir: paths::data_dir(&self.app_root), app_root: self.app_root.clone(), version: rustyshelf_core::VERSION.into(), last_run: 0.0 };
-        let (tx, rx) = channel();
-        let stage = std::sync::Arc::new(Mutex::new("Starting…".to_string()));
-        let at = stage.clone();
-        std::thread::spawn(move || {
-            let done = rustyshelf_core::keepsetup::bring_stage(&from, &to, extras, &|done, total| *at.lock().unwrap() = format!("{}%", done * 100 / total.max(1)));
-            let _ = tx.send(done.map(|_| ()));
-        });
-        self.bringing = Some((stage, Mutex::new(rx)));
+        self.bringing = Some(Staged::spawn("Starting…", move |set| {
+            rustyshelf_core::keepsetup::bring_stage(&from, &to, extras, &|done, total| set(format!("{}%", done * 100 / total.max(1)))).map(|_| ())
+        }));
         self.redraw = true;
     }
 
     /// A setup being brought over, since the last frame.
     fn poll_bringing(&mut self) {
-        let Some((stage, rx)) = &self.bringing else { return };
-        let said = format!("Bringing your setup over… {}", stage.lock().unwrap());
-        let ended = rx.lock().unwrap().try_recv().ok();
+        let Some(job) = &self.bringing else { return };
+        let said = format!("Bringing your setup over… {}", job.stage());
+        let ended = job.poll();
         if self.note != said && ended.is_none() {
             self.say(said);
         }

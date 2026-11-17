@@ -4,8 +4,6 @@
 //! A PC game's back of the box from Details: a picture of yours, LaunchBox's, or the made-up one again; and
 //! LaunchBox's PC games downloaded from Settings → PC games, only when asked for.
 
-use std::sync::Arc;
-
 use rustyshelf_core::pcbacks::{self, Got, Want};
 use rustyshelf_core::{boxart, pccovers};
 
@@ -14,7 +12,7 @@ use super::*;
 #[derive(Default)]
 pub(super) struct PcBacksUi {
     /// LaunchBox's database downloaded again with its PC games: what it's doing, and how it ended
-    pub(super) get: Option<(Arc<Mutex<String>>, Mutex<Receiver<Result<(), String>>>)>,
+    pub(super) get: Option<Staged>,
     /// "Back from LaunchBox": the game's id and title, and what came back
     looking: Option<(String, String, Mutex<Receiver<Got>>)>,
     /// the download's row value as last drawn, and when
@@ -47,8 +45,8 @@ impl Settings {
     /// Settings → PC games: LaunchBox's database downloaded again with its PC games in, asking twice before it starts.
     pub(super) fn launchbox_pc_row(&self) -> Row {
         let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
-        let value = if let Some((stage, _)) = &self.pc_backs.get {
-            launchbox_value(&stage.lock().unwrap())
+        let value = if let Some(job) = &self.pc_backs.get {
+            launchbox_value(&job.stage())
         } else if boxart::has_pc_games(&cache) {
             "Added".into()
         } else {
@@ -86,14 +84,10 @@ impl Settings {
             return;
         }
         self.asked.clear();
-        let (tx, rx) = channel();
-        let stage = Arc::new(Mutex::new("Starting the download…".to_string()));
-        let at = stage.clone();
-        std::thread::spawn(move || {
+        self.pc_backs.get = Some(Staged::spawn("Starting the download…", move |set| {
             let _ = std::fs::create_dir_all(&cache);
-            let _ = tx.send(boxart::with_pc_games(&cache, &mut |s| *at.lock().unwrap() = s.to_string()).map(|_| ()));
-        });
-        self.pc_backs.get = Some((stage, Mutex::new(rx)));
+            boxart::with_pc_games(&cache, &mut |s| set(s.to_string())).map(|_| ())
+        }));
         self.say("LaunchBox's PC games: downloading…".into());
     }
 
@@ -163,14 +157,10 @@ impl Settings {
             Some(Err(TryRecvError::Disconnected)) => self.pc_backs.looking = None,
             _ => {}
         }
-        let Some((stage, rx)) = &self.pc_backs.get else { return };
-        let ended = match rx.lock().unwrap().try_recv() {
-            Ok(r) => Some(r),
-            Err(TryRecvError::Disconnected) => Some(Err("it stopped".into())),
-            Err(TryRecvError::Empty) => None,
-        };
+        let Some(job) = &self.pc_backs.get else { return };
+        let ended = job.poll();
         // at most four redraws a second; the note under the page is left to the chosen row
-        let value = launchbox_value(&stage.lock().unwrap());
+        let value = launchbox_value(&job.stage());
         if ended.is_none() && value != self.pc_backs.shown.0 && now - self.pc_backs.shown.1 >= 0.25 && self.stack.last().is_some_and(|p| p.0 == Screen::Pc) {
             self.pc_backs.shown = (value, now);
             self.redraw = true;
