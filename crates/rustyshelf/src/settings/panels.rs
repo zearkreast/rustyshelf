@@ -49,7 +49,7 @@ enum QRow {
     Power,
 }
 
-const ACTS: [&str; 4] = ["fav", "det", "art", "hide"];
+const ACTS: [&str; 5] = ["fav", "det", "man", "art", "hide"];
 
 #[derive(Default)]
 pub struct Panels {
@@ -334,10 +334,11 @@ impl Settings {
         }
     }
 
-    /// The tiles of the actions row: Box art only for a game whose art can be chosen.
+    /// The tiles of the actions row: Manual only for a game with one, Box art only for a game whose art can be chosen.
     fn acts(&self) -> Vec<&'static str> {
         let art = self.panels.game.as_ref().is_some_and(|g| matches!(g.game.source, Source::Rom | Source::Steam { .. } | Source::Pc(_)));
-        ACTS.iter().copied().filter(|a| *a != "art" || art).collect()
+        let manual = self.panels.game.as_ref().is_some_and(|g| !g.game.art.manual.is_empty());
+        ACTS.iter().copied().filter(|a| (*a != "art" || art) && (*a != "man" || manual)).collect()
     }
 
     fn quick_pick(&mut self, row: QRow, now: f32) {
@@ -355,6 +356,10 @@ impl Settings {
                     Some("det") => {
                         self.close_panel(now, true);
                         self.wanted = Some(Screen::Details);
+                    }
+                    Some("man") => {
+                        self.close_panel(now, true);
+                        self.manual = Some(g.game.art.manual.clone());
                     }
                     Some("art") => {
                         self.close_panel(now, true);
@@ -636,6 +641,7 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                                             let (sign, label) = match *a {
                                                 "fav" => ("♥", if fav { "Favorited" } else { "Favorite" }),
                                                 "det" => ("≡", "Details"),
+                                                "man" => ("☰", "Manual"),
                                                 "art" => ("▣", "Box art"),
                                                 _ => ("⊘", "Hide"),
                                             };

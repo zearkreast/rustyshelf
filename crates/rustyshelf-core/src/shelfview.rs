@@ -168,7 +168,8 @@ fn tag_key(s: &str) -> String {
 static TAG_SPLIT: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r" *[/,&] *").unwrap());
 
 /// The shelves that mix the others' games, which come before them: Home (the twelve games played last, the latest
-/// first, then the favourites by title), All (every game by title, when the settings ask for it) and your
+/// first, then the favourites by title), All (every game by title, when the settings ask for it), Favorites (when
+/// asked for too) and your
 /// collections (each one's games in the order they were added). They keep their own order whatever the shelves'
 /// order and filter are; hidden games aren't on them. Home is there once it has a game, a collection too.
 // From sassiestrhihno's 1.82.0-beta.14 source (https://github.com/sassiestrhihno/boxshelf-source, GPL-3.0): the
@@ -206,6 +207,15 @@ pub fn mixed_shelves_with(shelves: &[Shelf], ui: Option<&Value>, history: &Histo
         every.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
         if !every.is_empty() {
             out.push(mixed("all".into(), "All".into(), every));
+        }
+    }
+
+    if ui.and_then(|u| u.get("favShelf")) == Some(&Value::Bool(true)) {
+        let mut seen = HashSet::new();
+        let mut favs: Vec<(&Game, &str)> = all.iter().copied().filter(|(g, _)| view.favorites.contains(&g.id) && seen.insert(g.id.as_str())).collect();
+        favs.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
+        if !favs.is_empty() {
+            out.push(mixed("favorites".into(), "Favorites".into(), favs));
         }
     }
 
@@ -458,6 +468,10 @@ mod tests {
                 ("col-c3", "Collection", vec!["b"], vec!["gc"]),
             ]
         );
+        let mut ui = ui;
+        ui["favShelf"] = serde_json::json!(true);
+        let favs = mixed_shelves(&shelves, Some(&ui), &history).into_iter().find(|s| s.id == "favorites").unwrap();
+        assert_eq!(favs.games.iter().map(|g| g.id.as_str()).collect::<Vec<_>>(), ["d", "e", "f"]);
         assert!(mixed.iter().all(|s| matches!(s.kind, ShelfKind::Mixed)));
         // nothing played, no favourite, no All shelf asked for: no shelf of the kind
         assert!(mixed_shelves(&shelves, Some(&serde_json::json!({})), &History::default()).is_empty());

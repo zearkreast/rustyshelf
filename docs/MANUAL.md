@@ -150,7 +150,7 @@ complete yet.
 - Has the Electron app's two panels over the shelf: the Sort panel (G, or Menu held), a card at the top with the
   order and the filter as rows of chips, applied as they change; and the quick menu (Menu, Tab, or a finger held on
   the shelf), sliding in at the right while the shelf steps aside, with the chosen game, its Favorite / Details /
-  Box art / Hide tiles, and Find a game, the volume (← →), Sort & filter's chips, Trophies, Updates, Settings and
+  Manual (when it has one) / Box art / Hide tiles, and Find a game, the volume (← →), Sort & filter's chips, Trophies, Updates, Settings and
   Power (Exit RustyShelf, Sleep, and Restart and Shut down pressed twice). A white pill glides between its rows.
 - Has Settings → Shelf → Console order: each shelf moves up (←) or down (→) the list, and the shelves along the top
   follow at once (`ui.shelfOrder`, which the Electron app reads too); Reset puts RustyShelf's own order back.
@@ -198,8 +198,8 @@ complete yet.
 - Has the shelf's menu (G, or Menu on the pad): the order of the shelves (A-Z, release year, last played and the rest of
   the Electron app's), which games they show (favorites, unplayed, a genre, a decade …), and the chosen game as a
   favorite. The choices are the Electron app's own, in the same settings.
-- Has the Home shelf (the twelve games you played last, then your favorites), the All shelf when Settings → Display
-  asks for it, and your collections (Details → Collections puts a game on shelves of your own; Settings →
+- Has the Home shelf (the twelve games you played last, then your favorites), the All games and Favorites shelves
+  when Settings → Look asks for them (the last step of the first-run setup asks too), and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.
 - Groups Settings → Accounts by service, each with its own page: RetroAchievements (with Emulators, whether each
   console's emulator is signed in, Xenia's and RPCS3's own achievements included), Steam, SteamGridDB, IGDB
@@ -224,7 +224,7 @@ complete yet.
   source (From ◀ ▶). A game opens its achievements, each with its own picture, how rare it is and its points (a
   trophy's grade for RPCS3) on the right; an achievement opens on its own page with when it was earned and How to
   get it, a YouTube search for "how to get <achievement> in <game> (<year>)" in the browser. Details' achievements
-  are listed the same way. The lookups are kept where the Electron app keeps them (`data\ra`, `data\steam-ach`).
+  are listed the same way. The pictures are kept in `data\ach-icons`, the lookups where the Electron app keeps them (`data\ra`, `data\steam-ach`).
 - Lists the room the PC games take (Settings → PC games and apps → Storage): the installed Steam, Epic, GOG,
   HoYoPlay and PC games folder games by drive, the biggest first, with each drive's free space.
 - Finds a game (/ or Ctrl+F, or the left stick held): type a part of its title and the matches from every shelf
@@ -232,7 +232,9 @@ complete yet.
   matter); with nothing typed, the games played last. Enter takes the shelf to the one chosen.
 - Has Details (I, or X on the pad): the game's description, release date, developer, publisher, genre, players,
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
-  with Play, Favorite and Hide from the shelf. Settings → Hidden games shows a hidden game again.
+  with Play and, beside it, Read the manual (← →) when the game has one; below them its rows in sections (Your game,
+  Achievements, manual & screenshots, Box art, About) that the cursor steps over, and a description box of a set
+  size, so the list doesn't move as it's read. Settings → Hidden games shows a hidden game again.
 - Exports and imports everything (Settings → System), as the Electron app does and in the same layout, so an
   export made by either app goes into the other: the settings, the downloads (art, manuals, the box art
   database) and the art kept next to your games, into one folder with a manifest. The page says how big the

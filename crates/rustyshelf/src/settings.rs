@@ -792,7 +792,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "surpriseMe" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "favShelf" | "surpriseMe" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
@@ -815,6 +815,18 @@ impl Settings {
     }
 
     /// Adds an id to one of the settings' lists of game ids, or takes it out.
+    /// ← → between Details' Play and Read the manual.
+    fn details_button(&mut self, d: i32) {
+        if let Some(p) = self.stack.last_mut() {
+            let to = if d > 0 { 1 } else { 0 };
+            if p.1 != to {
+                p.1 = to;
+                self.cues.push(("tick", d.signum()));
+                self.redraw = true;
+            }
+        }
+    }
+
     fn flip(&mut self, list: &'static str, id: &str) {
         let mut ids = self.list(&["ui", list]);
         match ids.iter().position(|x| x == id) {
@@ -1256,6 +1268,10 @@ impl Settings {
         let mut page = self.screen_page();
         if self.kid_locked() && *screen == Screen::Details {
             page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Art match" | "Collections" | "Manual Studio" | "Back of the box…" | "Back from LaunchBox" | "Made-up back"));
+            // a section left with nothing under it loses its heading
+            let keep: Vec<bool> = (0..page.rows.len()).map(|i| !heading(&page.rows[i].label) || page.rows.get(i + 1).is_some_and(|n| !heading(&n.label))).collect();
+            let mut k = keep.into_iter();
+            page.rows.retain(|_| k.next().unwrap_or(true));
         }
         page
     }
@@ -1987,6 +2003,7 @@ impl Settings {
                     ),
                     toggle("Start in fullscreen", &["ui", "startFullscreen"], true, "From the next start"),
                     toggle("All games shelf", &["ui", "allShelf"], false, "A shelf with your complete collection in alphabetical order."),
+                    toggle("Favorites shelf", &["ui", "favShelf"], false, "A shelf with only your favorites, in alphabetical order. They're on Home as well."),
                     self.choose(
                         "Surprise me",
                         &["ui", "surpriseMe"],
@@ -2371,16 +2388,32 @@ impl Settings {
                 let g = &c.game;
                 let (id, id2, id3) = (g.id.clone(), g.id.clone(), g.id.clone());
                 let fav = self.list(&["ui", "favorites"]).contains(&g.id);
-                let mut rows = vec![
-                    Row {
-                        label: "Play".into(),
-                        press: Some(Box::new(|s: &mut Settings| {
-                            s.play = true;
+                let pages = g.art.manual.clone();
+                let has_manual = !pages.is_empty();
+                let mut top = vec![Row {
+                    label: "Play".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        s.play = true;
+                        s.open = false;
+                        s.redraw = true;
+                    })),
+                    step: has_manual.then(|| Box::new(|s: &mut Settings, d: i32| s.details_button(d)) as Step),
+                    ..Row::default()
+                }];
+                if has_manual {
+                    top.push(Row {
+                        label: READ_MANUAL.into(),
+                        value: format!("{} pages", pages.len()),
+                        hint: "Opens the game's manual as a booklet".into(),
+                        press: Some(Box::new(move |s: &mut Settings| {
+                            s.manual = Some(pages.clone());
                             s.open = false;
                             s.redraw = true;
                         })),
-                        ..Row::default()
-                    },
+                        step: Some(Box::new(|s: &mut Settings, d: i32| s.details_button(d))),
+                    });
+                }
+                let mut rows = vec![
                     Row {
                         label: "Favorite".into(),
                         value: on_off(fav),
@@ -2419,8 +2452,9 @@ impl Settings {
                             s.set(&["games", &gid, "status"], json!(v));
                         }
                     };
-                    rows.insert(2, Row { label: "Status".into(), value: STATUS[i].1.into(), hint: "Where you are with it. The Playing and Finished shelves (Settings → Collections) follow it.".into(), press: Some(Box::new({ let turn = turn.clone(); move |s: &mut Settings| turn(s, 1) })), step: Some(Box::new(turn)) });
+                    rows.insert(1, Row { label: "Status".into(), value: STATUS[i].1.into(), hint: "Where you are with it. The Playing and Finished shelves (Settings → Collections) follow it.".into(), press: Some(Box::new({ let turn = turn.clone(); move |s: &mut Settings| turn(s, 1) })), step: Some(Box::new(turn)) });
                 }
+                let mut media = Vec::new();
                 if let Some(line) = self.achievements_line() {
                     let whose = match (&g.source, c.console.as_str()) {
                         (Source::Steam { .. }, _) => "Your Steam achievements for this game, read from Steam's own files on this PC",
@@ -2428,30 +2462,17 @@ impl Settings {
                         (_, "ps3") if self.own_ach_emulator("ps3").is_some() => "Your trophies for this game, read from RPCS3's own files on this PC",
                         _ => "Your RetroAchievements for this game",
                     };
-                    rows.push(open("Achievements", line, whose, Screen::Achievements));
+                    media.push(open("Achievements", line, whose, Screen::Achievements));
                 }
-                if !g.art.manual.is_empty() {
-                    let pages = g.art.manual.clone();
-                    rows.push(Row {
-                        label: "Read the manual".into(),
-                        value: format!("{} pages", pages.len()),
-                        hint: "Opens the game's manual as a booklet".into(),
-                        press: Some(Box::new(move |s: &mut Settings| {
-                            s.manual = Some(pages.clone());
-                            s.open = false;
-                            s.redraw = true;
-                        })),
-                        step: None,
-                    });
-                } else if self.can_find_manual() {
-                    rows.push(Row {
+                if !has_manual && self.can_find_manual() {
+                    media.push(Row {
                         label: "Find a manual".into(),
                         hint: "Looks for this game's manual on archive.org and GamesDatabase.org (its name is sent to them) and lists what they have to pick from".into(),
                         press: Some(Box::new(|s: &mut Settings| s.find_manual())),
                         ..Row::default()
                     });
-                } else if let Some(pdf) = g.art.manual_pdf.clone() {
-                    rows.push(Row {
+                } else if let Some(pdf) = g.art.manual_pdf.clone().filter(|_| !has_manual) {
+                    media.push(Row {
                         label: "Open the manual".into(),
                         value: "PDF".into(),
                         hint: "Opens the game's manual in the program this PC reads PDFs with".into(),
@@ -2465,7 +2486,7 @@ impl Settings {
                 }
                 let shots: Vec<PathBuf> = g.info.as_ref().map(|i| i.shots.iter().map(PathBuf::from).collect()).unwrap_or_default();
                 if !shots.is_empty() {
-                    rows.push(Row {
+                    media.push(Row {
                         label: "Screenshots".into(),
                         value: shots.len().to_string(),
                         hint: "The game's screenshots, one at a time: ◀ ▶ to look through them, + − to zoom".into(),
@@ -2475,11 +2496,12 @@ impl Settings {
                         step: None,
                     });
                 }
-                rows.extend(self.manual_rows());
-                rows.extend(self.manual_studio_row());
+                media.extend(self.manual_rows());
+                media.extend(self.manual_studio_row());
+                let mut art = Vec::new();
                 if self.can_pick_art() {
-                    rows.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
-                    rows.push(self.art_match_row());
+                    art.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
+                    art.push(self.art_match_row());
                 }
                 // a Steam, store or added game's cover (console games, and PC games on a console's shelf, have the Art
                 // Studio above)
@@ -2491,7 +2513,7 @@ impl Settings {
                 };
                 if let Some(appid) = pc_appid {
                     let ask = crate::coverpick::Ask { id: g.id.clone(), appid, title: g.title.clone(), term: String::new() };
-                    rows.push(Row {
+                    art.push(Row {
                         label: "Box art".into(),
                         value: "Change".into(),
                         hint: "Choose another cover: Steam's own, SteamGridDB's posters, or a picture of yours.".into(),
@@ -2502,7 +2524,7 @@ impl Settings {
                         ..Row::default()
                     });
                 }
-                rows.extend(self.pc_back_rows());
+                art.extend(self.pc_back_rows());
                 if matches!(&g.source, Source::Pc(pc) if rustyshelf_core::windowmode::SOURCES.contains(&pc.source)) {
                     let (mode, id) = (self.window_mode(&g.id), g.id.clone());
                     let turn = move |s: &mut Settings, d: i32| {
@@ -2529,7 +2551,15 @@ impl Settings {
                         step: Some(Box::new(turn2)),
                     });
                 }
-                rows.extend(facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }));
+                let about: Vec<Row> = facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }).collect();
+                let mut all = top;
+                for (name, group) in [("Your game", rows), ("Achievements, manual & screenshots", media), ("Box art", art), ("About", about)] {
+                    if !group.is_empty() {
+                        all.push(Row { label: format!("— {name} —"), ..Row::default() });
+                        all.extend(group);
+                    }
+                }
+                let rows = all;
                 let about = g.info.as_ref().and_then(|i| i.description()).unwrap_or_default();
                 let about: String = if about.chars().count() > 420 { format!("{}…", about.chars().take(419).collect::<String>()) } else { about };
                 Page { title: g.title.clone(), lead: about, rows }
@@ -2580,6 +2610,8 @@ impl Settings {
                         &format!("{}: your controller mapped, the Home menu's Save and Load keys, one BIOS folder and graphics that suit this PC. Emulators you've used before are left as they are. Everything is backed up first, and Settings → each console → Set up for me can undo it.", kinds.join(", ")),
                     ));
                 }
+                rows.push(self.switch("All games shelf", &["ui", "allShelf"], false, "A shelf with your whole collection, A to Z. Settings → Look can switch it later."));
+                rows.push(self.switch("Favorites shelf", &["ui", "favShelf"], false, "A shelf with only your favorites (H on a game). Settings → Look can switch it later."));
                 rows.push(Row {
                     label: "Open RustyShelf".into(),
                     press: Some(Box::new(|s: &mut Settings| {
@@ -2981,6 +3013,18 @@ pub fn input(
             let at = &mut s.stack.last_mut().expect("a page").1;
             let was = *at;
             *at = (*at as i32 + move_by).clamp(0, n as i32 - 1) as usize;
+            // a section's heading is passed over, unless it's the list's end
+            let dir = move_by.signum() as isize;
+            let skip = |i: usize| heading(&page.rows[i].label) && page.rows[i].press.is_none();
+            while skip(*at) {
+                match at.checked_add_signed(dir).filter(|i| *i < n) {
+                    Some(i) => *at = i,
+                    None => {
+                        *at = was;
+                        break;
+                    }
+                }
+            }
             if *at != was {
                 s.cues.push(("tick", move_by.signum()));
             }
@@ -3235,6 +3279,9 @@ fn upper(lang: &str, s: &str) -> String {
 fn bare(label: &str) -> &str {
     label.trim_matches(|c: char| c == '—' || c == ' ')
 }
+
+/// Details' second button, beside Play
+const READ_MANUAL: &str = "Read the manual";
 
 fn heading(label: &str) -> bool {
     label.starts_with("— ")
@@ -3563,30 +3610,33 @@ pub fn draw(
                         ));
                     }
                 });
-                // Play, the first row, as the big button
-                let play = page.rows.first().filter(|r| r.label == "Play");
-                let rest = usize::from(play.is_some());
-                if let Some(row) = play {
-                    let on = at == 0;
-                    let mut b = right.spawn((
-                        Node { width: dp(300.0), height: dp(84.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, align_items: AlignItems::Center, column_gap: dp(14.0), border: UiRect::all(dp(3.0)), border_radius: BorderRadius::all(dp(16.0)), margin: UiRect::bottom(dp(22.0)), ..default() },
-                        BackgroundColor(if on { S_ACC } else { S_ACC.with_alpha(0.35) }),
-                        BorderColor::all(if on { Color::WHITE } else { Color::NONE }),
-                    ));
-                    if on {
-                        b.insert(BoxShadow(vec![ShadowStyle { color: S_ACC.with_alpha(0.6), x_offset: px(0), y_offset: dp(12.0), spread_radius: dp(-6.0), blur_radius: dp(40.0) }]));
+                // Play, and Read the manual beside it, the first rows, as the big buttons
+                let rest = page.rows.iter().take_while(|r| r.label == "Play" || r.label == READ_MANUAL).count();
+                right.spawn(Node { column_gap: dp(18.0), margin: UiRect::bottom(dp(22.0)), ..default() }).with_children(|bar| {
+                    for (i, row) in page.rows.iter().enumerate().take(rest) {
+                        let (on, play) = (at == i, row.label == "Play");
+                        let color = if play { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.12) };
+                        let mut b = bar.spawn((
+                            Node { width: dp(if play { 300.0 } else { 330.0 }), height: dp(84.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, align_items: AlignItems::Center, column_gap: dp(14.0), border: UiRect::all(dp(3.0)), border_radius: BorderRadius::all(dp(16.0)), ..default() },
+                            BackgroundColor(if on { if play { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.24) } } else { color.with_alpha(if play { 0.35 } else { 0.08 }) }),
+                            BorderColor::all(if on { Color::WHITE } else { Color::NONE }),
+                        ));
+                        if on {
+                            b.insert(BoxShadow(vec![ShadowStyle { color: color.with_alpha(0.6), x_offset: px(0), y_offset: dp(12.0), spread_radius: dp(-6.0), blur_radius: dp(40.0) }]));
+                        }
+                        b.with_children(|b| {
+                            if play {
+                                b.spawn((Text::new("▶"), font(700, 24.0), TextColor(Color::WHITE)));
+                            }
+                            b.spawn((Text::new(t(&row.label)), font(700, 28.0), TextColor(Color::WHITE)));
+                        });
                     }
-                    b.with_children(|b| {
-                        b.spawn((Text::new("▶"), font(700, 24.0), TextColor(Color::WHITE)));
-                        b.spawn((Text::new(t(&row.label)), font(700, 28.0), TextColor(Color::WHITE)));
-                    });
-                }
+                });
                 let about = info.and_then(|i| i.overview.clone().or_else(|| i.about.clone())).map(|o| o.lines().next().unwrap_or_default().chars().take(320).collect::<String>());
                 let text = if at >= rest && !hint.is_empty() { Some(hint.clone()) } else { about };
-                if let Some(text) = text.filter(|x| !x.is_empty()) {
-                    right.spawn((Node { max_width: dp(860.0), margin: UiRect::bottom(dp(18.0)), ..default() }, Text::new(text), font(400, 21.0), TextColor(S_INK2)));
-                }
-                right.spawn((Node { margin: UiRect::vertical(dp(6.0)), ..default() }, Text::new(upper(&lang, &t("More"))), font(700, 15.0), TextColor(S_DIM)));
+                // four lines' room whatever the text, so the list below doesn't move as the cursor does
+                let text: String = text.unwrap_or_default().chars().take(300).collect();
+                right.spawn((Node { max_width: dp(860.0), height: dp(112.0), flex_shrink: 0.0, overflow: Overflow::clip(), margin: UiRect::bottom(dp(18.0)), ..default() }, Text::new(text), font(400, 21.0), TextColor(S_INK2)));
                 row_list(right, &page, rest, at, 860.0, &font, &t, &mv);
             });
             key_bar(p, &keys, &font);
