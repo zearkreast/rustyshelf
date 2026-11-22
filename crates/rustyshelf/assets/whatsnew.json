@@ -1,5 +1,38 @@
 [
   {
+    "version": "0.6.0", "name": "0.6.0", "date": "2026-11-22", "title": "Trophies game by game, Details in sections, and updates by themselves",
+    "highlights": [
+      "Trophies: every game's achievements, each with its picture, and How to get it",
+      "Details: Read the manual beside Play, and its rows in sections",
+      "The emulator's case wears the emulator's own icon",
+      "Update by itself, from Settings → System"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Trophies game by game", "RetroAchievements, RPCS3 and Steam, each or all together; a game opens its achievements, each with its picture, rarity and points, and How to get it searches YouTube."],
+        ["Details", "Read the manual beside Play, the rows below in sections, and a description that keeps its place."],
+        ["Quick menu", "A Manual tile for a game with a manual."],
+        ["Favorites shelf", "Settings → Look, beside All games; the first run asks for both."],
+        ["The emulator's case", "On Windows, the emulator's own icon; Settings → each console → Emulator's case takes a picture of yours."],
+        ["Ports and recomps", "Their back of the box comes from the console game they're made from."],
+        ["Drawn backs", "A game with screenshots shows its first four on the back drawn for it."],
+        ["Update by itself", "Settings → System: a newer release is downloaded, checked and used from the next start."],
+        ["The tour", "Opens the real screens and points at each part."],
+        ["Surprise me", "The switch is back in Settings."],
+        ["KytyPS5", "The PS5's emulator, found on Linux too."]
+      ] },
+      { "h": "Fixed", "items": [
+        ["Quick menu and Sort panel", "They no longer blink as you move in them."],
+        ["LaunchBox's PC games", "The download says when it's saving, goes on with Settings shut, and its progress no longer covers other rows' hints."],
+        ["Achievement pictures", "Kept in data/ach-icons, so lists don't ask for them again."],
+        ["A folder of games", "A folder in the PC games folder holding several games gives a game for each."],
+        ["Epic on Linux", "Installs stopped half way no longer show up as PC games."],
+        ["Downloads", "A LaunchBox art download or a setup brought over that stops now says so instead of hanging."],
+        ["Settings", "A page no longer opens with its cursor on a section's heading."]
+      ] }
+    ]
+  },
+  {
     "version": "0.5.5", "name": "0.5.5", "date": "2026-11-17", "title": "An installer for Windows, Accounts by service and Trophies with pictures",
     "highlights": [
       "Windows: an installer, or a zip with the app and its data folder",
