@@ -557,7 +557,8 @@ pub fn open_link(url: &str) -> Result<(), LaunchError> {
     if !url.starts_with("https://") {
         return refuse("Not a web address.");
     }
-    open_folder(Path::new(url))
+    // (Explorer takes an address with ? or & for a folder to open)
+    open_external(url)
 }
 
 /// Hands a Steam game to Steam (steam://rungameid), which starts it.
@@ -756,6 +757,13 @@ pub fn launch_app(name: &str, path: &str, app_root: &Path) -> Result<Child, Laun
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_web_addresses_open_as_links() {
+        assert!(open_link("C:\\Windows").is_err());
+        assert!(open_link("http://example.com").is_err());
+        assert!(open_link("file:///etc/passwd").is_err());
+    }
 
     #[test]
     fn launch_options_take_the_games_name_and_folder() {
