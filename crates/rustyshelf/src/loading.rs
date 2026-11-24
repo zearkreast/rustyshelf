@@ -43,19 +43,8 @@ pub struct Reshower {
 
 impl Default for Reshower {
     fn default() -> Self {
-        let (ask, jobs) = channel::<(u64, std::sync::Arc<Library>, rustyshelf_core::history::History)>();
-        let (finished, done) = channel();
-        thread::spawn(move || {
-            while let Ok(mut job) = jobs.recv() {
-                while let Ok(newer) = jobs.try_recv() {
-                    job = newer;
-                }
-                if finished.send((job.0, shown(&job.1, &job.2))).is_err() {
-                    return;
-                }
-            }
-        });
-        Reshower { ask, done: Mutex::new(done), asked: 0 }
+        let (ask, done) = crate::threads::worker(true, |job: (u64, std::sync::Arc<Library>, rustyshelf_core::history::History)| Some((job.0, shown(&job.1, &job.2))));
+        Reshower { ask, done, asked: 0 }
     }
 }
 

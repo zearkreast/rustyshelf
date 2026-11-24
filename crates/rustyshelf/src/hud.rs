@@ -2,7 +2,7 @@
 // shelf's top bar, title and hint bar in Boxshelf's renderer/index.html, style.css and app.js, as RustyShelf has them.
 //! What's written over the shelf: the console's name, the consoles' tabs, the clock, the chosen game and the keys.
 
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::mpsc::Receiver;
 use std::sync::Mutex;
 
 use bevy::prelude::*;
@@ -469,17 +469,10 @@ pub struct Wordmarks {
 
 impl Default for Wordmarks {
     fn default() -> Self {
-        let (ask, todo) = channel::<(String, String, String, f32)>();
-        let (finished, done) = channel();
-        std::thread::spawn(move || {
-            while let Ok((key, id, name, w)) = todo.recv() {
-                let p = rustyshelf_core::drawn::wordmark(looks::wordmark(&id).map_or(name.as_str(), |w| w.0), looks::lettering(&id), w, 2.0);
-                if finished.send((key, p)).is_err() {
-                    return;
-                }
-            }
+        let (ask, done) = crate::threads::worker(false, |(key, id, name, w): (String, String, String, f32)| {
+            Some((key, rustyshelf_core::drawn::wordmark(looks::wordmark(&id).map_or(name.as_str(), |w| w.0), looks::lettering(&id), w, 2.0)))
         });
-        Wordmarks { ask, done: Mutex::new(done), made: Default::default(), asked: Default::default(), width: 0.0 }
+        Wordmarks { ask, done, made: Default::default(), asked: Default::default(), width: 0.0 }
     }
 }
 

@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
 use bevy::asset::RenderAssetUsages;
@@ -646,55 +646,46 @@ pub struct Backdrop {
 
 impl Default for Backdrop {
     fn default() -> Self {
-        let (ask, jobs) = channel::<Wanted>();
-        let (finished, done) = channel();
-        std::thread::spawn(move || {
-            // the last custom theme's picture read, for the size it was read for
-            let mut read: Option<(PathBuf, (u32, u32), bool, Vec<u8>, (usize, usize))> = None;
-            // the last game's own picture read: its file, the size and the way it was read for, and what it gave
-            let mut own: Option<(PathBuf, (u32, u32), OwnArt, Option<(Vec<u8>, (usize, usize))>)> = None;
-            while let Ok(mut job) = jobs.recv() {
-                while let Ok(newer) = jobs.try_recv() {
-                    job = newer;
-                }
-                if let Some(w) = &job.wall {
-                    if read.as_ref().is_none_or(|r| (&r.0, r.1, r.2) != (&w.file, job.pixels, w.blur)) {
-                        read = wall_picture(&w.file, job.pixels, w.blur).map(|(rgb, size)| (w.file.clone(), job.pixels, w.blur, rgb, size));
-                    }
-                }
-                let wall = job.wall.as_ref().and_then(|w| read.as_ref().filter(|r| r.0 == w.file).map(|r| themes::Wall { rgb: &r.3, size: r.4, shade: w.shade, blur: w.blur, glow: w.glow, hue: w.hue }));
-                let stage = themes::Stage { w: job.stage.w, h: job.stage.h, case_h: job.stage.bh };
-                // the game's own picture, read again only when it's another or the window has changed
-                if let Some((file, kind)) = &job.art {
-                    if own.as_ref().is_none_or(|o| (&o.0, o.1, o.2) != (file, job.pixels, *kind)) {
-                        let got = match kind {
-                            OwnArt::Wide => wall_picture(file, job.pixels, false),
-                            // (a cover is as tall as the window)
-                            OwnArt::Poster => wall_picture(file, (1, job.pixels.1), false),
-                            OwnArt::Soft => image::ImageReader::open(file).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.decode().ok()).map(|img| {
-                                let small = img.thumbnail(144, 144).into_rgba8();
-                                (themes::swatch(small.width(), small.height(), small.as_raw()), themes::SWATCH)
-                            }),
-                        };
-                        own = Some((file.clone(), job.pixels, *kind, got));
-                    }
-                }
-                let read_art = job.art.as_ref().and(own.as_ref()).and_then(|o| o.3.as_ref().map(|(rgb, size)| (o.2, rgb, *size)));
-                let art = match &read_art {
-                    Some((OwnArt::Wide, rgb, size)) => Some(themes::Art::Wide(rgb, *size)),
-                    Some((OwnArt::Poster, rgb, size)) => Some(themes::Art::Poster(rgb, *size)),
-                    _ => None,
-                };
-                let cover = match &read_art {
-                    Some((OwnArt::Soft, rgb, _)) => Some(rgb.as_slice()),
-                    _ => job.cover.1.as_ref().map(|c| c.as_slice()),
-                };
-                if finished.send(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, wall.as_ref(), art.as_ref(), stage, job.pixels)).is_err() {
-                    return;
+        // the last custom theme's picture read, for the size it was read for
+        let mut read: Option<(PathBuf, (u32, u32), bool, Vec<u8>, (usize, usize))> = None;
+        // the last game's own picture read: its file, the size and the way it was read for, and what it gave
+        let mut own: Option<(PathBuf, (u32, u32), OwnArt, Option<(Vec<u8>, (usize, usize))>)> = None;
+        let (ask, done) = crate::threads::worker(true, move |job: Wanted| {
+            if let Some(w) = &job.wall {
+                if read.as_ref().is_none_or(|r| (&r.0, r.1, r.2) != (&w.file, job.pixels, w.blur)) {
+                    read = wall_picture(&w.file, job.pixels, w.blur).map(|(rgb, size)| (w.file.clone(), job.pixels, w.blur, rgb, size));
                 }
             }
+            let wall = job.wall.as_ref().and_then(|w| read.as_ref().filter(|r| r.0 == w.file).map(|r| themes::Wall { rgb: &r.3, size: r.4, shade: w.shade, blur: w.blur, glow: w.glow, hue: w.hue }));
+            let stage = themes::Stage { w: job.stage.w, h: job.stage.h, case_h: job.stage.bh };
+            // the game's own picture, read again only when it's another or the window has changed
+            if let Some((file, kind)) = &job.art {
+                if own.as_ref().is_none_or(|o| (&o.0, o.1, o.2) != (file, job.pixels, *kind)) {
+                    let got = match kind {
+                        OwnArt::Wide => wall_picture(file, job.pixels, false),
+                        // (a cover is as tall as the window)
+                        OwnArt::Poster => wall_picture(file, (1, job.pixels.1), false),
+                        OwnArt::Soft => image::ImageReader::open(file).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.decode().ok()).map(|img| {
+                            let small = img.thumbnail(144, 144).into_rgba8();
+                            (themes::swatch(small.width(), small.height(), small.as_raw()), themes::SWATCH)
+                        }),
+                    };
+                    own = Some((file.clone(), job.pixels, *kind, got));
+                }
+            }
+            let read_art = job.art.as_ref().and(own.as_ref()).and_then(|o| o.3.as_ref().map(|(rgb, size)| (o.2, rgb, *size)));
+            let art = match &read_art {
+                Some((OwnArt::Wide, rgb, size)) => Some(themes::Art::Wide(rgb, *size)),
+                Some((OwnArt::Poster, rgb, size)) => Some(themes::Art::Poster(rgb, *size)),
+                _ => None,
+            };
+            let cover = match &read_art {
+                Some((OwnArt::Soft, rgb, _)) => Some(rgb.as_slice()),
+                _ => job.cover.1.as_ref().map(|c| c.as_slice()),
+            };
+            Some(themes::backdrop(&job.theme, job.sh, job.hue, None, cover, wall.as_ref(), art.as_ref(), stage, job.pixels))
         });
-        Backdrop { ask, done: Mutex::new(done), asked: None, shown: false, since: 0.0, halo: (0.0, 0.0) }
+        Backdrop { ask, done, asked: None, shown: false, since: 0.0, halo: (0.0, 0.0) }
     }
 }
 
@@ -1406,37 +1397,31 @@ fn part_of(stage: &Stage) -> f32 {
 
 impl Default for Moving {
     fn default() -> Self {
-        let (ask, ticks) = channel::<Tick>();
-        let (finished, done) = channel();
-        std::thread::spawn(move || {
-            // light over a dark backdrop comes out stronger in linear light than in the browser: its alpha, taken down
-            let dimmer: Vec<u8> = (0..256).map(|a| ((a as f32 / 255.0).powf(1.6) * 255.0).round() as u8).collect();
-            let mut made: Option<(themes_fx::Layer, (u32, u32), String, Vec<u8>)> = None;
-            while let Ok(tick) = ticks.recv() {
-                if made.as_ref().is_none_or(|m| m.1 != tick.size || m.2 != tick.theme) {
-                    let layer = match made.take() {
-                        Some((layer, size, ..)) if size == tick.size => layer,
-                        _ => themes_fx::Layer::new(tick.size.0, tick.size.1, tick.scale, tick.floor, tick.hue),
-                    };
-                    made = Some((layer, tick.size, tick.theme.clone(), themes::corners(&tick.theme, tick.size.0, tick.size.1)));
-                }
-                let Some((layer, _, _, corners)) = made.as_mut() else { continue };
-                let mut p = layer.frame(&tick.theme, tick.dt, tick.hue, 200.0);
-                // the theme's dark corners lie over what moves
-                for (px, light) in p.rgba.as_chunks_mut::<4>().0.iter_mut().zip(corners.iter()) {
-                    if px[3] > 0 {
-                        for c in &mut px[..3] {
-                            *c = ((u16::from(*c) * u16::from(*light) + 127) / 255) as u8;
-                        }
-                        px[3] = dimmer[usize::from(px[3])];
+        // light over a dark backdrop comes out stronger in linear light than in the browser: its alpha, taken down
+        let dimmer: Vec<u8> = (0..256).map(|a| ((a as f32 / 255.0).powf(1.6) * 255.0).round() as u8).collect();
+        let mut made: Option<(themes_fx::Layer, (u32, u32), String, Vec<u8>)> = None;
+        let (ask, done) = crate::threads::worker(false, move |tick: Tick| {
+            if made.as_ref().is_none_or(|m| m.1 != tick.size || m.2 != tick.theme) {
+                let layer = match made.take() {
+                    Some((layer, size, ..)) if size == tick.size => layer,
+                    _ => themes_fx::Layer::new(tick.size.0, tick.size.1, tick.scale, tick.floor, tick.hue),
+                };
+                made = Some((layer, tick.size, tick.theme.clone(), themes::corners(&tick.theme, tick.size.0, tick.size.1)));
+            }
+            let (layer, _, _, corners) = made.as_mut()?;
+            let mut p = layer.frame(&tick.theme, tick.dt, tick.hue, 200.0);
+            // the theme's dark corners lie over what moves
+            for (px, light) in p.rgba.as_chunks_mut::<4>().0.iter_mut().zip(corners.iter()) {
+                if px[3] > 0 {
+                    for c in &mut px[..3] {
+                        *c = ((u16::from(*c) * u16::from(*light) + 127) / 255) as u8;
                     }
-                }
-                if finished.send(p).is_err() {
-                    return;
+                    px[3] = dimmer[usize::from(px[3])];
                 }
             }
+            Some(p)
         });
-        Moving { ask, done: Mutex::new(done), busy: false, last: 0.0, image: None, pixels: false }
+        Moving { ask, done, busy: false, last: 0.0, image: None, pixels: false }
     }
 }
 

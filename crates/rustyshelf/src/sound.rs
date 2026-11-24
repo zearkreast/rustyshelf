@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -74,28 +74,21 @@ pub struct Sounds {
 
 impl Default for Sounds {
     fn default() -> Self {
-        let (jobs, asked) = channel::<Job>();
-        let (tx, done) = channel();
-        std::thread::spawn(move || {
-            let mut decoded: HashMap<PathBuf, Option<(u32, Vec<f32>, Vec<f32>, f32)>> = HashMap::new();
-            for job in asked {
-                let wav = match job {
-                    Job::Cue { voices, tone, level, volume, seed } => synth::render(&voices, &tone, level, RATE, volume, seed).wav(),
-                    Job::File(file, volume) => {
-                        let Some((rate, left, right, gain)) = decoded.entry(file.clone()).or_insert_with(|| decode(&file)) else { continue };
-                        let k = *gain * volume;
-                        synth::Stereo { rate: *rate, left: left.iter().map(|s| s * k).collect(), right: right.iter().map(|s| s * k).collect() }.wav()
-                    }
-                };
-                if tx.send(wav).is_err() {
-                    return;
+        let mut decoded: HashMap<PathBuf, Option<(u32, Vec<f32>, Vec<f32>, f32)>> = HashMap::new();
+        let (jobs, done) = crate::threads::worker(false, move |job: Job| {
+            Some(match job {
+                Job::Cue { voices, tone, level, volume, seed } => synth::render(&voices, &tone, level, RATE, volume, seed).wav(),
+                Job::File(file, volume) => {
+                    let (rate, left, right, gain) = decoded.entry(file.clone()).or_insert_with(|| decode(&file)).as_ref()?;
+                    let k = *gain * volume;
+                    synth::Stereo { rate: *rate, left: left.iter().map(|s| s * k).collect(), right: right.iter().map(|s| s * k).collect() }.wav()
                 }
-            }
+            })
         });
         let mut state = cues::Sound::default();
         let root = rustyshelf_core::paths::app_root();
         state.set_songs(rustyshelf_core::usermusic::songs(&root).0, true, 0.0);
-        Sounds { root, state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done: Mutex::new(done), later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: HashMap::new(), packs: Vec::new(), pack: None, last_pack_tick: 0.0, ducked: None }
+        Sounds { root, state, on: true, volume: 0.7, started: Instant::now(), seed: 1, jobs, done, later: Vec::new(), shelf: String::new(), voice: String::new(), by_shelf: HashMap::new(), packs: Vec::new(), pack: None, last_pack_tick: 0.0, ducked: None }
     }
 }
 

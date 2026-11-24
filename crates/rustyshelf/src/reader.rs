@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
 
 use bevy::prelude::*;
@@ -54,23 +54,18 @@ pub struct Reader {
 
 impl Default for Reader {
     fn default() -> Self {
-        let (ask, wanted) = channel::<PathBuf>();
-        let (done, read) = channel();
-        std::thread::spawn(move || {
-            let data = rustyshelf_core::paths::data_dir(&rustyshelf_core::paths::app_root());
-            while let Ok(file) = wanted.recv() {
-                // a screenshot's address: fetched once, then read from the cache
-                let local = match file.to_str().filter(|f| f.starts_with("https://")) {
-                    Some(url) => rustyshelf_core::info::shot_file(&data, url).unwrap_or_default(),
-                    None => file.clone(),
-                };
-                let picture = crate::loading::decode(&local, TALLEST);
-                if done.send((file, picture)).is_err() {
-                    return;
-                }
-            }
+        let mut data = None;
+        let (ask, read) = crate::threads::worker(false, move |file: PathBuf| {
+            let data = data.get_or_insert_with(|| rustyshelf_core::paths::data_dir(&rustyshelf_core::paths::app_root()));
+            // a screenshot's address: fetched once, then read from the cache
+            let local = match file.to_str().filter(|f| f.starts_with("https://")) {
+                Some(url) => rustyshelf_core::info::shot_file(data, url).unwrap_or_default(),
+                None => file.clone(),
+            };
+            let picture = crate::loading::decode(&local, TALLEST);
+            Some((file, picture))
         });
-        Reader { pages: Vec::new(), at: 0, open: false, fresh: false, one: false, gallery: false, z: 1.0, pan: Vec2::ZERO, left_at: HashMap::new(), base: Vec2::ZERO, ready: HashMap::new(), asked: HashSet::new(), ask, read: Mutex::new(read) }
+        Reader { pages: Vec::new(), at: 0, open: false, fresh: false, one: false, gallery: false, z: 1.0, pan: Vec2::ZERO, left_at: HashMap::new(), base: Vec2::ZERO, ready: HashMap::new(), asked: HashSet::new(), ask, read }
     }
 }
 
