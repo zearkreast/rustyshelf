@@ -320,7 +320,7 @@ impl Settings {
                 s.setup.plan = None;
             };
             let hint = if can.wide { "Original: the console's own shape. Widescreen: 16:9, drawn wide where the game allows it." } else { "Original: the console's own shape." };
-            rows.push(Row { label: "Screen shape".into(), value: value.into(), hint: hint.into(), press: Some(Box::new({ let turn = turn.clone(); move |s: &mut Settings| turn(s, 1) })), step: Some(Box::new(turn)) });
+            rows.push(Row::turning("Screen shape", value, hint, turn));
         }
         let switch = |label: &str, key: &'static str, hint: &str| {
             let on = self.flag(&["emuSetup", key], false);
@@ -378,13 +378,12 @@ impl Settings {
                 s.setup.plan = None;
             };
             let here = PRESETS.iter().find(|p| p.0 == i.preset).map_or(String::new(), |p| format!(" ({} here)", p.1));
-            rows.push(Row {
-                label: "Graphics preset".into(),
-                value: PRESETS[at].1.into(),
-                hint: format!("Fast: the console's own resolution. Balanced: about twice that. Pretty: three to four times, for a strong graphics card. For this PC picks one from your graphics card{here}."),
-                press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                step: Some(Box::new(turn)),
-            });
+            rows.push(Row::turning(
+                "Graphics preset",
+                PRESETS[at].1,
+                format!("Fast: the console's own resolution. Balanced: about twice that. Pretty: three to four times, for a strong graphics card. For this PC picks one from your graphics card{here}."),
+                turn,
+            ));
         }
         let picture = self.setup.on.iter().find(|g| g.0 == "picture").map(|g| g.1);
         if let Some(on) = picture {

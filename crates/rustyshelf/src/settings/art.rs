@@ -209,20 +209,18 @@ impl Settings {
             s.set(&["art", "styles", &id], rustyshelf_core::settings::clean_art_style(&style, &base));
             s.restyle(&id, before);
         };
-        let again = turn.clone();
         let running = self.art_pick.restyles.iter().find(|r| r.sys == console).map(|r| (r.job.done.load(Ordering::Relaxed), r.job.total.load(Ordering::Relaxed)));
         let value = at.map_or("Set in the Electron app", |a| STYLES[a].3).to_string();
-        Row {
-            label: "Box art style".into(),
-            value: match running {
+        Row::turning(
+            "Box art style",
+            match running {
                 Some((done, total)) if total > 0 => format!("{value} · restyling {done} of {total}"),
                 Some(_) => format!("{value} · restyling"),
                 None => value,
             },
-            hint: "Which version of a box this console's games get. Changing it picks their pictures again in the background (the old ones go to the replaced folder); a part you chose by hand gives way to it, a game you locked doesn't.".into(),
-            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-            step: Some(Box::new(again)),
-        }
+            "Which version of a box this console's games get. Changing it picks their pictures again in the background (the old ones go to the replaced folder); a part you chose by hand gives way to it, a game you locked doesn't.",
+            turn,
+        )
     }
 
     /// The console's pictures picked again for its style, now `before` has given way to it: what the player picked
@@ -733,14 +731,7 @@ impl Settings {
                 }
                 s.redraw = true;
             };
-            let turn2 = turn.clone();
-            rows.push(Row {
-                label: label.to_string(),
-                value: names.iter().find(|v| v.0 == on).map_or("All", |v| v.1).into(),
-                hint: format!("Shows only the versions of one {}: ← → choose; All shows every one.", label.to_lowercase()),
-                press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                step: Some(Box::new(turn2)),
-            });
+            rows.push(Row::turning(*label, names.iter().find(|v| v.0 == on).map_or("All", |v| v.1), format!("Shows only the versions of one {}: ← → choose; All shows every one.", label.to_lowercase()), turn));
         }
         rows
     }

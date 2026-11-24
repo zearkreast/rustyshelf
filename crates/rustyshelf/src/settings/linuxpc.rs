@@ -220,21 +220,19 @@ impl Settings {
             ((id, _), Some(p)) if id.is_empty() => format!("Best one found · {}", p.name),
             ((_, name), _) => name.clone(),
         };
-        let (c1, c2) = (choices.clone(), choices);
-        let turn = move |s: &mut Settings, c: &[(String, String)], by: i32| s.set(&["pc", "runner"], json!(c[(at as i32 + by).rem_euclid(c.len() as i32) as usize].0));
+        let turn = cycle(&["pc", "runner"], choices.iter().map(|c| json!(c.0)).collect(), at);
         let found = if runners.is_empty() {
             "No Wine or Proton found: install Wine or GE-Proton.".to_string()
         } else {
             format!("{} found{}", runners.len(), if linuxpc::umu_run().is_some() { " · Proton runs through umu-run" } else { " · umu-run not found: Proton runs through its own script" })
         };
         let mut rows = vec![
-            Row {
-                label: "Run Windows games with".into(),
-                value: now,
-                hint: format!("Windows games (Epic's, the PC games folder's, the programs on the Custom shelf) run through this. Proton (GE-Proton, UMU-Proton) suits most games: it brings DXVK and VKD3D. {found}"),
-                press: Some(Box::new(move |s: &mut Settings| turn(s, &c1, 1))),
-                step: Some(Box::new(move |s: &mut Settings, d| turn(s, &c2, d))),
-            },
+            Row::turning(
+                "Run Windows games with",
+                now,
+                format!("Windows games (Epic's, the PC games folder's, the programs on the Custom shelf) run through this. Proton (GE-Proton, UMU-Proton) suits most games: it brings DXVK and VKD3D. {found}"),
+                turn,
+            ),
             self.folder_row("Wine prefixes folder", &["pc", "prefixDir"], short(&linuxpc::prefix_root("", &self.app_root).to_string_lossy()), "Each Windows game gets a Wine prefix of its own (its own little Windows: saves, settings), a folder named after the game, in this folder. Empty: RustyShelf's own Prefixes folder."),
             self.folder_row("Game data folder", &["pc", "homeDir"], "Your home folder".into(), "Linux games get this folder as their home: their saves and settings go there, kept apart from yours. Empty: your own home folder."),
         ];

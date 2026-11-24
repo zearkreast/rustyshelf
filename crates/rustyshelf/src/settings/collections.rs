@@ -251,16 +251,12 @@ impl Settings {
                 }
             });
         };
-        rows.push(Row {
-            label: "Fill it automatically".into(),
-            value: self.rule_name(&rule),
-            hint: "Off: the games you pick. Or the shelf fills itself, with every game of a Status, genre or console, or the ones you never played.".into(),
-            press: Some(Box::new({
-                let turn = turn.clone();
-                move |s: &mut Settings| turn(s, 1)
-            })),
-            step: Some(Box::new(turn)),
-        });
+        rows.push(Row::turning(
+            "Fill it automatically",
+            self.rule_name(&rule),
+            "Off: the games you pick. Or the shelf fills itself, with every game of a Status, genre or console, or the ones you never played.",
+            turn,
+        ));
         let toggle = |game: &str, title: &str| {
             let on = ids.iter().any(|i| i == game);
             let (cid, game) = (id.to_string(), game.to_string());

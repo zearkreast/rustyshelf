@@ -89,14 +89,12 @@ impl Settings {
             s.manual_search.kept = Default::default();
             s.redraw = true;
         };
-        let again = turn.clone();
-        Row {
-            label: "Manuals".into(),
-            value: Stores::PREFS[at].1.into(),
-            hint: "Which manual the automatic search picks for this console's games: the sharpest complete English one, or one in another language or from another region.".into(),
-            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-            step: Some(Box::new(again)),
-        }
+        Row::turning(
+            "Manuals",
+            Stores::PREFS[at].1,
+            "Which manual the automatic search picks for this console's games: the sharpest complete English one, or one in another language or from another region.",
+            turn,
+        )
     }
 
     /// Details' rows for a manual that's there: keep it as it is, or say it's another game's.

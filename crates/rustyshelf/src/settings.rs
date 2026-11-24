@@ -230,6 +230,19 @@ struct Row {
     step: Option<Step>,
 }
 
+impl Row {
+    /// A row ◀ ▶ step through, `turn`ed by -1 or 1; Enter goes on as ▶ does.
+    fn turning(label: impl Into<String>, value: impl Into<String>, hint: impl Into<String>, turn: impl Fn(&mut Settings, i32) + Clone + Send + Sync + 'static) -> Row {
+        let on = turn.clone();
+        Row { label: label.into(), value: value.into(), hint: hint.into(), press: Some(Box::new(move |s: &mut Settings| on(s, 1))), step: Some(Box::new(turn)) }
+    }
+}
+
+/// Saves the value `d` steps on from `values[at]` at `path`, round the end.
+fn cycle(path: &'static [&'static str], values: Vec<Value>, at: usize) -> impl Fn(&mut Settings, i32) + Clone + Send + Sync + 'static {
+    move |s: &mut Settings, d: i32| s.set(path, values[(at as i32 + d).rem_euclid(values.len() as i32) as usize].clone())
+}
+
 struct Page {
     title: String,
     lead: String,
@@ -1008,10 +1021,7 @@ impl Settings {
         let now = at(&self.cfg, path).cloned().unwrap_or(default.clone());
         let i = list.iter().position(|x| x.0 == now).or_else(|| list.iter().position(|x| x.0 == default)).unwrap_or(0);
         let value = list[i].1.to_string();
-        let values: Vec<Value> = list.into_iter().map(|x| x.0).collect();
-        let turn = move |s: &mut Settings, d: i32| s.set(path, values[(i as i32 + d).rem_euclid(values.len() as i32) as usize].clone());
-        let again = turn.clone();
-        Row { label: label.to_string(), value, hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+        Row::turning(label, value, hint, cycle(path, list.into_iter().map(|x| x.0).collect(), i))
     }
 
     fn switch(&self, label: &str, path: &[&str], default: bool, hint: &str) -> Row {
@@ -1056,9 +1066,7 @@ impl Settings {
         let pick = |label: &str, path: &'static [&'static str], list: &'static [(&'static str, &'static str)], hint: &str| -> Row {
             let now = self.text(path);
             let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
-            let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
-            let again = turn;
-            Row { label: label.into(), value: list[at].1.into(), hint: hint.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+            Row::turning(label, list[at].1, hint, cycle(path, list.iter().map(|x| json!(x.0)).collect(), at))
         };
         rows.push(pick(
             "Start games through RocketLauncher",
@@ -1139,14 +1147,7 @@ impl Settings {
     fn language_row(&self) -> Row {
         let now = self.text(&["ui", "language"]);
         let at = LANGUAGES.iter().position(|x| x.0 == now).unwrap_or(0);
-        let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "language"], json!(LANGUAGES[(at as i32 + d).rem_euclid(LANGUAGES.len() as i32) as usize].0));
-        Row {
-            label: "Language".into(),
-            value: LANGUAGES[at].1.into(),
-            hint: "The language the screen is shown in.".into(),
-            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-            step: Some(Box::new(turn)),
-        }
+        Row::turning("Language", LANGUAGES[at].1, "The language the screen is shown in.", cycle(&["ui", "language"], LANGUAGES.iter().map(|x| json!(x.0)).collect(), at))
     }
 
     /// The shelves Console order shows: the ones placed by hand first, then the rest in RustyShelf's own order.
@@ -1721,18 +1722,13 @@ impl Settings {
                     let chosen = Some(self.text(&["systems", id, "raCore"])).filter(|x| c.ra_cores.iter().any(|(k, _)| k == x)).unwrap_or(usual.clone());
                     let at = c.ra_cores.iter().position(|(k, _)| *k == chosen).unwrap_or(0);
                     let cid = id.clone();
+                    let value = if chosen == usual { format!("{} (usual)", c.ra_cores[at].1) } else { c.ra_cores[at].1.clone() };
+                    let hint = format!("The core RetroArch runs {} games in. A core that isn't there yet is downloaded the first time you play. Save states made in one core don't load in another; in-game saves usually carry over.", c.name);
                     let turn = move |s: &mut Settings, d: i32| {
                         let n = (at as i32 + d).rem_euclid(c.ra_cores.len() as i32) as usize;
                         s.set(&["systems", &cid, "raCore"], json!(c.ra_cores[n].0));
                     };
-                    let turn2 = turn.clone();
-                    rows.push(Row {
-                        label: "RetroArch core".into(),
-                        value: if chosen == usual { format!("{} (usual)", c.ra_cores[at].1) } else { c.ra_cores[at].1.clone() },
-                        hint: format!("The core RetroArch runs {} games in. A core that isn't there yet is downloaded the first time you play. Save states made in one core don't load in another; in-game saves usually carry over.", c.name),
-                        press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                        step: Some(Box::new(turn2)),
-                    });
+                    rows.push(Row::turning("RetroArch core", value, hint, turn));
                 }
                 let twin = match id.as_str() {
                     "wii" => Some(("gc", "GameCube")),
@@ -2022,13 +2018,9 @@ impl Settings {
                 const REGIONS: [(&str, &str); 4] = [("auto", "Each game's own"), ("usa", "USA"), ("eur", "Europe"), ("jpn", "Japan")];
                 let region = self.text(&["ui", "artRegion"]);
                 let at = REGIONS.iter().position(|r| r.0 == region).unwrap_or(0);
-                let turn = move |s: &mut Settings, d: i32| {
-                    let n = (at as i32 + d).rem_euclid(REGIONS.len() as i32) as usize;
-                    s.set(&["ui", "artRegion"], json!(REGIONS[n].0));
-                };
                 let mut rows = vec![
                     toggle("Download box art", &["ui", "autoCovers"], false, "Covers come from the libretro thumbnail library and the LaunchBox Games Database; game names are sent to them"),
-                    Row { label: "Region".into(), value: REGIONS[at].1.into(), hint: "Which region's box comes first".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) },
+                    Row::turning("Region", REGIONS[at].1, "Which region's box comes first", cycle(&["ui", "artRegion"], REGIONS.iter().map(|x| json!(x.0)).collect(), at)),
                     toggle("Sharpest scans first", &["ui", "artHD"], true, "Takes the sharpest version there is and swaps out low-res pictures RustyShelf downloaded; one you put there yourself is never replaced"),
                     toggle("Fetch manuals for new games", &["ui", "autoManuals"], false, "Finds a game's manual on archive.org and GamesDatabase.org and saves its pages beside the box art, to read from Details; game names are sent to them"),
                     Row {
@@ -2060,9 +2052,7 @@ impl Settings {
                 let choice = |label: &str, path: &'static [&'static str], list: Vec<(String, String)>, now: &str, hint: &str| -> Row {
                     let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
                     let value = list[at].1.clone();
-                    let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
-                    let again = turn.clone();
-                    Row { label: label.to_string(), value, hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+                    Row::turning(label, value, hint, cycle(path, list.into_iter().map(|x| json!(x.0)).collect(), at))
                 };
                 let named = |list: &[(&str, &str)]| list.iter().map(|(id, name)| (id.to_string(), name.to_string())).collect::<Vec<_>>();
                 let clock = self.text(&["ui", "clock"]);
@@ -2152,9 +2142,7 @@ impl Settings {
                 let minutes = |label: &str, path: &'static [&'static str], list: &'static [(f64, &str)], unset: f64, hint: &str| -> Row {
                     let now = at(&self.cfg, path).and_then(Value::as_f64).unwrap_or(unset);
                     let i = list.iter().position(|x| x.0 == now).or_else(|| list.iter().position(|x| x.0 == unset)).unwrap_or(0);
-                    let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(i as i32 + d).rem_euclid(list.len() as i32) as usize].0));
-                    let again = turn;
-                    Row { label: label.to_string(), value: list[i].1.to_string(), hint: hint.to_string(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(again)) }
+                    Row::turning(label, list[i].1, hint, cycle(path, list.iter().map(|x| json!(x.0)).collect(), i))
                 };
                 if self.flag(&["ui", "attract"], true) {
                     let pace = self.text(&["ui", "attractPace"]);
@@ -2201,20 +2189,16 @@ impl Settings {
                 let voice = rustyshelf_core::cues::theme(&prefs.voice).id;
                 let percent = |v: f32| format!("{}%", (v * 100.0).round());
                 // a level in steps of a twentieth
-                let level = |path: &'static [&'static str], now: f32| -> (Press, Step) {
-                    let turn = move |s: &mut Settings, d: i32| {
+                let level = |path: &'static [&'static str], now: f32| {
+                    move |s: &mut Settings, d: i32| {
                         let v = ((now * 20.0).round() as i32 + d).clamp(0, 20) as f64 / 20.0;
                         s.set(path, json!(v));
-                    };
-                    (Box::new(move |s: &mut Settings| turn(s, 1)), Box::new(turn))
+                    }
                 };
-                let pick = |path: &'static [&'static str], list: &'static [(&'static str, &'static str)], now: &str| -> (String, Press, Step) {
+                let pick = |path: &'static [&'static str], list: &'static [(&'static str, &'static str)], now: &str| {
                     let at = list.iter().position(|x| x.0 == now).unwrap_or(0);
-                    let turn = move |s: &mut Settings, d: i32| s.set(path, json!(list[(at as i32 + d).rem_euclid(list.len() as i32) as usize].0));
-                    (list[at].1.to_string(), Box::new(move |s: &mut Settings| turn(s, 1)), Box::new(turn))
+                    (list[at].1, cycle(path, list.iter().map(|x| json!(x.0)).collect(), at))
                 };
-                let (volume, volume_step) = level(&["ui", "volume"], prefs.volume);
-                let (boot_volume, boot_volume_step) = level(&["ui", "bootVolume"], prefs.boot_volume);
                 let sounds = self.sound_list();
                 let main = sounds.iter().position(|(id, _)| *id == prefs.voice).or_else(|| sounds.iter().position(|(id, _)| id == voice)).unwrap_or(0);
                 let voice_name = sounds[main].1.clone();
@@ -2223,12 +2207,9 @@ impl Settings {
                     let next = list[(main as i32 + d).rem_euclid(list.len() as i32) as usize].0.clone();
                     s.set(&["ui", "soundTheme"], json!(next));
                 };
-                let turn_voice2 = turn_voice;
-                let (voice_press, voice_step): (Press, Step) = (Box::new(move |s: &mut Settings| turn_voice(s, 1)), Box::new(turn_voice2));
-                let (boot_name, boot_press, boot_step) = pick(&["ui", "bootSound"], &BOOTS, &prefs.boot);
+                let (boot_name, boot_turn) = pick(&["ui", "bootSound"], &BOOTS, &prefs.boot);
                 let playing = rustyshelf_core::music::track(&prefs.music).map_or(if prefs.music == "own" { "own" } else { "off" }, |t| t.id);
-                let (music_name, music_press, music_step) = pick(&["ui", "music"], &TRACKS, playing);
-                let (music_level, music_level_step) = level(&["ui", "musicLevel"], prefs.music_level);
+                let (music_name, music_turn) = pick(&["ui", "music"], &TRACKS, playing);
                 let open_folder = |label: &str, hint: &str, dir: PathBuf| -> Row {
                     Row {
                         label: label.to_string(),
@@ -2245,14 +2226,13 @@ impl Settings {
                 };
                 let mut rows = vec![
                         toggle("Interface sounds", &["ui", "sound"], true, "Ticks, whooshes and chimes as you move around."),
-                        Row { label: "Volume".into(), value: percent(prefs.volume), hint: "How loud RustyShelf's own sounds are. Games and apps aren't affected.".into(), press: Some(volume), step: Some(volume_step) },
-                        Row {
-                            label: "Voice".into(),
-                            value: voice_name,
-                            hint: "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright. Disc-era: glassy bells in a big room. Handheld: small chirpy blips. Living room: warm and round.".into(),
-                            press: Some(voice_press),
-                            step: Some(voice_step),
-                        },
+                        Row::turning("Volume", percent(prefs.volume), "How loud RustyShelf's own sounds are. Games and apps aren't affected.", level(&["ui", "volume"], prefs.volume)),
+                        Row::turning(
+                            "Voice",
+                            voice_name,
+                            "Aero: soft, pure and airy; each console's shelf plays in its own key. Melody: a soft piano; every move plays the next note of a song. Music box: small steel tines, warm and bright. Disc-era: glassy bells in a big room. Handheld: small chirpy blips. Living room: warm and round.",
+                            turn_voice,
+                        ),
                         open("Sound per console", if prefs.by_shelf.is_empty() { String::new() } else { format!("{} with their own", prefs.by_shelf.len()) }, "Give a console its own sound; the rest use the one above.", Screen::SoundConsoles),
                         open("Custom sounds", if self.packs.is_empty() { String::new() } else { self.packs.len().to_string() }, "Add sound files from a game (a folder, a file or a ZIP): they join the sound list.", Screen::SoundPacks),
                 ];
@@ -2261,25 +2241,23 @@ impl Settings {
                     rows.push(open_folder("Songs folder", "Drop .mid files here (piano versions of game themes work great), then press Reload songs.", rustyshelf_core::usermusic::songs_folder(&self.app_root)));
                     rows.push(Row { label: "Reload songs".into(), hint: "Reads your Songs folder again.".into(), press: Some(Box::new(|s: &mut Settings| s.reload_songs = true)), ..Row::default() });
                 }
-                rows.extend([                        Row {
-                            label: "Menu music".into(),
-                            value: music_name,
-                            hint: "Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. Your music: the audio files in the Music folder, shuffled. It goes quiet while a game runs.".into(),
-                            press: Some(music_press),
-                            step: Some(music_step),
-                        },
-                        Row { label: "Music volume".into(), value: percent(prefs.music_level), hint: "How loud the menu music plays, under RustyShelf's other sounds.".into(), press: Some(music_level), step: Some(music_level_step) },
+                rows.extend([                        Row::turning(
+                            "Menu music",
+                            music_name,
+                            "Quiet music under the shelf, like a console's home screen. Drift: airy and warm. Night: darker and slower. Glow: a slow music-box lullaby. Your music: the audio files in the Music folder, shuffled. It goes quiet while a game runs.",
+                            music_turn,
+                        ),
+                        Row::turning("Music volume", percent(prefs.music_level), "How loud the menu music plays, under RustyShelf's other sounds.", level(&["ui", "musicLevel"], prefs.music_level)),
                 ]);
                 rows.push(open_folder("Music folder", "Drop your own audio files here (mp3, ogg, wav, flac, m4a; sub-folders too), then pick Your music under Menu music and press Reload music.", rustyshelf_core::usermusic::music_folder(&self.app_root)));
                 rows.push(Row { label: "Reload music".into(), hint: "Reads your Music folder again.".into(), press: Some(Box::new(|s: &mut Settings| s.reload_music = true)), ..Row::default() });
-                rows.extend([                        Row { label: "Boot sound".into(), value: boot_name, hint: "The sting that plays as a console's game starts.".into(), press: Some(boot_press), step: Some(boot_step) },
-                        Row {
-                            label: "Boot sound volume".into(),
-                            value: percent(prefs.boot_volume),
-                            hint: "How loud the boot sound plays, on its own: lower it without making the menu sounds quieter. It still follows the overall Volume.".into(),
-                            press: Some(boot_volume),
-                            step: Some(boot_volume_step),
-                        },
+                rows.extend([                        Row::turning("Boot sound", boot_name, "The sting that plays as a console's game starts.", boot_turn),
+                        Row::turning(
+                            "Boot sound volume",
+                            percent(prefs.boot_volume),
+                            "How loud the boot sound plays, on its own: lower it without making the menu sounds quieter. It still follows the overall Volume.",
+                            level(&["ui", "bootVolume"], prefs.boot_volume),
+                        ),
                 ]);
                 Page { title: "Sounds".into(), lead: String::new(), rows }
             }
@@ -2305,14 +2283,7 @@ impl Settings {
                             s.set(&["ui", "soundByShelf"], Value::Object(map));
                             s.cues.push(("open", 1));
                         };
-                        let turn2 = turn.clone();
-                        Row {
-                            label: name.clone(),
-                            value: shown,
-                            hint: format!("The sound {name}'s shelf plays."),
-                            press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                            step: Some(Box::new(turn2)),
-                        }
+                        Row::turning(name.clone(), shown, format!("The sound {name}'s shelf plays."), turn)
                     })
                     .collect::<Vec<Row>>();
                 Page { title: "Sound per console".into(), lead: "Each console can play its own sound; the rest use the one chosen in Sounds.".into(), rows }
@@ -2357,10 +2328,6 @@ impl Settings {
                 const COMBOS: [(&str, &str); 4] = [("l3+r3", "L3 + R3"), ("lb+rb+start", "LB + RB + Start"), ("back+b", "Back + B"), ("start+back", "Start + Back")];
                 let keys = self.text(&["ui", "quitComboKeys"]);
                 let at = COMBOS.iter().position(|c| c.0 == keys).unwrap_or(0);
-                let turn = move |s: &mut Settings, d: i32| {
-                    let n = (at as i32 + d).rem_euclid(COMBOS.len() as i32) as usize;
-                    s.set(&["ui", "quitComboKeys"], json!(COMBOS[n].0));
-                };
                 Page {
                     title: "Controller".into(),
                     lead: String::new(),
@@ -2374,12 +2341,11 @@ impl Settings {
                             "How quickly the shelf moves when you hold the stick or d-pad.",
                         ),
                         toggle("Controller rumble", &["ui", "rumble"], true, "Short pulses as you play: launching a game, the shuffle landing, favouriting or hiding a game, changing shelf."),
-                        Row { label: "Buttons".into(), value: COMBOS[at].1.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)), ..Row::default() },
+                        Row::turning("Buttons", COMBOS[at].1, "", cycle(&["ui", "quitComboKeys"], COMBOS.iter().map(|x| json!(x.0)).collect(), at)),
                         {
                             const STYLES: [(&str, &str); 4] = [("auto", "Match my controller"), ("xbox", "Xbox (A B X Y)"), ("ps", "PlayStation (shapes)"), ("nintendo", "Nintendo (B A Y X)")];
                             let at = STYLES.iter().position(|x| x.0 == self.text(&["ui", "buttons"])).unwrap_or(0);
-                            let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "buttons"], json!(STYLES[(at as i32 + d).rem_euclid(4) as usize].0));
-                            Row { label: "Button prompts".into(), value: STYLES[at].1.into(), hint: "Changes the buttons shown on screen.".into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn)) }
+                            Row::turning("Button prompts", STYLES[at].1, "Changes the buttons shown on screen.", cycle(&["ui", "buttons"], STYLES.iter().map(|x| json!(x.0)).collect(), at))
                         },
                         {
                             let (bottom, right) = match self.glyphs() {
@@ -2389,14 +2355,12 @@ impl Settings {
                             };
                             let names = [("auto", "Match my controller".to_string()), ("a", format!("{bottom} (bottom)")), ("b", format!("{right} (right)"))];
                             let at = names.iter().position(|x| x.0 == self.text(&["ui", "confirmButton"])).unwrap_or(0);
-                            let turn = move |s: &mut Settings, d: i32| s.set(&["ui", "confirmButton"], json!(["auto", "a", "b"][(at as i32 + d).rem_euclid(3) as usize]));
-                            Row {
-                                label: "Confirm button".into(),
-                                value: names[at].1.clone(),
-                                hint: "Which button selects. Match my controller: A on the right with a Switch pad, as on a Switch; the bottom button with Xbox and PlayStation pads.".into(),
-                                press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                                step: Some(Box::new(turn)),
-                            }
+                            Row::turning(
+                                "Confirm button",
+                                names[at].1.clone(),
+                                "Which button selects. Match my controller: A on the right with a Switch pad, as on a Switch; the bottom button with Xbox and PlayStation pads.",
+                                cycle(&["ui", "confirmButton"], names.iter().map(|x| json!(x.0)).collect(), at),
+                            )
                         },
                         toggle("Home menu", &["ui", "homeMenu"], true, "Guide (or View held) over a running game pauses it and brings up Resume, Save and Load state, Screenshot, Power and Quit to shelf; on the shelf, Home or P opens it"),
                         {
@@ -2492,10 +2456,7 @@ impl Settings {
             Screen::Shelf => {
                 let sort = self.text(&["ui", "sort"]);
                 let at = SORTS.iter().position(|x| x.0 == sort).unwrap_or(0);
-                let turn_sort = move |s: &mut Settings, d: i32| {
-                    let n = (at as i32 + d).rem_euclid(SORTS.len() as i32) as usize;
-                    s.set(&["ui", "sort"], json!(SORTS[n].0));
-                };
+                let turn_sort = cycle(&["ui", "sort"], SORTS.iter().map(|x| json!(x.0)).collect(), at);
                 let filter = self.text(&["ui", "filter"]);
                 let fat = self.filters.iter().position(|f| f.0 == filter).unwrap_or(0);
                 let turn_filter = move |s: &mut Settings, d: i32| {
@@ -2507,14 +2468,8 @@ impl Settings {
                     s.set(&["ui", "filter"], json!(id));
                 };
                 let rows = vec![
-                    Row { label: "Order".into(), value: SORTS[at].1.into(), hint: "The order of every shelf".into(), press: Some(Box::new(move |s: &mut Settings| turn_sort(s, 1))), step: Some(Box::new(turn_sort)) },
-                    Row {
-                        label: "Show".into(),
-                        value: self.filters.get(fat).map_or("All games".into(), |f| f.1.clone()),
-                        hint: "Which games every shelf shows".into(),
-                        press: Some(Box::new(move |s: &mut Settings| turn_filter(s, 1))),
-                        step: Some(Box::new(turn_filter)),
-                    },
+                    Row::turning("Order", SORTS[at].1, "The order of every shelf", turn_sort),
+                    Row::turning("Show", self.filters.get(fat).map_or("All games".into(), |f| f.1.clone()), "Which games every shelf shows", turn_filter),
                 ];
                 Page { title: "Shelf".into(), lead: String::new(), rows }
             }
@@ -2587,7 +2542,7 @@ impl Settings {
                             s.set(&["games", &gid, "status"], json!(v));
                         }
                     };
-                    rows.insert(1, Row { label: "Status".into(), value: STATUS[i].1.into(), hint: "Where you are with it. The Playing and Finished shelves (Settings → Collections) follow it.".into(), press: Some(Box::new({ let turn = turn.clone(); move |s: &mut Settings| turn(s, 1) })), step: Some(Box::new(turn)) });
+                    rows.insert(1, Row::turning("Status", STATUS[i].1, "Where you are with it. The Playing and Finished shelves (Settings → Collections) follow it.", turn));
                 }
                 let mut media = Vec::new();
                 if let Some(line) = self.achievements_line() {
@@ -2667,24 +2622,17 @@ impl Settings {
                         let at = modes.iter().position(|m| *m == mode).unwrap_or(0) as i32;
                         s.set(&["games", &id, "window"], json!(modes[(at + d).rem_euclid(modes.len() as i32) as usize]));
                     };
-                    let turn2 = turn.clone();
-                    rows.push(Row {
-                        label: "Window".into(),
-                        value: match mode {
-                            "borderless" => "Borderless",
-                            "windowed" => "Windowed",
-                            _ => "The game's own",
-                        }
-                        .into(),
-                        hint: match mode {
-                            "borderless" => "Its frame comes off and it fills the screen when it starts",
-                            "windowed" => "It stays a window, with the taskbar kept",
-                            _ => "The game decides how its window is shown",
-                        }
-                        .into(),
-                        press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                        step: Some(Box::new(turn2)),
-                    });
+                    let value = match mode {
+                        "borderless" => "Borderless",
+                        "windowed" => "Windowed",
+                        _ => "The game's own",
+                    };
+                    let hint = match mode {
+                        "borderless" => "Its frame comes off and it fills the screen when it starts",
+                        "windowed" => "It stays a window, with the taskbar kept",
+                        _ => "The game decides how its window is shown",
+                    };
+                    rows.push(Row::turning("Window", value, hint, turn));
                 }
                 let about: Vec<Row> = facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }).collect();
                 let mut all = top;

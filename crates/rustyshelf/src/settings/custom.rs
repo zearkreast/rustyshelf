@@ -162,7 +162,6 @@ impl Settings {
             // the Custom shelf is no "shelf" at all, as the Electron app writes it
             s.set_custom_field(i, "shelf", Some(shelves[n].0.clone()).filter(|id| id != "custom").map(Value::from));
         };
-        let turn2 = turn.clone();
         let (t2, a2) = (title.clone(), args.clone());
         const NAME: &str = "The name shown on its shelf.";
         const ARGS: &str = "Passed to the program when it starts, for example -dx12. Put quotes around anything with spaces.";
@@ -176,7 +175,6 @@ impl Settings {
             let n = (at as i32 + d).rem_euclid(froms.len() as i32) as usize;
             s.set_custom_field(i, "portOf", Some(froms[n].0.clone()).filter(|id| !id.is_empty()).map(Value::from));
         };
-        let turn_from2 = turn_from.clone();
         let mut rows = vec![
             Row {
                 label: "Game name".into(),
@@ -196,16 +194,10 @@ impl Settings {
                 })),
                 step: None,
             },
-            Row { label: "Platform".into(), value: name, hint: PLACE.into(), press: Some(Box::new(move |s: &mut Settings| turn(s, 1))), step: Some(Box::new(turn2)) },
+            Row::turning("Platform", name, PLACE, turn),
         ];
         if shelf == "ports" {
-            rows.push(Row {
-                label: "Port of".into(),
-                value: from_name,
-                hint: "The console this program is a port or recompilation of.".into(),
-                press: Some(Box::new(move |s: &mut Settings| turn_from(s, 1))),
-                step: Some(Box::new(turn_from2)),
-            });
+            rows.push(Row::turning("Port of", from_name, "The console this program is a port or recompilation of.", turn_from));
         }
         rows.extend([
             Row {

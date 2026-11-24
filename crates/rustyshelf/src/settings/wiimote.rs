@@ -40,13 +40,7 @@ impl Settings {
                 let n = ((speed + d as f32 * 0.1).clamp(0.8, 3.0) * 10.0).round() / 10.0;
                 s.set(&["ui", "wmSpeed"], rustyshelf_core::js::num(f64::from(n)));
             };
-            rows.push(Row {
-                label: "Pointer speed".into(),
-                value: format!("{speed:.1}×"),
-                hint: "How far the hand moves for a turn of the remote: higher covers the screen with a smaller turn.".into(),
-                press: Some(Box::new(move |s: &mut Settings| turn(s, 1))),
-                step: Some(Box::new(turn)),
-            });
+            rows.push(Row::turning("Pointer speed", format!("{speed:.1}×"), "How far the hand moves for a turn of the remote: higher covers the screen with a smaller turn.", turn));
         }
         rows
     }
