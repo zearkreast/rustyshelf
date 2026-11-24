@@ -198,6 +198,8 @@ struct Table {
 struct Media {
     kind: String,
     form: Option<String>,
+    /// its width (a disc's across) for its case's
+    size: Option<f32>,
 }
 
 /// What a console's games come on, in a word: "Floppy disk", "Cartridge", "UMD" or "Disc".
@@ -208,6 +210,12 @@ pub fn media_word(console: &str) -> &'static str {
         _ if console == "psp" => "UMD",
         _ => "Disc",
     }
+}
+
+/// How wide a console's disc or cartridge is for its case's width; a console the table doesn't have takes the
+/// Wii's (app.js MEDIA).
+pub fn media_size(console: &str) -> f32 {
+    TABLE.media.get(console).or_else(|| TABLE.media.get("wii")).and_then(|m| m.size).unwrap_or(0.86)
 }
 
 /// The same word inside a sentence: "the cartridge", but "the UMD".

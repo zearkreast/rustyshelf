@@ -132,6 +132,19 @@ pub struct Slot {
     glare: Handle<StandardMaterial>,
     /// its back and its spine's picture, asked for once it's chosen: each one's picture, and the sheet it goes on
     late: Vec<(Art, Sheet)>,
+    inner: Inner,
+}
+
+/// What Inspect opens a case to: its width and depth and its printed sheet's size (for its height), its colours
+/// and its console.
+#[derive(Clone)]
+struct Inner {
+    w: f32,
+    d: f32,
+    sheet: Vec2,
+    case: Rgba,
+    side: Rgba,
+    console: String,
 }
 
 /// The part of a case that turns round.
@@ -154,12 +167,59 @@ pub struct Inspect {
     pan_to: Vec2,
     /// how far it's held up, from 0 (on the shelf) to 1
     held: Eased,
+    /// how far it's opened: its step, how far its lid is open and its disc (or cartridge) out, from 0 to 1
+    step: Step,
+    lid: Eased,
+    out: Eased,
+    /// how the disc out of its case is turned, in degrees: round, and tipped
+    spin: Vec2,
+    /// how far round it's turning to face the eye, on its own, as it opens
+    face: Option<f32>,
+    /// when Enter (or A) went down to play it, the disc out
+    hold_since: Option<f32>,
+    /// when the disc out was last nudged
+    bump: f32,
 }
 
 impl Default for Inspect {
     fn default() -> Self {
-        Inspect { on: false, yaw: 0.0, pitch: 0.0, zoom: 1.0, zoom_to: 1.0, pan: Vec2::ZERO, pan_to: Vec2::ZERO, held: Eased::at(0.0) }
+        Inspect {
+            on: false,
+            yaw: 0.0,
+            pitch: 0.0,
+            zoom: 1.0,
+            zoom_to: 1.0,
+            pan: Vec2::ZERO,
+            pan_to: Vec2::ZERO,
+            held: Eased::at(0.0),
+            step: Step::Closed,
+            lid: Eased::at(0.0),
+            out: Eased::at(0.0),
+            spin: Vec2::ZERO,
+            face: None,
+            hold_since: None,
+            bump: f32::MIN,
+        }
     }
+}
+
+/// How far a case held up is opened (app.js isp.state): shut, open, its disc (or cartridge) out.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Step {
+    Closed,
+    Open,
+    Out,
+}
+
+/// What Enter (or A, or a click) does in Inspect.
+#[derive(Debug, PartialEq)]
+enum Advance {
+    Opened,
+    TookOut,
+    /// the disc's out: a tap nudges it, held it plays
+    Out,
+    /// a case that doesn't open plays at once
+    Play,
 }
 
 impl Inspect {
@@ -176,7 +236,54 @@ impl Inspect {
         if self.on {
             let held = self.held.now(now, HOLD_UP, EASE);
             (self.on, self.held) = (false, Eased { from: held, to: 0.0, since: now });
+            // (it lands shut, as it stands on the shelf)
+            self.go_to(Step::Closed, now);
         }
+    }
+
+    fn go_to(&mut self, step: Step, now: f32) {
+        self.step = step;
+        self.hold_since = None;
+        let (lid, out) = self.opened(now);
+        self.lid.head_for(if step == Step::Closed { 0.0 } else { 1.0 }, lid, now);
+        self.out.head_for(if step == Step::Out { 1.0 } else { 0.0 }, out, now);
+    }
+
+    /// How far its lid is open and its disc out, now.
+    fn opened(&self, now: f32) -> (f32, f32) {
+        (self.lid.now(now, LID, EASE_IN_OUT), self.out.now(now, LID, EASE_IN_OUT))
+    }
+
+    /// Enter: a case that `opens` opens, then its disc comes out (app.js ispAdvance).
+    fn advance(&mut self, opens: bool, now: f32) -> Advance {
+        if !opens {
+            return Advance::Play;
+        }
+        let next = match self.step {
+            Step::Closed => Step::Open,
+            Step::Open => Step::Out,
+            Step::Out => return Advance::Out,
+        };
+        self.go_to(next, now);
+        (self.face, self.zoom_to, self.pan_to) = (Some(0.0), 1.0, Vec2::ZERO);
+        if next == Step::Out {
+            self.spin = Vec2::ZERO;
+            Advance::TookOut
+        } else {
+            Advance::Opened
+        }
+    }
+
+    /// Escape: the disc goes back in, the case shuts; false when it's shut already, for it to be put down
+    /// (app.js ispBack).
+    fn back(&mut self, now: f32) -> bool {
+        let last = match self.step {
+            Step::Out => Step::Open,
+            Step::Open => Step::Closed,
+            Step::Closed => return false,
+        };
+        self.go_to(last, now);
+        true
     }
 
     /// Turns it toward `target` degrees round at Inspect's own speed; false once it's there.
@@ -208,9 +315,18 @@ impl Inspect {
         self.pan_to = if self.zoom_to <= 1.0 { Vec2::ZERO } else { (self.pan_to + by).clamp(Vec2::NEG_ONE, Vec2::ONE) };
     }
 
+    /// Turns the case by `by` degrees, round and tipped, or the disc when it's out.
     fn turn_by(&mut self, by: Vec2) {
-        self.yaw = (self.yaw + by.x).rem_euclid(360.0);
-        self.pitch = (self.pitch + by.y).clamp(-70.0, 70.0);
+        if by == Vec2::ZERO {
+            return;
+        }
+        self.face = None;
+        if self.step == Step::Out {
+            self.spin = Vec2::new((self.spin.x + by.x).rem_euclid(360.0), (self.spin.y + by.y).clamp(-85.0, 85.0));
+        } else {
+            self.yaw = (self.yaw + by.x).rem_euclid(360.0);
+            self.pitch = (self.pitch + by.y).clamp(-70.0, 70.0);
+        }
     }
 
     /// Where it's held, for a case `bw` × `bh`: across, up and toward the eye, that last at least `clear` short of
@@ -233,6 +349,16 @@ fn held_z(zoom: f32, bw: f32, clear: f32) -> f32 {
 
 /// seconds a case takes up into the hand and back
 const HOLD_UP: f32 = 0.45;
+/// seconds its lid takes to open or shut, and its disc to come out or go back
+const LID: f32 = 0.6;
+/// how far its lid opens, in degrees
+const LID_OPEN: f32 = 160.0;
+/// how far the disc out comes toward the eye, and how much bigger a disc and a cartridge grow (app.js), for the
+/// case's height
+const LIFT: f32 = 0.35;
+const GROW: [f32; 2] = [0.55, 0.9];
+/// seconds Enter is held, the disc out, to play (app.js holdTick)
+const HOLD_TO_PLAY: f32 = 0.8;
 /// seconds the chosen cover's rim light takes to fade out or back in
 const RIM_FADE: f32 = 0.3;
 /// degrees a second a held direction turns the case
@@ -286,15 +412,19 @@ pub fn inspect(
         pointer.drag = None;
         return;
     }
-    let manual = match &lib.0 {
-        LibraryState::Ready(l) => l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).map(|g| g.art.manual.clone()).filter(|m| !m.is_empty()),
+    // the chosen game, and the shelf whose case it has
+    let here = match &lib.0 {
+        LibraryState::Ready(l) => l.shelves.get(cursor.shelf).and_then(|s| Some((s.games.get(cursor.game)?, l.own_shelf(s, cursor.game).unwrap_or(s)))),
         _ => None,
     };
+    let manual = here.map(|(g, _)| g.art.manual.clone()).filter(|m| !m.is_empty());
     let pad = |b: GamepadButton| pads.iter().any(|p| p.just_pressed(b));
     let (confirm, back) = settings.confirm();
-    let game = matches!(&lib.0, LibraryState::Ready(l) if l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).is_some_and(|g| !matches!(g.source, Source::Tile(_))));
+    let game = here.is_some_and(|(g, _)| !matches!(g.source, Source::Tile(_)));
+    // (a Steam, store or added game's case, and a media app's, doesn't open)
+    let opens = here.is_some_and(|(g, _)| g.source == Source::Rom);
+    let media = here.map_or_else(|| "disc".into(), |(_, s)| looks::media_word_lower(&s.id));
     let toggle = keys.just_pressed(KeyCode::KeyV) || pad(GamepadButton::RightThumb);
-    let held = inspect.held.now(now, HOLD_UP, EASE);
     // (the quick menu's or Details' Inspect: they closed on the key that chose it)
     let asked = std::mem::take(&mut settings.inspect_asked);
     if !inspect.on {
@@ -329,12 +459,19 @@ pub fn inspect(
         let arrows = Vec2::new(axis(KeyCode::ArrowLeft, KeyCode::ArrowRight), axis(KeyCode::ArrowDown, KeyCode::ArrowUp));
         let turn = (arrows + right + if zoomed { Vec2::ZERO } else { left }).clamp(Vec2::NEG_ONE, Vec2::ONE);
         inspect.turn_by(Vec2::new(turn.x * SPIN, -turn.y * SPIN * 0.6) * dt);
+        if let Some(face) = inspect.face {
+            let pitch = inspect.pitch;
+            inspect.pitch = pitch - pitch.signum() * (SPIN * 2.0 * dt).min(pitch.abs());
+            if !inspect.turn_toward(face, dt * 2.0) && inspect.pitch == 0.0 {
+                inspect.face = None;
+            }
+        }
         let wasd = Vec2::new(axis(KeyCode::KeyA, KeyCode::KeyD), axis(KeyCode::KeyS, KeyCode::KeyW));
         let pan = (wasd + if zoomed { left } else { Vec2::ZERO }).clamp(Vec2::NEG_ONE, Vec2::ONE);
         // (W or the stick pushed up shows the case's top: it moves down)
         inspect.pan_by(-pan * PAN_SPEED * dt);
         if keys.just_pressed(KeyCode::KeyF) || pad(GamepadButton::North) {
-            inspect.yaw = (inspect.yaw + 180.0).rem_euclid(360.0);
+            inspect.turn_by(Vec2::new(180.0, 0.0));
             sounds.play("flip", 1);
         }
         let step = |near: [KeyCode; 3]| near.iter().map(|k| if keys.just_pressed(*k) { 1.0 } else if keys.pressed(*k) { ZOOM_HELD * dt } else { 0.0 }).sum::<f32>();
@@ -348,6 +485,7 @@ pub fn inspect(
             inspect.zoom_by(steps);
         }
         // (zoomed in, a drag turns it less: the pointer stays on the part it's on)
+        let mut click = false;
         if mouse.just_pressed(MouseButton::Left) {
             pointer.drag = Some(0.0);
         }
@@ -356,6 +494,7 @@ pub fn inspect(
             let by = motion.delta * DRAG / inspect.zoom.max(1.0);
             inspect.turn_by(by);
             if !mouse.pressed(MouseButton::Left) {
+                click = *moved <= CLICK_SLOP;
                 pointer.drag = None;
             }
         }
@@ -365,10 +504,34 @@ pub fn inspect(
         if let Some(pages) = manual.clone().filter(|_| keys.just_pressed(KeyCode::KeyM) || pad(GamepadButton::West)) {
             settings.manual = Some(pages);
         }
-        let play = keys.just_pressed(KeyCode::Enter) || pad(confirm);
-        let put_back = toggle || !game || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || mouse.just_pressed(MouseButton::Right);
-        if play || put_back {
-            (inspect.on, inspect.held) = (false, Eased { from: held, to: 0.0, since: now });
+        let enter = keys.just_pressed(KeyCode::Enter) || pad(confirm);
+        let mut play = false;
+        if let Some(since) = inspect.hold_since {
+            if !(keys.pressed(KeyCode::Enter) || pads.iter().any(|p| p.pressed(confirm))) {
+                // a tap only nudges the disc
+                (inspect.hold_since, inspect.bump) = (None, now);
+            } else if now - since >= HOLD_TO_PLAY {
+                play = true;
+            }
+        } else if enter || (click && opens) {
+            match inspect.advance(opens, now) {
+                Advance::Play => play = true,
+                Advance::Opened => sounds.play("caseOpen", 1),
+                Advance::TookOut => sounds.play("discOut", 1),
+                Advance::Out if enter => {
+                    inspect.hold_since = Some(now);
+                    sounds.play("hold", 1);
+                }
+                Advance::Out => inspect.bump = now,
+            }
+        }
+        let escape = keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || mouse.just_pressed(MouseButton::Right);
+        let stepped_back = escape && !play && inspect.back(now);
+        if stepped_back {
+            sounds.play("back", 1);
+        }
+        if play || toggle || !game || (escape && !stepped_back) {
+            inspect.put_down(now);
             sounds.play("back", 1);
             // (the key that put it back isn't the shelf's too)
             settings.just_closed = true;
@@ -388,7 +551,18 @@ pub fn inspect(
             let near = if pads { format!("{} · {}", settings.cap("L2"), settings.cap("R2")) } else { "PgUp · PgDn".into() };
             let pan = if inspect.zoom_to > 1.0 { format!("      {}  Move", k("W A S D", "L")) } else { String::new() };
             let read = if manual.is_some() { format!("      {}  Manual", k("M", "sq")) } else { String::new() };
-            let keys = format!("{turn}  Turn      {}  Other side      {near}  Zoom{pan}{read}      {}  Play      {}  Put it back", k("F", "tri"), k("Enter", "x"), k("Esc", "o"));
+            let (next, last) = match (opens, inspect.step) {
+                (false, _) => ("Play".to_string(), "Put it back".to_string()),
+                (true, Step::Closed) => ("Open the case".into(), "Put it back".into()),
+                (true, Step::Open) => (format!("Take out the {media}"), "Shut the case".into()),
+                (true, Step::Out) => {
+                    let done = inspect.hold_since.map_or(0, |since| (((now - since) / HOLD_TO_PLAY).clamp(0.0, 1.0) * 10.0).round() as usize);
+                    let bar = if inspect.hold_since.is_some() { format!(" {}{}", "█".repeat(done), "░".repeat(10 - done)) } else { String::new() };
+                    (format!("Hold to play{bar}"), format!("Put the {media} back"))
+                }
+            };
+            let other = if inspect.step == Step::Out { "Turn over" } else { "Other side" };
+            let keys = format!("{turn}  Turn      {}  {other}      {near}  Zoom{pan}{read}      {}  {next}      {}  {last}", k("F", "tri"), k("Enter", "x"), k("Esc", "o"));
             if text.0 != keys {
                 text.0 = keys;
             }
@@ -1140,15 +1314,30 @@ pub fn build_shelf(
             sheet: sheet_w / sheet_h,
             glare: glare.clone(),
             late,
+            inner: Inner { w, d, sheet: Vec2::new(sheet_w, sheet_h), case: look.case_color, side: look.case_side, console: own.id.clone() },
         };
         commands.spawn((slot, Transform::default(), Visibility::Hidden)).with_children(|s| {
             s.spawn((Turning, Transform::default(), Visibility::default())).with_children(|b| {
                 let either = || Either([kit.plastic[0].clone(), kit.plastic[1].clone()]);
-                // the front: the case's border, the printed sheet in it, the plastic and the band of light over them
-                b.spawn((mesh(), MeshMaterial3d(case.clone()), at(0.0, d / 2.0, 0.0, w, 1.0)));
-                b.spawn((mesh(), MeshMaterial3d(front), at(sheet_x, d / 2.0 + SKIN, 0.0, sheet_w, sheet_h)));
-                b.spawn((either(), mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, d / 2.0 + 2.0 * SKIN, 0.0, w, 1.0)));
-                b.spawn((mesh(), MeshMaterial3d(glare), at(0.0, d / 2.0 + 3.0 * SKIN, 0.0, w, 1.0)));
+                // the front, on a lid hinged at the spine: the case's border, the printed sheet in it, the plastic and
+                // the band of light over them
+                b.spawn((Lid, Transform::from_xyz(-w / 2.0, 0.0, d / 2.0), Visibility::default())).with_children(|lid| {
+                    let at = |x: f32, z: f32, sx: f32, sy: f32| at(x + w / 2.0, z, 0.0, sx, sy);
+                    lid.spawn((mesh(), MeshMaterial3d(case.clone()), at(0.0, 0.0, w, 1.0)));
+                    lid.spawn((mesh(), MeshMaterial3d(front), at(sheet_x, SKIN, sheet_w, sheet_h)));
+                    lid.spawn((either(), mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, 2.0 * SKIN, w, 1.0)));
+                    lid.spawn((mesh(), MeshMaterial3d(glare), at(0.0, 3.0 * SKIN, w, 1.0)));
+                    lid.spawn((OnChosen, Rim, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, 4.0 * SKIN, w, 1.0), Visibility::Hidden));
+                    // a favourite's heart, in the corner of its cover: 26px across, 8px in
+                    let (size, inset) = (26.0 / stage.bh, 21.0 / stage.bh);
+                    if favourites.contains(&g.id.as_str()) {
+                        lid.spawn((mesh(), MeshMaterial3d(kit.heart.clone()), Transform::from_xyz(w - inset, 0.5 - inset, 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
+                    }
+                    // a RomM game not on this device yet: a cloud in the other corner (Play downloads it first)
+                    if g.romm.is_some_and(|r| r.cloud) {
+                        lid.spawn((mesh(), MeshMaterial3d(kit.cloud.clone()), Transform::from_xyz(inset, 0.5 - inset, 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
+                    }
+                });
                 // the back, the spine's side on its right
                 b.spawn((mesh(), MeshMaterial3d(case.clone()), at(0.0, -d / 2.0, PI, w, 1.0)));
                 b.spawn((mesh(), MeshMaterial3d(back), at(-sheet_x, -d / 2.0 - SKIN, PI, sheet_w, sheet_h)));
@@ -1170,22 +1359,10 @@ pub fn build_shelf(
                         b.commands().entity(shaded).insert(Either([kit.shade[0].clone(), kit.shade[1].clone()]));
                     }
                 }
-                // the chosen case: light inside its covers' edges, and its cover mirrored in the floor
-                for (z, turn) in [(d / 2.0 + 4.0 * SKIN, 0.0), (-d / 2.0 - 4.0 * SKIN, PI)] {
-                    b.spawn((OnChosen, Rim, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, z, turn, w, 1.0), Visibility::Hidden));
-                }
+                // the chosen case: light inside its back's edges, and its cover mirrored in the floor
+                b.spawn((OnChosen, Rim, mesh(), MeshMaterial3d(kit.rim.clone()), at(0.0, -d / 2.0 - 4.0 * SKIN, PI, w, 1.0), Visibility::Hidden));
                 let floor = -0.5 - 3.0 / stage.bh;
                 b.spawn((OnChosen, Mesh3d(kit.mirror.clone()), MeshMaterial3d(mirrored), Transform::from_xyz(sheet_x, floor - edge, d / 2.0).with_scale(Vec3::new(sheet_w, sheet_h, 1.0)), Visibility::Hidden));
-                // a favourite's heart, in the corner of its cover: 26px across, 8px in
-                if favourites.contains(&g.id.as_str()) {
-                    let (size, inset) = (26.0 / stage.bh, 21.0 / stage.bh);
-                    b.spawn((mesh(), MeshMaterial3d(kit.heart.clone()), Transform::from_xyz(w / 2.0 - inset, 0.5 - inset, d / 2.0 + 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
-                }
-                // a RomM game not on this device yet: a cloud in the other corner (Play downloads it first)
-                if g.romm.is_some_and(|r| r.cloud) {
-                    let (size, inset) = (26.0 / stage.bh, 21.0 / stage.bh);
-                    b.spawn((mesh(), MeshMaterial3d(kit.cloud.clone()), Transform::from_xyz(-w / 2.0 + inset, 0.5 - inset, d / 2.0 + 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
-                }
                 // every case: a pale strip of floor under it
                 b.spawn((Floor, mesh(), MeshMaterial3d(kit.strip.clone()), Transform::from_xyz(0.0, floor - 0.19, d / 2.0).with_scale(Vec3::new(w, 0.38, 1.0))));
             });
@@ -1280,6 +1457,7 @@ pub fn arrange(
     mut either: Query<(&Either, &mut MeshMaterial3d<StandardMaterial>)>,
     mut worn: Query<(&mut Visibility, Has<Rim>), (With<OnChosen>, Without<Slot>)>,
     mut floors: Query<&mut Visibility, (With<Floor>, Without<Slot>, Without<OnChosen>)>,
+    lids: Query<&Children, With<Lid>>,
     inspect: Res<Inspect>,
     settings: Res<crate::settings::Settings>,
     mut rim: Local<Option<Eased>>,
@@ -1315,7 +1493,9 @@ pub fn arrange(
         let mut placed = Transform { translation: Vec3::new(at.x, 0.0, at.z), rotation: Quat::from_rotation_y(at.ry.to_radians()), scale: Vec3::splat(stage.bh) };
         if chosen && held > 0.0 {
             // up from its place into the hand: nearer, a little higher, facing the eye
-            placed.translation = placed.translation.lerp(inspect.held_at(stage.bw, stage.bh, stage.bh * 0.7), held);
+            // (kept clear of the eye: further once it's open or its disc is out)
+            let (lid, out) = inspect.opened(now);
+            placed.translation = placed.translation.lerp(inspect.held_at(stage.bw, stage.bh, stage.bh * (0.7 + 0.2 * lid + 0.5 * out)), held);
             placed.rotation = Quat::from_rotation_y((at.ry * (1.0 - held)).to_radians());
         }
         t.set_if_neq(placed);
@@ -1353,7 +1533,8 @@ pub fn arrange(
             if turn.rotation != rotation {
                 turn.rotation = rotation;
             }
-            for part in parts.iter() {
+            // (the front's parts are on its lid)
+            for part in parts.iter().flat_map(|p| std::iter::once(p).chain(lids.get(p).into_iter().flat_map(|c| c.iter()))) {
                 if let Ok((looks, mut m)) = either.get_mut(part) {
                     let want = &looks.0[usize::from(!chosen)];
                     if m.0 != *want {
@@ -1378,6 +1559,182 @@ pub fn arrange(
                 }
             }
         }
+    }
+}
+
+/// The front of a case, hinged at its spine to open in Inspect.
+#[derive(Component)]
+pub struct Lid;
+
+/// The disc or cartridge in the case Inspect holds.
+#[derive(Component)]
+pub struct Media;
+
+/// The case Inspect holds open: its slot, the parts made for its inside, its lid, the part of it that turns and its
+/// disc or cartridge (its width, and whether it's a cartridge).
+#[derive(Default)]
+pub struct Opened {
+    slot: Option<Entity>,
+    parts: Vec<Entity>,
+    lid: Option<Entity>,
+    turning: Option<Entity>,
+    media: Option<(Entity, f32, bool)>,
+}
+
+/// A plain disc, `size` pixels across, in a colour (its printed side) or silver (no colour: its other side), its middle
+/// clear round the hole.
+fn disc_picture(size: u32, label: Option<Rgba>) -> Picture {
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    let silver = [0.8, 0.81, 0.84];
+    for y in 0..size {
+        for x in 0..size {
+            let r = Vec2::new(x as f32 + 0.5, y as f32 + 0.5).distance(Vec2::splat(size as f32 / 2.0)) / size as f32;
+            let (c, a) = match (r, label) {
+                (r, _) if !(0.075..=0.5).contains(&r) => continue,
+                (r, _) if r < 0.17 => ([0.85, 0.87, 0.9], 0.45),
+                (r, Some(c)) if r < 0.485 => ([c[0], c[1], c[2]].map(|v| v * 0.8 + 0.2), 1.0),
+                _ => (silver, 1.0),
+            };
+            let i = ((y * size + x) * 4) as usize;
+            rgba[i..i + 4].copy_from_slice(&[c[0], c[1], c[2], a].map(|v| (v * 255.0).round() as u8));
+        }
+    }
+    Picture { width: size, height: size, rgba }
+}
+
+/// Opens the case Inspect holds: its lid swings open on the spine, showing the inside of its front (the manual's
+/// cover, or a plain insert) and its disc or cartridge in the tray, which comes out toward the eye. Its inside is
+/// made when it's held up and cleared once it's back on the shelf, shut.
+pub fn open_case(
+    mut commands: Commands,
+    time: Res<Time>,
+    lib: Res<LibraryRes>,
+    cursor: Res<Cursor>,
+    inspect: Res<Inspect>,
+    kit: Res<Kit>,
+    loader: Res<ArtLoader>,
+    mut covers: ResMut<Covers>,
+    (mut meshes, mut materials, mut images): (ResMut<Assets<Mesh>>, ResMut<Assets<StandardMaterial>>, ResMut<Assets<Image>>),
+    slots: Query<(Entity, &Slot, &Children)>,
+    mut turning: Query<(&mut Transform, &Children), (With<Turning>, Without<Lid>, Without<Media>)>,
+    mut lids: Query<&mut Transform, (With<Lid>, Without<Turning>, Without<Media>)>,
+    mut media: Query<&mut Transform, (With<Media>, Without<Turning>, Without<Lid>)>,
+    mut opened: Local<Opened>,
+) {
+    let now = time.elapsed_secs();
+    let held = inspect.held.now(now, HOLD_UP, EASE);
+    let (lid, out) = inspect.opened(now);
+    let chosen = slots.iter().find(|(_, s, _)| s.index == cursor.game);
+    let want = chosen.filter(|_| inspect.on || held > 0.0 || lid > 0.0).map(|(e, ..)| e);
+    if opened.slot != want {
+        // (the case before shuts, and loses its inside)
+        for part in opened.parts.drain(..) {
+            commands.entity(part).try_despawn();
+        }
+        if let Some(mut t) = opened.lid.and_then(|l| lids.get_mut(l).ok()) {
+            t.rotation = Quat::IDENTITY;
+        }
+        if let Some((mut t, _)) = opened.turning.and_then(|e| turning.get_mut(e).ok()) {
+            t.translation = Vec3::ZERO;
+        }
+        *opened = Opened::default();
+        let game = match &lib.0 {
+            LibraryState::Ready(l) => l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)),
+            _ => None,
+        };
+        if let (Some((slot, s, children)), Some(g)) = (chosen.filter(|_| want.is_some()), game) {
+            let Some(turns) = children.iter().find(|c| turning.contains(*c)) else { return };
+            let Some(hinge) = turning.get(turns).ok().and_then(|(_, parts)| parts.iter().find(|p| lids.contains(*p))) else { return };
+            let Inner { w, d, sheet, case, side, console } = s.inner.clone();
+            let plain = |m: &mut Assets<StandardMaterial>, c: Rgba| m.add(StandardMaterial { base_color: color(c), unlit: true, ..default() });
+            let face = |m: Handle<StandardMaterial>, t: Transform| (Mesh3d(kit.face.clone()), MeshMaterial3d(m), t);
+            let side_m = plain(&mut materials, side);
+            let mut parts = Vec::new();
+            // the tray: its floor, and the inside of its walls
+            let tray = [
+                Transform::from_xyz(0.0, 0.0, -d / 2.0 + SKIN).with_scale(Vec3::new(w, 1.0, 1.0)),
+                Transform::from_xyz(0.0, 0.5 - SKIN, 0.0).with_rotation(Quat::from_rotation_x(PI / 2.0)).with_scale(Vec3::new(w, d, 1.0)),
+                Transform::from_xyz(0.0, -0.5 + SKIN, 0.0).with_rotation(Quat::from_rotation_x(-PI / 2.0)).with_scale(Vec3::new(w, d, 1.0)),
+                Transform::from_xyz(w / 2.0 - SKIN, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-PI / 2.0)).with_scale(Vec3::new(d, 1.0, 1.0)),
+                Transform::from_xyz(-w / 2.0 + SKIN, 0.0, 0.0).with_rotation(Quat::from_rotation_y(PI / 2.0)).with_scale(Vec3::new(d, 1.0, 1.0)),
+            ];
+            // (its floor a little darker than its walls, for depth: nothing here is lit)
+            let floor = plain(&mut materials, [side[0] * 0.7, side[1] * 0.7, side[2] * 0.7, side[3]]);
+            for (i, t) in tray.into_iter().enumerate() {
+                parts.push(commands.spawn(face(if i == 0 { floor.clone() } else { side_m.clone() }, t)).insert(ChildOf(turns)).id());
+            }
+            // inside the lid: the manual's cover, or a plain insert in the case's colour
+            let inside = |x: f32, z: f32, sx: f32, sy: f32| Transform::from_xyz(x, 0.0, z).with_rotation(Quat::from_rotation_y(PI)).with_scale(Vec3::new(sx, sy, 1.0));
+            parts.push(commands.spawn(face(side_m.clone(), inside(w / 2.0, -SKIN, w, 1.0))).insert(ChildOf(hinge)).id());
+            let insert = match g.art.manual.first() {
+                Some(page) => {
+                    let m = plain(&mut materials, [1.0; 4]);
+                    covers.want(Art::File(page.clone()), (m.clone(), sheet.x / sheet.y), &loader, &mut materials);
+                    m
+                }
+                None => plain(&mut materials, case.map(|v| v * 0.85 + 0.15)),
+            };
+            parts.push(commands.spawn(face(insert, inside(w / 2.0, -2.0 * SKIN, sheet.x, sheet.y))).insert(ChildOf(hinge)).id());
+            // in the tray: its disc (its own picture, or a plain one in the case's colour) or its cartridge
+            let across = looks::media_size(&console) * w;
+            let cart = matches!(looks::media_word(&console), "Cartridge" | "Floppy disk");
+            let holder = commands.spawn((Media, Transform::from_xyz(0.0, 0.0, -d / 2.0).with_scale(Vec3::splat(across)), Visibility::default(), ChildOf(turns))).id();
+            if cart {
+                // (a 3.5" floppy is 90 × 94 mm and 3.3 mm thick, in dark plastic: inspect3d.js; a cartridge's cradle
+                // there is 1.1 of its widths tall)
+                let floppy = looks::media_word(&console) == "Floppy disk";
+                let (tall, thick) = if floppy { (94.0 / 90.0, 3.3 / 90.0) } else { (1.1, 0.08) };
+                let shell = plain(&mut materials, if floppy { [0.12, 0.12, 0.13, 1.0] } else { [0.32, 0.32, 0.34, 1.0] });
+                let body = meshes.add(Cuboid::new(1.0, tall, thick));
+                commands.spawn((Mesh3d(body), MeshMaterial3d(shell), Transform::from_xyz(0.0, 0.0, thick / 2.0), ChildOf(holder)));
+                let label = Vec2::new(0.84f32.min(0.62 * tall * sheet.x / sheet.y), 0.0);
+                let label = Vec2::new(label.x, label.x * sheet.y / sheet.x);
+                commands.spawn((face(s.front.clone(), Transform::from_xyz(0.0, tall / 2.0 - 0.08 - label.y / 2.0, thick + 0.004).with_scale(label.extend(1.0))), ChildOf(holder)));
+            } else {
+                let round = meshes.add(Circle::new(0.5));
+                let disc = |m: &mut Assets<StandardMaterial>, i: &mut Assets<Image>, label: Option<Rgba>| m.add(StandardMaterial { base_color_texture: Some(picture(i, disc_picture(512, label))), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
+                let top = match &g.art.disc {
+                    Some(path) => {
+                        let m = materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
+                        covers.want(Art::File(path.clone()), (m.clone(), 0.0), &loader, &mut materials);
+                        m
+                    }
+                    None => disc(&mut materials, &mut images, Some(case)),
+                };
+                let under = disc(&mut materials, &mut images, None);
+                commands.spawn((Mesh3d(round.clone()), MeshMaterial3d(top), Transform::from_xyz(0.0, 0.0, 0.01), ChildOf(holder)));
+                commands.spawn((Mesh3d(round), MeshMaterial3d(under), Transform::from_xyz(0.0, 0.0, 0.005).with_rotation(Quat::from_rotation_y(PI)), ChildOf(holder)));
+            }
+            parts.push(holder);
+            *opened = Opened { slot: Some(slot), parts, lid: Some(hinge), turning: Some(turns), media: Some((holder, across, cart)) };
+        }
+    }
+    let Some(slot) = opened.slot.and_then(|e| slots.get(e).ok()) else { return };
+    let Inner { w, d, .. } = slot.1.inner;
+    if let Some(mut t) = opened.lid.and_then(|l| lids.get_mut(l).ok()) {
+        let want = Quat::from_rotation_y(-(LID_OPEN * lid).to_radians());
+        if t.rotation != want {
+            t.rotation = want;
+        }
+    }
+    // the open case turns about its own middle, past the lid out at its side
+    let edge = -w / 2.0 + w * (LID_OPEN * lid).to_radians().cos();
+    let middle = (edge.min(-w / 2.0) + w / 2.0) / 2.0;
+    if let Some((mut t, _)) = opened.turning.and_then(|e| turning.get_mut(e).ok()) {
+        let want = t.rotation * Vec3::new(-middle, 0.0, 0.0);
+        if t.translation != want {
+            t.translation = want;
+        }
+    }
+    if let Some((mut t, across, cart)) = opened.media.and_then(|(e, across, cart)| Some((media.get_mut(e).ok()?, across, cart))) {
+        let nudge = (PI * ((now - inspect.bump) / 0.3).clamp(0.0, 1.0)).sin() * 0.06;
+        let rest = Vec3::new(0.0, 0.0, -d / 2.0 + 2.0 * SKIN);
+        let want = Transform {
+            translation: rest.lerp(Vec3::new(middle, 0.0, d / 2.0 + LIFT), out) + Vec3::Z * nudge,
+            rotation: Quat::from_rotation_y((inspect.spin.x * out).to_radians()) * Quat::from_rotation_x((inspect.spin.y * out).to_radians()),
+            scale: Vec3::splat(across * (1.0 + GROW[usize::from(cart)] * out)),
+        };
+        t.set_if_neq(want);
     }
 }
 
@@ -1682,5 +2039,46 @@ mod tests {
         // back out to its first size, it's in the middle again
         i.zoom_by(-4.0);
         assert_eq!(i.pan_to, Vec2::ZERO);
+    }
+
+    #[test]
+    fn a_console_game_s_case_opens_and_its_disc_comes_out() {
+        let mut i = Inspect::default();
+        i.hold(0.0);
+        assert_eq!(i.advance(true, 1.0), Advance::Opened);
+        assert_eq!(i.step, Step::Open);
+        assert_eq!(i.opened(1.0 + LID), (1.0, 0.0));
+        assert_eq!(i.advance(true, 2.0), Advance::TookOut);
+        assert_eq!(i.opened(2.0 + LID), (1.0, 1.0));
+        // out, Enter is held to play
+        assert_eq!(i.advance(true, 3.0), Advance::Out);
+        assert_eq!(i.step, Step::Out);
+        // back the way it came, then put down
+        assert!(i.back(4.0));
+        assert_eq!((i.step, i.opened(4.0 + LID)), (Step::Open, (1.0, 0.0)));
+        assert!(i.back(5.0));
+        assert_eq!((i.step, i.opened(5.0 + LID)), (Step::Closed, (0.0, 0.0)));
+        assert!(!i.back(6.0));
+        assert!(i.on);
+    }
+
+    #[test]
+    fn a_pc_game_s_case_plays_at_once() {
+        let mut i = Inspect::default();
+        i.hold(0.0);
+        assert_eq!(i.advance(false, 1.0), Advance::Play);
+        assert_eq!((i.step, i.opened(2.0)), (Step::Closed, (0.0, 0.0)));
+        assert!(!i.back(2.0));
+    }
+
+    #[test]
+    fn put_down_it_shuts() {
+        let mut i = Inspect::default();
+        i.hold(0.0);
+        i.advance(true, 1.0);
+        i.advance(true, 2.0);
+        i.put_down(3.0);
+        assert!(!i.on);
+        assert_eq!((i.step, i.opened(3.0 + LID)), (Step::Closed, (0.0, 0.0)));
     }
 }

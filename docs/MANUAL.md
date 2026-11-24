@@ -288,9 +288,15 @@ complete yet.
   face button confirms and the bottom one goes back, on every screen. A pad Windows shows as an Xbox 360 one is
   asked about as the Electron app asks: the real controllers plugged in (USB or Bluetooth) say whether a
   PlayStation or Switch pad is behind Steam Input or DS4Windows.
-- Has a first Inspect (V, or the right stick's click): the chosen case comes up off the shelf to be turned
-  freely with the arrows or a stick, tipped, flipped to its other side and brought nearer or further; M reads
-  its manual, Enter plays it, Escape puts it back. The case doesn't open yet.
+- Has Inspect (V, the right stick's click, a double-click on the shelf, the quick menu's Inspect tile or Details →
+  Inspect the box): the chosen case comes up off the shelf to be turned with the arrows, the right stick or a drag,
+  tipped and flipped to its other side (F). Page Up / Page Down, + / −, the triggers or the wheel zoom from 0.88 to 3
+  times its size, and zoomed in W A S D or the left stick move it aside. Enter (A, or a click) opens a console
+  game's case on its spine, showing the manual's cover inside the lid (or a plain insert) and the disc or
+  cartridge in the tray; again takes it out toward you to be turned on its own, and held for 0.8 s plays the
+  game. Escape (B, or a right-click) puts it back a step, then on the shelf; M reads the manual. A Steam, store or
+  added game's case doesn't open: Enter plays it at once. The disc is the game's own disc art, or a plain one in
+  the case's colour.
 - Has the Art Studio's picker (Details → Box art): for a console game's front, back, spine and disc, every
   version LaunchBox, libretro and GameTDB have (from the lists the box art download keeps), on Switch 2 the
   Super Mario Wiki's box, with your own account ScreenScraper's scans and with your own key SteamGridDB's posters
@@ -328,7 +334,7 @@ complete yet.
   Electron app's list of virtual adapters to pass over isn't used.
 
 **Not yet:** the rest of Settings (Artwork's wide art for games whose art is only on the web; adding Microsoft Store apps), the
-rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), the Manual Studio's Repair, and opening the case in Inspect (its disc and its manual inside). On Android the native
+rest of the Art Studio (backs and spines made by RustyShelf among the versions: the Electron app draws them in its page), and the Manual Studio's Repair. On Android the native
 app is at its first stage: it builds as an APK of its own ("RustyShelf (native)", which installs beside the Electron branch's
 Android app) and keeps its settings in its own storage. A controller works as on the desktop (its buttons, sticks and a
 D-pad sent as a hat), Android's Back is Esc, and a finger works as in the Android app: a sideways drag along the shelf,
@@ -369,11 +375,14 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Change console | ↑ / ↓ | LT / RT |
 | Play | Enter | A |
 | Turn the case round | F | Y |
-| Inspect: hold the case up and turn it freely | V | Right stick click |
+| Inspect: hold the case up and turn it freely | V, or double-click | Right stick click |
+| Inspect: zoom, move aside when zoomed | PgUp / PgDn or wheel; W A S D | LT / RT; left stick |
+| Inspect: open the case, take out the disc, hold to play | Enter or click | A |
+| Inspect: a step back, then put it back | Esc or right-click | B |
 | Favorite | H | hold Y |
 | Details | I | X |
 | Sort and filter (the Sort panel) | G | hold Menu |
-| Quick menu: Favorite, Details, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab or Esc | Menu |
+| Quick menu: Favorite, Details, Inspect, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab or Esc | Menu |
 | Trophies | T | (the quick menu) |
 | Settings | S | View |
 | Surprise me | R | left stick click |

@@ -180,7 +180,7 @@ pub fn run() {
                 (shelf::measure, shelf::aside).chain(),
                 shelf::build_shelf,
                 (shelf::apply_covers, shelf::reveal).chain(),
-                shelf::arrange,
+                (shelf::arrange, shelf::open_case).chain(),
                 (shelf::customs, shelf::backdrop, shelf::moving).chain(),
                 (cheevos::run, hud::update, hud::top, hud::hints, settings::draw, settings::motion::animate, settings::motion::fade, settings::panels::rebuild, settings::panels::draw, boot::run, home::draw).chain(),
             )
