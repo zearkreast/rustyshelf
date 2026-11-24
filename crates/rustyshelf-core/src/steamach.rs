@@ -4,8 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, SystemTime};
 
 use regex::Regex;
@@ -306,22 +305,14 @@ impl SteamAch {
         pick.sort_by(|a, b| number(b.get("last")).total_cmp(&number(a.get("last"))));
         pick.truncate(MAX_GAMES);
         let private = std::sync::atomic::AtomicBool::new(false);
-        let per: Vec<Mutex<Value>> = pick.iter().map(|_| Mutex::new(Value::Null)).collect();
-        let next = AtomicUsize::new(0);
-        std::thread::scope(|s| {
-            for _ in 0..pick.len().min(CONCURRENCY) {
-                s.spawn(|| loop {
-                    let i = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(g) = pick.get(i) else { break };
-                    match self.player(&sid, &crate::js::string(g.get("appid")), age) {
-                        Ok(a) => *per[i].lock().unwrap() = a,
-                        Err(Ok(Private)) => private.store(true, Ordering::Relaxed),
-                        Err(Err(_)) => {}
-                    }
-                });
+        let per: Vec<Value> = crate::pool::map(&pick, CONCURRENCY, |g| match self.player(&sid, &crate::js::string(g.get("appid")), age) {
+            Ok(a) => a,
+            Err(Ok(Private)) => {
+                private.store(true, Ordering::Relaxed);
+                Value::Null
             }
+            Err(Err(_)) => Value::Null,
         });
-        let per: Vec<Value> = per.into_iter().map(|m| m.into_inner().unwrap()).collect();
         if private.load(Ordering::Relaxed) && !per.iter().any(|a| truthy(Some(a))) {
             return Err("Your Steam game details are private. In Steam, set Profile → Privacy → Game details to Public, then reload.".into());
         }

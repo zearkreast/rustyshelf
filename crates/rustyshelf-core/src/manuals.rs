@@ -7,7 +7,6 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
@@ -761,26 +760,21 @@ pub fn fetch_manual(web: &dyn Web, id: &str, dir: &Path, base: &str, progress: &
     let (server, at) = (js::string(meta.get("server")), js::string(meta.get("dir")));
     let down = || got.iter().filter(|g| *g.lock().unwrap()).count();
     let run = |todo: &[usize], workers: usize| {
-        let next = AtomicUsize::new(0);
-        std::thread::scope(|scope| {
-            for _ in 0..workers.min(todo.len()) {
-                scope.spawn(|| loop {
-                    let Some(&i) = todo.get(next.fetch_add(1, Ordering::Relaxed)) else { return };
-                    let dest = page_file(dir, base, i + 1, ".jpg");
-                    if dest.is_file() {
-                        *got[i].lock().unwrap() = true;
-                        continue;
-                    }
-                    made.lock().unwrap().push(dest.clone());
-                    let mut ok = web.file(&format!("https://archive.org/download/{}/page/n{i}_w{PAGE_WIDTH}.jpg", enc(id)), &dest).unwrap_or(false);
-                    if !ok {
-                        let inner = format!("{stem}_jp2/{stem}_{i:04}.jp2");
-                        ok = web.file(&format!("https://{server}/BookReader/BookReaderImages.php?zip={}&file={}&id={}&scale=2&rotate=0", enc(&format!("{at}/{zip}")), enc(&inner), enc(id)), &dest).unwrap_or(false);
-                    }
-                    *got[i].lock().unwrap() = ok;
-                    progress(down(), total);
-                });
+        crate::pool::each(todo, workers, |_, &i| {
+            let dest = page_file(dir, base, i + 1, ".jpg");
+            if dest.is_file() {
+                *got[i].lock().unwrap() = true;
+                return true;
             }
+            made.lock().unwrap().push(dest.clone());
+            let mut ok = web.file(&format!("https://archive.org/download/{}/page/n{i}_w{PAGE_WIDTH}.jpg", enc(id)), &dest).unwrap_or(false);
+            if !ok {
+                let inner = format!("{stem}_jp2/{stem}_{i:04}.jp2");
+                ok = web.file(&format!("https://{server}/BookReader/BookReaderImages.php?zip={}&file={}&id={}&scale=2&rotate=0", enc(&format!("{at}/{zip}")), enc(&inner), enc(id)), &dest).unwrap_or(false);
+            }
+            *got[i].lock().unwrap() = ok;
+            progress(down(), total);
+            true
         });
     };
     run(&(0..total).collect::<Vec<_>>(), PARALLEL);

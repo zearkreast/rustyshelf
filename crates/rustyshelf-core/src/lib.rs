@@ -87,6 +87,7 @@ pub mod pcfolder;
 pub mod pcgames;
 pub mod pdfpages;
 pub mod pkg;
+pub mod pool;
 pub mod presence;
 pub mod provenance;
 pub mod ra;

@@ -163,21 +163,7 @@ const IN: f32 = 0.3;
 
 /// Pictures decoded a few at a time.
 fn decode_all(files: &[Option<PathBuf>]) -> Vec<Decoded> {
-    let next = std::sync::atomic::AtomicUsize::new(0);
-    let got: Vec<Mutex<Decoded>> = files.iter().map(|_| Mutex::new(None)).collect();
-    std::thread::scope(|s| {
-        for _ in 0..4 {
-            s.spawn(|| loop {
-                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                let Some(f) = files.get(i) else { return };
-                let d = f.as_deref().and_then(|f| crate::loading::decode(f, THUMB_H));
-                if let Ok(mut g) = got[i].lock() {
-                    *g = d;
-                }
-            });
-        }
-    });
-    got.into_iter().map(|g| g.into_inner().ok().flatten()).collect()
+    rustyshelf_core::pool::map(files, 4, |f| f.as_deref().and_then(|f| crate::loading::decode(f, THUMB_H)))
 }
 
 fn opening(ask: Ask, title: String, game: String, gallery: bool, note: &str, now: f32) -> Open {

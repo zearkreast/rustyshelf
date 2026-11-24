@@ -640,20 +640,8 @@ fn epic_upkeep(lib: &Library, data_dir: &Path) -> bool {
             _ => None,
         })
         .collect();
-    let got = std::sync::atomic::AtomicUsize::new(0);
-    let next = std::sync::atomic::AtomicUsize::new(0);
-    std::thread::scope(|s| {
-        for _ in 0..3.min(want.len()) {
-            s.spawn(|| {
-                while let Some((id, url)) = want.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) {
-                    if pccovers::fetch_auto(data_dir, id, url).is_some() {
-                        got.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    }
-                }
-            });
-        }
-    });
-    changed || got.into_inner() > 0
+    let got = crate::pool::map(&want, 3, |(id, url)| pccovers::fetch_auto(data_dir, id, url).is_some());
+    changed || got.contains(&true)
 }
 
 /// Box art for the console games missing a front, a back or a spine, unless box art downloads are off. Each game is

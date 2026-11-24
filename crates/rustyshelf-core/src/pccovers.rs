@@ -210,21 +210,7 @@ fn thumb(data: &Path, url: &str) -> Option<PathBuf> {
 
 /// The first of these addresses whose thumbnail could be had, for each, fetched a few at a time.
 fn thumbs(data: &Path, wanted: Vec<Vec<String>>) -> Vec<Option<PathBuf>> {
-    let next = std::sync::atomic::AtomicUsize::new(0);
-    let got: Vec<std::sync::Mutex<Option<PathBuf>>> = wanted.iter().map(|_| std::sync::Mutex::new(None)).collect();
-    std::thread::scope(|s| {
-        for _ in 0..4 {
-            s.spawn(|| loop {
-                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                let Some(urls) = wanted.get(i) else { return };
-                let t = urls.iter().find_map(|u| thumb(data, u));
-                if let Ok(mut g) = got[i].lock() {
-                    *g = t;
-                }
-            });
-        }
-    });
-    got.into_iter().map(|g| g.into_inner().ok().flatten()).collect()
+    crate::pool::map(&wanted, 4, |urls| urls.iter().find_map(|u| thumb(data, u)))
 }
 
 /// The covers offered for a game (`id`; a Steam game's `appid`; its `title`, or a title typed in when `term`):

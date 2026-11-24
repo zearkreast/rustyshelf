@@ -5,7 +5,6 @@
 use rustyshelf_core::manuals::Online;
 use rustyshelf_core::manualstudio::{self as ms, Cand, Db, Remote};
 use rustyshelf_core::paths;
-use std::sync::atomic::Ordering;
 
 use super::*;
 
@@ -65,19 +64,10 @@ impl Settings {
         std::thread::spawn(move || {
             let (found, offline) = ms::search(&Online, &data, &game, &skip, rustyshelf_core::js::date_now());
             // three checked at a time
-            let next = std::sync::atomic::AtomicUsize::new(0);
             let tx = Mutex::new(tx);
-            std::thread::scope(|s| {
-                for _ in 0..found.len().min(3) {
-                    s.spawn(|| loop {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        let Some((c, r)) = found.get(i) else { break };
-                        let mut c = c.clone();
-                        if ms::verify(&Online, &data, &mut c, r) && tx.lock().unwrap().send(Found::One(Box::new((c, r.clone())))).is_err() {
-                            break;
-                        }
-                    });
-                }
+            rustyshelf_core::pool::each(&found, 3, |_, (c, r)| {
+                let mut c = c.clone();
+                !(ms::verify(&Online, &data, &mut c, r) && tx.lock().unwrap().send(Found::One(Box::new((c, r.clone())))).is_err())
             });
             let _ = tx.lock().unwrap().send(Found::Done(offline));
         });

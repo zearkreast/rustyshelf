@@ -501,19 +501,16 @@ pub fn fetch_to(web: &dyn Web, col: &Collection, ix: &Index, e: &Entry, stage: &
     if urls.is_empty() {
         return Err("no page images listed".into());
     }
-    let next = std::sync::atomic::AtomicUsize::new(0);
     let ok = std::sync::atomic::AtomicUsize::new(0);
-    std::thread::scope(|s| {
-        for _ in 0..4.min(urls.len()) {
-            s.spawn(|| loop {
-                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                let Some((full, half)) = urls.get(i).filter(|_| !cancelled()) else { break };
-                let dest = stage.join(format!("{base}-manual-{:02}.jpg", i + 1));
-                if full.as_ref().is_some_and(|u| web.file(u, &dest).unwrap_or(false)) || web.file(half, &dest).unwrap_or(false) {
-                    ok.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                }
-            });
+    crate::pool::each(&urls, 4, |i, (full, half)| {
+        if cancelled() {
+            return false;
         }
+        let dest = stage.join(format!("{base}-manual-{:02}.jpg", i + 1));
+        if full.as_ref().is_some_and(|u| web.file(u, &dest).unwrap_or(false)) || web.file(half, &dest).unwrap_or(false) {
+            ok.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        true
     });
     let ok = ok.into_inner();
     if ok != urls.len() {

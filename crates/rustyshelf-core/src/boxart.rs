@@ -771,7 +771,7 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
         // Switch / 3DS: GameTDB's games by title, for the backs and spines no other source has
         let tdb = if crate::gametdb::has(id) && (want("back") || want("spine")) { crate::gametdb::index(cache_dir, id) } else { None };
         let rep = Mutex::new(ConsoleReport { id: id.to_string(), name: sys.console.name.clone(), total: sys.games.len(), ..ConsoleReport::default() });
-        let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
+        let done = AtomicUsize::new(0);
         let one = |game: &Game| {
             // looked up under the name picked in Details → Art match
             let renamed = covers::art_name(cfg, &game.id).filter(|n| *n != game.title).map(|n| Game { title: n.to_string(), ..game.clone() });
@@ -921,16 +921,12 @@ pub fn download(run: &Run, systems: &[Wanted], progress: &(dyn Fn(&str, usize, u
             progress(&sys.console.name, done.fetch_add(1, Ordering::Relaxed) + 1, sys.games.len());
         };
         // four games at a time
-        std::thread::scope(|s| {
-            for _ in 0..sys.games.len().min(4) {
-                s.spawn(|| loop {
-                    let i = next.fetch_add(1, Ordering::Relaxed);
-                    if i >= sys.games.len() || cancel.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    one(sys.games[i]);
-                });
+        crate::pool::each(&sys.games, 4, |_, g| {
+            if cancel.load(Ordering::Relaxed) {
+                return false;
             }
+            one(g);
+            true
         });
         report.systems.push(rep.into_inner().unwrap());
     }

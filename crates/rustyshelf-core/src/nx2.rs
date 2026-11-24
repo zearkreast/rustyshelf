@@ -438,18 +438,7 @@ fn exes_under(dir: &Path, depth: u32, out: &mut Vec<PathBuf>) {
 
 /// Several at once: the first "which build?" after new builds were added took one AppImage at a time.
 fn with_nup(found: Vec<(Build, fs::Metadata)>, memo_file: &Path) -> Vec<Build> {
-    let next = std::sync::atomic::AtomicUsize::new(0);
-    let out: Vec<std::sync::Mutex<Option<Build>>> = found.iter().map(|_| Default::default()).collect();
-    std::thread::scope(|s| {
-        for _ in 0..found.len().min(3) {
-            s.spawn(|| loop {
-                let k = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                let Some((b, m)) = found.get(k) else { break };
-                *out[k].lock().unwrap() = Some(Build { nup: opens_nup(&b.exe, m, memo_file), ..b.clone() });
-            });
-        }
-    });
-    out.into_iter().filter_map(|b| b.into_inner().unwrap()).collect()
+    crate::pool::map(&found, 3, |(b, m)| Build { nup: opens_nup(&b.exe, m, memo_file), ..b.clone() })
 }
 
 fn builds_now(roots: &[PathBuf], memo_file: &Path) -> Vec<Build> {

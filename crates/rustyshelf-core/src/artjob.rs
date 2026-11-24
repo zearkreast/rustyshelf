@@ -302,80 +302,75 @@ pub fn restyle(app_root: &Path, cfg: &Value, sys: &str, bases: &[Value], after: 
     job.total.store(work.len(), Ordering::Relaxed);
     let remote = Mutex::new(Remote::new(&data_dir, sys));
     let st = Studio::new(&data_dir);
-    let next = AtomicUsize::new(0);
     let (changed, not_found, failed, net_err, ok_net) = (AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0));
     let (sets_full, sets_partial, sets_skipped) = (AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(locked));
     let offline = AtomicBool::new(false);
     let stop = || job.cancel.load(Ordering::Relaxed) || offline.load(Ordering::Relaxed);
     let now = || crate::js::date_now();
     // two games at a time
-    std::thread::scope(|s| {
-        for _ in 0..work.len().min(2) {
-            s.spawn(|| loop {
-                let i = next.fetch_add(1, Ordering::Relaxed);
-                if i >= work.len() || stop() {
-                    break;
-                }
-                // nothing reachable: stop instead of trying every game
-                if net_err.load(Ordering::Relaxed) >= 6 && ok_net.load(Ordering::Relaxed) == 0 {
-                    offline.store(true, Ordering::Relaxed);
-                    break;
-                }
-                let (mut g, parts) = (work[i].0.clone(), &work[i].1);
-                let key = studio::lock_key(sys, &g.file);
-                if sets_mode {
-                    // a pick made while the job runs keeps the game as it is
-                    if PARTS.iter().any(|p| locked_now(&data_dir, &key, p, t0)) {
-                        sets_skipped.fetch_add(1, Ordering::Relaxed);
-                        job.done.fetch_add(1, Ordering::Relaxed);
-                        continue;
-                    }
-                    let region = after["region"].as_str().unwrap_or("usa");
-                    let ask = Ask { wiki: true, posters: false, ss_cache_only: true };
-                    let lists = PARTS.map(|p| st.list_for(&g, p, remote.lock().unwrap().cands(&g, p, region, ask, now()), now()));
-                    let want_hd = js::truthy(after.get("setsHd"));
-                    let set = build_sets(after, &g.region, &lists).into_iter().find(|x| if want_hd { x.hd } else { x.region == region && !x.hd });
-                    if let Some(Ok(done)) = set.map(|set| st.apply_set(&mut g, &set, now())) {
-                        changed.fetch_add(done.changed.len(), Ordering::Relaxed);
-                        ok_net.fetch_add(1, Ordering::Relaxed);
-                        sets_full.fetch_add(1, Ordering::Relaxed);
-                        job.done.fetch_add(1, Ordering::Relaxed);
-                        continue;
-                    }
-                    // no complete set: the style's look for each part, as a normal restyle
-                    sets_partial.fetch_add(1, Ordering::Relaxed);
-                }
-                for part in parts {
-                    if stop() || locked_now(&data_dir, &key, part, t0) {
-                        continue;
-                    }
-                    let look = studio::look_for(after, part);
-                    let region = studio::region_for_look(after, &look, &g.region);
-                    let ask = Ask { wiki: true, posters: look == "hd", ss_cache_only: true };
-                    let list = st.list_for(&g, part, remote.lock().unwrap().cands(&g, part, &region, ask, now()), now());
-                    let (best, errs) = st.pick_best(&g, &list, &look, after, now(), &stop);
-                    net_err.fetch_add(errs, Ordering::Relaxed);
-                    let Some((c, _)) = best else {
-                        not_found.fetch_add(1, Ordering::Relaxed);
-                        continue;
-                    };
-                    ok_net.fetch_add(1, Ordering::Relaxed);
-                    if stop() || locked_now(&data_dir, &key, part, t0) {
-                        continue;
-                    }
-                    match st.apply(&mut g, part, &c, now()) {
-                        Ok(true) => {
-                            changed.fetch_add(1, Ordering::Relaxed);
-                        }
-                        Ok(false) => {}
-                        Err(_) => {
-                            failed.fetch_add(1, Ordering::Relaxed);
-                        }
-                    }
-                }
-                job.done.fetch_add(1, Ordering::Relaxed);
-            });
+    crate::pool::each(&work, 2, |_, (g, parts)| {
+        if stop() {
+            return false;
         }
+        // nothing reachable: stop instead of trying every game
+        if net_err.load(Ordering::Relaxed) >= 6 && ok_net.load(Ordering::Relaxed) == 0 {
+            offline.store(true, Ordering::Relaxed);
+            return false;
+        }
+        let mut g = g.clone();
+        let key = studio::lock_key(sys, &g.file);
+        if sets_mode {
+            // a pick made while the job runs keeps the game as it is
+            if PARTS.iter().any(|p| locked_now(&data_dir, &key, p, t0)) {
+                sets_skipped.fetch_add(1, Ordering::Relaxed);
+                job.done.fetch_add(1, Ordering::Relaxed);
+                return true;
+            }
+            let region = after["region"].as_str().unwrap_or("usa");
+            let ask = Ask { wiki: true, posters: false, ss_cache_only: true };
+            let lists = PARTS.map(|p| st.list_for(&g, p, remote.lock().unwrap().cands(&g, p, region, ask, now()), now()));
+            let want_hd = js::truthy(after.get("setsHd"));
+            let set = build_sets(after, &g.region, &lists).into_iter().find(|x| if want_hd { x.hd } else { x.region == region && !x.hd });
+            if let Some(Ok(done)) = set.map(|set| st.apply_set(&mut g, &set, now())) {
+                changed.fetch_add(done.changed.len(), Ordering::Relaxed);
+                ok_net.fetch_add(1, Ordering::Relaxed);
+                sets_full.fetch_add(1, Ordering::Relaxed);
+                job.done.fetch_add(1, Ordering::Relaxed);
+                return true;
+            }
+            // no complete set: the style's look for each part, as a normal restyle
+            sets_partial.fetch_add(1, Ordering::Relaxed);
+        }
+        for part in parts {
+            if stop() || locked_now(&data_dir, &key, part, t0) {
+                continue;
+            }
+            let look = studio::look_for(after, part);
+            let region = studio::region_for_look(after, &look, &g.region);
+            let ask = Ask { wiki: true, posters: look == "hd", ss_cache_only: true };
+            let list = st.list_for(&g, part, remote.lock().unwrap().cands(&g, part, &region, ask, now()), now());
+            let (best, errs) = st.pick_best(&g, &list, &look, after, now(), &stop);
+            net_err.fetch_add(errs, Ordering::Relaxed);
+            let Some((c, _)) = best else {
+                not_found.fetch_add(1, Ordering::Relaxed);
+                continue;
+            };
+            ok_net.fetch_add(1, Ordering::Relaxed);
+            if stop() || locked_now(&data_dir, &key, part, t0) {
+                continue;
+            }
+            match st.apply(&mut g, part, &c, now()) {
+                Ok(true) => {
+                    changed.fetch_add(1, Ordering::Relaxed);
+                }
+                Ok(false) => {}
+                Err(_) => {
+                    failed.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+        }
+        job.done.fetch_add(1, Ordering::Relaxed);
+        true
     });
     if job.cancel.load(Ordering::Relaxed) && !offline.load(Ordering::Relaxed) {
         return format!("Stopped · {} picture{} changed", changed.load(Ordering::Relaxed), plural_s(changed.load(Ordering::Relaxed)));
