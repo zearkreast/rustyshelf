@@ -145,14 +145,20 @@ pub struct Inspect {
     /// how it's turned, in degrees: round, and tipped toward the eye
     yaw: f32,
     pitch: f32,
+    /// how many times bigger it looks than when it's first held up, on its way to `zoom_to`
     zoom: f32,
+    zoom_to: f32,
+    /// how far it's moved aside when zoomed in, on its way to `pan_to`: at 1 (either way, across or up and down)
+    /// its corner is in the middle
+    pan: Vec2,
+    pan_to: Vec2,
     /// how far it's held up, from 0 (on the shelf) to 1
     held: Eased,
 }
 
 impl Default for Inspect {
     fn default() -> Self {
-        Inspect { on: false, yaw: 0.0, pitch: 0.0, zoom: 1.0, held: Eased::at(0.0) }
+        Inspect { on: false, yaw: 0.0, pitch: 0.0, zoom: 1.0, zoom_to: 1.0, pan: Vec2::ZERO, pan_to: Vec2::ZERO, held: Eased::at(0.0) }
     }
 }
 
@@ -183,6 +189,46 @@ impl Inspect {
         self.yaw = (self.yaw + left.signum() * (SPIN * dt).min(left.abs())).rem_euclid(360.0);
         true
     }
+
+    /// Brings it nearer by `steps` of the wheel (further when negative), each `ZOOM_STEP` times bigger
+    /// (app.js ispZoom).
+    fn zoom_by(&mut self, steps: f32) {
+        self.zoom_to = (self.zoom_to * ZOOM_STEP.powf(steps)).clamp(ZOOM.0, ZOOM.1);
+        // (zoomed out past its first size, it goes all the way out)
+        if steps < 0.0 && self.zoom_to <= 0.9 {
+            self.zoom_to = ZOOM.0;
+        }
+        if self.zoom_to <= 1.0 {
+            self.pan_to = Vec2::ZERO;
+        }
+    }
+
+    /// Moves it aside by `by` (see `pan`), only while it's zoomed in.
+    fn pan_by(&mut self, by: Vec2) {
+        self.pan_to = if self.zoom_to <= 1.0 { Vec2::ZERO } else { (self.pan_to + by).clamp(Vec2::NEG_ONE, Vec2::ONE) };
+    }
+
+    fn turn_by(&mut self, by: Vec2) {
+        self.yaw = (self.yaw + by.x).rem_euclid(360.0);
+        self.pitch = (self.pitch + by.y).clamp(-70.0, 70.0);
+    }
+
+    /// Where it's held, for a case `bw` × `bh`: across, up and toward the eye, that last at least `clear` short of
+    /// the eye's nearest.
+    fn held_at(&self, bw: f32, bh: f32, clear: f32) -> Vec3 {
+        let z = held_z(self.zoom, bw, clear);
+        // (a little above the middle by the same on screen at any zoom)
+        let shrink = (EYE - z) / (EYE - held_z(1.0, bw, 0.0));
+        Vec3::new(self.pan.x * bw / 2.0, 0.13 * bh * shrink + self.pan.y * bh / 2.0, z)
+    }
+}
+
+/// The eye's nearest: what's nearer isn't drawn.
+const NEAR: f32 = 50.0;
+/// How far toward the eye a case held up stands to look `zoom` times as big as at 1 (where it stands 1.75 of its
+/// widths out), but at least `clear` short of `NEAR`.
+fn held_z(zoom: f32, bw: f32, clear: f32) -> f32 {
+    (EYE - (EYE - 1.75 * bw) / zoom).min(EYE - NEAR - clear)
 }
 
 /// seconds a case takes up into the hand and back
@@ -191,17 +237,39 @@ const HOLD_UP: f32 = 0.45;
 const RIM_FADE: f32 = 0.3;
 /// degrees a second a held direction turns the case
 const SPIN: f32 = 150.0;
+/// Inspect's furthest and nearest, and how much nearer each step of the wheel or a key brings it (app.js ispZoom)
+const ZOOM: (f32, f32) = (0.88, 3.0);
+const ZOOM_STEP: f32 = 1.12;
+/// steps a second a held key or a trigger pulled all the way zooms
+const ZOOM_HELD: f32 = 6.0;
+/// how far (see `Inspect::pan`) a held key or a stick moves it a second
+const PAN_SPEED: f32 = 1.2;
+/// degrees a pixel of a drag turns it, round and tipped
+const DRAG: Vec2 = Vec2::new(0.35, 0.3);
+/// seconds between a double-click's clicks, and pixels a click may move and still be one
+const DOUBLE_CLICK: f32 = 0.4;
+const CLICK_SLOP: f32 = 6.0;
 
 #[derive(Component)]
 pub struct InspectKeys;
 
-/// Inspect's keys: V or the right stick's click holds the chosen case up; the arrows or a stick turn it, F shows
-/// its other side, Page Up and Page Down (or the triggers) bring it nearer and further; M reads its manual, Enter
-/// plays it, Escape puts it back.
+/// The mouse in Inspect: the last click on the shelf (when, and how far the pointer has moved since), and the left
+/// button held down in Inspect (how far it has dragged).
+#[derive(Default)]
+pub struct InspectMouse {
+    click: Option<(f32, f32)>,
+    drag: Option<f32>,
+}
+
+/// Inspect's keys: V or the right stick's click (or a double-click) holds the chosen case up; the arrows, the right
+/// stick or a drag turn it, F shows its other side, Page Up and Page Down (or the triggers, or the wheel) zoom, and
+/// zoomed in W A S D or the left stick move it; M reads its manual, Enter plays it, Escape (or a right-click) puts it
+/// back.
 pub fn inspect(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     pads: Query<&Gamepad>,
+    (mouse, motion, scroll): (Res<ButtonInput<MouseButton>>, Res<bevy::input::mouse::AccumulatedMouseMotion>, Res<bevy::input::mouse::AccumulatedMouseScroll>),
     lib: Res<LibraryRes>,
     cursor: Res<Cursor>,
     playing: Res<crate::play::Playing>,
@@ -210,10 +278,12 @@ pub fn inspect(
     mut inspect: ResMut<Inspect>,
     mut hint: Query<(&mut Visibility, &mut Text), With<InspectKeys>>,
     reader: Res<crate::reader::Reader>,
+    mut pointer: Local<InspectMouse>,
 ) {
     let (now, dt) = (time.elapsed_secs(), time.delta_secs());
     // (its manual is open over it, or was until this frame's key; or the Home menu is up: the keys are theirs)
     if reader.is_open() || settings.keys_taken {
+        pointer.drag = None;
         return;
     }
     let manual = match &lib.0 {
@@ -228,32 +298,76 @@ pub fn inspect(
     // (the quick menu's or Details' Inspect: they closed on the key that chose it)
     let asked = std::mem::take(&mut settings.inspect_asked);
     if !inspect.on {
-        let keyed = toggle && !settings.keys_taken && !settings.just_closed;
+        pointer.drag = None;
+        let bare = !settings.open && !settings.panels.is_open() && !settings.just_closed;
+        let mut double = false;
+        if let Some((at, moved)) = &mut pointer.click {
+            *moved += motion.delta.length();
+            if now - *at > DOUBLE_CLICK || *moved > CLICK_SLOP {
+                pointer.click = None;
+            }
+        }
+        if mouse.just_pressed(MouseButton::Left) {
+            double = pointer.click.take().is_some();
+            if !double {
+                pointer.click = Some((now, 0.0));
+            }
+        }
+        let keyed = (toggle || double) && bare;
         if (keyed || asked) && game && !settings.open && playing.title.is_none() {
             inspect.hold(now);
             sounds.play("open", 1);
         }
     } else {
         settings.keys_taken = true;
-        let stick = pads.iter().map(|p| p.left_stick() + p.right_stick() + p.dpad()).find(|v| v.length() > 0.3).unwrap_or(Vec2::ZERO);
-        let turn = Vec2::new(
-            (keys.pressed(KeyCode::ArrowRight) as i32 - keys.pressed(KeyCode::ArrowLeft) as i32) as f32 + stick.x,
-            (keys.pressed(KeyCode::ArrowUp) as i32 - keys.pressed(KeyCode::ArrowDown) as i32) as f32 + stick.y,
-        )
-        .clamp(Vec2::splat(-1.0), Vec2::splat(1.0));
-        inspect.yaw = (inspect.yaw + turn.x * SPIN * dt).rem_euclid(360.0);
-        inspect.pitch = (inspect.pitch - turn.y * SPIN * 0.6 * dt).clamp(-70.0, 70.0);
+        pointer.click = None;
+        let zoomed = inspect.zoom_to > 1.0;
+        let axis = |minus: KeyCode, plus: KeyCode| (keys.pressed(plus) as i32 - keys.pressed(minus) as i32) as f32;
+        let big = |v: Vec2| if v.length() > 0.3 { v } else { Vec2::ZERO };
+        let left: Vec2 = pads.iter().map(|p| big(p.left_stick())).sum();
+        let right: Vec2 = pads.iter().map(|p| big(p.right_stick()) + p.dpad()).sum();
+        let arrows = Vec2::new(axis(KeyCode::ArrowLeft, KeyCode::ArrowRight), axis(KeyCode::ArrowDown, KeyCode::ArrowUp));
+        let turn = (arrows + right + if zoomed { Vec2::ZERO } else { left }).clamp(Vec2::NEG_ONE, Vec2::ONE);
+        inspect.turn_by(Vec2::new(turn.x * SPIN, -turn.y * SPIN * 0.6) * dt);
+        let wasd = Vec2::new(axis(KeyCode::KeyA, KeyCode::KeyD), axis(KeyCode::KeyS, KeyCode::KeyW));
+        let pan = (wasd + if zoomed { left } else { Vec2::ZERO }).clamp(Vec2::NEG_ONE, Vec2::ONE);
+        // (W or the stick pushed up shows the case's top: it moves down)
+        inspect.pan_by(-pan * PAN_SPEED * dt);
         if keys.just_pressed(KeyCode::KeyF) || pad(GamepadButton::North) {
             inspect.yaw = (inspect.yaw + 180.0).rem_euclid(360.0);
             sounds.play("flip", 1);
         }
-        let near = (keys.pressed(KeyCode::PageUp) || pads.iter().any(|p| p.pressed(GamepadButton::RightTrigger2))) as i32 - (keys.pressed(KeyCode::PageDown) || pads.iter().any(|p| p.pressed(GamepadButton::LeftTrigger2))) as i32;
-        inspect.zoom = (inspect.zoom + near as f32 * dt).clamp(0.7, 1.5);
+        let step = |near: [KeyCode; 3]| near.iter().map(|k| if keys.just_pressed(*k) { 1.0 } else if keys.pressed(*k) { ZOOM_HELD * dt } else { 0.0 }).sum::<f32>();
+        let trigger = |b: GamepadButton| pads.iter().map(|p| p.get(b).unwrap_or(0.0).max(f32::from(u8::from(p.pressed(b))))).fold(0.0, f32::max) * ZOOM_HELD * dt;
+        let wheel = match scroll.unit {
+            bevy::input::mouse::MouseScrollUnit::Line => scroll.delta.y,
+            bevy::input::mouse::MouseScrollUnit::Pixel => scroll.delta.y / 100.0,
+        };
+        let steps = step([KeyCode::PageUp, KeyCode::Equal, KeyCode::NumpadAdd]) - step([KeyCode::PageDown, KeyCode::Minus, KeyCode::NumpadSubtract]) + trigger(GamepadButton::RightTrigger2) - trigger(GamepadButton::LeftTrigger2) + wheel;
+        if steps != 0.0 {
+            inspect.zoom_by(steps);
+        }
+        // (zoomed in, a drag turns it less: the pointer stays on the part it's on)
+        if mouse.just_pressed(MouseButton::Left) {
+            pointer.drag = Some(0.0);
+        }
+        if let Some(moved) = &mut pointer.drag {
+            *moved += motion.delta.length();
+            let by = motion.delta * DRAG / inspect.zoom.max(1.0);
+            inspect.turn_by(by);
+            if !mouse.pressed(MouseButton::Left) {
+                pointer.drag = None;
+            }
+        }
+        let ease = 1.0 - (-dt * 10.0).exp();
+        let (zoom, pan) = (inspect.zoom + (inspect.zoom_to - inspect.zoom) * ease, inspect.pan + (inspect.pan_to - inspect.pan) * ease);
+        (inspect.zoom, inspect.pan) = (zoom, pan);
         if let Some(pages) = manual.clone().filter(|_| keys.just_pressed(KeyCode::KeyM) || pad(GamepadButton::West)) {
             settings.manual = Some(pages);
         }
         let play = keys.just_pressed(KeyCode::Enter) || pad(confirm);
-        if play || toggle || !game || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) {
+        let put_back = toggle || !game || keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::Backspace) || pad(back) || mouse.just_pressed(MouseButton::Right);
+        if play || put_back {
             (inspect.on, inspect.held) = (false, Eased { from: held, to: 0.0, since: now });
             sounds.play("back", 1);
             // (the key that put it back isn't the shelf's too)
@@ -264,11 +378,17 @@ pub fn inspect(
     if let Ok((mut seen, mut text)) = hint.single_mut() {
         seen.set_if_neq(if inspect.on { Visibility::Inherited } else { Visibility::Hidden });
         if inspect.on {
-            let k = |kbd: &'static str, pad: &'static str| if settings.pad_prompts() { settings.cap(pad) } else { kbd };
-            let turn = if settings.pad_prompts() { "◀ ▶ ▲ ▼ · Sticks" } else { "◀ ▶ ▲ ▼" };
-            let near = if settings.pad_prompts() { format!("{} · {}", settings.cap("L2"), settings.cap("R2")) } else { "PgUp · PgDn".into() };
+            let pads = settings.pad_prompts();
+            let k = |kbd: &'static str, pad: &'static str| if pads { settings.cap(pad) } else { kbd };
+            let turn = match (pads, inspect.zoom_to > 1.0) {
+                (true, true) => format!("{} · ✛", settings.cap("R")),
+                (true, false) => "Sticks · ✛".into(),
+                _ => "◀ ▶ ▲ ▼".into(),
+            };
+            let near = if pads { format!("{} · {}", settings.cap("L2"), settings.cap("R2")) } else { "PgUp · PgDn".into() };
+            let pan = if inspect.zoom_to > 1.0 { format!("      {}  Move", k("W A S D", "L")) } else { String::new() };
             let read = if manual.is_some() { format!("      {}  Manual", k("M", "sq")) } else { String::new() };
-            let keys = format!("{turn}  Turn      {}  Other side      {near}  Nearer, further{read}      {}  Play      {}  Put it back", k("F", "tri"), k("Enter", "x"), k("Esc", "o"));
+            let keys = format!("{turn}  Turn      {}  Other side      {near}  Zoom{pan}{read}      {}  Play      {}  Put it back", k("F", "tri"), k("Enter", "x"), k("Esc", "o"));
             if text.0 != keys {
                 text.0 = keys;
             }
@@ -284,6 +404,10 @@ pub struct Either([Handle<StandardMaterial>; 2]);
 /// What only the chosen case wears: the light inside its covers' edges, its cover mirrored in the floor.
 #[derive(Component)]
 pub struct OnChosen;
+
+/// The pale strip of floor under a case, left on the shelf when Inspect holds it up.
+#[derive(Component)]
+pub struct Floor;
 
 /// The light inside the chosen case's cover edges, which fades rather than popping when Inspect picks the case up or
 /// sets it down.
@@ -755,7 +879,7 @@ pub fn measure(
     if let Ok((mut cam, mut projection)) = camera.single_mut() {
         // the eye looks 42% of the way down the window: the window is that part of a taller view
         let below = 1.0 - EYE_Y;
-        *projection = Projection::Perspective(PerspectiveProjection { fov: 2.0 * (vh * below / EYE).atan(), near: 50.0, far: 20_000.0, ..default() });
+        *projection = Projection::Perspective(PerspectiveProjection { fov: 2.0 * (vh * below / EYE).atan(), near: NEAR, far: 20_000.0, ..default() });
         let (w, h) = (vw.round() as u32, vh.round() as u32);
         cam.sub_camera_view = Some(SubCameraView {
             full_size: UVec2::new(w * 100, h * (below * 200.0).round() as u32),
@@ -1063,7 +1187,7 @@ pub fn build_shelf(
                     b.spawn((mesh(), MeshMaterial3d(kit.cloud.clone()), Transform::from_xyz(-w / 2.0 + inset, 0.5 - inset, d / 2.0 + 5.0 * SKIN).with_scale(Vec3::new(size, size, 1.0))));
                 }
                 // every case: a pale strip of floor under it
-                b.spawn((mesh(), MeshMaterial3d(kit.strip.clone()), Transform::from_xyz(0.0, floor - 0.19, d / 2.0).with_scale(Vec3::new(w, 0.38, 1.0))));
+                b.spawn((Floor, mesh(), MeshMaterial3d(kit.strip.clone()), Transform::from_xyz(0.0, floor - 0.19, d / 2.0).with_scale(Vec3::new(w, 0.38, 1.0))));
             });
         });
     }
@@ -1155,6 +1279,7 @@ pub fn arrange(
     mut turning: Query<(&mut Transform, &Children), With<Turning>>,
     mut either: Query<(&Either, &mut MeshMaterial3d<StandardMaterial>)>,
     mut worn: Query<(&mut Visibility, Has<Rim>), (With<OnChosen>, Without<Slot>)>,
+    mut floors: Query<&mut Visibility, (With<Floor>, Without<Slot>, Without<OnChosen>)>,
     inspect: Res<Inspect>,
     settings: Res<crate::settings::Settings>,
     mut rim: Local<Option<Eased>>,
@@ -1190,7 +1315,7 @@ pub fn arrange(
         let mut placed = Transform { translation: Vec3::new(at.x, 0.0, at.z), rotation: Quat::from_rotation_y(at.ry.to_radians()), scale: Vec3::splat(stage.bh) };
         if chosen && held > 0.0 {
             // up from its place into the hand: nearer, a little higher, facing the eye
-            placed.translation = placed.translation.lerp(Vec3::new(0.0, stage.bh * 0.13, stage.bw * (1.75 + (inspect.zoom - 1.0) * 1.6)), held);
+            placed.translation = placed.translation.lerp(inspect.held_at(stage.bw, stage.bh, stage.bh * 0.7), held);
             placed.rotation = Quat::from_rotation_y((at.ry * (1.0 - held)).to_radians());
         }
         t.set_if_neq(placed);
@@ -1239,6 +1364,9 @@ pub fn arrange(
                     // (its light on the floor and its mirror image stay on the shelf)
                     let on = chosen && if is_rim { glow > 0.0 } else { held == 0.0 };
                     seen.set_if_neq(if on { Visibility::Inherited } else { Visibility::Hidden });
+                }
+                if let Ok(mut seen) = floors.get_mut(part) {
+                    seen.set_if_neq(if chosen && held > 0.0 { Visibility::Hidden } else { Visibility::Inherited });
                 }
             }
         }
@@ -1505,4 +1633,54 @@ pub fn moving(
     };
     moving.last = now;
     moving.busy = moving.ask.send(tick).is_ok();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// How many times bigger something at `z` looks than at 0.
+    fn magnified(z: f32) -> f32 {
+        EYE / (EYE - z)
+    }
+
+    #[test]
+    fn zoom_is_how_much_bigger_it_looks() {
+        let bw = 200.0;
+        let first = magnified(held_z(1.0, bw, 0.0));
+        assert!((held_z(1.0, bw, 0.0) - 1.75 * bw).abs() < 1e-3);
+        for zoom in [0.88, 1.5, 2.0, 3.0] {
+            assert!((magnified(held_z(zoom, bw, 0.0)) / first - zoom).abs() < 1e-3, "{zoom}");
+        }
+        // never nearer the eye than its nearest, and what it must keep clear of it
+        assert!(held_z(3.0, 600.0, 400.0) <= EYE - NEAR - 400.0);
+    }
+
+    #[test]
+    fn zoom_steps_and_stays_in_its_range() {
+        let mut i = Inspect::default();
+        i.zoom_by(1.0);
+        assert!((i.zoom_to - 1.12).abs() < 1e-5);
+        i.zoom_by(40.0);
+        assert_eq!(i.zoom_to, ZOOM.1);
+        i.zoom_by(-40.0);
+        assert_eq!(i.zoom_to, ZOOM.0);
+        // a step out from its first size goes all the way out
+        let mut i = Inspect::default();
+        i.zoom_by(-1.0);
+        assert_eq!(i.zoom_to, ZOOM.0);
+    }
+
+    #[test]
+    fn it_moves_aside_only_zoomed_in() {
+        let mut i = Inspect::default();
+        i.pan_by(Vec2::new(0.5, 0.0));
+        assert_eq!(i.pan_to, Vec2::ZERO);
+        i.zoom_by(4.0);
+        i.pan_by(Vec2::new(0.5, -3.0));
+        assert_eq!(i.pan_to, Vec2::new(0.5, -1.0));
+        // back out to its first size, it's in the middle again
+        i.zoom_by(-4.0);
+        assert_eq!(i.pan_to, Vec2::ZERO);
+    }
 }

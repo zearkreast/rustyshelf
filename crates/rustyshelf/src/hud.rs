@@ -343,7 +343,7 @@ pub fn update(
     mut lines: Query<(&mut Text, &mut TextFont, &Line)>,
     mut info: Query<(&mut Node, &mut Visibility), (With<Info>, Without<NoticePill>)>,
     mut pill: Query<&mut Node, (With<NoticePill>, Without<Info>)>,
-    picker: Res<crate::coverpick::CoverPick>,
+    (picker, inspect): (Res<crate::coverpick::CoverPick>, Res<crate::shelf::Inspect>),
 ) {
     let [mut tag, mut count, mut counter, mut title, mut note] = [const { String::new() }; 5];
     let mut under: Vec<String> = Vec::new();
@@ -454,8 +454,8 @@ pub fn update(
         if node.top != top {
             node.top = top;
         }
-        // (the quick menu takes the game's line away as the shelf steps aside)
-        seen.set_if_neq(if settings.open || settings.panels.is_open() || picker.is_open() { Visibility::Hidden } else { Visibility::Inherited });
+        // (the quick menu takes the game's line away as the shelf steps aside; Inspect, as the case comes up over it)
+        seen.set_if_neq(if settings.open || settings.panels.is_open() || picker.is_open() || inspect.on { Visibility::Hidden } else { Visibility::Inherited });
     }
 }
 
