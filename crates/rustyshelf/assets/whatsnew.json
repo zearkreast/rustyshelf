@@ -1,5 +1,22 @@
 [
   {
+    "version": "0.6.1", "name": "0.6.1", "date": "2026-11-24", "title": "Fixes for Trophies and manuals, and a tidier inside",
+    "highlights": [
+      "Trophies' pictures come in when you switch Show",
+      "A Wrong manual that stops says so",
+      "Background work rebuilt on shared pieces"
+    ],
+    "sections": [
+      { "h": "Fixed", "items": [
+        ["Trophies' pictures", "Switching Show between Games, Recent unlocks and Mastered no longer leaves the new rows' pictures blank."],
+        ["Wrong manual", "If setting a manual aside stops half way, it says so instead of staying on Looking for another manual."]
+      ] },
+      { "h": "Changed", "items": [
+        ["Behind the scenes", "The jobs that run in the background, the ones that run a few at a time and the rows you change with ← → now share one way of working each. Nothing should look different."]
+      ] }
+    ]
+  },
+  {
     "version": "0.6.0", "name": "0.6.0", "date": "2026-11-22", "title": "Trophies game by game, Details in sections, and updates by themselves",
     "highlights": [
       "Trophies: every game's achievements, each with its picture, and How to get it",
