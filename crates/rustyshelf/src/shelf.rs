@@ -1023,6 +1023,10 @@ pub fn build_shelf(
                 b.spawn((mesh(), MeshMaterial3d(case.clone()), at(0.0, -d / 2.0, PI, w, 1.0)));
                 b.spawn((mesh(), MeshMaterial3d(back), at(-sheet_x, -d / 2.0 - SKIN, PI, sheet_w, sheet_h)));
                 b.spawn((either(), mesh(), MeshMaterial3d(kit.plastic[1].clone()), at(0.0, -d / 2.0 - 2.0 * SKIN, PI, w, 1.0)));
+                // its top and bottom edges, so a case turned on end or tipped over isn't open
+                for (y, tip) in [(0.5, -PI / 2.0), (-0.5, PI / 2.0)] {
+                    b.spawn((mesh(), MeshMaterial3d(case.clone()), Transform::from_xyz(0.0, y, 0.0).with_rotation(Quat::from_rotation_x(tip)).with_scale(Vec3::new(w, d, 1.0))));
+                }
                 // a spine on either side: the left stack shows the one, the right stack the other
                 for (x, turn, shade) in [(-w / 2.0, -PI / 2.0, 1), (w / 2.0, PI / 2.0, 2)] {
                     let side = |out: f32, m: &Handle<StandardMaterial>, tall: f32| (mesh(), MeshMaterial3d(m.clone()), Transform::from_xyz(x + x.signum() * out, 0.0, 0.0).with_rotation(Quat::from_rotation_y(turn)).with_scale(Vec3::new(d, tall, 1.0)));
