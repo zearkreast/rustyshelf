@@ -3,7 +3,7 @@
 // RustyShelf has them.
 //! The two panels over the shelf. The Sort panel (G, or Start held): a card at the top with the order and the
 //! filter as rows of chips, applied as they change. The Quick Shelf (a Start tap, or Tab): a panel that slides in at
-//! the right while the shelf steps aside, with the chosen game, its Favorite / Details / Box art / Hide tiles, and
+//! the right while the shelf steps aside, with the chosen game, its Favorite / Details / Inspect / Box art / Hide tiles, and
 //! rows for Find a game, the volume, sorting, trophies, updates, Settings and power.
 
 use super::*;
@@ -51,7 +51,7 @@ enum QRow {
     Power,
 }
 
-const ACTS: [&str; 5] = ["fav", "det", "man", "art", "hide"];
+const ACTS: [&str; 6] = ["fav", "det", "isp", "man", "art", "hide"];
 
 #[derive(Default)]
 pub struct Panels {
@@ -374,6 +374,10 @@ impl Settings {
                     Some("det") => {
                         self.close_panel(now, true);
                         self.wanted = Some(Screen::Details);
+                    }
+                    Some("isp") => {
+                        self.close_panel(now, true);
+                        self.inspect_asked = true;
                     }
                     Some("man") => {
                         self.close_panel(now, true);
@@ -735,6 +739,7 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                                             let (sign, label) = match *a {
                                                 "fav" => ("♥", if fav { "Favorited" } else { "Favorite" }),
                                                 "det" => ("≡", "Details"),
+                                                "isp" => ("◈", "Inspect"),
                                                 "man" => ("☰", "Manual"),
                                                 "art" => ("▣", "Box art"),
                                                 _ => ("⊘", "Hide"),

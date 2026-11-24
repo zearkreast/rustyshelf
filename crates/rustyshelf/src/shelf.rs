@@ -225,9 +225,12 @@ pub fn inspect(
     let game = matches!(&lib.0, LibraryState::Ready(l) if l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).is_some_and(|g| !matches!(g.source, Source::Tile(_))));
     let toggle = keys.just_pressed(KeyCode::KeyV) || pad(GamepadButton::RightThumb);
     let held = inspect.held.now(now, HOLD_UP, EASE);
+    // (the quick menu's or Details' Inspect: they closed on the key that chose it)
+    let asked = std::mem::take(&mut settings.inspect_asked);
     if !inspect.on {
-        if toggle && game && !settings.open && !settings.keys_taken && !settings.just_closed && playing.title.is_none() {
-            *inspect = Inspect { on: true, held: Eased { from: held, to: 1.0, since: now }, ..Inspect::default() };
+        let keyed = toggle && !settings.keys_taken && !settings.just_closed;
+        if (keyed || asked) && game && !settings.open && playing.title.is_none() {
+            inspect.hold(now);
             sounds.play("open", 1);
         }
     } else {

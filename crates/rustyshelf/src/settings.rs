@@ -367,6 +367,8 @@ pub struct Settings {
     pub tour_page: Option<TourPage>,
     /// Esc on the bare shelf: the quick menu opens next frame, rather than the app closing
     pub esc_quick: bool,
+    /// the quick menu or Details asked for the chosen case to be held up in Inspect
+    pub inspect_asked: bool,
     /// the prompts of the controller in use
     pub pad_auto: Glyphs,
     /// a manual to be opened in the reader: its pages
@@ -506,6 +508,7 @@ impl Default for Settings {
             keys_taken: false,
             tour_page: None,
             esc_quick: false,
+            inspect_asked: false,
             pad_auto: Glyphs::Xbox,
             manual: None,
             gallery: false,
@@ -2603,6 +2606,14 @@ impl Settings {
                 media.extend(self.manual_rows());
                 media.extend(self.manual_studio_row());
                 let mut art = Vec::new();
+                art.push(Row {
+                    label: "Inspect the box".into(),
+                    hint: "Holds the case up off the shelf, to turn it round, zoom in and open it".into(),
+                    press: Some(Box::new(|s: &mut Settings| {
+                        s.inspect_asked = s.shut();
+                    })),
+                    ..Row::default()
+                });
                 if self.can_pick_art() {
                     art.push(open("Box art", String::new(), "Every version of this game's box the sources have: choose its front, back, spine and disc", Screen::Art));
                     art.push(self.art_match_row());

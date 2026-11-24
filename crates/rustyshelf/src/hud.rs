@@ -292,10 +292,11 @@ fn meta(g: &Game, shelf: &str, ok: &str) -> Vec<String> {
 }
 
 /// The keys the bar shows: for the keyboard, and for a pad.
-const KEYS: [(&[&str], &str); 11] = [
+const KEYS: [(&[&str], &str); 12] = [
     (&["Z", "C"], "Letter"),
     (&["↑", "↓"], "System"),
     (&["F"], "Flip"),
+    (&["V"], "Inspect"),
     (&["H"], "♥ Favorite"),
     (&["I"], "Details"),
     (&["Enter"], "Play"),
@@ -306,10 +307,11 @@ const KEYS: [(&[&str], &str); 11] = [
     (&["Esc"], "Quick menu"),
 ];
 /// (the pad's buttons by `pads::cap`'s keys)
-const PAD_KEYS: [(&[&str], &str); 8] = [
+const PAD_KEYS: [(&[&str], &str); 9] = [
     (&["L1", "R1"], "Letter"),
     (&["L2", "R2"], "System"),
     (&["tri"], "Flip · hold ♥"),
+    (&["R3"], "Inspect"),
     (&["⧉"], "Details"),
     (&["x"], "Play"),
     (&["L3"], "Shuffle · hold Find"),
