@@ -14,7 +14,7 @@ pub(super) struct PcBacksUi {
     /// LaunchBox's database downloaded again with its PC games: what it's doing, and how it ended
     pub(super) get: Option<Staged>,
     /// "Back from LaunchBox": the game's id and title, and what came back
-    looking: Option<(String, String, Mutex<Receiver<Got>>)>,
+    looking: Option<(String, String, Later<Got>)>,
     /// the download's row value as last drawn, and when
     shown: (String, f32),
 }
@@ -118,11 +118,7 @@ impl Settings {
         let Some(want) = self.chosen.as_ref().filter(|c| c.game.box_plat.is_none()).and_then(|c| Want::of(&c.game)).filter(|_| self.pc_backs.looking.is_none()) else { return };
         let (data, region) = (paths::data_dir(&self.app_root), self.art_region());
         let (id, title) = (want.id.clone(), want.title.clone());
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(pcbacks::fetch(&data, &paths::boxart_cache(&data), &want, &region));
-        });
-        self.pc_backs.looking = Some((id, title, Mutex::new(rx)));
+        self.pc_backs.looking = Some((id, title, Later::spawn(move || pcbacks::fetch(&data, &paths::boxart_cache(&data), &want, &region))));
         self.say("Looking for the back of the box…".into());
     }
 
@@ -141,7 +137,7 @@ impl Settings {
 
     /// What the back looked up and LaunchBox's download came to since the last frame.
     pub(super) fn poll_pc_backs(&mut self, now: f32) {
-        let looked = self.pc_backs.looking.as_ref().map(|(_, _, rx)| rx.lock().unwrap().try_recv());
+        let looked = self.pc_backs.looking.as_ref().map(|(_, _, job)| job.try_recv());
         match looked {
             Some(Ok(got)) => {
                 let (id, title, _) = self.pc_backs.looking.take().expect("a back looked up");

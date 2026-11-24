@@ -35,6 +35,7 @@ mod settings;
 mod shelf;
 mod sound;
 mod touch;
+mod threads;
 mod tour;
 mod whatsnew;
 mod wiimote;

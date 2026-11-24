@@ -41,18 +41,18 @@ pub(super) struct ArtPick {
     /// the accounts as they were when one of them was opened from here, to look again on coming back
     acct_at: Option<String>,
     /// a picture being put in use (or the last one put back), and the lock to keep when it has worked
-    placing: Option<(Option<String>, Mutex<Receiver<Placed>>)>,
+    placing: Option<(Option<String>, Later<Placed>)>,
     /// the highlighted version, since when, and its picture: asked for, decoded, shown
     lit: (String, f32),
-    reading: Option<(String, Mutex<Receiver<Option<Picture>>>)>,
+    reading: Option<(String, Later<Option<Picture>>)>,
     ready: Option<(String, Option<Picture>)>,
     shown: Option<(String, Handle<Image>)>,
     /// previews that couldn't be had
     failed: Vec<String>,
     /// the chosen game's complete sets, while they're gathered, and one being put in
     sets: Vec<Set>,
-    sets_listing: Option<Mutex<Receiver<Vec<Set>>>>,
-    set_placing: Option<Mutex<Receiver<SetPlaced>>>,
+    sets_listing: Option<Later<Vec<Set>>>,
+    set_placing: Option<Later<SetPlaced>>,
     /// the last set put in, to undo it: the game's lock key, what it changed, and its locks before
     last_set: Option<(String, SetDone, Value)>,
     /// the consoles being restyled, and how each run ends
@@ -65,7 +65,7 @@ pub(super) struct ArtPick {
     /// the versions shown, by region, source, type and edition ("" for all): kept for the session, across games
     filter: [String; 4],
     /// an unlocked game's parts picked again for the shelf style: the game as it is then, and the pictures changed
-    repick: Option<Mutex<Receiver<(GameArt, usize)>>>,
+    repick: Option<Later<(GameArt, usize)>>,
 }
 
 /// The versions' filters (settings.js FLT_DIMS): a name, and its values.
@@ -97,7 +97,7 @@ fn passes(filter: &[String; 4], c: &Cand) -> bool {
 struct Restyle {
     sys: String,
     job: std::sync::Arc<Job>,
-    ended: Mutex<Receiver<String>>,
+    ended: Later<String>,
 }
 
 /// A part's name; the disc is named for what the console's games come on (a cartridge, a UMD, a floppy disk).
@@ -243,17 +243,17 @@ impl Settings {
         if cleared["art"]["locks"] != self.cfg["art"]["locks"] {
             self.set(&["art", "locks"], cleared["art"]["locks"].clone());
         }
-        let (job, (tx, rx)) = (std::sync::Arc::new(Job::default()), channel());
+        let job = std::sync::Arc::new(Job::default());
         let (app_root, id, mine) = (self.app_root.clone(), sys.to_string(), job.clone());
-        std::thread::spawn(move || {
+        let ended = Later::spawn(move || {
             // (the run it replaces stops after the parts in flight: never two writing one game's pictures)
             while earlier.iter().any(|j| std::sync::Arc::strong_count(j) > 2) {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
             drop(earlier);
-            let _ = tx.send(artjob::restyle(&app_root, &cfg, &id, &bases, &after, rustyshelf_core::js::date_now(), &mine));
+            artjob::restyle(&app_root, &cfg, &id, &bases, &after, rustyshelf_core::js::date_now(), &mine)
         });
-        self.art_pick.restyles.push(Restyle { sys: sys.to_string(), job, ended: Mutex::new(rx) });
+        self.art_pick.restyles.push(Restyle { sys: sys.to_string(), job, ended });
     }
 
     pub(super) fn can_pick_art(&self) -> bool {
@@ -346,17 +346,16 @@ impl Settings {
     fn open_art_sets(&mut self) {
         let Some(g) = self.art_game() else { return };
         let (data, style) = (paths::data_dir(&self.app_root), studio::style_for(&self.cfg, &g.sys));
-        let (tx, rx) = channel();
         let game = g.clone();
-        std::thread::spawn(move || {
+        let listing = Later::spawn(move || {
             let (st, mut remote) = (Studio::new(&data), Remote::new(&data, &game.sys));
             let region = style["region"].as_str().unwrap_or("usa");
             let ask = Ask { wiki: true, posters: false, ss_cache_only: false };
             let lists = studio::PARTS.map(|part| st.list_for(&game, part, remote.cands(&game, part, region, ask, rustyshelf_core::js::date_now()), rustyshelf_core::js::date_now()));
-            let _ = tx.send(artjob::build_sets(&style, &game.region, &lists));
+            artjob::build_sets(&style, &game.region, &lists)
         });
         let last = self.art_pick.last_set.take().filter(|l| l.0 == studio::lock_key(&g.sys, &g.file));
-        self.art_pick = ArtPick { game: Some(g), sets_listing: Some(Mutex::new(rx)), last_set: last, restyles: std::mem::take(&mut self.art_pick.restyles), stale: std::mem::take(&mut self.art_pick.stale), ..Default::default() };
+        self.art_pick = ArtPick { game: Some(g), sets_listing: Some(listing), last_set: last, restyles: std::mem::take(&mut self.art_pick.restyles), stale: std::mem::take(&mut self.art_pick.stale), ..Default::default() };
         self.go(Screen::ArtSets);
     }
 
@@ -374,11 +373,7 @@ impl Settings {
                 Box::new(move |st, g| st.revert_parts(g, &done, rustyshelf_core::js::date_now()).map(|()| (g.clone(), None)))
             }
         };
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(work(&Studio::new(&data), &mut g));
-        });
-        self.art_pick.set_placing = Some(Mutex::new(rx));
+        self.art_pick.set_placing = Some(Later::spawn(move || work(&Studio::new(&data), &mut g)));
         self.redraw = true;
     }
 
@@ -442,12 +437,7 @@ impl Settings {
     fn place_with(&mut self, key: Option<String>, work: impl FnOnce(&Studio, &mut GameArt, &str) -> Result<bool, String> + Send + 'static) {
         let Some(mut g) = self.art_pick.game.clone().filter(|_| self.art_pick.placing.is_none()) else { return };
         let (part, data) = (self.art_pick.part, paths::data_dir(&self.app_root));
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let done = work(&Studio::new(&data), &mut g, part);
-            let _ = tx.send(done.map(|moved| (g, moved)));
-        });
-        self.art_pick.placing = Some((key, Mutex::new(rx)));
+        self.art_pick.placing = Some((key, Later::spawn(move || work(&Studio::new(&data), &mut g, part).map(|moved| (g, moved)))));
         self.redraw = true;
     }
 
@@ -455,7 +445,7 @@ impl Settings {
     pub(super) fn poll_art(&mut self, now: f32) {
         let mut ended = Vec::new();
         for (i, r) in self.art_pick.restyles.iter().enumerate() {
-            match r.ended.lock().unwrap().try_recv() {
+            match r.ended.try_recv() {
                 Ok(msg) => ended.push((i, Some(msg))),
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => ended.push((i, None)),
                 Err(_) => {}
@@ -478,7 +468,7 @@ impl Settings {
                 self.changed = true;
             }
         }
-        if let Some((g, changed)) = self.art_pick.repick.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some((g, changed)) = self.art_pick.repick.as_ref().and_then(Later::poll) {
             self.art_pick.repick = None;
             if let Some(c) = self.chosen.as_mut() {
                 let [front, back, spine, disc] = g.current.clone();
@@ -497,10 +487,10 @@ impl Settings {
             });
             self.changed |= changed > 0;
         }
-        if let Some(sets) = self.art_pick.sets_listing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(sets) = self.art_pick.sets_listing.as_ref().and_then(Later::poll) {
             (self.art_pick.sets_listing, self.art_pick.sets, self.redraw) = (None, sets, true);
         }
-        if let Some(done) = self.art_pick.set_placing.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(done) = self.art_pick.set_placing.as_ref().and_then(Later::poll) {
             self.art_pick.set_placing = None;
             match done {
                 Ok((g, Some((set, done)))) => {
@@ -577,7 +567,7 @@ impl Settings {
                 }
             }
         }
-        if let Some(done) = self.art_pick.placing.as_ref().and_then(|p| p.1.lock().unwrap().try_recv().ok()) {
+        if let Some(done) = self.art_pick.placing.as_ref().and_then(|p| p.1.poll()) {
             let (key, _) = self.art_pick.placing.take().expect("a picture being placed");
             let part = self.art_pick.part;
             match done {
@@ -624,7 +614,7 @@ impl Settings {
         if self.art_pick.lit.0 != c.key {
             self.art_pick.lit = (c.key.clone(), now);
         }
-        if let Some((key, picture)) = self.art_pick.reading.as_ref().and_then(|(key, rx)| Some((key.clone(), rx.lock().unwrap().try_recv().ok()?))) {
+        if let Some((key, picture)) = self.art_pick.reading.as_ref().and_then(|(key, job)| Some((key.clone(), job.poll()?))) {
             self.art_pick.reading = None;
             if picture.is_none() {
                 self.art_pick.failed.push(key.clone());
@@ -641,14 +631,12 @@ impl Settings {
         if local.is_none() && now - self.art_pick.lit.1 < DWELL {
             return;
         }
-        let (tx, rx) = channel();
         let key = c.key.clone();
-        std::thread::spawn(move || {
+        let picture = Later::spawn(move || {
             let file = local.or_else(|| Studio::new(&data).fetch_cand(&c, &sys, rustyshelf_core::js::date_now()).ok().flatten());
-            let picture = file.and_then(|f| crate::loading::decode(&f, PREVIEW));
-            let _ = tx.send(picture);
+            file.and_then(|f| crate::loading::decode(&f, PREVIEW))
         });
-        self.art_pick.reading = Some((key, Mutex::new(rx)));
+        self.art_pick.reading = Some((key, picture));
     }
 
     /// The picture to show beside the list: the highlighted version's, once it's there.
@@ -794,14 +782,12 @@ impl Settings {
             return;
         }
         let data = paths::data_dir(&self.app_root);
-        let (tx, rx) = channel();
         let mut g = g;
-        std::thread::spawn(move || {
+        self.art_pick.repick = Some(Later::spawn(move || {
             let st = Studio::new(&data);
             let changed = todo.iter().filter(|p| artjob::pick_by_look(&st, &data, &mut g, p, &studio::look_for(&style, p), &style).unwrap_or(false)).count();
-            let _ = tx.send((g, changed));
-        });
-        self.art_pick.repick = Some(Mutex::new(rx));
+            (g, changed)
+        }));
     }
 
     pub(super) fn art_part_page(&self) -> Page {

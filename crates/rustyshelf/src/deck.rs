@@ -5,8 +5,6 @@
 //! Steam (Game Mode), which Add RustyShelf to Steam sets up.
 
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::Mutex;
 
 use bevy::prelude::*;
 use rustyshelf_core::paths;
@@ -17,14 +15,14 @@ use crate::hud::Toast;
 use crate::loading::LibraryRes;
 use crate::play::Playing;
 use crate::settings::Settings;
+use crate::threads::Later;
 
 const ICON: &[u8] = include_bytes!("../assets/app-icon.png");
 
 /// Adds RustyShelf to Steam off the frame (Steam closes and opens again): what to say once it's done. `card`: asked from
 /// the shelf's card, which words it for a Deck.
-pub fn add(card: bool) -> Receiver<String> {
-    let (tx, rx) = channel();
-    std::thread::spawn(move || {
+pub fn add(card: bool) -> Later<String> {
+    Later::spawn(move || {
         let info = steamdeck::info(&paths::env_var);
         let home = PathBuf::from(paths::env_var("HOME").unwrap_or_default());
         let data = paths::data_dir(&paths::app_root());
@@ -42,7 +40,7 @@ pub fn add(card: bool) -> Receiver<String> {
             (Refusal::WriteFailed, _) => "Steam's list couldn't be written",
             (Refusal::NotLinux | Refusal::SteamRunning, _) => "",
         };
-        let said = match r {
+        match r {
             Ok(a) if card && a.updated => "RustyShelf's Steam entry is up to date. Start it from Steam (Game Mode)".to_string(),
             Ok(_) if card => "RustyShelf is in Steam now: start it from your Library in Game Mode (Non-Steam)".into(),
             Ok(_) => "RustyShelf is in Steam: start it from your Library (Non-Steam), in Game Mode on a Steam Deck".into(),
@@ -50,10 +48,8 @@ pub fn add(card: bool) -> Receiver<String> {
                 let w = why(e);
                 format!("Couldn't add RustyShelf to Steam{}{}", if w.is_empty() { "" } else { ": " }, w) + if card { "." } else { "" }
             }
-        };
-        let _ = tx.send(said);
-    });
-    rx
+        }
+    })
 }
 
 /// Where RustyShelf runs, in the log (Linux).
@@ -69,12 +65,12 @@ pub struct DeckHint {
     checked: bool,
     /// the card is up; and whether its first button adds RustyShelf to Steam
     showing: Option<bool>,
-    adding: Option<Mutex<Receiver<String>>>,
+    adding: Option<Later<String>>,
 }
 
 pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut hint: ResMut<DeckHint>, mut card: ResMut<Card>, mut settings: ResMut<Settings>, playing: Res<Playing>, mut toast: ResMut<Toast>) {
     let now = time.elapsed_secs();
-    if let Some(said) = hint.adding.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+    if let Some(said) = hint.adding.as_ref().and_then(Later::poll) {
         hint.adding = None;
         toast.show(said, now, 8.0);
     }
@@ -84,7 +80,7 @@ pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut hint: ResMut<DeckHint>, mu
         match o {
             Outcome::Picked(0) if can_add => {
                 toast.show("Adding RustyShelf to Steam (Steam closes and opens again)…", now, 30.0);
-                hint.adding = Some(Mutex::new(add(true)));
+                hint.adding = Some(add(true));
             }
             Outcome::Picked(1) => toast.show("You can add it any time in Settings → System.", now, 5.0),
             _ => {}

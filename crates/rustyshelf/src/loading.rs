@@ -13,11 +13,13 @@ use rustyshelf_core::library::{Library, ShelfKind};
 use rustyshelf_core::scanner::{Game, Source, Tile};
 use rustyshelf_core::looks::Look;
 
+use crate::threads::Later;
+
 /// Box art is shown at most this tall: plenty for a box on a TV, and a few hundred covers stay within GPU memory.
 const ART_HEIGHT: u32 = 512;
 
 pub enum LibraryState {
-    Loading(Mutex<Receiver<Result<Library, LoadError>>>),
+    Loading(Later<Result<Library, LoadError>>),
     Ready(Library),
     Failed(String),
 }
@@ -180,7 +182,7 @@ fn put_shown(lib: &mut LibraryRes, fresh: Library, cursor: &mut crate::shelf::Cu
 
 /// The library being read again behind the shelf, after its lists or sizes changed.
 #[derive(Resource, Default)]
-pub struct Refresh(Option<Mutex<Receiver<Library>>>);
+pub struct Refresh(Option<Later<Option<Library>>>);
 
 /// Set from any thread when what's on disk changed behind the shelf: the library is read again.
 pub static STALE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -228,23 +230,11 @@ pub fn read_again(refresh: &mut Refresh, root: &std::path::Path) -> bool {
 
 /// Reads the library again behind the shelf when `first`, run on the same thread, says to.
 fn read_again_if(refresh: &mut Refresh, root: std::path::PathBuf, first: impl FnOnce() -> bool + Send + 'static) {
-    let (tx, rx) = channel();
-    thread::spawn(move || {
-        if first() {
-            if let Ok(fresh) = Library::load_from(&root) {
-                let _ = tx.send(fresh);
-            }
-        }
-    });
-    refresh.0 = Some(Mutex::new(rx));
+    refresh.0 = Some(Later::spawn(move || if first() { Library::load_from(&root).ok() } else { None }));
 }
 
 pub fn start_library() -> LibraryRes {
-    let (tx, rx) = channel();
-    thread::spawn(move || {
-        let _ = tx.send(Library::load());
-    });
-    LibraryRes(LibraryState::Loading(Mutex::new(rx)))
+    LibraryRes(LibraryState::Loading(Later::spawn(Library::load)))
 }
 
 pub fn poll_library(
@@ -261,8 +251,8 @@ pub fn poll_library(
             re.ask(b, &plays.0);
         }
     }
-    if let LibraryState::Loading(rx) = &lib.0 {
-        let got = rx.lock().unwrap().try_recv();
+    if let LibraryState::Loading(loading) = &lib.0 {
+        let got = loading.try_recv();
         match got {
             Ok(Ok(l)) => {
                 // what the shelves want from outside comes in behind them; a library that shows more is read again
@@ -281,9 +271,9 @@ pub fn poll_library(
         }
         return;
     }
-    let fresh = refresh.0.as_ref().map(|rx| rx.lock().unwrap().try_recv());
+    let fresh = refresh.0.as_ref().map(Later::try_recv);
     match fresh {
-        Some(Ok(fresh)) => {
+        Some(Ok(Some(fresh))) => {
             let l = shown(&fresh, &plays.0);
             base.0 = Some(std::sync::Arc::new(fresh));
             re.forget();
@@ -301,7 +291,7 @@ pub fn poll_library(
             refresh.0 = None;
             lib.0 = LibraryState::Ready(l);
         }
-        Some(Err(std::sync::mpsc::TryRecvError::Disconnected)) => refresh.0 = None,
+        Some(Ok(None) | Err(std::sync::mpsc::TryRecvError::Disconnected)) => refresh.0 = None,
         _ => {}
     }
 }

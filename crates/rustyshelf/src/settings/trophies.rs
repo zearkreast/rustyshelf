@@ -18,10 +18,10 @@ pub(super) struct Trophies {
     data: Option<Value>,
     tab: usize,
     from: usize,
-    loading: Option<Mutex<Receiver<Result<Value, String>>>>,
+    loading: Option<Later<Result<Value, String>>>,
     /// the game opened from the list: its source, id, title, and its achievements once they're here
     game: Option<(String, String, String, Option<Got>)>,
-    game_rx: Option<Mutex<Receiver<Got>>>,
+    game_rx: Option<Later<Got>>,
     /// the achievement opened: it, its game's title and release year
     pub(super) one: Option<(Value, String, Option<String>)>,
 }
@@ -71,8 +71,7 @@ impl Settings {
             self.say("Sign in to RetroAchievements, add a Steam Web API key under Accounts, or set up RPCS3 for PS3 first.".into());
             return;
         }
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
+        self.trophies.loading = Some(Later::spawn(move || {
             ra.set_credentials(&user, &key);
             let mut errs = Vec::new();
             let (r, s) = std::thread::scope(|sc| {
@@ -86,14 +85,12 @@ impl Settings {
             });
             let (r, s) = (keep(r), keep(s));
             let (games, recent) = ps3.map(|exe| rustyshelf_core::rpcs3troph::all(&exe, rustyshelf_core::now_ms() as i64, 30)).unwrap_or_default();
-            let got = match steamach::combine(r, s, &errs) {
+            match steamach::combine(r, s, &errs) {
                 Err(_) if !games.is_empty() => Ok(steamach::add_rpcs3(None, games, recent)),
                 Ok(d) => Ok(steamach::add_rpcs3(Some(d), games, recent)),
                 Err(e) => Err(e),
-            };
-            let _ = tx.send(got);
-        });
-        self.trophies.loading = Some(Mutex::new(rx));
+            }
+        }));
         if !force {
             self.trophies.tab = 0;
         }
@@ -126,34 +123,29 @@ impl Settings {
 
     /// A game from the list, opened on its achievements.
     fn open_trophy_game(&mut self, src: String, id: String, title: String) {
-        let (tx, rx) = channel();
         let data = paths::data_dir(&self.app_root);
-        match src.as_str() {
+        let got = match src.as_str() {
             "ra" => {
                 let (ra, (user, key)) = (self.ra.clone(), self.ra_account());
                 let Ok(n) = id.parse::<u64>() else { return };
-                std::thread::spawn(move || {
+                Later::spawn(move || {
                     ra.set_credentials(&user, &key);
-                    let _ = tx.send(ra.game(n, false));
-                });
+                    ra.game(n, false)
+                })
             }
             "steam" => {
                 let steam = SteamAch::new(&data, &self.api_key("steamweb"), rustyshelf_core::steam::main_root(&self.text(&["steam", "path"])));
                 let appid = id.trim_start_matches("steam-").to_string();
-                std::thread::spawn(move || {
-                    let _ = tx.send(steam.game(&appid, false));
-                });
+                Later::spawn(move || steam.game(&appid, false))
             }
             _ => {
                 let Some(exe) = self.own_ach_emulator("ps3") else { return };
                 let set = id.clone();
-                std::thread::spawn(move || {
-                    let _ = tx.send(Ok(rustyshelf_core::rpcs3troph::set(&exe, &set, rustyshelf_core::now_ms() as i64)));
-                });
+                Later::spawn(move || Ok(rustyshelf_core::rpcs3troph::set(&exe, &set, rustyshelf_core::now_ms() as i64)))
             }
-        }
+        };
         self.trophies.game = Some((src, id, title, None));
-        self.trophies.game_rx = Some(Mutex::new(rx));
+        self.trophies.game_rx = Some(got);
         self.go(Screen::TrophyGame);
     }
 
@@ -164,14 +156,14 @@ impl Settings {
     }
 
     pub(super) fn poll_trophies(&mut self) {
-        if let Some(got) = self.trophies.game_rx.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(got) = self.trophies.game_rx.as_ref().and_then(Later::poll) {
             self.trophies.game_rx = None;
             if let Some(g) = self.trophies.game.as_mut() {
                 g.3 = Some(got);
             }
             self.redraw = true;
         }
-        let Some(got) = self.trophies.loading.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) else { return };
+        let Some(got) = self.trophies.loading.as_ref().and_then(Later::poll) else { return };
         self.trophies.loading = None;
         match got {
             Ok(d) => {

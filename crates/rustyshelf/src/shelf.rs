@@ -21,6 +21,7 @@ use rustyshelf_core::themefx as themes_fx;
 use rustyshelf_core::themes;
 
 use crate::loading::{to_image, Art, ArtLoader, LibraryRes, LibraryState};
+use crate::threads::Later;
 
 /// How far the eye is from the shelf, and how far down the window it looks (style.css: #scene's perspective).
 const EYE: f32 = 1800.0;
@@ -551,13 +552,13 @@ struct WallJob {
 #[derive(Resource, Default)]
 pub struct Customs {
     list: Vec<(rustyshelf_core::customthemes::Custom, f64)>,
-    looking: Option<Mutex<Receiver<Vec<(rustyshelf_core::customthemes::Custom, f64)>>>>,
+    looking: Option<Later<Vec<(rustyshelf_core::customthemes::Custom, f64)>>>,
     looked: bool,
 }
 
 /// Looks for the custom themes at the start, and again when Settings asks.
 pub fn customs(mut found: ResMut<Customs>, mut settings: ResMut<crate::settings::Settings>) {
-    if let Some(list) = found.looking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(list) = found.looking.as_ref().and_then(Later::poll) {
         settings.custom_themes = list.iter().map(|(t, _)| (t.id.clone(), t.name.clone())).collect();
         (found.list, found.looking) = (list, None);
     }
@@ -565,13 +566,11 @@ pub fn customs(mut found: ResMut<Customs>, mut settings: ResMut<crate::settings:
         return;
     }
     (found.looked, settings.reload_themes) = (true, false);
-    let (tx, rx) = channel();
-    found.looking = Some(Mutex::new(rx));
-    std::thread::spawn(move || {
+    found.looking = Some(Later::spawn(move || {
         let root = rustyshelf_core::customthemes::root(&rustyshelf_core::paths::app_root());
         let mut shelves: Vec<&str> = rustyshelf_core::systems::systems().consoles.iter().map(|c| c.id.as_str()).collect();
         shelves.extend(["home", "media"]);
-        let list = rustyshelf_core::customthemes::list(&root, &shelves)
+        rustyshelf_core::customthemes::list(&root, &shelves)
             .into_iter()
             .map(|t| {
                 // the glow takes the theme's accent, or the picture's average colour
@@ -583,9 +582,8 @@ pub fn customs(mut found: ResMut<Customs>, mut settings: ResMut<crate::settings:
                 let hue = themes::hex_hue(accent.as_deref().unwrap_or("#6b8cff"));
                 (t, hue)
             })
-            .collect();
-        let _ = tx.send(list);
-    });
+            .collect()
+    }));
 }
 
 /// A custom theme's picture, read and scaled to cover `pixels`: its red, green and blue, and its size. A softened

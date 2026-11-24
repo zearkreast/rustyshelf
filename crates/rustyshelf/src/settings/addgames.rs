@@ -25,15 +25,15 @@ struct Item {
 /// What Custom games keeps of games being added.
 #[derive(Default)]
 pub(super) struct Adding {
-    several: Option<Mutex<Receiver<Vec<PathBuf>>>>,
-    scanning: Option<Mutex<Receiver<Scan>>>,
+    several: Option<Later<Vec<PathBuf>>>,
+    scanning: Option<Later<Scan>>,
     list: Vec<Item>,
     /// the folders a scan got no game from, each with why
     skipped: Vec<(String, &'static str)>,
     /// Playnite, once looked for; its library being read; what it comes to, and which of its parts are ticked
     /// ("pc" and consoles' ids)
     playnite: Option<Option<Playnite>>,
-    reading: Option<Mutex<Receiver<Result<Value, String>>>>,
+    reading: Option<Later<Result<Value, String>>>,
     plan: Option<Value>,
     ticked: HashSet<String>,
 }
@@ -64,19 +64,12 @@ impl Settings {
     }
 
     pub(super) fn pick_several(&mut self) {
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(crate::dialog::pick_files("Choose the games' programs (hold Ctrl to pick several)"));
-        });
-        self.adding.several = Some(Mutex::new(rx));
+        self.adding.several = Some(Later::spawn(|| crate::dialog::pick_files("Choose the games' programs (hold Ctrl to pick several)")));
     }
 
     pub(super) fn scan_games(&mut self, root: &Path) {
-        let (root, (tx, rx)) = (root.to_path_buf(), channel());
-        std::thread::spawn(move || {
-            let _ = tx.send(addgames::scan_folder(&root, 2000));
-        });
-        self.adding.scanning = Some(Mutex::new(rx));
+        let root = root.to_path_buf();
+        self.adding.scanning = Some(Later::spawn(move || addgames::scan_folder(&root, 2000)));
         self.say("Looking…".into());
     }
 
@@ -87,25 +80,20 @@ impl Settings {
             return;
         };
         self.adding.playnite = Some(Some(found.clone()));
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(addgames::read(&found).map(|lib| addgames::plan(&lib, &found)));
-        });
-        self.adding.reading = Some(Mutex::new(rx));
+        self.adding.reading = Some(Later::spawn(move || addgames::read(&found).map(|lib| addgames::plan(&lib, &found))));
         self.say("Reading Playnite's library…".into());
     }
 
     /// What the dialogs and the threads came back with since the last frame.
     pub(super) fn poll_adding(&mut self) {
-        let take = |rx: &Option<Mutex<Receiver<Vec<PathBuf>>>>| rx.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok());
-        if let Some(files) = take(&self.adding.several) {
+        if let Some(files) = self.adding.several.as_ref().and_then(Later::poll) {
             self.adding.several = None;
             if !files.is_empty() {
                 self.adding.skipped.clear();
                 self.found(files.iter().map(|f| (addgames::title_for(f, None), f.to_string_lossy().into_owned(), String::new(), None)).collect());
             }
         }
-        if let Some(scan) = self.adding.scanning.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(scan) = self.adding.scanning.as_ref().and_then(Later::poll) {
             self.adding.scanning = None;
             self.note.clear();
             if let Some(why) = scan.error {
@@ -115,7 +103,7 @@ impl Settings {
             self.adding.skipped = scan.skipped.into_iter().map(|s| (s.1, s.2)).collect();
             self.found(scan.games.into_iter().map(|g| (g.title, g.exe.to_string_lossy().into_owned(), g.group.unwrap_or_default(), g.cover)).collect());
         }
-        if let Some(read) = self.adding.reading.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(read) = self.adding.reading.as_ref().and_then(Later::poll) {
             self.adding.reading = None;
             match read {
                 Ok(plan) => {

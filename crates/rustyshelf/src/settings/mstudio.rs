@@ -23,7 +23,7 @@ pub(super) struct MStudio {
     pref: String,
     can_undo: bool,
     /// what's being done, and how it ends: the pages put in and whether only the first were kept
-    working: Option<(String, Mutex<Receiver<Result<(usize, bool), String>>>)>,
+    working: Option<(String, Later<Result<(usize, bool), String>>)>,
 }
 
 fn lang_name(l: &str) -> &str {
@@ -78,11 +78,7 @@ impl Settings {
     fn manual_studio_work(&mut self, what: &str, work: impl FnOnce(&std::path::Path, &rustyshelf_core::manualcoll::Game) -> Result<(usize, bool), String> + Send + 'static) {
         let Some(g) = self.manual_game().filter(|_| self.mstudio.working.is_none()) else { return };
         let data = paths::data_dir(&self.app_root);
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(work(&data, &g));
-        });
-        self.mstudio.working = Some((what.to_string(), Mutex::new(rx)));
+        self.mstudio.working = Some((what.to_string(), Later::spawn(move || work(&data, &g))));
         self.redraw = true;
     }
 
@@ -116,7 +112,7 @@ impl Settings {
         if let Some(offline) = ended {
             (self.mstudio.searching, self.mstudio.offline) = (None, offline);
         }
-        let Some(done) = self.mstudio.working.as_ref().and_then(|w| w.1.lock().unwrap().try_recv().ok()) else { return };
+        let Some(done) = self.mstudio.working.as_ref().and_then(|w| w.1.poll()) else { return };
         self.mstudio.working = None;
         match done {
             Ok((n, cut)) => {

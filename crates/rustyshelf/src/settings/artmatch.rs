@@ -16,7 +16,7 @@ pub(super) struct ArtMatchState {
     /// what was looked up last, and what came of it (the matches, and whether the LaunchBox index is built)
     q: String,
     found: Option<(Vec<ArtMatch>, bool)>,
-    looking: Option<Mutex<Receiver<(Vec<ArtMatch>, bool)>>>,
+    looking: Option<Later<(Vec<ArtMatch>, bool)>>,
 }
 
 impl Settings {
@@ -50,15 +50,12 @@ impl Settings {
         let Some(sys) = self.chosen.as_ref().map(|c| c.console.clone()).filter(|_| !term.is_empty()) else { return };
         let cache = paths::boxart_cache(&paths::data_dir(&self.app_root));
         let q: String = term.chars().take(120).collect();
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(boxart::art_matches(&cache, &sys, &q));
-        });
-        (self.art_match.q, self.art_match.found, self.art_match.looking, self.redraw) = (term, None, Some(Mutex::new(rx)), true);
+        let looking = Later::spawn(move || boxart::art_matches(&cache, &sys, &q));
+        (self.art_match.q, self.art_match.found, self.art_match.looking, self.redraw) = (term, None, Some(looking), true);
     }
 
     pub(super) fn poll_art_match(&mut self) {
-        if let Some(found) = self.art_match.looking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+        if let Some(found) = self.art_match.looking.as_ref().and_then(Later::poll) {
             (self.art_match.found, self.art_match.looking, self.redraw) = (Some(found), None, true);
         }
     }

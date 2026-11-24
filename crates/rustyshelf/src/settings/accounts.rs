@@ -138,16 +138,12 @@ impl Settings {
 
     /// `work` on its own thread, its answer picked up by poll_ra.
     fn answer_later(&mut self, work: impl FnOnce() -> RaAnswer + Send + 'static) {
-        let (tx, rx) = std::sync::mpsc::channel();
-        self.ra_answer = Some(Mutex::new(rx));
-        std::thread::spawn(move || {
-            let _ = tx.send(work());
-        });
+        self.ra_answer = Some(Later::spawn(work));
     }
 
     /// What the site answered since the last frame.
     pub(super) fn poll_ra(&mut self) {
-        let Some(answer) = self.ra_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some(answer) = self.ra_answer.as_ref().and_then(Later::poll) else { return };
         self.ra_answer = None;
         match answer {
             RaAnswer::Tested(Ok(said)) => self.say(said),
@@ -454,9 +450,7 @@ impl Settings {
         }
         let (sys, file, title, region, id) = (c.console.clone(), c.game.file.clone(), c.game.title.clone(), c.game.region.clone(), c.game.id.clone());
         let (data, art_region) = (paths::data_dir(&self.app_root), self.art_region());
-        let (tx, rx) = std::sync::mpsc::channel();
-        self.shots_answer = Some(Mutex::new(rx));
-        std::thread::spawn(move || {
+        self.shots_answer = Some(Later::spawn(move || {
             use rustyshelf_core::moreshots::{self, Source};
             let (cfg, seal) = (rustyshelf_core::config::Config::load(&data).ok(), seal::key(&paths::env_var));
             let ss = cfg.as_ref().and_then(|c| ScreenScraper::from_config(c, &data, seal.as_ref()));
@@ -468,13 +462,13 @@ impl Settings {
             let mut index = moreshots::Index::load(&data);
             let lb = |u: &str| u.starts_with(rustyshelf_core::covers::LB_IMG).then(|| rustyshelf_core::net::get(u, std::time::Duration::from_secs(30), 32 << 20, "RustyShelf").ok()).flatten().filter(|r| r.0 == 200).map(|r| r.1);
             moreshots::top_up(&mut index, &sys, &moreshots::Game { file: &file, title: &title, region: &region }, &base, &sources, &lb);
-            let _ = tx.send((id, index.list(&sys, &file, &title, &base)));
-        });
+            (id, index.list(&sys, &file, &title, &base))
+        }));
     }
 
     /// The chosen game's screenshots, since the last frame; kept for when its Details opens again.
     pub(super) fn poll_more_shots(&mut self) {
-        let Some((id, shots)) = self.shots_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some((id, shots)) = self.shots_answer.as_ref().and_then(Later::poll) else { return };
         self.shots_answer = None;
         if let Some(c) = self.chosen.as_mut().filter(|c| c.game.id == id && c.game.info.as_ref().map_or(0, |i| i.shots.len()) < shots.len()) {
             c.game.info.get_or_insert_with(Default::default).shots = shots.clone();
@@ -489,20 +483,17 @@ impl Settings {
         let Some(c) = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom && rustyshelf_core::igdb::gaps(c.game.info.as_ref())) else { return };
         let (sys, file, title, id, mut info) = (c.console.clone(), c.game.file.clone(), c.game.title.clone(), c.game.id.clone(), c.game.info.clone().unwrap_or_default());
         let data = paths::data_dir(&self.app_root);
-        let (tx, rx) = std::sync::mpsc::channel();
-        self.igdb_answer = Some(Mutex::new(rx));
-        std::thread::spawn(move || {
+        self.igdb_answer = Some(Later::spawn(move || {
             let client = rustyshelf_core::igdb::Igdb::from_settings(&data);
-            if rustyshelf_core::igdb::lookup_info(client.as_ref(), &data, &sys, &file, &title, &mut info) {
-                let _ = tx.send((id, info));
-            }
-        });
+            rustyshelf_core::igdb::lookup_info(client.as_ref(), &data, &sys, &file, &title, &mut info).then_some((id, info))
+        }));
     }
 
     /// IGDB's answer for the chosen game, since the last frame.
     pub(super) fn poll_igdb(&mut self) {
-        let Some((id, info)) = self.igdb_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some(answer) = self.igdb_answer.as_ref().and_then(Later::poll) else { return };
         self.igdb_answer = None;
+        let Some((id, info)) = answer else { return };
         if let Some(c) = self.chosen.as_mut().filter(|c| c.game.id == id) {
             c.game.info = Some(info);
             self.redraw = true;
@@ -516,19 +507,15 @@ impl Settings {
         self.achievements = None;
         if let Some(exe) = self.own_ach_emulator(&shelf) {
             let (file, title_id, cache) = (c.game.file.clone(), c.game.title_id.clone().unwrap_or_default(), paths::data_dir(&self.app_root).join("trophy-packs"));
-            let (tx, rx) = std::sync::mpsc::channel();
-            self.ra_answer = Some(Mutex::new(rx));
-            std::thread::spawn(move || {
+            self.answer_later(move || {
                 let got = if shelf == "x360" { xeniaach::progress(&exe, &title_id, &paths::env_var) } else { rpcs3troph::progress(&exe, &title, &file, Some(&cache), rustyshelf_core::now_ms() as i64) };
-                let _ = tx.send(RaAnswer::Progress(id, Ok(got)));
+                RaAnswer::Progress(id, Ok(got))
             });
             return;
         }
         if let Some(appid) = self.steam_app().map(String::from) {
             let (given, data) = (self.text(&["steam", "path"]), paths::data_dir(&self.app_root));
-            let (tx, rx) = std::sync::mpsc::channel();
-            self.ra_answer = Some(Mutex::new(rx));
-            std::thread::spawn(move || {
+            self.answer_later(move || {
                 let root = rustyshelf_core::steam::main_root(&given);
                 let mut got = root.as_deref().and_then(|r| rustyshelf_core::pcach::steam_progress_named(r, &appid));
                 if let Some(p) = got.as_mut() {
@@ -552,7 +539,7 @@ impl Settings {
                         (p["points"], p["pointsEarned"]) = (json!(total.0), json!(total.1));
                     }
                 }
-                let _ = tx.send(RaAnswer::Progress(id, Ok(got)));
+                RaAnswer::Progress(id, Ok(got))
             });
             return;
         }

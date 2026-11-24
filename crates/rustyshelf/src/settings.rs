@@ -24,6 +24,7 @@ use serde_json::{json, Value};
 use crate::hud::Face;
 use crate::loading::{self, Base, LibraryRes, LibraryState};
 use crate::shelf::Cursor;
+use crate::threads::Later;
 
 mod accounts;
 pub use accounts::{AchFrom, AchGame};
@@ -164,7 +165,7 @@ fn other_setup(app_root: &Path) -> Option<rustyshelf_core::keepsetup::Install> {
 /// A job on its own thread that says what it's at while it runs, then how it ended.
 struct Staged {
     stage: std::sync::Arc<Mutex<String>>,
-    ended: Mutex<Receiver<Result<(), String>>>,
+    ended: Later<Result<(), String>>,
 }
 
 impl Staged {
@@ -172,11 +173,7 @@ impl Staged {
     fn spawn(first: &str, work: impl FnOnce(&dyn Fn(String)) -> Result<(), String> + Send + 'static) -> Staged {
         let stage = std::sync::Arc::new(Mutex::new(first.to_string()));
         let at = stage.clone();
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(work(&|s| *at.lock().unwrap() = s));
-        });
-        Staged { stage, ended: Mutex::new(rx) }
+        Staged { stage, ended: Later::spawn(move || work(&|s| *at.lock().unwrap() = s)) }
     }
 
     fn stage(&self) -> String {
@@ -185,7 +182,7 @@ impl Staged {
 
     /// How it ended, once it has: a thread that died ends it with "it stopped".
     fn poll(&self) -> Option<Result<(), String>> {
-        match self.ended.lock().unwrap().try_recv() {
+        match self.ended.try_recv() {
             Ok(r) => Some(r),
             Err(TryRecvError::Disconnected) => Some(Err("it stopped".into())),
             Err(TryRecvError::Empty) => None,
@@ -332,10 +329,10 @@ pub struct Settings {
     /// the pages gone through, each with its cursor
     stack: Vec<(Screen, usize)>,
     found: Option<Detected>,
-    looking: Option<Mutex<Receiver<Detected>>>,
+    looking: Option<Later<Detected>>,
     /// the drives a search can look through, and whether each is ticked
     drives: Vec<(rustyshelf_core::detect::Drive, bool)>,
-    picking: Option<(Pick, Mutex<Receiver<Option<PathBuf>>>)>,
+    picking: Option<(Pick, Later<Option<PathBuf>>)>,
     redraw: bool,
     /// something was saved since Settings opened: the shelves are read again when it closes
     changed: bool,
@@ -401,15 +398,15 @@ pub struct Settings {
     art_match: artmatch::ArtMatchState,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
-    ra_answer: Option<Mutex<Receiver<accounts::RaAnswer>>>,
+    ra_answer: Option<Later<accounts::RaAnswer>>,
     /// IGDB's info for the chosen game, asked when Details opened with gaps in it: the game's id and its info filled
-    igdb_answer: Option<Mutex<Receiver<(String, rustyshelf_core::info::Info)>>>,
+    igdb_answer: Option<Later<Option<(String, rustyshelf_core::info::Info)>>>,
     /// more screenshots: the games asked for this run, the answer on its way, and what came
     shots_asked: std::collections::HashSet<String>,
-    shots_answer: Option<Mutex<Receiver<(String, Vec<String>)>>>,
+    shots_answer: Option<Later<(String, Vec<String>)>>,
     /// consoles whose emulator needs a BIOS it hasn't got: id, name, the emulator's name
     bios_needs: Vec<(String, String, String)>,
-    bios_answer: Option<Mutex<Receiver<Vec<(String, String, String)>>>>,
+    bios_answer: Option<Later<Vec<(String, String, String)>>>,
     more_shots: std::collections::HashMap<String, Vec<String>>,
     /// the achievements last asked for: the game's id, and what came back
     achievements: Option<(String, Result<Option<Value>, String>)>,
@@ -1204,12 +1201,8 @@ impl Settings {
         if self.looking.is_some() {
             return;
         }
-        let (tx, rx) = channel();
         let root = self.app_root.clone();
-        std::thread::spawn(move || {
-            let _ = tx.send(Detector::new(&root).detect_with(&drives));
-        });
-        self.looking = Some(Mutex::new(rx));
+        self.looking = Some(Later::spawn(move || Detector::new(&root).detect_with(&drives)));
         self.redraw = true;
     }
 
@@ -1259,17 +1252,17 @@ impl Settings {
         if self.picking.is_some() {
             return;
         }
-        let (tx, rx) = channel();
         let title = title.to_string();
-        std::thread::spawn(move || {
-            // RUSTYSHELF_PICK answers instead of the dialog: for trying these pages where there's no desktop
-            if let Some(answer) = std::env::var_os("RUSTYSHELF_PICK") {
-                let _ = tx.send(Some(PathBuf::from(answer)));
-                return;
-            }
-            let _ = tx.send(if folder { crate::dialog::pick_folder(&title) } else { crate::dialog::pick_file(&title, false) });
-        });
-        self.picking = Some((what, Mutex::new(rx)));
+        self.picking = Some((
+            what,
+            Later::spawn(move || {
+                // RUSTYSHELF_PICK answers instead of the dialog: for trying these pages where there's no desktop
+                if let Some(answer) = std::env::var_os("RUSTYSHELF_PICK") {
+                    return Some(PathBuf::from(answer));
+                }
+                if folder { crate::dialog::pick_folder(&title) } else { crate::dialog::pick_file(&title, false) }
+            }),
+        ));
     }
 
     fn picked(&mut self, what: Pick, path: &Path) {
@@ -3008,7 +3001,7 @@ pub fn input(
     }
 
     // what came back from a search or a dialog
-    let found = s.looking.as_ref().map(|rx| rx.lock().unwrap().try_recv());
+    let found = s.looking.as_ref().map(Later::try_recv);
     match found {
         Some(Ok(d)) => {
             s.looking = None;
@@ -3025,7 +3018,7 @@ pub fn input(
         }
         _ => {}
     }
-    let picked = s.picking.as_ref().map(|(_, rx)| rx.lock().unwrap().try_recv());
+    let picked = s.picking.as_ref().map(|(_, job)| job.try_recv());
     match picked {
         Some(Ok(path)) => {
             let (what, _) = s.picking.take().expect("a dialog");

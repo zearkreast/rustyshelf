@@ -13,6 +13,7 @@ use rustyshelf_core::scanner::{Game, Source, Tile};
 use crate::loading::{to_image, LibraryRes, LibraryState};
 use crate::play::Playing;
 use crate::shelf::{Cursor, Stage};
+use crate::threads::Later;
 
 const INK: Color = Color::srgb(0.953, 0.961, 0.984);
 const INK_DIM: Color = Color::srgba(0.953, 0.961, 0.984, 0.62);
@@ -124,7 +125,7 @@ pub struct Prompts {
     /// the controllers there were when the real ones plugged in were last asked for, those, and an answer on its way
     pads: usize,
     real: Vec<pads::Real>,
-    asking: Option<Mutex<Receiver<Vec<pads::Real>>>>,
+    asking: Option<Later<Vec<pads::Real>>>,
 }
 
 pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
@@ -632,13 +633,9 @@ pub fn hints(
     let count = gamepads.iter().count();
     if count != prompts.pads && prompts.asking.is_none() {
         prompts.pads = count;
-        let (tx, rx) = channel();
-        prompts.asking = Some(Mutex::new(rx));
-        std::thread::spawn(move || {
-            let _ = tx.send(pads::list());
-        });
+        prompts.asking = Some(Later::spawn(pads::list));
     }
-    if let Some(real) = prompts.asking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(real) = prompts.asking.as_ref().and_then(Later::poll) {
         (prompts.asking, prompts.real) = (None, real);
     }
     // (before any press, the first controller there is)

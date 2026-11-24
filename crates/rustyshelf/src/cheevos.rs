@@ -2,8 +2,6 @@
 //! come back from.
 
 use std::collections::HashMap;
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::Mutex;
 
 use bevy::prelude::*;
 use rustyshelf_core::i18n::plural_s;
@@ -13,6 +11,7 @@ use serde_json::Value;
 
 use crate::loading::{LibraryRes, LibraryState};
 use crate::shelf::Cursor;
+use crate::threads::Later;
 
 enum Answer {
     Shelf(String, Result<Value, String>),
@@ -23,7 +22,7 @@ enum Answer {
 #[derive(Resource, Default)]
 pub struct Cheevos {
     shelves: HashMap<String, Value>,
-    asking: Option<Mutex<Receiver<Answer>>>,
+    asking: Option<Later<Answer>>,
     account: (String, String),
     checked: f32,
     /// a game running: when it started; and when it ended, until what it unlocked has been asked for
@@ -58,7 +57,7 @@ pub fn run(
             c.shelves.clear();
         }
     }
-    if let Some(answer) = c.asking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(answer) = c.asking.as_ref().and_then(Later::poll) {
         c.asking = None;
         match answer {
             // (a shelf that couldn't be read is left empty: asked for again only with another account or start)
@@ -89,12 +88,10 @@ pub fn run(
     let account = c.account.clone();
     let ask = |work: Box<dyn FnOnce(&ra::Ra) -> Answer + Send>| {
         let (site, (user, key)) = (settings.ra(), account.clone());
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
+        Later::spawn(move || {
             site.set_credentials(&user, &key);
-            let _ = tx.send(work(&site));
-        });
-        Mutex::new(rx)
+            work(&site)
+        })
     };
     if let Some((at, played)) = c.ended.filter(|e| now - e.0 >= 4.0) {
         c.ended = None;

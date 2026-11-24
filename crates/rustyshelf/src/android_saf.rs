@@ -5,6 +5,8 @@ use jni::objects::{JObject, JString, JValue};
 use jni::JavaVM;
 use rustyshelf_core::android::DocFile;
 
+use crate::threads::Later;
+
 /// Runs `f` with the activity, on this thread attached to Java for the call.
 fn with_activity<R>(f: impl FnOnce(&mut jni::JNIEnv, &JObject) -> jni::errors::Result<R>) -> Result<R, String> {
     let ctx = ndk_context::android_context();
@@ -88,27 +90,25 @@ fn activities(pkg: &str) -> Vec<String> {
     json_list(&call_string("activities", "(Ljava/lang/String;)Ljava/lang/String;", &[pkg]).unwrap_or_default()).iter().filter_map(|a| a.as_str().map(String::from)).collect()
 }
 
-static STARTED: std::sync::Mutex<Option<(String, std::sync::mpsc::Receiver<Result<(), String>>)>> = std::sync::Mutex::new(None);
+static STARTED: std::sync::Mutex<Option<(String, Later<Result<(), String>>)>> = std::sync::Mutex::new(None);
 
 /// Starts a console's game in its emulator app, off the frame; `poll` tells how it went.
 pub fn start(console: &rustyshelf_core::systems::Console, sc: &rustyshelf_core::config::SystemConfig, game: &rustyshelf_core::scanner::Game) {
-    let (tx, rx) = std::sync::mpsc::channel();
     let (console, sc, game) = (console.clone(), sc.clone(), game.clone());
     let id = game.id.clone();
-    std::thread::spawn(move || {
-        let r = rustyshelf_core::android::launch_request(&console, &sc, &game, &installed(), &activities).and_then(|req| {
+    let started = Later::spawn(move || {
+        rustyshelf_core::android::launch_request(&console, &sc, &game, &installed(), &activities).and_then(|req| {
             let said = call_string("launch", "(Ljava/lang/String;)Ljava/lang/String;", &[&serde_json::to_string(&req).unwrap_or_default()])?;
             if said.is_empty() { Ok(()) } else { Err(said) }
-        });
-        let _ = tx.send(r);
+        })
     });
-    *STARTED.lock().unwrap() = Some((id, rx));
+    *STARTED.lock().unwrap() = Some((id, started));
 }
 
 /// A game started (its launch counted) or why it didn't.
 pub fn poll(mut toast: bevy::prelude::ResMut<crate::hud::Toast>, mut plays: bevy::prelude::ResMut<crate::play::Plays>, mut sounds: bevy::prelude::ResMut<crate::sound::Sounds>, time: bevy::prelude::Res<bevy::prelude::Time>) {
     let mut started = STARTED.lock().unwrap();
-    let Some(r) = started.as_ref().and_then(|(_, rx)| rx.try_recv().ok()) else { return };
+    let Some(r) = started.as_ref().and_then(|(_, job)| job.poll()) else { return };
     let (id, _) = started.take().unwrap();
     match r {
         Ok(()) => plays.0.touch(&id),

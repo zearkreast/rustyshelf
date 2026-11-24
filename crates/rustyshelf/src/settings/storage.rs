@@ -9,7 +9,7 @@ pub(super) struct Storage {
     /// the PC games with a folder, as the library has them
     folders: Vec<Entry>,
     drives: Option<Vec<Drive>>,
-    counting: Option<Mutex<Receiver<Vec<Drive>>>>,
+    counting: Option<Later<Vec<Drive>>>,
 }
 
 /// A size as the Electron app writes it: "12.3 GB", "640 MB".
@@ -48,15 +48,11 @@ impl Settings {
             return;
         }
         let games = self.storage.folders.clone();
-        let (tx, rx) = channel();
-        self.storage.counting = Some(Mutex::new(rx));
-        std::thread::spawn(move || {
-            let _ = tx.send(storage::summary(&games, None, &storage::space));
-        });
+        self.storage.counting = Some(Later::spawn(move || storage::summary(&games, None, &storage::space)));
     }
 
     pub(super) fn poll_storage(&mut self) {
-        let Some(drives) = self.storage.counting.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some(drives) = self.storage.counting.as_ref().and_then(Later::poll) else { return };
         (self.storage.counting, self.storage.drives, self.redraw) = (None, Some(drives), true);
     }
 

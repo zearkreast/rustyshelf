@@ -67,8 +67,6 @@ struct Info {
     bios: Option<Bios>,
 }
 
-type Fetched = Mutex<Receiver<Result<String, String>>>;
-
 #[derive(Default)]
 pub(super) struct SetupState {
     info: Option<Info>,
@@ -76,7 +74,7 @@ pub(super) struct SetupState {
     on: Vec<(&'static str, bool)>,
     plan: Option<Plan>,
     /// a core being downloaded: its percent, and its name or what went wrong at the end
-    core: Option<(Arc<AtomicU32>, u32, Fetched)>,
+    core: Option<(Arc<AtomicU32>, u32, Later<Result<String, String>>)>,
 }
 
 /// An emulator that waits for its first launch to be set up, for the thread that starts it.
@@ -141,9 +139,7 @@ impl Settings {
             .filter(|c| !c.2.is_empty())
             .collect();
         let (cfg, root, data) = (self.cfg.clone(), self.app_root.clone(), paths::data_dir(&self.app_root));
-        let (tx, rx) = channel();
-        self.bios_answer = Some(Mutex::new(rx));
-        std::thread::spawn(move || {
+        self.bios_answer = Some(Later::spawn(move || {
             let setup = Setup { data_dir: data, app_root: root.clone(), var: &paths::env_var };
             let cfg = Config::from_value(&cfg);
             let need: Vec<(String, String, String)> = consoles
@@ -155,12 +151,12 @@ impl Settings {
                     (!b.ok && b.need != Some(racores::Need::Optional)).then(|| (id, name, kind.name().to_string()))
                 })
                 .collect();
-            let _ = tx.send(need);
-        });
+            need
+        }));
     }
 
     pub(super) fn poll_bios_needs(&mut self) {
-        let Some(need) = self.bios_answer.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some(need) = self.bios_answer.as_ref().and_then(Later::poll) else { return };
         (self.bios_answer, self.bios_needs, self.redraw) = (None, need, true);
     }
 
@@ -281,9 +277,9 @@ impl Settings {
 
     /// A core download's progress, and its end.
     pub(super) fn poll_core(&mut self) {
-        let Some((pct, shown, rx)) = &mut self.setup.core else { return };
+        let Some((pct, shown, got)) = &mut self.setup.core else { return };
         let now = pct.load(Ordering::Relaxed);
-        let answer = rx.get_mut().unwrap().try_recv();
+        let answer = got.try_recv();
         if now != *shown {
             *shown = now;
             self.redraw = true;
@@ -472,14 +468,10 @@ impl Settings {
                     if installed || s.setup.core.is_some() {
                         return;
                     }
-                    let (tx, rx) = channel();
                     let pct = Arc::new(AtomicU32::new(0));
                     let (exe, cid, cname, at) = (exe.clone(), cid.clone(), cname.clone(), pct.clone());
-                    std::thread::spawn(move || {
-                        let got = racores::get(&exe, &cid, &paths::env_var, &mut |p| at.store(p, Ordering::Relaxed));
-                        let _ = tx.send(got.map(|_| cname));
-                    });
-                    s.setup.core = Some((pct, 0, Mutex::new(rx)));
+                    let got = Later::spawn(move || racores::get(&exe, &cid, &paths::env_var, &mut |p| at.store(p, Ordering::Relaxed)).map(|_| cname));
+                    s.setup.core = Some((pct, 0, got));
                     s.redraw = true;
                 })),
                 step: None,

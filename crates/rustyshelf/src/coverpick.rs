@@ -7,8 +7,6 @@
 //! frame.
 
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::Mutex;
 
 use bevy::prelude::*;
 use rustyshelf_core::i18n::plural_s;
@@ -20,6 +18,7 @@ use rustyshelf_core::scanner::{Game, Source};
 use crate::hud::MonaSans;
 use crate::loading::to_image;
 use crate::motion::{self, Ease, OUT};
+use crate::threads::Later;
 
 /// The game a picker is asked for: its id, a Steam game's appid, its title, and a title typed in to search under.
 #[derive(Clone, Debug, Default)]
@@ -91,10 +90,10 @@ struct Open {
     items: Vec<Item>,
     at: usize,
     note: String,
-    finding: Option<Mutex<Receiver<Found>>>,
+    finding: Option<Later<Found>>,
     /// the gallery's covers, decoded
-    fronts: Option<Mutex<Receiver<Vec<Decoded>>>>,
-    using: Option<Mutex<Receiver<Result<PathBuf, String>>>>,
+    fronts: Option<Later<Vec<Decoded>>>,
+    using: Option<Later<Result<PathBuf, String>>>,
     built: bool,
     since: f32,
 }
@@ -132,7 +131,7 @@ pub struct CoverPick {
     /// the gallery's coming back once the library has the new cover (since when)
     gallery_wait: Option<f32>,
     after: Option<After>,
-    best: Option<Mutex<Receiver<Best>>>,
+    best: Option<Later<Best>>,
     /// the games "best for each" gave a cover, for Undo
     undo: Vec<String>,
     missing: Option<usize>,
@@ -171,23 +170,22 @@ fn opening(ask: Ask, title: String, game: String, gallery: bool, note: &str, now
 }
 
 fn start(ask: Ask, batch: Option<&Batch>, data: PathBuf, now: f32) -> Open {
-    let (tx, rx) = channel();
     let job = ask.clone();
-    std::thread::spawn(move || {
+    let finding = Later::spawn(move || {
         let cfg = rustyshelf_core::config::Config::load(&data).ok();
         let sg = cfg.as_ref().and_then(|c| rustyshelf_core::steamgrid::SteamGrid::from_config(c, &data, rustyshelf_core::seal::key(&rustyshelf_core::paths::env_var).as_ref()));
         let region = cfg.as_ref().map(|c| c.art_region().to_string()).unwrap_or_default();
         let found = pccovers::options(&data, &job.id, job.appid.as_deref(), if job.term.is_empty() { &job.title } else { &job.term }, !job.term.is_empty(), &region, sg.as_ref());
         let t: Vec<Option<PathBuf>> = found.list.iter().map(|c| Some(c.thumb.clone())).collect();
         let t = decode_all(&t);
-        let _ = tx.send((found, t));
+        (found, t)
     });
     let title = match batch {
         Some(b) => format!("Choose a cover · {} of {}", b.i + 1, b.list.len()),
         None => "Choose a cover".into(),
     };
     let game = ask.title.clone();
-    Open { finding: Some(Mutex::new(rx)), ..opening(ask, title, game, false, "Looking for covers…", now) }
+    Open { finding: Some(finding), ..opening(ask, title, game, false, "Looking for covers…", now) }
 }
 
 /// Where a PC game's cover comes from, as the gallery says it, and its front.
@@ -238,12 +236,9 @@ fn gallery(lib: &Library, data: &std::path::Path, now: f32) -> Option<Open> {
     let made = items.iter().filter(|i| i.made).count();
     let n = items.len();
     let count = format!("{n} game{}{}", plural_s(n), if made > 0 { format!(" · {made} with a made-up case") } else { String::new() });
-    let (tx, rx) = channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(decode_all(&fronts));
-    });
+    let decoding = Later::spawn(move || decode_all(&fronts));
     let mut open = opening(Ask::default(), "Box art · PC games".into(), count, true, "Each game's cover as the shelf shows it, and where it comes from. Pick one to change it.", now);
-    (open.items, open.fronts, open.built) = (items, Some(Mutex::new(rx)), false);
+    (open.items, open.fronts, open.built) = (items, Some(decoding), false);
     Some(open)
 }
 
@@ -323,7 +318,7 @@ pub fn run(
         pick.missing = lib.map(|l| missing(l, &data).len());
     }
     settings.set_cover_state(State { missing: pick.missing, undo: pick.undo.len(), busy: pick.best.is_some() });
-    if let Some(done) = pick.best.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(done) = pick.best.as_ref().and_then(Later::poll) {
         pick.best = None;
         sounds.play("toast", 1);
         let text = match done {
@@ -363,17 +358,12 @@ pub fn run(
             Job::Best if pick.best.is_none() => {
                 let n = list.len();
                 say(&mut settings, &mut toast, format!("Finding covers for {n} game{}…", plural_s(n)), now);
-                let (tx, rx) = channel();
                 let data = data.clone();
-                std::thread::spawn(move || {
-                    let Some(sg) = rustyshelf_core::steamgrid::SteamGrid::from_settings(&data) else {
-                        let _ = tx.send(Best::NoKey);
-                        return;
-                    };
+                pick.best = Some(Later::spawn(move || {
+                    let Some(sg) = rustyshelf_core::steamgrid::SteamGrid::from_settings(&data) else { return Best::NoKey };
                     let got = list.iter().filter_map(|(id, title)| Some((id.clone(), pccovers::use_best(&data, id, title, &sg)?))).collect();
-                    let _ = tx.send(Best::Done(got, list.len()));
-                });
-                pick.best = Some(Mutex::new(rx));
+                    Best::Done(got, list.len())
+                }));
             }
             Job::Best => {}
             Job::Undo => {
@@ -440,7 +430,7 @@ pub fn run(
     settings.keys_taken = true;
     let in_batch = pick.batch.as_ref().map(|b| b.i + 1 < b.list.len());
     // the covers found
-    if let Some(found) = open.finding.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(found) = open.finding.as_ref().and_then(Later::poll) {
         let (found, decoded) = found;
         open.finding = None;
         open.note = note_for(&found, &open.ask.term);
@@ -470,7 +460,7 @@ pub fn run(
         open.built = false;
     }
     // the gallery's covers
-    if let Some(decoded) = open.fronts.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(decoded) = open.fronts.as_ref().and_then(Later::poll) {
         open.fronts = None;
         for (it, d) in open.items.iter_mut().zip(decoded) {
             it.thumb = d.map(|(w, h, data)| images.add(to_image(w, h, data)));
@@ -478,7 +468,7 @@ pub fn run(
         open.built = false;
     }
     // a cover put in place
-    if let Some(done) = open.using.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(done) = open.using.as_ref().and_then(Later::poll) {
         open.using = None;
         match done {
             Ok(path) => {
@@ -552,16 +542,11 @@ pub fn run(
                 }
                 Act::Own => {
                     // (the file dialog waits for the player: off the frame, as a cover being downloaded is)
-                    let (tx, rx) = channel();
                     let (id, data) = (ask.id.clone(), data.clone());
-                    std::thread::spawn(move || {
-                        let got = match crate::dialog::pick_file("Choose a cover", false) {
-                            Some(file) => pccovers::own(&data, &id, &file),
-                            None => Err(String::new()),
-                        };
-                        let _ = tx.send(got);
-                    });
-                    open.using = Some(Mutex::new(rx));
+                    open.using = Some(Later::spawn(move || match crate::dialog::pick_file("Choose a cover", false) {
+                        Some(file) => pccovers::own(&data, &id, &file),
+                        None => Err(String::new()),
+                    }));
                 }
                 Act::Reset => {
                     let gone = pccovers::cover(&data, &ask.id);
@@ -582,12 +567,8 @@ pub fn run(
                     return;
                 }
                 Act::Cover(c) => {
-                    let (tx, rx) = channel();
                     let (c, id, data) = ((**c).clone(), ask.id.clone(), data.clone());
-                    std::thread::spawn(move || {
-                        let _ = tx.send(pccovers::choose(&data, &id, &c));
-                    });
-                    open.using = Some(Mutex::new(rx));
+                    open.using = Some(Later::spawn(move || pccovers::choose(&data, &id, &c)));
                     (open.note, open.built) = ("Downloading the cover…".into(), false);
                 }
             }
@@ -739,7 +720,7 @@ pub fn animate(time: Res<Time>, pick: Res<CoverPick>, mut card: Query<&mut UiTra
 /// a time and never while a game runs; the library is read again when some came in.
 #[derive(Resource, Default)]
 pub struct BoxMaker {
-    work: Option<Mutex<Receiver<usize>>>,
+    work: Option<Later<usize>>,
     playing: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// the library changed while a run was going
     again: bool,
@@ -749,7 +730,7 @@ pub fn make_boxes(mut maker: ResMut<BoxMaker>, base: Res<crate::loading::Base>, 
     let maker = &mut *maker;
     let busy = playing.title.is_some();
     maker.playing.store(busy, std::sync::atomic::Ordering::Relaxed);
-    if let Some(made) = maker.work.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) {
+    if let Some(made) = maker.work.as_ref().and_then(Later::poll) {
         maker.work = None;
         if made > 0 {
             crate::loading::STALE.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -770,10 +751,8 @@ pub fn make_boxes(mut maker: ResMut<BoxMaker>, base: Res<crate::loading::Base>, 
         .map(|g| (g.id.clone(), g.title.clone()))
         .collect();
     let (data, region, playing) = (rustyshelf_core::paths::data_dir(&lib.app_root), lib.config.art_region().to_string(), maker.playing.clone());
-    let (tx, rx) = channel();
-    std::thread::spawn(move || {
+    maker.work = Some(Later::spawn(move || {
         let games: Vec<(&str, &str)> = games.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
-        let _ = tx.send(pccovers::make_console_boxes(&data, &games, &region, &|| !playing.load(std::sync::atomic::Ordering::Relaxed)));
-    });
-    maker.work = Some(Mutex::new(rx));
+        pccovers::make_console_boxes(&data, &games, &region, &|| !playing.load(std::sync::atomic::Ordering::Relaxed))
+    }));
 }

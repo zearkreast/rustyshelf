@@ -10,7 +10,7 @@ use super::*;
 #[derive(Default)]
 pub(super) struct DeckUi {
     info: Option<steamdeck::Info>,
-    adding: Option<Mutex<Receiver<String>>>,
+    adding: Option<Later<String>>,
 }
 
 impl Settings {
@@ -28,7 +28,7 @@ impl Settings {
     }
 
     pub(super) fn poll_deck(&mut self) {
-        let Some(said) = self.deck.adding.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some(said) = self.deck.adding.as_ref().and_then(Later::poll) else { return };
         self.deck.adding = None;
         self.load_deck();
         self.say(said);
@@ -46,7 +46,7 @@ impl Settings {
             ),
             press: Some(Box::new(|s: &mut Settings| {
                 if s.deck.adding.is_none() {
-                    s.deck.adding = Some(Mutex::new(crate::deck::add(false)));
+                    s.deck.adding = Some(crate::deck::add(false));
                     s.redraw = true;
                 }
             })),

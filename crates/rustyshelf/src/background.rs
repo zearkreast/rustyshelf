@@ -4,8 +4,7 @@
 //! screenshots for a game short of them (with box art fetching on; IGDB's alone without it), and IGDB's info for a
 //! game whose details have gaps. What's found is kept on disk; the next scan shows it.
 
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use bevy::prelude::*;
 use rustyshelf_core::library::ShelfKind;
@@ -16,6 +15,7 @@ use rustyshelf_core::{igdb, paths, screenscraper};
 use crate::loading::Base;
 use crate::play::Playing;
 use crate::settings::Settings;
+use crate::threads::Later;
 
 /// seconds without a press before a game is looked up, and between two games
 const QUIET: f32 = 8.0;
@@ -46,7 +46,7 @@ struct Pass {
 pub struct Background {
     queue: Vec<Item>,
     pass: Option<Arc<Pass>>,
-    working: Option<Mutex<Receiver<bool>>>,
+    working: Option<Later<bool>>,
     ss_used: usize,
     next_at: f32,
     looked: usize,
@@ -63,8 +63,8 @@ pub fn run(time: Res<Time>, base: Res<Base>, settings: Res<Settings>, playing: R
             start(&mut bg, lib, &settings);
         }
     }
-    if let Some(rx) = &bg.working {
-        match rx.lock().ok().and_then(|r| r.try_recv().ok()) {
+    if let Some(job) = &bg.working {
+        match job.poll() {
             Some(asked_ss) => {
                 bg.working = None;
                 bg.next_at = now + GAP;
@@ -81,12 +81,8 @@ pub fn run(time: Res<Time>, base: Res<Base>, settings: Res<Settings>, playing: R
     }
     let (Some(item), Some(pass)) = (bg.queue.pop(), bg.pass.clone()) else { return };
     let ss_left = bg.ss_used < SS_LIMIT;
-    let (tx, rx) = channel();
-    bg.working = Some(Mutex::new(rx));
+    bg.working = Some(Later::spawn(move || look(&pass, &item, ss_left)));
     bg.looked += 1;
-    std::thread::spawn(move || {
-        let _ = tx.send(look(&pass, &item, ss_left));
-    });
 }
 
 fn start(bg: &mut Background, lib: &rustyshelf_core::library::Library, settings: &Settings) {

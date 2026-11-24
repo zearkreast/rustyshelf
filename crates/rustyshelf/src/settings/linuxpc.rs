@@ -27,7 +27,7 @@ pub(super) struct EpicUi {
     /// what the downloads have to say since the last frame (an install finished or failed)
     said: Arc<Mutex<Vec<String>>>,
     changed: Arc<AtomicBool>,
-    answer: Option<Mutex<std::sync::mpsc::Receiver<EpicAnswer>>>,
+    answer: Option<Later<EpicAnswer>>,
     /// the account's library as Epic last answered; None until it's asked for
     library: Option<Result<Vec<Owned>, String>>,
     busy: Option<&'static str>,
@@ -104,11 +104,9 @@ impl Settings {
 
     fn epic_ask(&mut self, busy: &'static str, work: impl FnOnce(&std::path::Path) -> EpicAnswer + Send + 'static) {
         let data = paths::data_dir(&self.app_root);
-        let (tx, rx) = std::sync::mpsc::channel();
-        self.epic.answer = Some(Mutex::new(rx));
+        self.epic.answer = Some(Later::spawn(move || work(&data)));
         self.epic.busy = Some(busy);
         self.redraw = true;
-        std::thread::spawn(move || drop(tx.send(work(&data))));
     }
 
     fn epic_library_load(&mut self, force: bool) {
@@ -140,7 +138,7 @@ impl Settings {
         if self.epic.library.is_none() && self.epic.busy.is_none() && self.stack.last().is_some_and(|p| p.0 == Screen::EpicLibrary) {
             self.epic_library_load(false);
         }
-        let got = match self.epic.answer.as_ref().map(|rx| rx.lock().unwrap().try_recv()) {
+        let got = match self.epic.answer.as_ref().map(Later::try_recv) {
             Some(Ok(a)) => a,
             Some(Err(std::sync::mpsc::TryRecvError::Disconnected)) => {
                 (self.epic.answer, self.epic.busy) = (None, None);

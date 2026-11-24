@@ -15,7 +15,7 @@ pub(super) struct Moving {
     what: &'static str,
     control: Arc<Control>,
     progress: Arc<Mutex<Progress>>,
-    done: Mutex<Receiver<Result<String, String>>>,
+    done: Later<Result<String, String>>,
 }
 
 /// What the System page keeps of exports and imports.
@@ -24,7 +24,7 @@ pub(super) struct Moves {
     running: Option<Moving>,
     /// how big an export would be: its bytes and its files, once measured
     size: Option<(u64, u64)>,
-    measuring: Option<Mutex<Receiver<(u64, u64)>>>,
+    measuring: Option<Later<(u64, u64)>>,
     /// an import is in: RustyShelf starts again on the imported settings
     restart_at: Option<Instant>,
 }
@@ -52,16 +52,14 @@ fn left(secs: u64) -> String {
 impl Settings {
     /// The install's folders and its art folders, for a thread: `with(app root, data folder, settings, each
     /// console's art folders, the art library)`.
-    fn on_install<T: Send + 'static>(&self, with: impl FnOnce(&Path, &Path, &Value, &dyn Fn(&str, &Value) -> Vec<PathBuf>, Option<&Path>) -> T + Send + 'static) -> Receiver<T> {
+    fn on_install<T: Send + 'static>(&self, with: impl FnOnce(&Path, &Path, &Value, &dyn Fn(&str, &Value) -> Vec<PathBuf>, Option<&Path>) -> T + Send + 'static) -> Later<T> {
         let (cfg, app_root) = (self.cfg.clone(), self.app_root.clone());
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
+        Later::spawn(move || {
             let config = Config::from_value(&cfg).unwrap_or_default();
             let art = ArtLibrary::from_config(&config, &app_root);
             let art_dirs = |id: &str, _: &Value| systems().console(id).map_or(Vec::new(), |c| art.dirs_for(&config.system(c), &app_root));
-            let _ = tx.send(with(&app_root, &paths::data_dir(&app_root), &cfg, &art_dirs, art.root()));
-        });
-        rx
+            with(&app_root, &paths::data_dir(&app_root), &cfg, &art_dirs, art.root())
+        })
     }
 
     fn start_move(&mut self, what: &'static str, folder: PathBuf) {
@@ -88,7 +86,7 @@ impl Settings {
                 })
             }
         });
-        self.moves.running = Some(Moving { what, control, progress, done: Mutex::new(done) });
+        self.moves.running = Some(Moving { what, control, progress, done });
         self.redraw = true;
     }
 
@@ -112,16 +110,15 @@ impl Settings {
             }
             std::process::exit(0);
         }
-        if let Some(size) = self.moves.measuring.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(size) = self.moves.measuring.as_ref().and_then(Later::poll) {
             (self.moves.size, self.moves.measuring, self.redraw) = (Some(size), None, true);
         }
         let on_page = self.open && self.stack.last().is_some_and(|p| p.0 == Screen::System);
         if on_page && self.moves.size.is_none() && self.moves.measuring.is_none() && self.moves.running.is_none() {
-            let size = self.on_install(|app_root, data_dir, cfg, art_dirs, art_lib| dataexport::export_size(&Install { app_root, data_dir, cfg, art_dirs, art_lib }));
-            self.moves.measuring = Some(Mutex::new(size));
+            self.moves.measuring = Some(self.on_install(|app_root, data_dir, cfg, art_dirs, art_lib| dataexport::export_size(&Install { app_root, data_dir, cfg, art_dirs, art_lib })));
         }
         let Some(m) = &self.moves.running else { return };
-        let ended = m.done.lock().unwrap().try_recv();
+        let ended = m.done.try_recv();
         match ended {
             Ok(result) => {
                 let import = m.what == "import";

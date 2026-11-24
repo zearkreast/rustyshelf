@@ -13,12 +13,12 @@ use super::*;
 pub(super) struct ManualSearch {
     /// the game it's for
     game: String,
-    asking: Option<Mutex<Receiver<Result<Vec<Candidate>, String>>>>,
+    asking: Option<Later<Result<Vec<Candidate>, String>>>,
     found: Option<Result<Vec<Candidate>, String>>,
     /// the pages down and their number, and the download's end
-    getting: Option<(Arc<Mutex<(usize, usize)>>, Mutex<Receiver<Result<Got, String>>>)>,
+    getting: Option<(Arc<Mutex<(usize, usize)>>, Later<Result<Got, String>>)>,
     /// a manual being set aside as another game's, and what came of it
-    rejecting: Option<Mutex<Receiver<Result<Rejected, String>>>>,
+    rejecting: Option<Later<Result<Rejected, String>>>,
     /// each console's choice of manuals and the games whose manual is kept as it is, as the data folder has
     /// them: read when a page first asks
     kept: std::sync::OnceLock<(std::collections::HashMap<String, String>, std::collections::HashSet<String>)>,
@@ -39,11 +39,8 @@ impl Settings {
     pub(super) fn find_manual(&mut self) {
         let Some(c) = &self.chosen else { return };
         let (sys, title, id) = (c.console.clone(), c.game.title.clone(), c.game.id.clone());
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(manuals::search(&Online, &sys, &title).map_err(|e| e.words()));
-        });
-        self.manual_search = ManualSearch { game: id, asking: Some(Mutex::new(rx)), found: None, getting: None, ..Default::default() };
+        let asking = Later::spawn(move || manuals::search(&Online, &sys, &title).map_err(|e| e.words()));
+        self.manual_search = ManualSearch { game: id, asking: Some(asking), found: None, getting: None, ..Default::default() };
         self.go(Screen::Manuals);
     }
 
@@ -53,11 +50,9 @@ impl Settings {
             return;
         }
         let progress = Arc::new(Mutex::new((0, 0)));
-        let (said, (tx, rx)) = (progress.clone(), channel());
-        std::thread::spawn(move || {
-            let _ = tx.send(manuals::download(&Online, &id, &dir, &base, &|done, of| *said.lock().unwrap() = (done, of)));
-        });
-        self.manual_search.getting = Some((progress, Mutex::new(rx)));
+        let said = progress.clone();
+        let got = Later::spawn(move || manuals::download(&Online, &id, &dir, &base, &|done, of| *said.lock().unwrap() = (done, of)));
+        self.manual_search.getting = Some((progress, got));
         self.redraw = true;
     }
 
@@ -128,11 +123,7 @@ impl Settings {
                     }
                     let Some(g) = s.manual_game() else { return };
                     let data = paths::data_dir(&s.app_root);
-                    let (tx, rx) = channel();
-                    std::thread::spawn(move || {
-                        let _ = tx.send(manuals::reject_manual(&Online, &data, &g, &rustyshelf_core::js::date_now));
-                    });
-                    s.manual_search.rejecting = Some(Mutex::new(rx));
+                    s.manual_search.rejecting = Some(Later::spawn(move || manuals::reject_manual(&Online, &data, &g, &rustyshelf_core::js::date_now)));
                     s.redraw = true;
                 })),
                 ..Row::default()
@@ -153,7 +144,7 @@ impl Settings {
 
     /// What the search and the download came back with since the last frame.
     pub(super) fn poll_manuals(&mut self) {
-        if let Some(done) = self.manual_search.rejecting.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(done) = self.manual_search.rejecting.as_ref().and_then(Later::poll) {
             self.manual_search.rejecting = None;
             self.reread_manual();
             self.changed = true;
@@ -164,11 +155,11 @@ impl Settings {
                 Err(why) => why,
             });
         }
-        if let Some(found) = self.manual_search.asking.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+        if let Some(found) = self.manual_search.asking.as_ref().and_then(Later::poll) {
             (self.manual_search.asking, self.manual_search.found, self.redraw) = (None, Some(found), true);
         }
         let Some((_, done)) = &self.manual_search.getting else { return };
-        let ended = done.lock().unwrap().try_recv();
+        let ended = done.try_recv();
         let on_page = self.stack.last().is_some_and(|p| p.0 == Screen::Manuals);
         let got = match ended {
             Ok(got) => got,

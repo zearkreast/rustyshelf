@@ -57,7 +57,7 @@ impl Settings {
 #[derive(Default)]
 pub(super) struct Sw2Ui {
     list: Option<Vec<nx2::Build>>,
-    looking: Option<Mutex<Receiver<Vec<nx2::Build>>>>,
+    looking: Option<Later<Vec<nx2::Build>>>,
     /// the list's rows take an emulator off the list instead of choosing it
     removing: bool,
 }
@@ -77,13 +77,11 @@ impl Settings {
         }
         let Some(cfg) = self.config_now() else { return };
         let root = self.app_root.clone();
-        let (tx, rx) = channel();
-        self.sw2.looking = Some(Mutex::new(rx));
-        std::thread::spawn(move || drop(tx.send(nx2::list_for(&cfg, &root, ""))));
+        self.sw2.looking = Some(Later::spawn(move || nx2::list_for(&cfg, &root, "")));
     }
 
     pub(super) fn poll_sw2(&mut self) {
-        let Some(list) = self.sw2.looking.as_ref().and_then(|rx| rx.lock().ok()?.try_recv().ok()) else { return };
+        let Some(list) = self.sw2.looking.as_ref().and_then(Later::poll) else { return };
         (self.sw2.looking, self.sw2.list, self.redraw) = (None, Some(list), true);
     }
 

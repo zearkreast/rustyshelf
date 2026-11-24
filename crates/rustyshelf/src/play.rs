@@ -18,6 +18,7 @@ use crate::hud::Toast;
 use crate::padwatch::{self, Watch};
 use crate::loading::{LibraryRes, LibraryState};
 use crate::shelf::Cursor;
+use crate::threads::Later;
 
 /// What Kid mode says to something only a grown-up may do.
 pub const KID_SAYS: &str = "Kid mode is on: a grown-up can change this in Settings";
@@ -61,7 +62,7 @@ pub struct Playing {
     pub title: Option<String>,
     id: String,
     /// still being started (a PS5 build's options are asked for first, which can take seconds)
-    starting: Option<Mutex<Receiver<Started>>>,
+    starting: Option<Later<Started>>,
     child: Option<Mutex<Child>>,
     console: String,
     emulator: Option<Emulator>,
@@ -101,11 +102,11 @@ pub struct Playing {
 #[derive(Default)]
 struct BuildPick {
     /// the game the builds are being looked for (its id, file and title)
-    asking: Option<(String, String, String, Mutex<Receiver<nx2::Offer>>)>,
+    asking: Option<(String, String, String, Later<nx2::Offer>)>,
     /// on the card: the game and the builds offered (the row after them adds one)
     shown: Option<(String, String, String, Vec<std::path::PathBuf>)>,
     /// the program picked to add, for that game
-    adding: Option<(String, String, String, Mutex<Receiver<Option<std::path::PathBuf>>>)>,
+    adding: Option<(String, String, String, Later<Option<std::path::PathBuf>>)>,
     /// chosen for a game: its build, or none when there were none to offer
     next: Option<(String, Option<std::path::PathBuf>)>,
     /// Play is pressed for it once the card has let go of the keys
@@ -118,10 +119,8 @@ impl BuildPick {
     }
 
     fn ask(&mut self, cfg: rustyshelf_core::config::Config, id: String, file: String, title: String) {
-        let (tx, rx) = channel();
         let f = file.clone();
-        std::thread::spawn(move || drop(tx.send(nx2::offer(&cfg, &paths::app_root(), &f))));
-        self.asking = Some((id, file, title, Mutex::new(rx)));
+        self.asking = Some((id, file, title, Later::spawn(move || nx2::offer(&cfg, &paths::app_root(), &f))));
     }
 }
 
@@ -507,16 +506,14 @@ pub fn navigate(
             toast.show(settings.epic_offer(&pc.app_name, &g.title, now), now, 6.0);
         }
         (_, Source::Pc(pc)) if launch::is_linux_pc(pc) => {
-            let (tx, rx) = channel();
             let (game, cfg, root) = ((**pc).clone(), l.config.clone(), l.app_root.clone());
-            std::thread::spawn(move || {
-                let started = launch::launch_pc_with(&game, &cfg, &root).and_then(|(child, notice)| {
+            let started = Later::spawn(move || {
+                launch::launch_pc_with(&game, &cfg, &root).and_then(|(child, notice)| {
                     if let Some(n) = notice {
                         info!("{n}");
                     }
                     child.map(|c| (c, String::new(), None)).ok_or_else(|| LaunchError::Refused(format!("{} didn't start.", game.title)))
-                });
-                let _ = tx.send(started);
+                })
             });
             if pc.source == "epic" {
                 toast.show("Getting the game ready with Epic…", now, 6.0);
@@ -524,7 +521,7 @@ pub fn navigate(
             playing.title = Some(g.title.clone());
             playing.id = g.id.clone();
             playing.combo = combo;
-            playing.starting = Some(Mutex::new(rx));
+            playing.starting = Some(started);
         }
         (_, Source::Pc(pc)) => match launch::launch_pc_with(pc, &l.config, &l.app_root) {
             Ok((Some(child), notice)) => {
@@ -577,7 +574,6 @@ pub fn navigate(
                 settings.remember_sw2_build(&shelf_file, b);
             }
             let cfg = if build.is_some() { settings.config_now().unwrap_or_else(|| l.config.clone()) } else { l.config.clone() };
-            let (tx, rx) = channel();
             let (console, sc, file, id, root) = ((**console).clone(), config.clone(), g.file.clone(), g.id.clone(), l.app_root.clone());
             playing.console = console.id.clone();
             let waiting = settings.at_launch();
@@ -586,15 +582,15 @@ pub fn navigate(
                 playing.romm = Some(Downloading { cancel: cancel.clone() });
             }
             playing.line = Some(line.clone());
-            std::thread::spawn(move || {
+            let started = Later::spawn(move || {
                 let data = paths::data_dir(&root);
                 let seal = rustyshelf_core::seal::key(&paths::env_var);
                 let file = match rustyshelf_core::romm::fetch_shelf_game(&cfg, seal.as_ref(), &data, &root, &console.id, &sc.rom_dirs, &file, &mut |t| *line.lock().unwrap() = t, Some(&cancel)) {
                     Some(Ok(got)) => got,
-                    Some(Err(why)) => return drop(tx.send(Err(LaunchError::Refused(why)))),
+                    Some(Err(why)) => return Err(LaunchError::Refused(why)),
                     None => file,
                 };
-                let started = launch::plan(&console, &sc, &file, &id, &cfg, &root, build.as_deref(), &mut |t: &str| *line.lock().unwrap() = t.to_string()).and_then(|p| {
+                launch::plan(&console, &sc, &file, &id, &cfg, &root, build.as_deref(), &mut |t: &str| *line.lock().unwrap() = t.to_string()).and_then(|p| {
                     let exe = p.exe.to_string_lossy().into_owned();
                     let still = waiting.and_then(|w| w.run(&p.exe));
                     if !launch::is_rocket(&exe) {
@@ -611,15 +607,14 @@ pub fn navigate(
                         }
                     })?;
                     Ok((child, exe, still))
-                });
-                let _ = tx.send(started);
+                })
             });
             playing.title = Some(g.title.clone());
             playing.id = g.id.clone();
             let file = g.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             playing.shown = Some((rustyshelf_core::titles::clean_title(&file, false).title, own.name.clone(), image_of(g)));
             playing.combo = combo;
-            playing.starting = Some(Mutex::new(rx));
+            playing.starting = Some(started);
             sounds.play_later("boot", now, 0.7);
             // the console's boot slide covers the emulator starting, unless it's switched off for this console
             if l.config.raw().get("systems").and_then(|s| s.get(&own.id)).and_then(|s| s.get("insertAnim")) != Some(&false.into()) {
@@ -644,15 +639,13 @@ pub fn navigate(
 }
 
 /// The Switch 2 build picker's card, and the shelf's build put right at the start when it's gone.
-pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Card>, mut settings: ResMut<crate::settings::Settings>, mut toast: ResMut<Toast>, time: Res<Time>, mut gone: Local<Option<Mutex<Receiver<Option<nx2::Build>>>>>, mut looked: Local<bool>) {
+pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Card>, mut settings: ResMut<crate::settings::Settings>, mut toast: ResMut<Toast>, time: Res<Time>, mut gone: Local<Option<Later<Option<nx2::Build>>>>, mut looked: Local<bool>) {
     if !std::mem::replace(&mut *looked, true) {
         if let Some(cfg) = settings.config_now() {
-            let (tx, rx) = channel();
-            std::thread::spawn(move || drop(tx.send(nx2::replacement(&cfg, &paths::app_root()))));
-            *gone = Some(Mutex::new(rx));
+            *gone = Some(Later::spawn(move || nx2::replacement(&cfg, &paths::app_root())));
         }
     }
-    if let Some(b) = gone.as_ref().and_then(|rx| rx.lock().unwrap().try_recv().ok()) {
+    if let Some(b) = gone.as_ref().and_then(Later::poll) {
         *gone = None;
         if let Some(b) = b {
             settings.replace_sw2_build(&b);
@@ -667,7 +660,7 @@ pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Ca
         }
         return;
     }
-    let offered = pick.asking.as_ref().map(|a| a.3.lock().unwrap().try_recv());
+    let offered = pick.asking.as_ref().map(|a| a.3.try_recv());
     match offered {
         None | Some(Err(TryRecvError::Empty)) => {}
         Some(Err(TryRecvError::Disconnected)) => pick.asking = None,
@@ -694,7 +687,7 @@ pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Ca
             pick.shown = Some((id, file, title, offer.builds.into_iter().map(|b| b.exe).collect()));
         }
     }
-    if let Some(got) = pick.adding.as_ref().and_then(|a| a.3.lock().unwrap().try_recv().ok()) {
+    if let Some(got) = pick.adding.as_ref().and_then(|a| a.3.poll()) {
         let (id, file, title, _) = pick.adding.take().unwrap();
         if let Some(exe) = got {
             toast.show(settings.add_sw2_build(&exe).err().unwrap_or_else(|| "Emulator added".into()), now, 4.0);
@@ -712,14 +705,13 @@ pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Ca
     match o {
         crate::card::Outcome::Picked(i) if i < exes.len() => (pick.next, pick.go) = (Some((id, Some(exes[i].clone()))), true),
         crate::card::Outcome::Picked(_) => {
-            let (tx, rx) = channel();
-            std::thread::spawn(move || {
+            let got = Later::spawn(|| {
                 if let Some(answer) = std::env::var_os("RUSTYSHELF_PICK") {
-                    return drop(tx.send(Some(answer.into())));
+                    return Some(answer.into());
                 }
-                let _ = tx.send(crate::dialog::pick_file("Choose a Switch 2 emulator (eglantine.exe, lichii.exe, orchid.exe…)", true));
+                crate::dialog::pick_file("Choose a Switch 2 emulator (eglantine.exe, lichii.exe, orchid.exe…)", true)
             });
-            pick.adding = Some((id, file, title, Mutex::new(rx)));
+            pick.adding = Some((id, file, title, got));
         }
         crate::card::Outcome::Back => {}
     }
@@ -807,7 +799,7 @@ pub fn watch_game(
         }
         return;
     }
-    let started = playing.starting.as_ref().map(|rx| rx.lock().unwrap().try_recv());
+    let started = playing.starting.as_ref().map(Later::try_recv);
     match started {
         None | Some(Err(TryRecvError::Empty)) => {}
         Some(Ok(Ok((child, exe, still)))) => {
