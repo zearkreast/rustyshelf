@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.6.5", "name": "0.6.5", "date": "2026-11-24", "title": "Open the case, several PC games folders, and the right buttons on screen",
+    "highlights": [
+      "Inspect opens the case: the disc or cartridge, and the manual inside",
+      "Zoom in to 3×, move round the box, and use the mouse",
+      "As many PC games folders as you like",
+      "Key legends show your controller's buttons, or your keyboard's"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Open the case", "In Inspect, Enter opens the case and takes the disc, cartridge, UMD or floppy out; the manual's first page is inside the cover. Hold Enter with it out to play."],
+        ["Inspect", "Zooms in to 3×; zoomed in, WASD or the left stick moves round the box. The mouse turns it, zooms and opens it; a double-click on the shelf starts it."],
+        ["Easy to find", "An Inspect tile in the quick menu, Inspect the box in Details, and V or R3 on the shelf's hint bar."],
+        ["PC games folders", "Add as many as you like and take one off, as for a console's games folders."]
+      ] },
+      { "h": "Changed", "items": [
+        ["Enter in Inspect", "Opens a console game's case a step at a time; Steam and PC games still play at once."]
+      ] },
+      { "h": "Fixed", "items": [
+        ["How to get it", "Opens your browser on Windows, not File Explorer."],
+        ["Key legends", "Show your controller's buttons or your keyboard's keys, not both; a controller counts from the start, and a stick alone counts too."],
+        ["Console order", "Lists every shelf along the top, those with only the emulator's case too."],
+        ["Cases", "Have a top and a bottom, so one turned on end isn't open."]
+      ] }
+    ]
+  },
+  {
     "version": "0.6.1", "name": "0.6.1", "date": "2026-11-24", "title": "Fixes for Trophies and manuals, and a tidier inside",
     "highlights": [
       "Trophies' pictures come in when you switch Show",
