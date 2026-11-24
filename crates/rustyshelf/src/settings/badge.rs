@@ -35,8 +35,6 @@ pub(super) struct Badge {
     busy: usize,
     tx: Sender<(String, Option<Picture>)>,
     rx: Mutex<Receiver<(String, Option<Picture>)>>,
-    /// the chosen row the wanted list was made for
-    at: Option<usize>,
     /// a picture came in since the last redraw, and when the last one was drawn
     fresh: bool,
     drawn: f32,
@@ -45,7 +43,7 @@ pub(super) struct Badge {
 impl Default for Badge {
     fn default() -> Self {
         let (tx, rx) = channel();
-        Badge { got: HashMap::new(), wanted: Vec::new(), busy: 0, tx, rx: Mutex::new(rx), at: None, fresh: false, drawn: 0.0 }
+        Badge { got: HashMap::new(), wanted: Vec::new(), busy: 0, tx, rx: Mutex::new(rx), fresh: false, drawn: 0.0 }
     }
 }
 
@@ -107,17 +105,6 @@ impl Settings {
         if self.badge.fresh && now - self.badge.drawn >= 0.2 {
             (self.badge.fresh, self.badge.drawn, self.redraw) = (false, now, true);
         }
-        // the page is only built again when something on it changed
-        let at = self.stack.last().map_or(0, |p| p.1);
-        if self.redraw || self.badge.at != Some(at) {
-            self.badge.at = Some(at);
-            self.badge.wanted = self.page_pics().map_or(Vec::new(), |pics| {
-                let (lo, hi) = (at.saturating_sub(AROUND), (at + AROUND + 1).min(pics.len()));
-                let mut near: Vec<(usize, String)> = pics.into_iter().enumerate().take(hi).skip(lo).filter_map(|(i, p)| Some((i.abs_diff(at), p?))).collect();
-                near.sort_by_key(|n| n.0);
-                near.into_iter().map(|n| n.1).collect()
-            });
-        }
         if self.badge.got.len() > 800 {
             self.badge.got.retain(|_, p| matches!(p, Pic::Loading));
         }
@@ -140,7 +127,16 @@ impl Settings {
 
     /// Each row's picture for the list: None for a row without one, Some(None) while it's coming.
     pub(super) fn row_pics(&mut self, images: &mut Assets<Image>) -> Vec<Option<Option<Handle<Image>>>> {
-        let Some(pics) = self.page_pics() else { return Vec::new() };
+        let Some(pics) = self.page_pics() else {
+            self.badge.wanted.clear();
+            return Vec::new();
+        };
+        // what's fetched follows the page as drawn: the rows round the chosen one, the nearest first
+        let at = self.stack.last().map_or(0, |p| p.1);
+        let (lo, hi) = (at.saturating_sub(AROUND), (at + AROUND + 1).min(pics.len()));
+        let mut near: Vec<(usize, String)> = pics.iter().enumerate().take(hi).skip(lo).filter_map(|(i, p)| Some((i.abs_diff(at), p.clone()?))).collect();
+        near.sort_by_key(|n| n.0);
+        self.badge.wanted = near.into_iter().map(|n| n.1).collect();
         pics.into_iter()
             .map(|p| {
                 let url = p?;

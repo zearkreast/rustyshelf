@@ -144,7 +144,12 @@ impl Settings {
 
     /// What the search and the download came back with since the last frame.
     pub(super) fn poll_manuals(&mut self) {
-        if let Some(done) = self.manual_search.rejecting.as_ref().and_then(Later::poll) {
+        let rejected = self.manual_search.rejecting.as_ref().map(Later::try_recv);
+        if let Some(Err(TryRecvError::Disconnected)) = rejected {
+            self.manual_search.rejecting = None;
+            self.say("Couldn't set the manual aside: it stopped".into());
+        }
+        if let Some(Ok(done)) = rejected {
             self.manual_search.rejecting = None;
             self.reread_manual();
             self.changed = true;
