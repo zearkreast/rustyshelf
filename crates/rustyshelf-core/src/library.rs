@@ -223,7 +223,9 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
     if cfg!(target_os = "linux") {
         taken.extend(crate::linuxpc::epic_unfinished(data));
     }
-    stores.extend(pcfolder::scan(js::str_of(get("gamesDir")).unwrap_or(""), js::str_of(get("userGamesDir")).unwrap_or(""), get("programs"), &taken));
+    let mut games_dirs = vec![js::str_of(get("gamesDir")).unwrap_or("").to_string()];
+    games_dirs.extend(get("moreGamesDirs").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(String::from));
+    stores.extend(pcfolder::scan_all(&games_dirs, js::str_of(get("userGamesDir")).unwrap_or(""), get("programs"), &taken));
     stores.extend(pcgames::store_games_of(pc, data));
     let mut mine = Vec::new();
     if on("quiver") {

@@ -174,6 +174,27 @@ fn real(p: &str) -> String {
 /// of the same name. `programs`: the program chosen in Settings for a folder (`{ "<folder>": "<path inside it>" }`).
 /// `skip`: folders already on the shelf another way (Epic's installs).
 pub fn scan(games_dir: &str, own_dir: &str, programs: Option<&Value>, skip: &[String]) -> Vec<PcGame> {
+    scan_with(games_dir, own_dir, programs, skip, &mut HashSet::new())
+}
+
+/// [`scan`] over several PC games folders, the first first; a game in two of them is the first one's, and ids stay
+/// apart across them.
+pub fn scan_all(games_dirs: &[String], own_dir: &str, programs: Option<&Value>, skip: &[String]) -> Vec<PcGame> {
+    let mut used = HashSet::new();
+    let mut seen_dirs: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+    for (i, d) in games_dirs.iter().enumerate() {
+        if d.is_empty() || !seen_dirs.insert(real(d)) {
+            continue;
+        }
+        // (the player's own copies stand in for the first folder's games only)
+        let own = if i == 0 { own_dir } else { "" };
+        out.extend(scan_with(d, own, programs, skip, &mut used));
+    }
+    out
+}
+
+fn scan_with(games_dir: &str, own_dir: &str, programs: Option<&Value>, skip: &[String], used: &mut HashSet<String>) -> Vec<PcGame> {
     if games_dir.is_empty() {
         return Vec::new();
     }
@@ -183,7 +204,7 @@ pub fn scan(games_dir: &str, own_dir: &str, programs: Option<&Value>, skip: &[St
     let mut folders = dirs_in(games_dir);
     // in name order, as JS compares strings: ids stay the same between scans
     folders.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
-    let (mut out, mut used) = (Vec::new(), HashSet::new());
+    let mut out = Vec::new();
     // (the folder inside the games folder, and the game's name)
     let mut games: Vec<(String, String)> = Vec::new();
     for folder in folders.into_iter().filter(|f| !f.starts_with('.')) {
@@ -204,7 +225,7 @@ pub fn scan(games_dir: &str, own_dir: &str, programs: Option<&Value>, skip: &[St
         let wanted = js::str_of(programs.and_then(|p| p.get(&folder)));
         let Some(chosen) = progs.iter().find(|p| Some(p.0.as_str()) == wanted).or(progs.first()) else { continue };
         out.push(PcGame {
-            id: id_of(&title, &mut used),
+            id: id_of(&title, used),
             source: "folder",
             title,
             exe: js::join(&[&dir, &chosen.0]),
@@ -260,6 +281,26 @@ pub fn scan_ports(ports_dir: &str) -> Vec<PcGame> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn several_games_folders() {
+        let t = tempfile::tempdir().unwrap();
+        let make = |rel: &str| {
+            let p = t.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, b"MZ").unwrap();
+        };
+        make("A/Zeta/zeta.exe");
+        make("B/Zeta/zeta.exe");
+        make("B/Omega/omega.exe");
+        let dir = |d: &str| t.path().join(d).to_string_lossy().into_owned();
+        let games = scan_all(&[dir("A"), dir("B"), dir("A"), String::new()], "", None, &[]);
+        let ids: Vec<&str> = games.iter().map(|g| g.id.as_str()).collect();
+        assert_eq!(ids.len(), 3, "A twice counts once: {ids:?}");
+        assert_eq!(&ids[..2], ["pc-zeta", "pc-omega"]);
+        assert!(ids[2].starts_with("pc-zeta-"), "the second Zeta gets an id of its own: {ids:?}");
+        assert!(games[2].dir.ends_with("Zeta") && games[2].dir.contains(&dir("B")));
+    }
 
     #[test]
     fn a_ports_folder_and_its_consoles_folders() {

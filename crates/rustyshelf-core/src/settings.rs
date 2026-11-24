@@ -340,6 +340,13 @@ fn sanitize_pc(pc: &mut Map<String, Value>) {
         let v = s(pc.get(k), 1024);
         pc.insert(k.into(), json!(v));
     }
+    // the native app's own: more PC games folders beside gamesDir (kept only when there are some)
+    let more: Vec<Value> = pc.get("moreGamesDirs").and_then(Value::as_array).into_iter().flatten().map(|v| s(Some(v), 1024)).filter(|d| !d.is_empty()).take(50).map(Value::from).collect();
+    if more.is_empty() {
+        pc.remove("moreGamesDirs");
+    } else {
+        pc.insert("moreGamesDirs".into(), Value::Array(more));
+    }
     // the native app's own: the ports and recompilations folder (kept only when it's set)
     match s(pc.get("portsDir"), 1024) {
         v if v.is_empty() => {
