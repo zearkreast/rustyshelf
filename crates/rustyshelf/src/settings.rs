@@ -77,6 +77,8 @@ enum Screen {
     /// Set up for me, for a console's emulator
     EmuSetup(String),
     Pc,
+    /// the PC games folders, to add and take off
+    PcFolders,
     Custom,
     /// one game added by hand, by its place in the list
     CustomGame(usize),
@@ -971,6 +973,24 @@ impl Settings {
         self.redraw = true;
     }
 
+    /// The PC games folders: `pc.gamesDir` (the Electron app's one) first, then `pc.moreGamesDirs`.
+    fn pc_games_dirs(&self) -> Vec<String> {
+        let first = self.text(&["pc", "gamesDir"]);
+        let mut dirs: Vec<String> = Some(first).filter(|d| !d.is_empty()).into_iter().collect();
+        for d in self.list(&["pc", "moreGamesDirs"]) {
+            if !d.is_empty() && !dirs.contains(&d) {
+                dirs.push(d);
+            }
+        }
+        dirs
+    }
+
+    fn set_pc_games_dirs(&mut self, dirs: Vec<String>) {
+        let mut it = dirs.into_iter();
+        self.set(&["pc", "gamesDir"], json!(it.next().unwrap_or_default()));
+        self.set(&["pc", "moreGamesDirs"], json!(it.collect::<Vec<_>>()));
+    }
+
     /// ← → between Details' Play and Read the manual.
     fn details_button(&mut self, d: i32) {
         if let Some(p) = self.stack.last_mut() {
@@ -1358,7 +1378,13 @@ impl Settings {
             }
             Pick::Rocket => self.say("That isn't RocketLauncher.exe (not RocketLauncherUI.exe)".into()),
             Pick::Steam => self.set(&["steam", "path"], json!(p)),
-            Pick::GamesDir => self.set(&["pc", "gamesDir"], json!(p)),
+            Pick::GamesDir => {
+                let mut dirs = self.pc_games_dirs();
+                if !dirs.contains(&p) {
+                    dirs.push(p);
+                    self.set_pc_games_dirs(dirs);
+                }
+            }
             Pick::PortsDir => self.set(&["pc", "portsDir"], json!(p)),
             Pick::Moonlight => self.set(&["moonlight", "path"], json!(p)),
             Pick::ArtLibrary => self.set(&["ui", "artLibrary"], json!(p)),
@@ -1866,6 +1892,32 @@ impl Settings {
                 });
                 Page { title: self.console(id).map_or(id.clone(), |c| format!("{} games folders", c.name)), lead: String::new(), rows }
             }
+            Screen::PcFolders => {
+                let mut rows: Vec<Row> = self
+                    .pc_games_dirs()
+                    .into_iter()
+                    .map(|d| {
+                        let gone = d.clone();
+                        Row {
+                            label: short(&d),
+                            value: "Remove".into(),
+                            hint: "Enter takes this folder off the shelf (nothing is deleted)".into(),
+                            press: Some(Box::new(move |s: &mut Settings| {
+                                let left: Vec<String> = s.pc_games_dirs().into_iter().filter(|x| *x != gone).collect();
+                                s.set_pc_games_dirs(left);
+                            })),
+                            step: None,
+                        }
+                    })
+                    .collect();
+                rows.push(Row {
+                    label: "Add a folder…".into(),
+                    hint: "Opens a folder dialog".into(),
+                    press: Some(Box::new(|s: &mut Settings| s.pick(Pick::GamesDir, "Choose a PC games folder", true))),
+                    ..Row::default()
+                });
+                Page { title: "PC games folders".into(), lead: "Every folder in these is a game on the PC shelf.".into(), rows }
+            }
             Screen::Advanced(id) => {
                 let Some(c) = self.console(id) else { return Page { title: id.clone(), lead: String::new(), rows: Vec::new() } };
                 let runs = self.emulator_of(id);
@@ -1976,16 +2028,18 @@ impl Settings {
                     toggle("Xbox / Game Pass", &["pc", "xbox"], true, ""),
                     toggle("HoYoPlay", &["pc", "hoyoplay"], true, ""),
                     toggle("Quiver Launcher", &["pc", "quiver"], true, "Its apps go on the Custom shelf, its ports and recompilations on Ports & Recomps"),
-                    Row {
-                        label: "PC games folder".into(),
-                        value: if games.is_empty() { "None".into() } else { short(&games) },
-                        hint: "Every folder in it is a game  ·  Enter chooses it, ◀ forgets it".into(),
-                        press: Some(Box::new(|s: &mut Settings| s.pick(Pick::GamesDir, "Choose your PC games folder", true))),
-                        step: Some(Box::new(|s: &mut Settings, d| {
-                            if d < 0 {
-                                s.set(&["pc", "gamesDir"], json!(""));
-                            }
-                        })),
+                    {
+                        let n = self.pc_games_dirs().len();
+                        open(
+                            "PC games folders",
+                            match n {
+                                0 => "None".into(),
+                                1 => Path::new(&games).file_name().map_or_else(|| short(&games), |n| n.to_string_lossy().into_owned()),
+                                n => format!("{n} folders"),
+                            },
+                            "Every folder in them is a game. Add as many as you like, or take one off.",
+                            Screen::PcFolders,
+                        )
                     },
                     Row {
                         label: "Ports & recomps folder".into(),
