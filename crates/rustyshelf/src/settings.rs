@@ -312,6 +312,8 @@ pub struct Settings {
     edit_alone: bool,
     /// the Sort panel and the quick menu over the shelf
     pub panels: panels::Panels,
+    /// the prompts are a controller's (its last press, or one plugged in before any key)
+    pad_prompts: bool,
     /// Details asked for on the way to a console game's Art Studio
     then_art: bool,
     /// controller pulses asked for from Settings' own pages, for `rumble::send`
@@ -547,6 +549,7 @@ impl Default for Settings {
             achievements: None,
             ach_sort: 0,
             seal_key: rustyshelf_core::seal::key(&paths::env_var),
+            pad_prompts: false,
             account_env: Default::default(),
             custom_themes: Vec::new(),
             reload_themes: false,
@@ -698,6 +701,24 @@ impl Settings {
     }
 
     /// A button of the hint bars as the controller in use prints it (`pads::cap`'s keys).
+    /// Whether the prompts are a controller's; set from the shelf's input watch, and the screens redrawn on a change.
+    pub fn set_pad_prompts(&mut self, pad: bool) {
+        if self.pad_prompts != pad {
+            self.pad_prompts = pad;
+            self.redraw = true;
+            self.panels.redraw = true;
+        }
+    }
+
+    pub fn pad_prompts(&self) -> bool {
+        self.pad_prompts
+    }
+
+    /// A key legend's caps for the device in use: the keyboard's, or the controller's.
+    pub fn keys_for<'a>(&self, kbd: &[&'a str], pad: &[&'a str]) -> Vec<&'a str> {
+        if self.pad_prompts { pad.to_vec() } else { kbd.to_vec() }
+    }
+
     pub fn cap(&self, key: &'static str) -> &'static str {
         rustyshelf_core::pads::cap(key, self.glyphs(), self.swap())
     }
@@ -3604,7 +3625,8 @@ pub fn draw(
     let font = |weight: u32, size: f32| mona.sized(weight, FontSize::Vh(size / 10.8 * f32::from_bits(SCALE.load(std::sync::atomic::Ordering::Relaxed))), &face.0);
     let wide = |weight: u32, size: f32| TextFont { width: FontWidth::EXPANDED, ..font(weight, size) };
     if let Some(e) = &s.editing {
-        e.draw(&mut commands, &font, [s.cap("☰"), s.cap("o"), s.cap("sq"), s.cap("tri")]);
+        let caps = if s.pad_prompts { [s.cap("☰"), s.cap("o"), s.cap("sq"), s.cap("tri")] } else { ["Enter", "Esc", "Backspace", "Space"] };
+        e.draw(&mut commands, &font, caps);
         return;
     }
     let page = s.page();
@@ -3647,17 +3669,18 @@ pub fn draw(
     let tab = TABS[s.tab % TABS.len()];
     let style = (s.glyphs(), s.swap());
     let (ok, back) = (rustyshelf_core::pads::button_word(true, style.0, style.1), rustyshelf_core::pads::button_word(false, style.0, style.1));
+    let k = |kbd: &[&str], pad: &[&str]| s.keys_for(kbd, pad).into_iter().map(String::from).collect::<Vec<String>>();
     let mut keys: Vec<(Vec<String>, String)> = vec![
-        (vec!["↑".into(), "↓".into()], t("Move")),
-        (vec!["←".into(), "→".into()], t("Change")),
-        (vec!["Enter".into(), ok.to_string()], t("Choose")),
-        (vec!["Esc".into(), back.to_string()], t("Back")),
+        (k(&["↑", "↓"], &["↑", "↓"]), t("Move")),
+        (k(&["←", "→"], &["←", "→"]), t("Change")),
+        (k(&["Enter"], &[ok]), t("Choose")),
+        (k(&["Esc"], &[back]), t("Back")),
     ];
     if !s.wizard {
-        keys.push((vec!["F1".into(), s.cap("☰").into()], t("Close")));
+        keys.push((k(&["F1"], &[s.cap("☰")]), t("Close")));
     }
     if tabs {
-        keys.push((vec!["PgUp".into(), "PgDn".into()], t("Section")));
+        keys.push((k(&["PgUp", "PgDn"], &[s.cap("L1"), s.cap("R1")]), t("Section")));
     }
     let mut ui = commands.spawn((SettingsUi, Node { width: percent(100), height: percent(100), position_type: PositionType::Absolute, ..default() }, GlobalZIndex(10)));
     ui.insert(surface());
@@ -3874,6 +3897,23 @@ pub fn draw(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn key_legends_follow_the_device_in_use() {
+        let mut s = Settings { wizard: false, ..Settings::default() };
+        assert_eq!(s.keys_for(&["Enter"], &["A"]), ["Enter"]);
+        s.set_pad_prompts(true);
+        assert!(s.redraw);
+        assert_eq!(s.keys_for(&["Enter"], &["A"]), ["A"]);
+    }
+
+    #[test]
+    fn console_order_lists_shelves_with_only_their_cases() {
+        use rustyshelf_core::library::Shelf;
+        let shelf = |id: &str, kind: ShelfKind| Shelf { id: id.into(), name: id.to_uppercase(), kind, games: Vec::new(), from: Vec::new() };
+        let shown = [shelf("home", ShelfKind::Mixed), shelf("ps3", ShelfKind::Pc), shelf("ports", ShelfKind::Pc), shelf("col-1", ShelfKind::Mixed)];
+        assert_eq!(order_shelves(&shown).iter().map(|x| x.0.as_str()).collect::<Vec<_>>(), ["ps3", "ports"]);
+    }
 
     #[test]
     fn settings_opens_on_eight_tabs_that_go_round() {

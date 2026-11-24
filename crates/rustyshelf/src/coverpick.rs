@@ -666,7 +666,7 @@ fn build(commands: &mut Commands, open: &Open, stop: bool, scrolled: f32, mona: 
                         });
                     }
                 });
-                let (a, b) = (rustyshelf_core::pads::button_word(true, settings.glyphs(), settings.swap()), rustyshelf_core::pads::button_word(false, settings.glyphs(), settings.swap()));
+                let (a, b) = if settings.pad_prompts() { (rustyshelf_core::pads::button_word(true, settings.glyphs(), settings.swap()), rustyshelf_core::pads::button_word(false, settings.glyphs(), settings.swap())) } else { ("Enter", "Esc") };
                 card.spawn((Node { padding: UiRect::new(px(8), px(8), px(10), px(0)), ..default() }, text(format!("{a} {} · {b} {}", t(if open.gallery { "change" } else { "use" }), t(if stop { "stop" } else { "back" })), 400, 11.0, dim)));
             });
         });

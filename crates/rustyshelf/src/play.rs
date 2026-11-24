@@ -679,7 +679,11 @@ pub fn pick_build(mut playing: ResMut<Playing>, mut card: ResMut<crate::card::Ca
                 kick: "Choose a build".into(),
                 title: "Start in which build?".into(),
                 sub: title.clone(),
-                keys: vec![("Enter".into(), "Start".into()), ("Esc".into(), "Back".into())],
+                keys: if settings.pad_prompts() {
+                    vec![(rustyshelf_core::pads::button_word(true, settings.glyphs(), settings.swap()).into(), "Start".into()), (rustyshelf_core::pads::button_word(false, settings.glyphs(), settings.swap()).into(), "Back".into())]
+                } else {
+                    vec![("Enter".into(), "Start".into()), ("Esc".into(), "Back".into())]
+                },
                 options,
                 first,
                 ..default()

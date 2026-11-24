@@ -120,6 +120,8 @@ impl MonaSans {
 #[derive(Resource, Default)]
 pub struct Prompts {
     pub pad: bool,
+    /// a key was pressed since the start
+    keyed: bool,
     /// the controller last pressed
     in_use: Option<Entity>,
     /// the controllers there were when the real ones plugged in were last asked for, those, and an answer on its way
@@ -613,15 +615,21 @@ pub fn hints(
 ) {
     // the phone's remote isn't a controller of its own: the prompts stay those of the pad there is
     let own = |name: Option<&Name>| name.is_none_or(|n| n.as_str() != crate::phone::REMOTE);
-    let used = gamepads.iter().find(|(_, p, _)| p.get_just_pressed().next().is_some());
+    // a stick pushed counts as much as a button
+    let moved = |p: &Gamepad| p.left_stick().length() > 0.5 || p.right_stick().length() > 0.5 || p.get_just_pressed().next().is_some();
+    let used = gamepads.iter().find(|(_, p, _)| moved(p));
     if keys.get_just_pressed().next().is_some() {
-        prompts.pad = false;
+        (prompts.pad, prompts.keyed) = (false, true);
     } else if let Some((pad, _, name)) = used {
         prompts.pad = true;
         if own(name) {
             prompts.in_use = Some(pad);
         }
+    } else if !prompts.keyed && !prompts.pad && gamepads.iter().any(|(_, _, n)| own(n)) {
+        // a controller there and no key pressed yet: its buttons from the start
+        prompts.pad = true;
     }
+    settings.set_pad_prompts(prompts.pad);
     // the real controllers plugged in, asked for again whenever one comes or goes
     let count = gamepads.iter().count();
     if count != prompts.pads && prompts.asking.is_none() {

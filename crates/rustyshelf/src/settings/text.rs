@@ -128,10 +128,10 @@ impl Settings {
 }
 
 impl Editing {
-    /// `caps`: the pad's buttons that end the typing, cancel it, take a letter back and type a space.
+    /// `caps`: the keys or the pad's buttons that end the typing, cancel it, take a letter back and type a space.
     pub(super) fn draw(&self, commands: &mut Commands, font: &dyn Fn(u32, f32) -> TextFont, caps: [&str; 4]) {
         let rows = osk::rows(self.layer);
-        let keys = [(vec!["Enter", caps[0]], "Done"), (vec!["Esc", caps[1]], "Cancel"), (vec![caps[2]], "⌫"), (vec![caps[3]], "Space")];
+        let keys = [(vec![caps[0]], "Done"), (vec![caps[1]], "Cancel"), (vec![caps[2]], "⌫"), (vec![caps[3]], "Space")];
         commands
             .spawn((
                 SettingsUi,

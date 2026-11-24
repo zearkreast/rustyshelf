@@ -345,10 +345,17 @@ pub fn run(
             }
             Part::Keys => {
                 if let Some(mut text) = text {
-                    let zoom = if reader.z > 1.0 { "+ −  Zoom · move with ▲ ▼" } else { "+ −  Zoom" };
-                    let pages = if reader.gallery { "" } else if reader.one { "      P  Two pages" } else { "      P  One page" };
+                    let pad = settings.pad_prompts();
+                    let (turn_k, zoom_k, pages_k, back_k) = if pad {
+                        (format!("◀ ▶ · {} {}", settings.cap("L1"), settings.cap("R1")), format!("{} {}", settings.cap("L2"), settings.cap("R2")), settings.cap("sq").to_string(), settings.cap("o").to_string())
+                    } else {
+                        ("◀ ▶".to_string(), "+ −".to_string(), "P".to_string(), "Esc".to_string())
+                    };
+                    let zoom = if reader.z > 1.0 { format!("{zoom_k}  Zoom · move with ▲ ▼") } else { format!("{zoom_k}  Zoom") };
+                    let pages = if reader.gallery { String::new() } else { format!("      {pages_k}  {}", if reader.one { "Two pages" } else { "One page" }) };
                     let (turn, first) = if reader.gallery { ("Next", "First") } else { ("Turn the page", "Cover") };
-                    text.0 = format!("◀ ▶  {turn}      {zoom}{pages}      Home  {first}      Esc · {}  Back", settings.cap("o"));
+                    let home = if pad { String::new() } else { format!("      Home  {first}") };
+                    text.0 = format!("{turn_k}  {turn}      {zoom}{pages}{home}      {back_k}  Back");
                 }
             }
             Part::Book => {

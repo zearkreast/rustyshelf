@@ -823,8 +823,8 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                         if rows.get(s.panels.row) == Some(&QRow::Volume) && s.panels.sub.is_none() {
                             keys.push((t("Volume"), "←→".into()));
                         }
-                        keys.push((t(if s.panels.sub.is_some() { "Select" } else { "Open" }), format!("Enter {ok}")));
-                        keys.push((t(if s.panels.sub.is_some() { "Back" } else { "Close" }), format!("Esc {back}")));
+                        keys.push((t(if s.panels.sub.is_some() { "Select" } else { "Open" }), s.keys_for(&["Enter"], &[ok]).join(" ")));
+                        keys.push((t(if s.panels.sub.is_some() { "Back" } else { "Close" }), s.keys_for(&["Esc"], &[back]).join(" ")));
                         q.spawn((Node { align_self: AlignSelf::Center, column_gap: px(14), padding: UiRect::axes(px(14), px(8)), margin: UiRect::new(px(0), px(0), px(12), px(24)), border: UiRect::all(px(1)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.04)), BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.16))))
                             .with_children(|k| {
                                 for (label, caps) in keys {

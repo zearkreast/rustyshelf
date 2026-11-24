@@ -260,9 +260,12 @@ pub fn inspect(
     }
     if let Ok((mut seen, mut text)) = hint.single_mut() {
         seen.set_if_neq(if inspect.on { Visibility::Inherited } else { Visibility::Hidden });
-        if inspect.on && text.0.is_empty() || inspect.is_changed() && inspect.on {
-            let read = if manual.is_some() { format!("      M · {}  Manual", settings.cap("sq")) } else { String::new() };
-            let keys = format!("◀ ▶ ▲ ▼  Turn      F · {}  Other side      PgUp · PgDn  Nearer, further{read}      Enter · {}  Play      Esc · {}  Put it back", settings.cap("tri"), settings.cap("x"), settings.cap("o"));
+        if inspect.on {
+            let k = |kbd: &'static str, pad: &'static str| if settings.pad_prompts() { settings.cap(pad) } else { kbd };
+            let turn = if settings.pad_prompts() { "◀ ▶ ▲ ▼ · Sticks" } else { "◀ ▶ ▲ ▼" };
+            let near = if settings.pad_prompts() { format!("{} · {}", settings.cap("L2"), settings.cap("R2")) } else { "PgUp · PgDn".into() };
+            let read = if manual.is_some() { format!("      {}  Manual", k("M", "sq")) } else { String::new() };
+            let keys = format!("{turn}  Turn      {}  Other side      {near}  Nearer, further{read}      {}  Play      {}  Put it back", k("F", "tri"), k("Enter", "x"), k("Esc", "o"));
             if text.0 != keys {
                 text.0 = keys;
             }
