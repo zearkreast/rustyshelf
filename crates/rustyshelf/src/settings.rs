@@ -2741,6 +2741,12 @@ fn facts(c: &Chosen) -> Vec<(String, String)> {
 }
 
 /// The emulator a shelf's games run in, by name; nothing for a shelf without one.
+/// The shelves Console order can move: every one along the top but those that mix the others' games (Home, All,
+/// Favorites, the automatic shelves, collections), which keep their own place.
+fn order_shelves(shown: &[rustyshelf_core::library::Shelf]) -> Vec<(String, String)> {
+    shown.iter().filter(|sh| !matches!(sh.kind, ShelfKind::Mixed)).map(|sh| (sh.id.clone(), sh.name.clone())).collect()
+}
+
 /// The player's own picture for a console's "Open <emulator>" case: `data/emu-covers/<console>.<png|jpg|webp>`.
 pub fn emu_cover(app_root: &Path, console: &str) -> Option<PathBuf> {
     let dir = paths::data_dir(app_root).join("emu-covers");
@@ -2974,11 +2980,10 @@ pub fn input(
         }
         s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
         s.console_shelves = base.0.as_ref().map(|b| b.shelves.iter().filter(|sh| matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()).map(|sh| (sh.id.clone(), sh.name.clone())).collect()).unwrap_or_default();
-        s.order_shelves = base
-            .0
-            .as_ref()
-            .map(|b| b.shelves.iter().filter(|sh| (matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()) || sh.id == "pc" || sh.id == "media").map(|sh| (sh.id.clone(), sh.name.clone())).collect())
-            .unwrap_or_default();
+        s.order_shelves = match &lib.0 {
+            LibraryState::Ready(l) => order_shelves(&l.shelves),
+            _ => Vec::new(),
+        };
         s.load_bios_needs();
         s.load_deck();
         s.open = true;
