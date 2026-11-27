@@ -50,7 +50,9 @@ pub fn run(time: Res<Time>, lib: Res<LibraryRes>, mut wn: ResMut<WhatsNew>, mut 
         kick: "Updated".into(),
         title: format!("What's new in {}", top.name),
         sub: top.title.clone(),
-        items: top.highlights.iter().take(5).cloned().collect(),
+        sections: top.sections.iter().map(|s| (s.h.clone(), s.items.clone())).collect(),
+        // (a version with no sections: its highlights)
+        items: if top.sections.is_empty() { top.highlights.iter().take(5).cloned().collect() } else { Vec::new() },
         keys: Vec::new(),
         buttons: vec!["Got it".into(), "All the notes".into()],
         ..Default::default()

@@ -1578,21 +1578,117 @@ pub struct Opened {
     parts: Vec<Entity>,
     lid: Option<Entity>,
     turning: Option<Entity>,
-    media: Option<(Entity, f32, bool)>,
+    media: Option<OpenMedia>,
 }
 
-/// A plain disc, `size` pixels across, in a colour (its printed side) or silver (no colour: its other side), its middle
-/// clear round the hole.
-fn disc_picture(size: u32, label: Option<Rgba>) -> Picture {
+/// The disc or cartridge out of the open case: its holder, its width, whether it's a cartridge, and its half height
+/// and its thickness, in its widths.
+#[derive(Clone, Copy)]
+struct OpenMedia {
+    holder: Entity,
+    across: f32,
+    cart: bool,
+    half_tall: f32,
+    thick: f32,
+}
+
+/// A disc's thickness and how far it lies off the tray's floor, in its widths: as thick as a real one (1.2 mm across
+/// 120 mm) and a little more, so it reads as a disc and not a sheet when it's turned.
+const DISC_THICK: f32 = 0.014;
+const DISC_OFF: f32 = 0.004;
+/// how far in front of the case (and its open lid) a turned disc or cartridge's back edge stays, in case heights
+const CLEAR: f32 = 0.03;
+
+/// How much further toward the eye than `ahead` a disc or cartridge turned by `rotation` at `scale` must come for
+/// its far edge to stay in front of `front`: turned, that edge swings back by up to its radius (or, for a
+/// cartridge, its half width and half height), and through its thickness.
+fn forward_to_clear(m: &OpenMedia, rotation: Quat, scale: f32, ahead: f32, front: f32) -> f32 {
+    let (ax, ay, az) = ((rotation * Vec3::X).z, (rotation * Vec3::Y).z, (rotation * Vec3::Z).z);
+    let reach = if m.cart { 0.5 * ax.abs() + m.half_tall * ay.abs() } else { 0.5 * ax.hypot(ay) };
+    let deepest = scale * (reach - (az * m.thick).min(0.0));
+    (front - (ahead - deepest)).max(0.0)
+}
+
+/// The wall of a round edge, `r` across its middle, from z 0 to `depth`: a disc's rim, or its hole's.
+fn disc_edge(r: f32, depth: f32) -> Mesh {
+    const N: u32 = 96;
+    let (mut pos, mut normal, mut uv, mut idx) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for i in 0..=N {
+        let a = i as f32 / N as f32 * 2.0 * PI;
+        let (s, c) = a.sin_cos();
+        for z in [0.0, depth] {
+            pos.push([c * r, s * r, z]);
+            normal.push([c, s, 0.0]);
+            uv.push([i as f32 / N as f32, z / depth.max(f32::EPSILON)]);
+        }
+        if i < N {
+            let k = i * 2;
+            idx.extend([k, k + 2, k + 1, k + 1, k + 2, k + 3]);
+        }
+    }
+    Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, pos)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normal)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uv)
+        .with_inserted_indices(Indices::U32(idx))
+}
+
+/// A disc's underside, `size` pixels across, as inspect3d.js discBackTexture draws it in the tint of the console's
+/// format, under a faint rainbow sheen: the Electron app's disc was iridescent, and nothing here is lit.
+fn disc_back_picture(size: u32, console: &str) -> Picture {
+    let base = match console {
+        "ps3" | "ps4" | "ps5" | "wiiu" => [196.0, 200.0, 232.0],
+        "gc" => [214.0, 210.0, 226.0],
+        _ => [226.0, 218.0, 196.0],
+    }
+    .map(|v: f32| v / 255.0);
+    let clear = ([0.85, 0.87, 0.9], 0.45);
+    let tint = |k: f32| base.map(|v| (v * k).clamp(0.0, 1.0));
+    // a hue from 0 to 1, fully saturated
+    let rainbow = |h: f32| [0.0f32, 1.0 / 3.0, 2.0 / 3.0].map(|o| (0.5 + 0.5 * (2.0 * PI * (h + o)).cos()).clamp(0.0, 1.0));
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    for y in 0..size {
+        for x in 0..size {
+            let d = Vec2::new(x as f32 + 0.5, y as f32 + 0.5) - Vec2::splat(size as f32 / 2.0);
+            // from the middle (0) to the edge (1)
+            let r = d.length() / (size as f32 / 2.0);
+            let (c, a) = match r {
+                r if !(0.14..=1.0).contains(&r) => continue,
+                r if r < 0.2 || r > 0.985 => clear,
+                r if r < 0.355 => (tint(1.12), 1.0),
+                r if r < 0.365 => (tint(0.75), 1.0),
+                r if (0.876..0.884).contains(&r) => (tint(0.7), 1.0),
+                r if r >= 0.884 => (tint(1.0 - 0.55 * 0.14), 1.0),
+                r => (tint(1.0 + 0.35 * (0.12 * (r * 190.0).sin() - 0.1)), 1.0),
+            };
+            let c = if a < 1.0 {
+                c
+            } else {
+                // brightest in two lobes across the disc, its colours running round it and outward
+                let angle = d.y.atan2(d.x);
+                let lobe = 0.5 + 0.5 * (2.0 * angle).cos();
+                let sheen = rainbow(angle / PI + r * 0.6);
+                let k = 0.22 * lobe;
+                [0, 1, 2].map(|i| c[i] * (1.0 - k) + sheen[i] * k)
+            };
+            let i = ((y * size + x) * 4) as usize;
+            rgba[i..i + 4].copy_from_slice(&[c[0], c[1], c[2], a].map(|v| (v * 255.0).round() as u8));
+        }
+    }
+    Picture { width: size, height: size, rgba }
+}
+
+/// A plain disc's printed side, `size` pixels across, in a colour, its middle clear round the hole and its rim silver.
+fn disc_picture(size: u32, label: Rgba) -> Picture {
     let mut rgba = vec![0u8; (size * size * 4) as usize];
     let silver = [0.8, 0.81, 0.84];
     for y in 0..size {
         for x in 0..size {
             let r = Vec2::new(x as f32 + 0.5, y as f32 + 0.5).distance(Vec2::splat(size as f32 / 2.0)) / size as f32;
-            let (c, a) = match (r, label) {
-                (r, _) if !(0.075..=0.5).contains(&r) => continue,
-                (r, _) if r < 0.17 => ([0.85, 0.87, 0.9], 0.45),
-                (r, Some(c)) if r < 0.485 => ([c[0], c[1], c[2]].map(|v| v * 0.8 + 0.2), 1.0),
+            let (c, a) = match r {
+                r if !(0.075..=0.5).contains(&r) => continue,
+                r if r < 0.17 => ([0.85, 0.87, 0.9], 0.45),
+                r if r < 0.485 => ([label[0], label[1], label[2]].map(|v| v * 0.8 + 0.2), 1.0),
                 _ => (silver, 1.0),
             };
             let i = ((y * size + x) * 4) as usize;
@@ -1679,6 +1775,7 @@ pub fn open_case(
             let across = looks::media_size(&console) * w;
             let cart = matches!(looks::media_word(&console), "Cartridge" | "Floppy disk");
             let holder = commands.spawn((Media, Transform::from_xyz(0.0, 0.0, -d / 2.0).with_scale(Vec3::splat(across)), Visibility::default(), ChildOf(turns))).id();
+            let mut shape = (0.5, DISC_OFF + DISC_THICK);
             if cart {
                 // (a 3.5" floppy is 90 × 94 mm and 3.3 mm thick, in dark plastic: inspect3d.js; a cartridge's cradle
                 // there is 1.1 of its widths tall)
@@ -1690,23 +1787,28 @@ pub fn open_case(
                 let label = Vec2::new(0.84f32.min(0.62 * tall * sheet.x / sheet.y), 0.0);
                 let label = Vec2::new(label.x, label.x * sheet.y / sheet.x);
                 commands.spawn((face(s.front.clone(), Transform::from_xyz(0.0, tall / 2.0 - 0.08 - label.y / 2.0, thick + 0.004).with_scale(label.extend(1.0))), ChildOf(holder)));
+                shape = (tall / 2.0, thick + 0.004);
             } else {
                 let round = meshes.add(Circle::new(0.5));
-                let disc = |m: &mut Assets<StandardMaterial>, i: &mut Assets<Image>, label: Option<Rgba>| m.add(StandardMaterial { base_color_texture: Some(picture(i, disc_picture(512, label))), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
                 let top = match &g.art.disc {
                     Some(path) => {
                         let m = materials.add(StandardMaterial { unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
                         covers.want(Art::File(path.clone()), (m.clone(), 0.0), &loader, &mut materials);
                         m
                     }
-                    None => disc(&mut materials, &mut images, Some(case)),
+                    None => materials.add(StandardMaterial { base_color_texture: Some(picture(&mut images, disc_picture(512, case))), unlit: true, alpha_mode: AlphaMode::Blend, ..default() }),
                 };
-                let under = disc(&mut materials, &mut images, None);
-                commands.spawn((Mesh3d(round.clone()), MeshMaterial3d(top), Transform::from_xyz(0.0, 0.0, 0.01), ChildOf(holder)));
-                commands.spawn((Mesh3d(round), MeshMaterial3d(under), Transform::from_xyz(0.0, 0.0, 0.005).with_rotation(Quat::from_rotation_y(PI)), ChildOf(holder)));
+                let under = materials.add(StandardMaterial { base_color_texture: Some(picture(&mut images, disc_back_picture(512, &console))), unlit: true, alpha_mode: AlphaMode::Blend, ..default() });
+                commands.spawn((Mesh3d(round.clone()), MeshMaterial3d(top), Transform::from_xyz(0.0, 0.0, DISC_OFF + DISC_THICK), ChildOf(holder)));
+                commands.spawn((Mesh3d(round), MeshMaterial3d(under), Transform::from_xyz(0.0, 0.0, DISC_OFF).with_rotation(Quat::from_rotation_y(PI)), ChildOf(holder)));
+                let edge = materials.add(StandardMaterial { base_color: Color::srgb(0.66, 0.68, 0.73), unlit: true, double_sided: true, cull_mode: None, ..default() });
+                for r in [0.5, 0.07] {
+                    commands.spawn((Mesh3d(meshes.add(disc_edge(r, DISC_THICK))), MeshMaterial3d(edge.clone()), Transform::from_xyz(0.0, 0.0, DISC_OFF), ChildOf(holder)));
+                }
             }
             parts.push(holder);
-            *opened = Opened { slot: Some(slot), parts, lid: Some(hinge), turning: Some(turns), media: Some((holder, across, cart)) };
+            let out_of_case = OpenMedia { holder, across, cart, half_tall: shape.0, thick: shape.1 };
+            *opened = Opened { slot: Some(slot), parts, lid: Some(hinge), turning: Some(turns), media: Some(out_of_case) };
         }
     }
     let Some(slot) = opened.slot.and_then(|e| slots.get(e).ok()) else { return };
@@ -1726,14 +1828,16 @@ pub fn open_case(
             t.translation = want;
         }
     }
-    if let Some((mut t, across, cart)) = opened.media.and_then(|(e, across, cart)| Some((media.get_mut(e).ok()?, across, cart))) {
+    if let Some((mut t, m)) = opened.media.and_then(|m| Some((media.get_mut(m.holder).ok()?, m))) {
         let nudge = (PI * ((now - inspect.bump) / 0.3).clamp(0.0, 1.0)).sin() * 0.06;
         let rest = Vec3::new(0.0, 0.0, -d / 2.0 + 2.0 * SKIN);
-        let want = Transform {
-            translation: rest.lerp(Vec3::new(middle, 0.0, d / 2.0 + LIFT), out) + Vec3::Z * nudge,
-            rotation: Quat::from_rotation_y((inspect.spin.x * out).to_radians()) * Quat::from_rotation_x((inspect.spin.y * out).to_radians()),
-            scale: Vec3::splat(across * (1.0 + GROW[usize::from(cart)] * out)),
-        };
+        let rotation = Quat::from_rotation_y((inspect.spin.x * out).to_radians()) * Quat::from_rotation_x((inspect.spin.y * out).to_radians());
+        let scale = m.across * (1.0 + GROW[usize::from(m.cart)] * out);
+        // in front of the case's front and of the lid open at its side
+        let front = d / 2.0 + (w * (LID_OPEN * lid).to_radians().sin()).max(0.0) + CLEAR;
+        let ahead = d / 2.0 + LIFT;
+        let forward = forward_to_clear(&m, rotation, scale, ahead, front);
+        let want = Transform { translation: rest.lerp(Vec3::new(middle, 0.0, ahead + forward), out) + Vec3::Z * nudge, rotation, scale: Vec3::splat(scale) };
         t.set_if_neq(want);
     }
 }
@@ -2069,6 +2173,41 @@ mod tests {
         assert_eq!(i.advance(false, 1.0), Advance::Play);
         assert_eq!((i.step, i.opened(2.0)), (Step::Closed, (0.0, 0.0)));
         assert!(!i.back(2.0));
+    }
+
+    #[test]
+    fn a_turned_disc_stays_in_front_of_the_case() {
+        let disc = OpenMedia { holder: Entity::PLACEHOLDER, across: 0.5, cart: false, half_tall: 0.5, thick: DISC_OFF + DISC_THICK };
+        let (scale, ahead, front) = (0.8, 0.4, 0.1);
+        // facing the eye it's well clear already
+        assert_eq!(forward_to_clear(&disc, Quat::IDENTITY, scale, ahead, front), 0.0);
+        // edge on, its far edge is a radius behind its middle: it comes forward by what that leaves short
+        let side = Quat::from_rotation_y(PI / 2.0);
+        let forward = forward_to_clear(&disc, side, scale, ahead, front);
+        assert!((forward - (front - ahead + scale * 0.5)).abs() < 1e-5, "{forward}");
+        // and at any turn its far edge ends up in front
+        for (yaw, pitch) in [(30.0f32, 0.0f32), (90.0, 40.0), (180.0, -85.0), (250.0, 60.0)] {
+            let q = Quat::from_rotation_y(yaw.to_radians()) * Quat::from_rotation_x(pitch.to_radians());
+            let z = ahead + forward_to_clear(&disc, q, scale, ahead, front);
+            for i in 0..64 {
+                let a = i as f32 / 64.0 * 2.0 * PI;
+                for depth in [0.0, disc.thick] {
+                    let p = q * (Vec3::new(a.cos() * 0.5, a.sin() * 0.5, depth) * scale);
+                    assert!(z + p.z >= front - 1e-4, "yaw {yaw} pitch {pitch}: {}", z + p.z);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_disc_s_underside_has_its_hole_its_data_and_its_clear_rim() {
+        let p = disc_back_picture(200, "ps2");
+        let alpha = |x: u32, y: u32| p.rgba[((y * 200 + x) * 4 + 3) as usize];
+        // the hole, the data side, the clear rim, and outside the disc
+        assert_eq!(alpha(100, 100), 0);
+        assert_eq!(alpha(100 + 60, 100), 255);
+        assert!((1..255).contains(&alpha(100 + 99, 100)));
+        assert_eq!(alpha(0, 0), 0);
     }
 
     #[test]

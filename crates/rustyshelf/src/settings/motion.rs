@@ -24,6 +24,11 @@ const ENTER: f32 = 0.16;
 const DETAILS: f32 = 0.55;
 /// Reduce motion: fades only, and quicker
 const QUICK: f32 = 0.12;
+/// A theme picked in Settings: the page fades back to this for a moment, so the shelf behind shows it, and comes
+/// back this long after the last change (settings.css .peek, settings.js peek)
+const PEEK_FADE: f32 = 0.35;
+const PEEK_HOLD: f32 = 0.9;
+const PEEK_LOW: f32 = 0.12;
 
 #[derive(Default)]
 pub struct SettingsMotion {
@@ -49,6 +54,13 @@ pub struct SettingsMotion {
     pub(super) stepped: Option<(i32, f32)>,
     pub(super) pressed: Option<f32>,
     reduce: bool,
+    /// the theme as last drawn, and the peek at the shelf a change of it starts: when it began fading back, and the
+    /// last change, which it waits on before coming back
+    theme: String,
+    peek_from: f32,
+    peek_last: Option<f32>,
+    /// the page has faded back for a peek: the shelf behind is drawn
+    pub(super) peeking: bool,
 }
 
 /// The rows' scrolling frame.
@@ -105,10 +117,11 @@ impl SettingsMotion {
         if open && !self.was_open {
             (self.opened_at, self.was_open, self.faded_in) = (now, true, false);
             self.page.clear();
+            self.theme.clear();
         }
         if !open {
             let closing = self.was_open;
-            (self.was_open, self.faded_in) = (false, false);
+            (self.was_open, self.faded_in, self.peek_last, self.peeking) = (false, false, None, false);
             return closing;
         }
         if page != self.page {
@@ -133,6 +146,33 @@ impl SettingsMotion {
 
     pub(super) fn just_pressed(&self, now: f32) -> bool {
         !self.reduce && self.pressed.is_some_and(|p| now - p < PRESS)
+    }
+
+    /// The theme on a page being drawn: a change while Settings is open peeks at the shelf. Changes in a row keep
+    /// it faded back rather than fading in and out each time.
+    pub(super) fn theme_now(&mut self, theme: String, now: f32) {
+        if self.theme.is_empty() || theme == self.theme {
+            self.theme = theme;
+            return;
+        }
+        if !self.peek_last.is_some_and(|last| now < last + PEEK_HOLD + PEEK_FADE) {
+            self.peek_from = now;
+        }
+        (self.theme, self.peek_last) = (theme, Some(now));
+    }
+
+    /// How much of the page shows during a peek (1 is all of it), or None when there's none.
+    fn peek_level(&self, now: f32) -> Option<f32> {
+        let last = self.peek_last?;
+        if now >= last + PEEK_HOLD + PEEK_FADE {
+            return None;
+        }
+        let (back, again) = if self.reduce {
+            (1.0, 0.0)
+        } else {
+            (motion::progress(now, self.peek_from, PEEK_FADE, FADE), motion::progress(now, last + PEEK_HOLD, PEEK_FADE, FADE))
+        };
+        Some(1.0 - (1.0 - PEEK_LOW) * back * (1.0 - again))
     }
 }
 
@@ -264,6 +304,7 @@ pub fn fade(
     mut s: ResMut<Settings>,
     roots: Query<(Entity, Option<&Closing>), With<SettingsUi>>,
     pages: Query<Entity, With<PageBody>>,
+    lit: Query<Entity, Or<(With<ChosenRow>, With<Highlight>)>>,
     children: Query<&Children>,
     mut colours: motion::FadeColours,
 ) {
@@ -285,10 +326,18 @@ pub fn fade(
                 let m = &s.motion;
                 let open = motion::progress(now, m.opened_at, length(OPEN), FADE).min(1.0);
                 let page = if m.details { motion::progress(now, m.page_at + 0.06, length(0.35), FADE) } else { 0.35 + 0.65 * motion::progress(now, m.page_at, length(ENTER), OUT) }.clamp(0.0, 1.0);
-                if open < 1.0 || page < 1.0 || m.fading {
-                    fading = open < 1.0 || page < 1.0;
-                    motion::fade_tree(root, open, &|e| if pages.contains(e) { page } else { 1.0 }, &children, &mut colours, &mut commands);
+                let peek = m.peek_level(now);
+                if open < 1.0 || page < 1.0 || peek.is_some() || m.fading {
+                    fading = open < 1.0 || page < 1.0 || peek.is_some();
+                    motion::fade_tree(root, open * peek.unwrap_or(1.0), &|e| if pages.contains(e) { page } else { 1.0 }, &children, &mut colours, &mut commands);
+                    // the row being changed stays readable over the shelf
+                    if peek.is_some() {
+                        for e in &lit {
+                            motion::fade_tree(e, open, &|_| 1.0, &children, &mut colours, &mut commands);
+                        }
+                    }
                 }
+                s.motion.peeking = peek.is_some_and(|k| k < 1.0);
                 if open >= 1.0 && !s.motion.faded_in {
                     s.motion.faded_in = true;
                 }
@@ -296,4 +345,27 @@ pub fn fade(
         }
     }
     s.motion.fading = fading;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_theme_picked_peeks_at_the_shelf_and_comes_back() {
+        let mut m = SettingsMotion::default();
+        // the theme Settings opened with is only noted
+        m.theme_now("spectrum".into(), 0.0);
+        assert_eq!(m.peek_level(0.5), None);
+        m.theme_now("aurora".into(), 1.0);
+        assert_eq!(m.peek_level(1.0), Some(1.0));
+        assert!((m.peek_level(1.0 + PEEK_FADE).unwrap() - PEEK_LOW).abs() < 1e-4);
+        // another change while faded back keeps it there, and it comes back after the last one
+        m.theme_now("arcade".into(), 1.5);
+        assert!((m.peek_level(1.5 + PEEK_HOLD - 0.01).unwrap() - PEEK_LOW).abs() < 1e-3);
+        assert_eq!(m.peek_level(1.5 + PEEK_HOLD + PEEK_FADE), None);
+        // the same theme drawn again doesn't peek
+        m.theme_now("arcade".into(), 9.0);
+        assert_eq!(m.peek_level(9.0), None);
+    }
 }

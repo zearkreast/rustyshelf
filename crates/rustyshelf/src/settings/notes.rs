@@ -91,12 +91,15 @@ impl Settings {
     }
 
     pub(super) fn whatsnew_page(&self) -> Page {
+        // a heading per version, its title with the highlights in the side card, then a row per item with what kind
+        // of change it is beside it and the rest of it in the side card
         let mut rows = Vec::new();
         for (i, n) in notes().iter().enumerate() {
-            rows.push(Row { label: format!("{} {}", if i == 0 { "This version" } else { "RustyShelf" }, n.name), value: n.date.clone(), hint: n.title.clone(), ..Row::default() });
+            rows.push(Row { label: format!("— {}{} · {} —", if i == 0 { "This version · " } else { "" }, n.name, n.date), ..Row::default() });
+            rows.push(Row { label: n.title.clone(), hint: n.highlights.iter().map(|h| format!("•  {h}")).collect::<Vec<_>>().join("\n"), ..Row::default() });
             for sec in &n.sections {
                 for (h, more) in &sec.items {
-                    rows.push(Row { label: format!("   {h}"), value: sec.h.clone(), hint: if more.is_empty() { h.clone() } else { more.clone() }, ..Row::default() });
+                    rows.push(Row { label: h.clone(), value: sec.h.clone(), hint: if more.is_empty() { h.clone() } else { more.clone() }, ..Row::default() });
                 }
             }
         }

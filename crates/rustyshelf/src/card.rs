@@ -21,6 +21,9 @@ pub struct Content {
     pub options: Vec<(String, String)>,
     /// the choice lit first
     pub first: usize,
+    /// notes in sections ("New", "Changed", "Fixed"), each item a headline and a line more: a wider card, each
+    /// section under a chip of its own colour
+    pub sections: Vec<(String, Vec<(String, String)>)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +64,16 @@ pub(crate) const PAPER: Color = Color::srgba(0.07, 0.08, 0.12, 0.97);
 pub(crate) const INK: Color = Color::srgb(0.953, 0.961, 0.984);
 pub(crate) const DIM: Color = Color::srgba(0.953, 0.961, 0.984, 0.62);
 pub(crate) const ACCENT: Color = Color::srgb(0.48, 0.62, 1.0);
+
+/// A notes section's colour: green for what's new, the accent for what changed, amber for what's fixed.
+fn section_colour(h: &str) -> Color {
+    match h {
+        "New" => Color::srgb(0.36, 0.86, 0.58),
+        "Fixed" => Color::srgb(1.0, 0.73, 0.32),
+        "Removed" | "Gone" => Color::srgb(1.0, 0.45, 0.5),
+        _ => ACCENT,
+    }
+}
 
 pub fn setup(mut commands: Commands) {
     commands.spawn((
@@ -125,22 +138,74 @@ pub fn run(
     let t = |s: &str| rustyshelf_core::i18n::tr(&lang, s);
     let text = |s: String, weight: u32, size: f32, color: Color| (Text::new(s), mona.font(weight, size), TextColor(color));
     let lit = card.lit;
+    let notes = !c.sections.is_empty();
     commands.entity(root).with_children(|r| {
         r.spawn((
-            Node { width: px(560), max_width: percent(90), flex_direction: FlexDirection::Column, row_gap: px(10), padding: UiRect::all(px(28)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(18)), ..default() },
+            Node {
+                width: px(if notes { 780 } else { 560 }),
+                max_width: percent(90),
+                max_height: percent(88),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(10),
+                padding: UiRect::all(px(if notes { 34 } else { 28 })),
+                border: UiRect::all(px(1)),
+                border_radius: BorderRadius::all(px(18)),
+                overflow: Overflow::clip(),
+                ..default()
+            },
             BackgroundColor(PAPER),
             BorderColor::all(Color::srgba(1.0, 1.0, 1.0, 0.14)),
         ))
         .with_children(|p| {
-            if !c.kick.is_empty() {
-                p.spawn(text(t(&c.kick).to_uppercase(), 600, 11.0, ACCENT));
+            if notes {
+                // a band of the sections' colours along the top edge
+                p.spawn((
+                    Node { position_type: PositionType::Absolute, left: px(0), right: px(0), top: px(0), height: px(4), ..default() },
+                    BackgroundGradient(vec![LinearGradient::to_right(vec![
+                        ColorStop::new(section_colour("New"), percent(0)),
+                        ColorStop::new(ACCENT, percent(50)),
+                        ColorStop::new(section_colour("Fixed"), percent(100)),
+                    ])
+                    .into()]),
+                ));
             }
-            p.spawn(text(t(&c.title), 700, 24.0, INK));
+            if !c.kick.is_empty() {
+                if notes {
+                    p.spawn((Node { align_self: AlignSelf::FlexStart, padding: UiRect::axes(px(10), px(4)), border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(ACCENT.with_alpha(0.18))))
+                        .with_child(text(t(&c.kick).to_uppercase(), 700, 11.0, ACCENT));
+                } else {
+                    p.spawn(text(t(&c.kick).to_uppercase(), 600, 11.0, ACCENT));
+                }
+            }
+            p.spawn(text(t(&c.title), 700, if notes { 30.0 } else { 24.0 }, INK));
             if !c.sub.is_empty() {
-                p.spawn(text(t(&c.sub), 400, 14.0, DIM));
+                p.spawn(text(t(&c.sub), 400, if notes { 16.0 } else { 14.0 }, DIM));
             }
             for item in &c.items {
                 p.spawn(text(format!("•  {}", t(item)), 400, 14.0, INK));
+            }
+            if notes {
+                // what doesn't fit is cut off here, above the buttons: All the notes has the rest
+                p.spawn(Node { margin: UiRect::top(px(8)), flex_direction: FlexDirection::Column, row_gap: px(16), flex_shrink: 1.0, min_height: px(0), overflow: Overflow::clip(), ..default() }).with_children(|body| {
+                    for (h, items) in &c.sections {
+                        let colour = section_colour(h);
+                        body.spawn(Node { flex_direction: FlexDirection::Column, row_gap: px(8), flex_shrink: 0.0, ..default() }).with_children(|sec| {
+                            sec.spawn((Node { align_self: AlignSelf::FlexStart, padding: UiRect::axes(px(10), px(3)), border_radius: BorderRadius::all(px(6)), ..default() }, BackgroundColor(colour.with_alpha(0.16))))
+                                .with_child(text(t(h).to_uppercase(), 700, 11.0, colour));
+                            for (head, more) in items {
+                                sec.spawn(Node { column_gap: px(12), ..default() }).with_children(|item| {
+                                    item.spawn((Node { width: px(3), flex_shrink: 0.0, border_radius: BorderRadius::MAX, ..default() }, BackgroundColor(colour.with_alpha(0.7))));
+                                    item.spawn(Node { flex_direction: FlexDirection::Column, row_gap: px(2), flex_shrink: 1.0, ..default() }).with_children(|words| {
+                                        words.spawn(text(t(head), 600, 15.0, INK));
+                                        if !more.is_empty() {
+                                            words.spawn(text(t(more), 400, 13.0, DIM));
+                                        }
+                                    });
+                                });
+                            }
+                        });
+                    }
+                });
             }
             if rows {
                 p.spawn(Node { margin: UiRect::top(px(6)), flex_direction: FlexDirection::Column, row_gap: px(4), ..default() }).with_children(|list| {
@@ -164,7 +229,7 @@ pub fn run(
                     row.spawn(text(t(what), 400, 13.0, DIM));
                 });
             }
-            p.spawn(Node { margin: UiRect::top(px(10)), column_gap: px(10), justify_content: JustifyContent::FlexEnd, ..default() }).with_children(|row| {
+            p.spawn(Node { margin: UiRect::top(px(10)), column_gap: px(10), justify_content: JustifyContent::FlexEnd, flex_shrink: 0.0, ..default() }).with_children(|row| {
                 for (i, b) in c.buttons.iter().enumerate() {
                     let on = i == lit;
                     row.spawn((

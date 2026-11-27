@@ -850,9 +850,9 @@ impl Settings {
     }
 
     /// Settings or Details is up and hides the shelf entirely: what's behind needn't be drawn or kept moving. (The
-    /// first run's card leaves the shelf in view.)
+    /// first run's card leaves the shelf in view, and so does a peek at a theme just picked.)
     pub fn covers_shelf(&self) -> bool {
-        self.open && self.motion.faded_in && !self.wizard
+        self.open && self.motion.faded_in && !self.wizard && !self.motion.peeking
     }
 
     /// Settings opened only to type the name a cover is searched under; the picker comes back with what was typed.
@@ -2134,7 +2134,7 @@ impl Settings {
                         &["ui", "theme"],
                         rustyshelf_core::themes::themes().into_iter().map(|t| (t.id, t.name)).chain(self.custom_themes.iter().cloned()).collect(),
                         &self.theme(),
-                        "The colour and mood behind your shelves. Close Settings to see it on your shelf. Your own pictures are themes too: each folder in Custom themes, beside RustyShelf, is one.",
+                        "The colour and mood behind your shelves. As you change it, the page fades for a moment to show it on your shelf. Your own pictures are themes too: each folder in Custom themes, beside RustyShelf, is one.",
                     ),
                     self.switch(
                         "Keep themes moving while you scroll",
@@ -3687,6 +3687,8 @@ pub fn draw(
     if !s.open {
         return;
     }
+    let theme = s.theme();
+    s.motion.theme_now(theme, now);
     let font = |weight: u32, size: f32| mona.sized(weight, FontSize::Vh(size / 10.8 * f32::from_bits(SCALE.load(std::sync::atomic::Ordering::Relaxed))), &face.0);
     let wide = |weight: u32, size: f32| TextFont { width: FontWidth::EXPANDED, ..font(weight, size) };
     if let Some(e) = &s.editing {
