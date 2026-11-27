@@ -1,5 +1,24 @@
 [
   {
+    "version": "0.6.6", "name": "0.6.6", "date": "2026-11-28", "title": "See a theme as you pick it, a fuller What's new, and a real disc",
+    "highlights": [
+      "Picking a theme shows it on your shelf for a moment",
+      "What's new in colour, with every change of the version",
+      "The disc out of its case has a real edge and underside",
+      "A turned disc stays out of the case"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Theme preview", "In Settings → Look, the page fades for a moment as you change the theme, so you see it on your shelf."],
+        ["What's new", "After an update, a bigger card with the version's changes under New, Changed and Fixed, each in its own colour. Settings → System → What's new lists every version under its own heading, a row per change."]
+      ] },
+      { "h": "Fixed", "items": [
+        ["The disc in Inspect", "It has a thickness, an edge and a hole, and its underside looks like a disc's: its tracks, the mirror band round the middle and a rainbow sheen."],
+        ["A disc turned in Inspect", "Comes forward as it turns, so it no longer passes into the case or the open lid."]
+      ] }
+    ]
+  },
+  {
     "version": "0.6.5", "name": "0.6.5", "date": "2026-11-24", "title": "Open the case, several PC games folders, and the right buttons on screen",
     "highlights": [
       "Inspect opens the case: the disc or cartridge, and the manual inside",
