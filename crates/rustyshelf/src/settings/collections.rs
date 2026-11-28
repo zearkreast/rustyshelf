@@ -278,6 +278,15 @@ impl Settings {
             Row { label: title.to_string(), value: on_off(on), hint: format!("On: {title} is on {name}."), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip2(s))) }
         };
         if rule == "off" {
+            // (rizaf20's boxshelf-source fork) the order its games are in: as added, or as the shelves are sorted and filtered
+            let by_shelf = col.get("order").and_then(Value::as_str) == Some("shelf");
+            let id5 = id.to_string();
+            rows.push(Row::turning(
+                "Order",
+                if by_shelf { "As the shelves are" } else { "As added" },
+                "As added: the games in the order you put them on. As the shelves are: sorted and filtered like a console's shelf (Sort & filter).",
+                move |s: &mut Settings, _| s.change_collection(&id5, move |c| c["order"] = json!(if by_shelf { "added" } else { "shelf" })),
+            ));
             const SEARCH: &str = "Type part of a game's name, then Enter: the games that match show below, each with a switch to put it on this shelf.";
             rows.push(Row {
                 label: "Search games".into(),

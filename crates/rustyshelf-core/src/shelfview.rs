@@ -309,6 +309,13 @@ pub fn mixed_shelves_with(shelves: &[Shelf], ui: Option<&Value>, history: &Histo
             let fits = |g: &Game| g.info.as_ref().is_some_and(|i| i.genres().iter().any(|x| { let k = tag_key(x); k == tag || TAG_SPLIT.split(&k).any(|p| p == tag) }));
             games.extend(by_title.iter().copied().filter(|(g, _)| !have.contains(&g.id) && fits(g)));
         }
+        // `order: "shelf"` (Collections → the shelf → Order, from rizaf20's boxshelf-source fork): the shelves' sort and
+        // filter, as a console's shelf has them, in place of the order the games were added in
+        if c.get("order").and_then(Value::as_str) == Some("shelf") {
+            games.sort_by(|a, b| compare_exact(&a.0.title, &b.0.title));
+            let list: Vec<Game> = games.iter().map(|(g, _)| (*g).clone()).collect();
+            games = arrange(&format!("col-{id}"), &list, &view, history).into_iter().map(|i| games[i]).collect();
+        }
         if games.is_empty() {
             continue;
         }
@@ -469,6 +476,11 @@ mod tests {
         let favs = mixed_shelves_with(&shelves, Some(&ui), &history, &|_| String::new()).into_iter().find(|s| s.id == "favorites").unwrap();
         assert_eq!(favs.games.iter().map(|g| g.id.as_str()).collect::<Vec<_>>(), ["d", "e", "f"]);
         assert!(mixed.iter().all(|s| matches!(s.kind, ShelfKind::Mixed)));
+        // a collection set to the shelves' order: A to Z (the shelves' order here), then their filter
+        let mut ui = ui;
+        ui["collections"][0]["order"] = serde_json::json!("shelf");
+        let couch = mixed_shelves_with(&shelves, Some(&ui), &history, &|_| String::new()).into_iter().find(|s| s.id == "col-c1").unwrap();
+        assert_eq!((couch.games.iter().map(|g| g.id.as_str()).collect::<Vec<_>>(), couch.from), (vec!["a", "f"], vec!["gc".to_string(), "pc".to_string()]));
         // nothing played, no favourite, no All shelf asked for: no shelf of the kind
         assert!(mixed_shelves_with(&shelves, Some(&serde_json::json!({})), &History::default(), &|_| String::new()).is_empty());
     }

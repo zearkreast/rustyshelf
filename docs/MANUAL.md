@@ -224,6 +224,8 @@ complete yet.
 - Imports Steam's collections and (Windows) Playnite's categories as shelves of your own (Settings → Collections),
   with the games of them that are on your shelves; Steam's Favorites join the favorites, and importing again brings
   them up to date. Steam and Playnite are only read (from MicaelTek's fork).
+- Keeps a collection's games in the order they were added, or, with its Order set to As the shelves are, sorted and
+  filtered like a console's shelf (from rizaf20's fork).
 - Groups Settings → Accounts by service, each with its own page: RetroAchievements (with Emulators, whether each
   console's emulator is signed in, Xenia's and RPCS3's own achievements included), Steam, SteamGridDB, IGDB
   (Client ID and Client Secret), ScreenScraper and RomM. Every sign-in and key is also written to `data\.env`, one
