@@ -179,7 +179,10 @@ complete yet.
   game or RustyShelf is; held on the shelf, it closes RustyShelf.
 - Follows a Steam, Epic, Ubisoft, EA or Xbox game while it runs (Seamless play, on Windows, as the Electron app does):
   the game's own process is found in its install folder, its playtime is kept, the quit combo closes it (never
-  Steam or a store's launcher), and the shelf knows when it has ended. Settings → Display turns it off.
+  Steam or a store's launcher), and the shelf knows when it has ended. A game started from its own program (GOG's,
+  Quiver's, the PC games folder's, one added by hand) is followed through its folder the same way, so a launcher
+  that hands over to the game and closes doesn't bring the shelf back early (from MicaelTek's fork). Settings →
+  Display turns it off.
 - Keeps a PC game's window the way Details → Window says (for Quiver's, GOG's and HoYoPlay's games, the PC games
   folder's and programs added by hand): borderless takes its frame off and stretches it over its screen while it
   runs, with the Electron app's own helper.

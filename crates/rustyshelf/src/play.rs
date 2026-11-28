@@ -220,6 +220,15 @@ impl Playing {
     }
 }
 
+/// The folder a PC game started from its own program is followed through: its own folder, never a drive's top or
+/// Windows' (a program added by hand may sit among many others there).
+fn game_folder(pc: &rustyshelf_core::pcgames::PcGame) -> Option<String> {
+    let dir = if pc.dir.is_empty() { rustyshelf_core::js::dirname(&pc.exe) } else { pc.dir.clone() };
+    let parts: Vec<String> = dir.split(['\\', '/']).filter(|p| !p.is_empty()).map(str::to_lowercase).collect();
+    let shared = parts.get(1).is_some_and(|p| p == "windows") || (parts.len() == 2 && matches!(parts[1].as_str(), "program files" | "program files (x86)" | "users"));
+    (parts.len() >= 2 && !shared && !pc.exe.is_empty()).then_some(dir)
+}
+
 /// A game's cover where Discord can fetch it: LaunchBox's front cover, or its Steam store header (a screenshot for
 /// store info from before the header was kept).
 fn image_of(g: &rustyshelf_core::scanner::Game) -> Option<String> {
@@ -573,6 +582,25 @@ pub fn navigate(
             }
         },
         (_, Source::Pc(pc)) => match launch::launch_pc_with(pc, &l.config, &l.app_root) {
+            // Seamless play: a game started from its own program is followed through its folder, as a store's game is,
+            // so a launcher that hands over to the real game and closes doesn't bring the shelf back early (from
+            // MicaelTek's boxshelf-source fork)
+            Ok((Some(child), notice)) if l.config.seamless() && matches!(pc.source, "custom" | "quiver" | "gog" | "folder") && game_folder(pc).is_some() => {
+                if let Some(n) = notice {
+                    toast.show(n, now, 8.0);
+                }
+                let dir = game_folder(pc).unwrap_or_default();
+                let borderless = (settings.window_mode(&g.id) == "borderless").then(|| rustyshelf_core::windowmode::borderless(child.id(), &dir).map(Helper)).flatten();
+                // (its own process is still reaped when it ends)
+                std::thread::spawn(move || {
+                    let mut child = child;
+                    let _ = child.wait();
+                });
+                let spec = Spec { kind: pc.source.to_string(), appid: String::new(), dir, exe: pc.exe.clone(), title: g.title.clone() };
+                playing.watching(&g.title, &g.id, combo, spec, crate::hud::source_name(pc));
+                playing.shown = Some((g.title.clone(), if own.id == "pc" { "PC".to_string() } else { own.name.clone() }, image_of(g)));
+                playing.borderless = borderless;
+            }
             Ok((Some(child), notice)) => {
                 if let Some(n) = notice {
                     toast.show(n, now, 8.0);
@@ -937,4 +965,21 @@ pub fn watch_game(
     }
     *playing = Playing::default();
     again.0 = true;
+}
+
+#[cfg(test)]
+mod tests {
+    // (Windows paths: Seamless play is Windows only)
+    #[cfg(windows)]
+    #[test]
+    fn a_game_is_followed_through_its_own_folder_only() {
+        use rustyshelf_core::pcgames::PcGame;
+        let at = |exe: &str| super::game_folder(&PcGame { exe: exe.into(), ..PcGame::default() });
+        assert_eq!(at(r"D:\Games\Zeta\launcher.exe").as_deref(), Some(r"D:\Games\Zeta"));
+        assert_eq!(at(r"C:\Program Files\Zeta\zeta.exe").as_deref(), Some(r"C:\Program Files\Zeta"));
+        assert_eq!(at(r"D:\Zeta\zeta.exe").as_deref(), Some(r"D:\Zeta"));
+        for shared in [r"C:\zeta.exe", r"C:\Windows\notepad.exe", r"C:\Windows\System32\calc.exe", r"C:\Program Files\zeta.exe", r"C:\Users\zeta.exe", ""] {
+            assert_eq!(at(shared), None, "{shared}");
+        }
+    }
 }
