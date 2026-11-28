@@ -20,6 +20,8 @@ pub struct CleanTitle {
     pub title_id: Option<String>,
     /// an update or DLC package, not a game
     pub extra: bool,
+    /// the version a dump carries (`[v65536]`), 0 when it says none: of two dumps of a game, the newer stays
+    pub ver: u64,
 }
 
 macro_rules! re {
@@ -33,6 +35,9 @@ re!(DUMP_SUFFIX, r"(?i)\.?\s*(?-u:\b)(nkit|wia|rvz|gcz|ciso|iso|wbfs|part[0-9]+)
 re!(DUMP_TAG, r"(?i)\s*\((nkit|wbfs|iso)\)");
 // v65536: a Switch update package's version
 re!(BIG_VERSION, r"(?i)(^|[^a-z0-9])v[0-9]{5,}");
+// ... but so does a merged base + update package, "Game [id] [v65536] (1G+1U).nsz": a "(1G" tag says it holds the game
+re!(GAME_TAG, r"(?i)[(\[]\s*[0-9]+G(?-u:\b)");
+re!(DUMP_VERSION, r"(?i)(?:^|[^a-z0-9])v([0-9]+)(?:[^0-9.]|$)");
 re!(TAG, r"\s*[(\[]([^)\]]*)[)\]]");
 re!(TITLE_ID, r"(?i)^[0-9A-F]{16}$");
 re!(TAG_EXTRA, r"(?i)^(upd|update|dlc|patch)$");
@@ -66,7 +71,9 @@ pub fn clean_title(file_name: &str, update_words: bool) -> CleanTitle {
     let base = DUMP_TAG.replace_all(&base, "").into_owned();
 
     let mut meta = CleanTitle::default();
-    let big_version = BIG_VERSION.is_match(&base);
+    // (Spadfinn's boxshelf-source fork: merged packages, and the newest version first)
+    let big_version = BIG_VERSION.is_match(&base) && !GAME_TAG.is_match(&base);
+    meta.ver = DUMP_VERSION.captures(&base).and_then(|c| c[1].parse().ok()).unwrap_or(0);
     let mut tag_extra = false;
     let base = TAG
         .replace_all(&base, |c: &Captures| {
@@ -121,6 +128,17 @@ mod tests {
         assert_eq!(t.title, "The Legend of Zelda - Wind Waker");
         assert_eq!(t.region, "USA");
         assert_eq!(t.disc, 2);
+    }
+
+    #[test]
+    fn a_merged_switch_package_is_a_game_and_says_its_version() {
+        let merged = clean_title("Zeta Run [0100ABCD12340000] [v65536] (1G+1U).nsz", true);
+        assert!(!merged.extra);
+        assert_eq!((merged.title.as_str(), merged.ver), ("Zeta Run", 65536));
+        let update = clean_title("Zeta Run [0100ABCD12340800] [v65536].nsp", true);
+        assert!(update.extra);
+        assert_eq!(clean_title("Zeta Run [0100ABCD12340000] [v0].nsp", true).ver, 0);
+        assert_eq!(clean_title("Zeta Run v1.2.iso", false).ver, 0);
     }
 
     #[test]

@@ -160,6 +160,8 @@ struct Found {
     game: Game,
     art_title: String,
     icon: Option<PathBuf>,
+    /// the version its file carries (`[v65536]`)
+    ver: u64,
 }
 
 fn name_of(p: &Path) -> String {
@@ -458,6 +460,7 @@ fn add_packages(console: &Console, sc: &SystemConfig, by_title: &mut HashMap<Str
             Found {
                 art_title: title.clone(),
                 icon: None,
+                ver: 0,
                 game: Game {
                     id: format!("{}:{}", console.id, f.display()),
                     title,
@@ -693,7 +696,8 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &S
         let mut discs = vec![f.clone()];
         if let Some(prev) = by_title.get_mut(&key) {
             let pn = prev.game.disc.max(1);
-            let better = n < pn || (n == pn && size > prev.game.size_bytes);
+            // disc 1 first, then the newer version (a merged update), then the fuller dump
+            let better = n < pn || (n == pn && (info.ver > prev.ver || (info.ver == prev.ver && size > prev.game.size_bytes)));
             // two dumps of the same disc (an .iso and an .rvz of disc 1) are one disc: the fuller one stays
             if info.disc > 0 {
                 let ds = &mut prev.game.discs;
@@ -724,6 +728,7 @@ pub fn scan(console: &Console, sc: &SystemConfig, art_dirs: &[PathBuf], data: &S
             Found {
                 art_title: info.title.clone(),
                 icon,
+                ver: info.ver,
                 game: Game {
                     id: format!("{}:{}", console.id, f.display()),
                     title: info.title,

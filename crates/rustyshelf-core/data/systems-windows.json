@@ -126,7 +126,9 @@
    "extensions": [
     "nsp",
     "xci",
-    "nro"
+    "nro",
+    "nsz",
+    "xcz"
    ],
    "gameArgs": "-f -g \"{rom}\"",
    "emulatorArgs": "",
