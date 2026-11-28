@@ -800,8 +800,42 @@ fn build(commands: &mut Commands, s: &Settings, which: Which, mona: &crate::hud:
                                         }
                                     }
                                 });
-                                // the row opened into its chips
-                                if s.panels.sub == Some(i) {
+                                // Power opened: four even tiles, two a row, each with its sign; Restart and Shut down
+                                // turn warm when they're the one chosen, as they can't be taken back
+                                if s.panels.sub == Some(i) && *row == QRow::Power {
+                                    list.spawn(Node { flex_wrap: FlexWrap::Wrap, column_gap: px(8), row_gap: px(8), padding: UiRect::new(px(18), px(18), px(2), px(14)), ..default() }).with_children(|grid| {
+                                        for (li, (_, chips)) in s.panel_lines(*row).into_iter().enumerate() {
+                                            for (ci, (v, label)) in chips.iter().enumerate() {
+                                                let on = li == s.panels.line && ci == s.panels.chip;
+                                                let (sign, hot) = match v.as_str() {
+                                                    "quit" => ("✕", false),
+                                                    "sleep" => ("☾", false),
+                                                    "restart" => ("↻", true),
+                                                    _ => ("◉", true),
+                                                };
+                                                let warm = Color::srgb(1.0, 0.55, 0.5);
+                                                let fill = match (on, hot) {
+                                                    (true, true) => warm,
+                                                    (true, false) => LIGHT,
+                                                    _ => Color::srgba(1.0, 1.0, 1.0, 0.05),
+                                                };
+                                                let mut tile = grid.spawn((
+                                                    Node { flex_basis: percent(40), flex_grow: 1.0, height: px(54), column_gap: px(12), align_items: AlignItems::Center, padding: UiRect::horizontal(px(16)), border: UiRect::all(px(1)), border_radius: BorderRadius::all(px(14)), ..default() },
+                                                    BackgroundColor(fill),
+                                                    BorderColor::all(if on { Color::NONE } else { Color::srgba(1.0, 1.0, 1.0, 0.10) }),
+                                                ));
+                                                if on {
+                                                    tile.insert(BoxShadow(vec![ShadowStyle { color: fill.with_alpha(0.35), x_offset: px(0), y_offset: px(6), spread_radius: px(-10), blur_radius: px(16) }]));
+                                                }
+                                                tile.with_children(|tl| {
+                                                    let sign_ink = if on { DARK } else if hot { warm.with_alpha(0.85) } else { DIM };
+                                                    tl.spawn((Text::new(sign), TextFont::from_font_size(bevy::text::FontSize::Px(17.0)).with_font(face.0.clone()), TextColor(sign_ink)));
+                                                    tl.spawn((text(t(label), 500, 14.0, if on { DARK } else { INK }), TextLayout::no_wrap()));
+                                                });
+                                            }
+                                        }
+                                    });
+                                } else if s.panels.sub == Some(i) {
                                     list.spawn(Node { flex_direction: FlexDirection::Column, row_gap: px(12), padding: UiRect::new(px(50), px(8), px(6), px(12)), ..default() }).with_children(|sub| {
                                         for (li, (name, chips)) in s.panel_lines(*row).into_iter().enumerate() {
                                             let cur = s.panel_value(name);
