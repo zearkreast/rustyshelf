@@ -32,6 +32,7 @@ mod addgames;
 mod art;
 mod badge;
 mod artmatch;
+mod catimport;
 mod collections;
 mod deck;
 mod custom;
@@ -363,6 +364,7 @@ pub struct Settings {
     /// the PC games, for Settings → PC → Covers
     pc_games: Vec<rustyshelf_core::pcbulk::Wanted>,
     pc_bulk: pcbulk::PcBulk,
+    cat_import: catimport::CatImport,
     /// what's typed in a collection's Search games
     shelf_q: String,
     note: String,
@@ -516,6 +518,7 @@ impl Default for Settings {
             shelf_games: Vec::new(),
             pc_games: Vec::new(),
             pc_bulk: Default::default(),
+            cat_import: Default::default(),
             shelf_q: String::new(),
             note: String::new(),
             repeat: (0, 0.0),
@@ -3222,6 +3225,7 @@ pub fn input(
     s.poll_art_match();
     s.poll_igdb_match();
     s.poll_pc_bulk();
+    s.poll_cat_import();
     s.poll_pc_backs(time.elapsed_secs());
     s.poll_badge(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it

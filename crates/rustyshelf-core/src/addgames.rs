@@ -266,7 +266,7 @@ fn unwrap(v: Value) -> Value {
 
 /// The library's documents from what the reading script printed: a line each, "<database>|<collection>|<JSON>".
 pub fn documents(printed: &str) -> Value {
-    let (mut games, mut platforms, mut emulators) = (Vec::new(), Vec::new(), Vec::new());
+    let (mut games, mut platforms, mut emulators, mut categories) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for line in printed.lines() {
         let mut parts = line.splitn(3, '|');
         let (Some(db), Some(collection), Some(doc)) = (parts.next(), parts.next(), parts.next()) else { continue };
@@ -278,10 +278,12 @@ pub fn documents(printed: &str) -> Value {
             "games" => games.push(unwrap(doc)),
             "platforms" => platforms.push(unwrap(doc)),
             "emulators" => emulators.push(unwrap(doc)),
+            // (Settings → Collections → Import Playnite categories)
+            "categories" => categories.push(unwrap(doc)),
             _ => {}
         }
     }
-    json!({ "games": games, "platforms": platforms, "emulators": emulators })
+    json!({ "games": games, "platforms": platforms, "emulators": emulators, "categories": categories })
 }
 
 /// Reads Playnite's library: its games, platforms and emulators. Windows only.
@@ -294,7 +296,7 @@ pub fn read(found: &Playnite) -> Result<Value, String> {
     let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
     let copy = std::env::temp_dir().join(format!("bs-playnite-{}-{stamp}", std::process::id()));
     let copied = fs::create_dir_all(&copy).and_then(|()| {
-        for name in ["games.db", "platforms.db", "emulators.db"] {
+        for name in ["games.db", "platforms.db", "emulators.db", "categories.db"] {
             let file = found.library.join(name);
             if file.is_file() {
                 fs::copy(&file, copy.join(name))?;

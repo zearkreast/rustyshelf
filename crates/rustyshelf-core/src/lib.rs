@@ -84,6 +84,7 @@ pub mod paths;
 pub mod pcach;
 pub mod pcbacks;
 pub mod pcbulk;
+pub mod pccats;
 pub mod pccovers;
 pub mod pcfolder;
 pub mod pcgames;

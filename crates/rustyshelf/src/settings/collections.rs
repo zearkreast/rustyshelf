@@ -8,7 +8,7 @@
 use super::*;
 
 /// The most collections there can be, and the longest name one takes.
-const MOST: usize = 50;
+pub(super) const MOST: usize = 50;
 const LONGEST: usize = 40;
 
 /// A name as it's kept: spaces evened out, no longer than the longest.
@@ -17,7 +17,7 @@ fn named(text: &str) -> String {
 }
 
 impl Settings {
-    fn collections(&self) -> Vec<Value> {
+    pub(super) fn collections(&self) -> Vec<Value> {
         at(&self.cfg, &["ui", "collections"]).and_then(Value::as_array).cloned().unwrap_or_default()
     }
 
@@ -157,6 +157,7 @@ impl Settings {
             rows.push(Row { label: name.into(), value: on_off(on), hint: format!("{hint} It shows after Home."), press: Some(Box::new(flip)), step: Some(Box::new(move |s: &mut Settings, _| flip(s))) });
         }
         const NEW: &str = "Give it a name and press Enter; then search your games and switch them on.";
+        rows.extend(self.import_rows());
         rows.push(Row {
             label: "Make a new shelf".into(),
             value: "Couch co-op, Racing, Finished…".into(),

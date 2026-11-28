@@ -216,6 +216,9 @@ complete yet.
 - Has the Home shelf (the twelve games you played last, then your favorites), the All games and Favorites shelves
   when Settings → Look asks for them (the last step of the first-run setup asks too), and your collections (Details → Collections puts a game on shelves of your own; Settings →
   Collections renames and deletes them), each game starting as it does on its own shelf.
+- Imports Steam's collections and (Windows) Playnite's categories as shelves of your own (Settings → Collections),
+  with the games of them that are on your shelves; Steam's Favorites join the favorites, and importing again brings
+  them up to date. Steam and Playnite are only read (from MicaelTek's fork).
 - Groups Settings → Accounts by service, each with its own page: RetroAchievements (with Emulators, whether each
   console's emulator is signed in, Xenia's and RPCS3's own achievements included), Steam, SteamGridDB, IGDB
   (Client ID and Client Secret), ScreenScraper and RomM. Every sign-in and key is also written to `data\.env`, one
