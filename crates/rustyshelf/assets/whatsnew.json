@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.6.7", "name": "0.6.7", "date": "2026-11-28", "title": "Hide in one key, the games you haven't installed, and RustyShelf offline",
+    "highlights": [
+      "X hides a game, U puts it back",
+      "Games you own but haven't installed, on the PC shelf",
+      "Internet access can be switched off",
+      "Edit a shelf: favourite or hide many games at once",
+      "IGDB for PC games, and details you type yourself"
+    ],
+    "sections": [
+      { "h": "New", "items": [
+        ["Hide in one key", "X on the shelf hides the chosen game, U within five seconds puts it back. On a pad, hold X to hide; a tap of X just after puts it back."],
+        ["Internet access", "Settings → System → Internet access is on by default; off, RustyShelf reaches nothing on the Internet. A RomM server on your home network still works."],
+        ["Privacy", "PRIVACY.md lists every site RustyShelf asks, what it sends and when."],
+        ["Games you haven't installed", "Settings → PC → Games you haven't installed (Windows) puts the games your Playnite store libraries own on the PC shelf, greyed; Install opens Steam's install or Playnite."],
+        ["Edit a shelf", "Settings → Games → Edit a shelf lists every game of a shelf; left or right puts each on the shelf, among the favorites or hidden."],
+        ["IGDB for PC games", "A PC game's description, genres, developer and dates come from IGDB too. Details → IGDB match picks the right game, Details → Edit details takes what you type."],
+        ["Every PC cover at once", "Settings → PC → Download missing PC covers finds the best cover for each PC game, with its progress; Undo puts back what it replaced."],
+        ["Import collections", "Settings → Collections imports Steam's collections and Playnite's categories as shelves of your own."],
+        ["PC game manuals", "Details → Read manual opens a PC game's manual: one you gave it, the PDF in its folder, or the one Steam keeps."]
+      ] },
+      { "h": "Changed", "items": [
+        ["Power", "The quick menu's Power opens into four even tiles; Restart and Shut down turn warm when chosen."],
+        ["A PC game's launcher", "With Seamless play, a game started from its own program is followed through its folder, so a launcher that hands over and closes doesn't bring the shelf back early."]
+      ] }
+    ]
+  },
+  {
     "version": "0.6.6", "name": "0.6.6", "date": "2026-11-28", "title": "See a theme as you pick it, a fuller What's new, and a real disc",
     "highlights": [
       "Picking a theme shows it on your shelf for a moment",
