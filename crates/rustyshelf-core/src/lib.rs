@@ -47,6 +47,7 @@ pub mod emuname;
 pub mod emusetup;
 pub mod epicdl;
 pub mod files;
+pub mod flatpak;
 pub mod gamekey;
 pub mod gamelist;
 pub mod find;

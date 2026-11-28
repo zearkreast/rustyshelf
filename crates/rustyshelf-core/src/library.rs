@@ -237,6 +237,11 @@ fn pc_games(cfg: &Config, data: &Path) -> (Vec<PcGame>, Vec<PcGame>) {
     }
     mine.extend(pcgames::custom_games(get("custom")));
     mine.extend(pcfolder::scan_ports(js::str_of(get("portsDir")).unwrap_or("")));
+    // (Linux) installed Flatpak games, with the stores' games; one added by hand already is left to that one
+    if on("flatpak") && cfg!(target_os = "linux") {
+        let have: Vec<String> = mine.iter().map(|g| g.exe.to_lowercase()).collect();
+        stores.extend(crate::flatpak::games(&crate::flatpak::roots()).into_iter().filter(|g| !have.contains(&g.exe.to_lowercase())));
+    }
     for g in stores.iter_mut().chain(mine.iter_mut()) {
         if let Some(t) = cfg.game_title(&g.id) {
             g.file_title = Some(std::mem::replace(&mut g.title, t.to_string()));

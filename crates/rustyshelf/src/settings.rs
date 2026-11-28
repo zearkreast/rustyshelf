@@ -2091,6 +2091,7 @@ impl Settings {
                     toggle("EA app", &["pc", "ea"], true, ""),
                     toggle("Xbox / Game Pass", &["pc", "xbox"], true, ""),
                     toggle("HoYoPlay", &["pc", "hoyoplay"], true, ""),
+                    toggle("Flatpak games", &["pc", "flatpak"], true, "Linux: the Flatpak apps marked as games (recomps and ports from Flathub) on the PC shelf; emulators and game launchers are left out"),
                     toggle("Quiver Launcher", &["pc", "quiver"], true, "Its apps go on the Custom shelf, its ports and recompilations on Ports & Recomps"),
                     {
                         let n = self.pc_games_dirs().len();
@@ -2122,6 +2123,9 @@ impl Settings {
                     open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
                     gallery_row("PC game covers", "Every PC game's cover and where it comes from (your pick, Epic's box art, Steam's, or a made-up case). Pick a game to change it. Also in Box art."),
                 ];
+                if !cfg!(target_os = "linux") {
+                    rows.retain(|r| r.label != "Flatpak games");
+                }
                 rows.extend(self.pc_bulk_rows());
                 // (MicaelTek's to-install shelf) the games of Playnite's store libraries that aren't installed
                 if cfg!(windows) {

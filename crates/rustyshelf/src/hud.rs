@@ -269,6 +269,7 @@ pub fn store_name(source: &str) -> &'static str {
         "xbox" => "Xbox",
         "hoyoplay" => "HoYoPlay",
         "moonlight" => "Moonlight",
+        "flatpak" => "Flatpak",
         _ => "Steam",
     }
 }

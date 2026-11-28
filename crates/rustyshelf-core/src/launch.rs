@@ -634,6 +634,7 @@ pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
             "quiver" => "Check it in Quiver Launcher.",
             "gog" => "Check it in GOG Galaxy.",
             "hoyoplay" => "Check it in HoYoPlay.",
+            "flatpak" => "It may have been uninstalled: check it with flatpak list.",
             "folder" => "Check its folder in the PC games folder.",
             "moonlight" => "Install Moonlight, or choose it in Settings → Game streaming.",
             _ => "Remove it in Settings → Custom games and add it again.",
