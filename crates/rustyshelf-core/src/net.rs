@@ -8,14 +8,16 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
-    let mut b = ureq::AgentBuilder::new().user_agent("RustyShelf").timeout_connect(Duration::from_secs(20)).redirects(5);
+static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| agent_following(5));
+
+fn agent_following(redirects: u32) -> ureq::Agent {
+    let mut b = ureq::AgentBuilder::new().user_agent("RustyShelf").timeout_connect(Duration::from_secs(20)).redirects(redirects);
     // a proxy the system names is used, as the Electron app's requests go through it
     if let Some(proxy) = ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"].iter().find_map(|k| std::env::var(k).ok()).filter(|p| !p.is_empty()).and_then(|p| ureq::Proxy::new(p).ok()) {
         b = b.proxy(proxy);
     }
     b.build()
-});
+}
 
 static ONLINE: AtomicBool = AtomicBool::new(true);
 
@@ -123,6 +125,17 @@ pub fn post(url: &str, headers: &[(&str, &str)], body: &str, wait: Duration, max
     let mut b = Vec::new();
     res.into_reader().take(max as u64).read_to_end(&mut b).map_err(|e| e.to_string())?;
     Ok((status, b))
+}
+
+/// Where a page sends you, without going there: the `Location` of a redirect, None for any other answer.
+pub fn redirect(url: &str, wait: Duration) -> Result<Option<String>, Failure> {
+    off()?;
+    static ONCE: LazyLock<ureq::Agent> = LazyLock::new(|| agent_following(0));
+    let res = match ONCE.get(url).timeout(wait).call() {
+        Ok(r) | Err(ureq::Error::Status(_, r)) => r,
+        Err(e) => return Err(failure(e)),
+    };
+    Ok((300..400).contains(&res.status()).then(|| res.header("location").map(str::to_string)).flatten())
 }
 
 /// A page's bytes, at most `max` of them; None when the server says it isn't there (404, 403).

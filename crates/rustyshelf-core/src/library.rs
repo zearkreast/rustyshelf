@@ -100,6 +100,7 @@ impl PcArt<'_> {
         let (cover, hero) = self.steam_art(&g.appid);
         let (mut art, box_plat) = self.case(&id, || g.front.or(cover));
         self.steam_back(&mut art, &box_plat, &g.appid);
+        crate::pcmanuals::attach(self.data, &id, g.dir.as_deref(), &mut art);
         Game {
             title: self.cfg.game_title(&id).map(String::from).unwrap_or(g.title),
             id,
@@ -127,6 +128,8 @@ impl PcArt<'_> {
         if let Some(sid) = sid {
             self.steam_back(&mut art, &box_plat, sid);
         }
+        let folder = Some(if g.dir.is_empty() { Path::new(&g.exe).parent().unwrap_or(Path::new("")) } else { Path::new(&g.dir) }).filter(|d| g.installed != Some(false) && !d.as_os_str().is_empty());
+        crate::pcmanuals::attach(self.data, &g.id, folder, &mut art);
         // only the games whose own folder is the game: a program added by hand may sit in a shared folder
         let sized = g.installed != Some(false) && matches!(g.source, "folder" | "epic" | "hoyoplay") && !g.dir.is_empty();
         Game {
@@ -527,6 +530,7 @@ pub fn upkeep(lib: &Library) -> bool {
     changed |= auto_covers(lib, &data_dir);
     changed |= auto_manuals(lib, &data_dir);
     changed |= wiiu_manuals(lib, &data_dir);
+    changed |= crate::pcmanuals::upkeep(lib, &data_dir);
     changed | convert_pdf_manuals(lib)
 }
 

@@ -49,6 +49,7 @@ mod linuxpc;
 mod pcbacks;
 mod phone;
 mod romm;
+mod shelfedit;
 pub mod setup;
 mod storage;
 mod streaming;
@@ -100,6 +101,9 @@ enum Screen {
     ShelfOrder,
     Details,
     Hidden,
+    /// Edit a shelf: the shelves, then one shelf's games
+    EditShelves,
+    EditShelf(String),
     /// the chosen game's collections, and all of them
     GameCollections,
     Collections,
@@ -349,6 +353,8 @@ pub struct Settings {
     /// the filters this library can use, and every game's title by its id (for the hidden ones)
     filters: Vec<(String, String)>,
     titles: std::collections::HashMap<String, String>,
+    /// each shelf's id, name and games' ids (Edit a shelf)
+    shelf_games: Vec<(String, String, Vec<String>)>,
     /// what's typed in a collection's Search games
     shelf_q: String,
     note: String,
@@ -498,6 +504,7 @@ impl Default for Settings {
             chosen: None,
             filters: Vec::new(),
             titles: std::collections::HashMap::new(),
+            shelf_games: Vec::new(),
             shelf_q: String::new(),
             note: String::new(),
             repeat: (0, 0.0),
@@ -1493,6 +1500,7 @@ impl Settings {
                 rows.extend([
                     open("Collections", String::new(), "Shelves you make yourself, mixing games from any console: make one, name it, search for games to put on it.", Screen::Collections),
                     Row { label: "Trophies".into(), hint: "Your RetroAchievements and Steam achievements: every game, the last month's unlocks and how rare they are. T on the shelf, or the quick menu.".into(), press: Some(Box::new(|s: &mut Settings| s.open_trophies(false))), ..Row::default() },
+                    open("Edit a shelf", String::new(), "Every game of a shelf in one list: on the shelf, ♥ favorite or hidden, each a step left or right away", Screen::EditShelves),
                     open("Hidden games", format!("{}", self.list(&["ui", "hidden"]).len()), "Games taken off their shelf; they can be shown again here", Screen::Hidden),
                 ]);
                 ("Your consoles, their emulators and your games: where RustyShelf finds them and what goes on the shelves.", rows)
@@ -2023,6 +2031,8 @@ impl Settings {
             Screen::GameCollections => self.game_collections_page(),
             Screen::Collections => self.collections_page(),
             Screen::MyShelf(id) => self.my_shelf_page(id),
+            Screen::EditShelves => self.edit_shelves_page(),
+            Screen::EditShelf(id) => self.edit_shelf_page(id),
             Screen::Custom => self.custom_page(),
             Screen::CustomGame(i) => self.custom_game_page(*i),
             Screen::AddGames => self.add_games_page(),
@@ -3096,6 +3106,12 @@ pub fn input(
             let all: Vec<&Game> = b.shelves.iter().flat_map(|sh| sh.games.iter()).collect();
             s.filters = shelfview::filters(&all, &s.text(&["ui", "filter"]));
             s.titles = all.iter().map(|g| (g.id.clone(), g.title.clone())).collect();
+            s.shelf_games = b
+                .shelves
+                .iter()
+                .map(|sh| (sh.id.clone(), sh.name.clone(), sh.games.iter().filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| g.id.clone()).collect::<Vec<_>>()))
+                .filter(|sh| !sh.2.is_empty())
+                .collect();
             s.note_folders(&all);
         }
         if first == Screen::Details && s.chosen.is_none() {

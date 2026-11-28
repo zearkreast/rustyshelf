@@ -221,6 +221,9 @@ complete yet.
   and what was unlocked when a game is come back from. The key is also kept as the Electron app keeps it,
   encrypted for this Windows user, so both apps open each other's. PCSX2 counts as signed in with its token in
   `inis\secrets.ini`, where PCSX2 2.x keeps it.
+- Reads a PC game's manual like a console game's (Details → Read manual): one you gave it, the PDF that came in
+  the game's folder (GOG's Manual.pdf, a Manual or Docs folder), or the manual Steam keeps for a Steam game,
+  downloaded once and cut into pages in `data/pc-covers`; a game's own file stays where it is.
 - Shows a Steam game's achievements in Details, read from what Steam keeps on this PC (its `appcache\stats`
   files, for the account last signed in), as the Electron app does, with how many players have each (Steam's
   world percentages) and steamhunters.com's points for it, so they sort by rarity or points; a game never started

@@ -86,6 +86,7 @@ pub mod pcbacks;
 pub mod pccovers;
 pub mod pcfolder;
 pub mod pcgames;
+pub mod pcmanuals;
 pub mod pdfpages;
 pub mod pkg;
 pub mod pool;

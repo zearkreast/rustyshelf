@@ -38,6 +38,7 @@ These need no sign-in. They send the name of a game (or its Steam app id) and ge
 | GitHub (`api.github.com`) | Which RustyShelf release is the newest | When you press Check for updates, or at start if automatic updates are on (off by default) |
 | GitHub (`raw.githubusercontent.com`) | FinalBurn Neo's arcade name list, Xenia's Xbox 360 title list | Once for arcade, weekly for Xbox 360, when those shelves have games |
 | Steam store (`store.steampowered.com`, Steam's CDN) | A Steam game's cover, release date, developer, genres, screenshots | For Steam games missing them, kept a month |
+| Steam store (`store.steampowered.com/manual`, Steam's CDN) | Whether a Steam game has a manual, and the manual's PDF | For Steam games without one, a few dozen after each scan, each again a month later |
 | steamhunters.com | A Steam game's achievement points | When you open its achievements, kept a week |
 | libretro thumbnails, LaunchBox Games Database | A console game's box art | When box art fetching is on (off by default), or when you ask for art |
 | GameTDB, Super Mario Wiki | Switch and 3DS box scans | Only when no other source had the part, kept a week |
