@@ -36,6 +36,7 @@ mod collections;
 mod deck;
 mod custom;
 mod find;
+mod igdbmatch;
 mod kid;
 pub use kid::kid_hidden;
 pub use notes::notes;
@@ -134,6 +135,9 @@ enum Screen {
     ArtPart,
     ArtSets,
     ArtMatch,
+    /// Details → IGDB match, and Edit details
+    IgdbMatch,
+    EditDetails,
     /// Settings → System → Kid mode
     Kid,
     /// Settings → Sounds → Sound per console
@@ -408,6 +412,7 @@ pub struct Settings {
     art_pick: art::ArtPick,
     badge: badge::Badge,
     art_match: artmatch::ArtMatchState,
+    igdb_match: igdbmatch::IgdbMatchState,
     finding: find::Finding,
     ra: std::sync::Arc<rustyshelf_core::ra::Ra>,
     ra_answer: Option<Later<accounts::RaAnswer>>,
@@ -547,6 +552,7 @@ impl Default for Settings {
             art_pick: Default::default(),
             badge: Default::default(),
             art_match: Default::default(),
+            igdb_match: Default::default(),
             kid_open: false,
             tab: 0,
             finding: Default::default(),
@@ -1466,7 +1472,7 @@ impl Settings {
         }
         let mut page = self.screen_page();
         if self.kid_locked() && *screen == Screen::Details {
-            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Art match" | "Collections" | "Manual Studio" | "Back of the box…" | "Back from LaunchBox" | "Made-up back"));
+            page.rows.retain(|r| !matches!(r.label.as_str(), "Hide from the shelf" | "Box art" | "Art match" | "IGDB match" | "Edit details" | "Collections" | "Manual Studio" | "Back of the box…" | "Back from LaunchBox" | "Made-up back"));
             // a section left with nothing under it loses its heading
             let keep: Vec<bool> = (0..page.rows.len()).map(|i| !heading(&page.rows[i].label) || page.rows.get(i + 1).is_some_and(|n| !heading(&n.label))).collect();
             let mut k = keep.into_iter();
@@ -2769,7 +2775,8 @@ impl Settings {
                     };
                     rows.push(Row::turning("Window", value, hint, turn));
                 }
-                let about: Vec<Row> = facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }).collect();
+                let mut about = self.info_rows();
+                about.extend(facts(c).into_iter().map(|(label, value)| Row { label, value, ..Row::default() }));
                 let mut all = top;
                 for (name, group) in [("Your game", rows), ("Achievements, manual & screenshots", media), ("Box art", art), ("About", about)] {
                     if !group.is_empty() {
@@ -2798,6 +2805,8 @@ impl Settings {
             Screen::Kid => self.kid_page(),
             Screen::ArtSets => self.art_sets_page(),
             Screen::ArtMatch => self.art_match_page(),
+            Screen::IgdbMatch => self.igdb_match_page(),
+            Screen::EditDetails => self.edit_details_page(),
             Screen::Achievements => self.achievements_page(),
             Screen::Hidden => {
                 let hidden = self.list(&["ui", "hidden"]);
@@ -3203,6 +3212,7 @@ pub fn input(
     s.poll_deck();
     s.poll_art(time.elapsed_secs());
     s.poll_art_match();
+    s.poll_igdb_match();
     s.poll_pc_backs(time.elapsed_secs());
     s.poll_badge(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it

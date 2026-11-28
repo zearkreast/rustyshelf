@@ -65,14 +65,23 @@ pub fn platform(sys: &str) -> Option<u32> {
         "wonderswan" => 57,
         "neogeo" => 80,
         "dos" => 13,
+        // a PC game, on the PC, Custom or Ports shelf (from MicaelTek's boxshelf-source fork)
+        "pc" => 6,
         _ => return None,
     })
 }
 
-/// A game's title as it's searched for: without its bracketed parts and quotes.
+/// A game's title as it's searched for: without its bracketed parts, quotes and a " - " between its parts.
 fn title_of(title: &str) -> String {
     static BRACKETS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*[(\[].*?[)\]]").unwrap());
-    BRACKETS.replace_all(title, "").replace(['"', '\\'], "").trim().to_string()
+    static DASH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+[-–—]+\s+").unwrap());
+    DASH.replace_all(&BRACKETS.replace_all(title, ""), " ").replace(['"', '\\'], "").trim().to_string()
+}
+
+/// A title without a year in it ("Doom 2016" → "Doom"): IGDB's search often misses a name with its year.
+fn without_year(t: &str) -> String {
+    static YEAR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b(19[7-9]\d|20[0-3]\d)\b").unwrap());
+    YEAR.replace_all(t, " ").split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// How a request goes out: the address, its headers and body → the status and the answer.
@@ -242,8 +251,16 @@ impl Igdb {
                 return Ok(found.clone());
             }
         }
-        let q = format!("search \"{t}\"; fields {FIELDS}; {}limit 15;", platform(sys).map_or(String::new(), |p| format!("where platforms = ({p}); ")));
-        let list = self.query("games", &q)?;
+        let ask = |t: &str, plat: Option<u32>| self.query("games", &format!("search \"{t}\"; fields {FIELDS}; {}limit 15;", plat.map_or(String::new(), |p| format!("where platforms = ({p}); "))));
+        let mut list = ask(&t, platform(sys))?;
+        // nothing: the title without its year, then (a PC game) on every platform: a port's entry often lacks the PC
+        let bare = without_year(&t);
+        if list.is_empty() && !bare.is_empty() && bare != t {
+            list = ask(&bare, platform(sys))?;
+        }
+        if list.is_empty() && sys == "pc" {
+            list = ask(if bare.is_empty() { &t } else { &bare }, None)?;
+        }
         let named: Vec<&Value> = list.iter().filter(|x| x["name"].as_str().is_some_and(|n| !n.is_empty())).collect();
         let pick = |of: Vec<&Value>| -> Option<Value> {
             let names: Vec<String> = of.iter().map(|x| crate::lbindex::norm(x["name"].as_str().unwrap_or(""))).collect();
@@ -252,6 +269,37 @@ impl Igdb {
         let found = Found { hit: pick(named.clone()), shot_hit: pick(named.into_iter().filter(|x| x["screenshots"].as_array().is_some_and(|s| !s.is_empty())).collect()) };
         self.state.lock().unwrap().memo.insert(key, (now, Some(found.clone())));
         Ok(Some(found))
+    }
+
+    /// Every game IGDB finds for a name, for Details → IGDB match to pick from: on the console's platform (a PC game:
+    /// then on every platform too), without a year in the name when it finds nothing with it. At most 25.
+    pub fn search(&self, sys: &str, term: &str) -> Result<Vec<Value>, Trouble> {
+        let t = title_of(term);
+        if t.is_empty() || !self.ready() {
+            return Ok(Vec::new());
+        }
+        let ask = |t: &str, plat: Option<u32>| self.query("games", &format!("search \"{t}\"; fields {FIELDS},platforms.name; {}limit 25;", plat.map_or(String::new(), |p| format!("where platforms = ({p}); "))));
+        let bare = without_year(&t);
+        let mut asks = vec![(t.clone(), platform(sys))];
+        if !bare.is_empty() && bare != t {
+            asks.push((bare.clone(), platform(sys)));
+        }
+        if sys == "pc" {
+            asks.push((t.clone(), None));
+        }
+        let mut out: Vec<Value> = Vec::new();
+        for (t, plat) in asks {
+            for h in ask(&t, plat)? {
+                if h["name"].as_str().is_some_and(|n| !n.is_empty()) && !out.iter().any(|o| o["id"] == h["id"]) {
+                    out.push(h);
+                }
+            }
+            if out.len() >= 25 {
+                break;
+            }
+        }
+        out.truncate(25);
+        Ok(out)
     }
 
     /// Whether Twitch gives a token for these keys: for Accounts' check.
@@ -348,6 +396,39 @@ pub fn fill(info: &mut Info, x: &Value) -> bool {
     added
 }
 
+/// What a picked match (or what the player typed in Details → Edit details) says, over what the game had: each value
+/// given replaces the game's. Whether anything changed.
+pub fn over(info: &mut Info, x: &Value) -> bool {
+    let text = |k: &str| x[k].as_str().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+    let mut changed = false;
+    for (have, k) in [(&mut info.overview, "overview"), (&mut info.genres, "genres"), (&mut info.dev, "dev"), (&mut info.publisher, "pub"), (&mut info.release, "release")] {
+        if let Some(v) = text(k).filter(|v| have.as_deref() != Some(v)) {
+            (*have, changed) = (Some(v), true);
+        }
+    }
+    let year = x["year"].as_u64().map(|y| y.to_string()).or_else(|| text("year"));
+    if let Some(y) = year.filter(|y| info.year.as_deref() != Some(y)) {
+        // a year typed over a release date of another year: the date goes
+        if info.release.as_deref().is_some_and(|r| !r.starts_with(y.as_str())) && text("release").is_none() {
+            info.release = None;
+        }
+        (info.year, changed) = (Some(y), true);
+    }
+    if let Some(r) = x["rating"].as_f64().filter(|r| info.rating != Some(*r)) {
+        (info.rating, changed) = (Some(r), true);
+    }
+    changed
+}
+
+/// A game's info with what's kept for it from IGDB: a picked match's over it, an automatic one's in its gaps.
+pub fn apply(store: &Store, key: &str, info: &mut Info) -> bool {
+    match store.get(key) {
+        Some(x) if store.picked(key) => over(info, x),
+        Some(x) => fill(info, x),
+        None => false,
+    }
+}
+
 /// Some of what Details shows is missing: worth a lookup.
 pub fn gaps(info: Option<&Info>) -> bool {
     info.is_none_or(|i| gap(&i.overview) || gap(&i.genres) || gap(&i.dev) || (gap(&i.release) && gap(&i.year)))
@@ -372,9 +453,33 @@ impl Store {
         self.games.get(key).and_then(|e| e.get("i"))
     }
 
-    /// Not asked yet, or asked more than `RETRY` ago.
+    /// Not asked yet, or asked more than `RETRY` ago; never a match picked by hand.
     pub fn due(&self, key: &str, now: f64) -> bool {
-        self.games.get(key).is_none_or(|e| now - e["at"].as_f64().unwrap_or(0.0) >= RETRY)
+        self.games.get(key).is_none_or(|e| e["pick"] != true && now - e["at"].as_f64().unwrap_or(0.0) >= RETRY)
+    }
+
+    /// Whether the game's match was picked in Details → IGDB match.
+    pub fn picked(&self, key: &str) -> bool {
+        self.games.get(key).is_some_and(|e| e["pick"] == true)
+    }
+
+    /// The match picked by hand: kept, never looked up again by itself, and over what the game had.
+    pub fn pick(&mut self, key: &str, hit: &Value, now: f64) {
+        let mut e = json!({ "at": now, "pick": true, "name": hit["name"] });
+        if let Some(i) = info_of(hit) {
+            e["i"] = i;
+        }
+        self.games.insert(key.into(), e);
+    }
+
+    /// The picked match's name.
+    pub fn picked_name(&self, key: &str) -> Option<&str> {
+        self.games.get(key).filter(|e| e["pick"] == true).and_then(|e| e["name"].as_str())
+    }
+
+    /// Forgets what's kept for a game: it's looked up by itself again.
+    pub fn forget(&mut self, key: &str) {
+        self.games.shift_remove(key);
     }
 
     /// An answer for a game, its match or none (IGDB has nothing for it): kept either way, so it isn't asked again
@@ -403,7 +508,7 @@ pub fn lookup_info(client: Option<&Igdb>, data_dir: &Path, sys: &str, file: &Pat
             let _ = store.save();
         }
     }
-    store.get(&key).is_some_and(|x| fill(info, x))
+    apply(&store, &key, info)
 }
 
 #[cfg(test)]

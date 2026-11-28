@@ -219,6 +219,10 @@ complete yet.
   `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`, `SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD`, `SCREENSCRAPER_DEV_ID`,
   `SCREENSCRAPER_DEV_PASSWORD`); a value there wins over `config.json`, so the file can be edited by hand or
   carried to another PC. The keys already in `config.json` are copied there on start.
+- Fills a PC game's gaps from IGDB too, as IGDB's PC (with the IGDB keys; a name with a year, or a game IGDB lists
+  only on other platforms, is looked up again without them). Details → IGDB match searches IGDB and keeps the game
+  you pick for it, and Details → Edit details takes the description, developer, publisher, genres and year typed
+  by hand, over every source (from MicaelTek's fork).
 - Reads RetroAchievements as the Electron app does (Settings → Accounts → RetroAchievements: the username and web
   API key, a check of the account): a game's progress beside its facts on the shelf, its achievements in Details,
   and what was unlocked when a game is come back from. The key is also kept as the Electron app keeps it,

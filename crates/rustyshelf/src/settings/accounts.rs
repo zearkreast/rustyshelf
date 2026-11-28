@@ -477,11 +477,16 @@ impl Settings {
         self.more_shots.insert(id, shots);
     }
 
-    /// Asks IGDB for what the chosen console game's info is missing, when there are keys and it's due; what's kept
-    /// from before fills the gaps without asking.
+    /// Asks IGDB for what the chosen game's info is missing (a console's, or a PC game's as IGDB's PC), when there are
+    /// keys and it's due; what's kept from before fills the gaps without asking.
     pub(super) fn load_igdb(&mut self) {
-        let Some(c) = self.chosen.as_ref().filter(|c| c.game.source == Source::Rom && rustyshelf_core::igdb::gaps(c.game.info.as_ref())) else { return };
-        let (sys, file, title, id, mut info) = (c.console.clone(), c.game.file.clone(), c.game.title.clone(), c.game.id.clone(), c.game.info.clone().unwrap_or_default());
+        let Some(c) = self.chosen.as_ref().filter(|c| rustyshelf_core::igdb::gaps(c.game.info.as_ref())) else { return };
+        let sys = match &c.game.source {
+            Source::Rom => c.console.clone(),
+            Source::Pc(_) | Source::Steam { .. } => "pc".to_string(),
+            _ => return,
+        };
+        let (file, title, id, mut info) = (c.game.file.clone(), c.game.title.clone(), c.game.id.clone(), c.game.info.clone().unwrap_or_default());
         let data = paths::data_dir(&self.app_root);
         self.igdb_answer = Some(Later::spawn(move || {
             let client = rustyshelf_core::igdb::Igdb::from_settings(&data);

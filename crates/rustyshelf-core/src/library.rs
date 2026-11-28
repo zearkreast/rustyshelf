@@ -380,9 +380,10 @@ impl Library {
             for g in shelf.games.iter_mut() {
                 let name = config.game(&g.id).and_then(|o| o.get("artName")).and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or(&g.title);
                 g.info = infos.get(&shelf.id, name).or(g.info.take());
-                if let Some(x) = igdb.get(&crate::gamekey::game_key(&shelf.id, &g.file, &g.title)) {
+                let key = crate::gamekey::game_key(&shelf.id, &g.file, &g.title);
+                if igdb.get(&key).is_some() {
                     let mut info = g.info.take().unwrap_or_default();
-                    crate::igdb::fill(&mut info, x);
+                    crate::igdb::apply(&igdb, &key, &mut info);
                     g.info = Some(info);
                 }
                 // the screenshots added to LaunchBox's (Details' more screenshots)
@@ -459,6 +460,15 @@ impl Library {
             })
             .collect();
         for (id, name, mut games) in [("pc", "PC", pc), ("custom", "Custom", custom), ("ports", "Ports & Recomps", ports), ("streaming", "Game streaming", streamed)] {
+            // what IGDB gave a PC game in Details (as IGDB's PC) fills its gaps here too
+            for g in games.iter_mut() {
+                let key = crate::gamekey::game_key("pc", &g.file, &g.title);
+                if igdb.get(&key).is_some() {
+                    let mut info = g.info.take().unwrap_or_default();
+                    crate::igdb::apply(&igdb, &key, &mut info);
+                    g.info = Some(info);
+                }
+            }
             if !games.is_empty() {
                 games.sort_by(|a, b| compare_plain(&a.title, &b.title));
                 shelves.push(Shelf { id: id.into(), name: name.into(), kind: ShelfKind::Pc, games, from: Vec::new() });
@@ -475,6 +485,12 @@ impl Library {
             .collect();
         if !apps.is_empty() {
             shelves.push(Shelf { id: "media".into(), name: "Media".into(), kind: ShelfKind::Apps, games: apps, from: Vec::new() });
+        }
+        // Details → Edit details: what the player typed wins over every source
+        for g in shelves.iter_mut().flat_map(|sh| sh.games.iter_mut()) {
+            if let Some(own) = config.game(&g.id).and_then(|o| o.get("info")).filter(|o| o.as_object().is_some_and(|o| !o.is_empty())) {
+                crate::igdb::over(g.info.get_or_insert_with(Default::default), own);
+            }
         }
         Ok(Library { app_root: app_root.to_path_buf(), config, shelves })
     }
