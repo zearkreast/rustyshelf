@@ -148,7 +148,7 @@ fn rebranded(bytes: &[u8], plat: &str, part: &str) -> Option<Vec<u8>> {
     crate::art::jpeg(&img.into_rgb8(), 92)
 }
 
-fn download(url: &str) -> Option<Vec<u8>> {
+pub(crate) fn download(url: &str) -> Option<Vec<u8>> {
     crate::net::get_picture(url, std::time::Duration::from_secs(15), 25_000_000)
 }
 
@@ -292,7 +292,7 @@ pub fn choose(data: &Path, id: &str, option: &CoverOption) -> Result<PathBuf, St
 }
 
 /// Keeps a picture as the game's chosen cover in place of any chosen before.
-fn keep(data: &Path, id: &str, bytes: &[u8], from: &str) -> Result<PathBuf, String> {
+pub(crate) fn keep(data: &Path, id: &str, bytes: &[u8], from: &str) -> Result<PathBuf, String> {
     keep_as(data, id, bytes, &ext_of(from, bytes))
 }
 

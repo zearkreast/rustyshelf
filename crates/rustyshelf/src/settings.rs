@@ -48,6 +48,7 @@ mod notes;
 mod mstudio;
 mod linuxpc;
 mod pcbacks;
+mod pcbulk;
 mod phone;
 mod romm;
 mod shelfedit;
@@ -359,6 +360,9 @@ pub struct Settings {
     titles: std::collections::HashMap<String, String>,
     /// each shelf's id, name and games' ids (Edit a shelf)
     shelf_games: Vec<(String, String, Vec<String>)>,
+    /// the PC games, for Settings → PC → Covers
+    pc_games: Vec<rustyshelf_core::pcbulk::Wanted>,
+    pc_bulk: pcbulk::PcBulk,
     /// what's typed in a collection's Search games
     shelf_q: String,
     note: String,
@@ -510,6 +514,8 @@ impl Default for Settings {
             filters: Vec::new(),
             titles: std::collections::HashMap::new(),
             shelf_games: Vec::new(),
+            pc_games: Vec::new(),
+            pc_bulk: Default::default(),
             shelf_q: String::new(),
             note: String::new(),
             repeat: (0, 0.0),
@@ -2099,6 +2105,7 @@ impl Settings {
                     open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
                     gallery_row("PC game covers", "Every PC game's cover and where it comes from (your pick, Epic's box art, Steam's, or a made-up case). Pick a game to change it. Also in Box art."),
                 ];
+                rows.extend(self.pc_bulk_rows());
                 // (MicaelTek's to-install shelf) the games of Playnite's store libraries that aren't installed
                 if cfg!(windows) {
                     let at = rows.iter().position(|r| r.label == "HoYoPlay").map_or(rows.len(), |i| i + 1);
@@ -3121,6 +3128,7 @@ pub fn input(
                 .map(|sh| (sh.id.clone(), sh.name.clone(), sh.games.iter().filter(|g| !matches!(g.source, Source::Tile(_))).map(|g| g.id.clone()).collect::<Vec<_>>()))
                 .filter(|sh| !sh.2.is_empty())
                 .collect();
+            s.pc_games = Settings::pc_wanted(&b.shelves);
             s.note_folders(&all);
         }
         if first == Screen::Details && s.chosen.is_none() {
@@ -3213,6 +3221,7 @@ pub fn input(
     s.poll_art(time.elapsed_secs());
     s.poll_art_match();
     s.poll_igdb_match();
+    s.poll_pc_bulk();
     s.poll_pc_backs(time.elapsed_secs());
     s.poll_badge(time.elapsed_secs());
     // a dialog is up, or the emulator opened from here: the page waits for it

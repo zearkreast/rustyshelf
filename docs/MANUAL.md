@@ -115,6 +115,10 @@ complete yet.
   games, ports and recomps that have no cover at all SteamGridDB's best poster, as the Electron app does (their
   titles are sent to SteamGridDB). The key is kept encrypted like the RetroAchievements one, and the lookups are
   kept in the same `data\sgdb-cache.json`.
+- Settings → PC → Download missing PC covers gives every PC game with no front cover the best one found (Steam's
+  own, Steam's store, or SteamGridDB's posters with the key), a few games at a time, with its progress and a Cancel;
+  Refresh all PC covers looks again at every one. Undo the last cover download puts back what the last run
+  replaced (from MicaelTek's fork).
 - Signs in to ScreenScraper with your own account (Settings → Accounts → ScreenScraper: username, password, a developer login of
   your own if you have one, and a check that shows the lookups left today), kept encrypted like the other keys.
   The lookup itself is the Electron app's (a game matched by its file's checksums, name and size, then by title;
