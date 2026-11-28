@@ -245,7 +245,7 @@ complete yet.
   rating and score from the box art database (or Steam's store for a Steam game), its file, emulator and playtime,
   with Play and, beside it, Read the manual (← →) when the game has one; below them its rows in sections (Your game,
   Achievements, manual & screenshots, Box art, About) that the cursor steps over, and a description box of a set
-  size, so the list doesn't move as it's read. Settings → Hidden games shows a hidden game again.
+  size, so the list doesn't move as it's read. Settings → Hidden games shows a hidden game again. Settings → Games → Edit a shelf lists every game of a shelf, each on the shelf, a favorite or hidden a step left or right away (from MicaelTek's fork).
 - Exports and imports everything (Settings → System), as the Electron app does and in the same layout, so an
   export made by either app goes into the other: the settings, the downloads (art, manuals, the box art
   database) and the art kept next to your games, into one folder with a manifest. The page says how big the
