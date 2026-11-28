@@ -22,7 +22,7 @@ impl Settings {
         let mut rows = vec![Row {
             label: "Import Steam collections".into(),
             hint: "Your Steam library's collections become shelves of your own here (dynamic ones and Hidden are left out), and its Favorites your favorites. Importing again brings them up to date; Steam isn't changed.".into(),
-            press: Some(Box::new(|s: &mut Settings| s.import_steam())),
+            press: Some(Box::new(|s: &mut Settings| s.import_steam_collections())),
             ..Row::default()
         }];
         if cfg!(windows) {
@@ -30,14 +30,14 @@ impl Settings {
                 label: "Import Playnite categories".into(),
                 value: if self.cat_import.reading.is_some() { "Reading…".into() } else { String::new() },
                 hint: "Playnite's categories become shelves of your own, with the games of them that are on your shelves. Importing again brings them up to date; Playnite isn't changed.".into(),
-                press: Some(Box::new(|s: &mut Settings| s.import_playnite())),
+                press: Some(Box::new(|s: &mut Settings| s.import_playnite_categories())),
                 ..Row::default()
             });
         }
         rows
     }
 
-    fn import_steam(&mut self) {
+    fn import_steam_collections(&mut self) {
         let Some(root) = rustyshelf_core::steam::main_root(&self.text(&["steam", "path"])) else {
             return self.say("Steam wasn't found. Set its folder in Settings → PC.".into());
         };
@@ -48,7 +48,7 @@ impl Settings {
         self.take_groups(groups, favorites, "Steam");
     }
 
-    fn import_playnite(&mut self) {
+    fn import_playnite_categories(&mut self) {
         if self.cat_import.reading.is_some() {
             return;
         }
@@ -77,13 +77,14 @@ impl Settings {
         let mut list = self.collections();
         let (mut made, mut updated, mut full) = (0, 0, 0);
         for g in groups.into_iter().filter(|g| !g.ids.is_empty()) {
+            let room = list.len() < collections::MOST;
             match list.iter_mut().find(|c| c["id"] == g.id.as_str()) {
                 Some(c) => {
                     c["name"] = json!(g.name);
                     c["ids"] = json!(g.ids);
                     updated += 1;
                 }
-                None if list.len() >= collections::MOST => full += 1,
+                None if !room => full += 1,
                 None => {
                     list.push(json!({ "id": g.id, "name": g.name, "ids": g.ids }));
                     made += 1;
