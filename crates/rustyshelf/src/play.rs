@@ -564,6 +564,14 @@ pub fn navigate(
             playing.combo = combo;
             playing.starting = Some(started);
         }
+        // owned but not installed: Steam's install dialog, or Playnite, which runs its store's installer
+        (_, Source::Pc(pc)) if pc.source == "playnite" => match launch::launch_pc(pc) {
+            Ok(_) => toast.show(format!("Installing {} through {}…", g.title, if pc.store == "steam" { "Steam" } else { "Playnite" }), now, 6.0),
+            Err(e) => {
+                sounds.play("error", 1);
+                toast.show(e.to_string(), now, 6.0);
+            }
+        },
         (_, Source::Pc(pc)) => match launch::launch_pc_with(pc, &l.config, &l.app_root) {
             Ok((Some(child), notice)) => {
                 if let Some(n) = notice {

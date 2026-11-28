@@ -204,6 +204,46 @@ pub fn recheck_folders(time: Res<Time>, mut next: Local<f32>, base: Res<Base>, m
     read_again_if(&mut refresh, root, rustyshelf_core::library::folders_back);
 }
 
+/// Settings → PC → Games you haven't installed: Playnite's library is looked at once a minute while the shelf is
+/// idle, and read again (on a thread: it takes PowerShell a few seconds) when it has changed; a change reads the
+/// shelf again.
+pub fn owned_watch(time: Res<Time>, mut next: Local<f32>, mut busy: Local<Option<Later<bool>>>, mut was_on: Local<bool>, settings: Res<crate::settings::Settings>, playing: Res<crate::play::Playing>) {
+    if let Some(job) = busy.as_ref() {
+        match job.try_recv() {
+            Ok(changed) => {
+                *busy = None;
+                if changed {
+                    STALE.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => *busy = None,
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+        }
+        return;
+    }
+    if *next == 0.0 {
+        *next = 10.0;
+    }
+    // switched on just now: looked at straight away
+    let on = settings.flag_owned();
+    if on && !*was_on && time.elapsed_secs() > 10.0 {
+        *next = 0.0;
+    }
+    *was_on = on;
+    if !cfg!(windows) || time.elapsed_secs() < *next || playing.title.is_some() || !on {
+        return;
+    }
+    *next = time.elapsed_secs() + 60.0;
+    *busy = Some(Later::spawn(|| {
+        let Some(found) = rustyshelf_core::addgames::find(None, &rustyshelf_core::paths::env_var) else { return false };
+        let data = rustyshelf_core::paths::data_dir(&rustyshelf_core::paths::app_root());
+        rustyshelf_core::notinstalled::refresh(&data, &found).unwrap_or_else(|e| {
+            warn!("Games you haven't installed: {e}");
+            false
+        })
+    }));
+}
+
 /// Something outside the shelf changed what's on it (a RomM game downloaded, an Epic install finished): it's read
 /// again behind the shelf.
 pub static READ_AGAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

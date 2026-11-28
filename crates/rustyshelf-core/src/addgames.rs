@@ -423,7 +423,7 @@ fn by_name(name: &str) -> Option<&'static str> {
 
 // Playnite's paths are Windows ones, read as such on any system
 
-fn win_absolute(p: &str) -> bool {
+pub(crate) fn win_absolute(p: &str) -> bool {
     let b = p.as_bytes();
     matches!(b.first(), Some(b'\\' | b'/')) || (b.len() > 2 && b[0].is_ascii_alphabetic() && b[1] == b':' && matches!(b[2], b'\\' | b'/'))
 }

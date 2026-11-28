@@ -77,6 +77,7 @@ pub mod moreshots;
 pub mod music;
 pub mod n3ds;
 pub mod net;
+pub mod notinstalled;
 pub mod nx2;
 pub mod pads;
 pub mod paths;

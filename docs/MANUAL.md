@@ -165,6 +165,10 @@ complete yet.
   Windows a Playnite library can be brought over too (experimental): the games added there by hand onto the
   Custom shelf with their covers and favorites, emulated games' folders onto their consoles, and it can all
   be taken off again.
+- Shows the games you own but haven't installed on the PC shelf, greyed, when Settings → PC → Games you haven't
+  installed is on (Windows, from the store libraries connected in Playnite): Install opens Steam's own install for
+  a Steam game and Playnite for the rest. The list is read again when Playnite's library changes. From
+  MicaelTek's fork.
 - Sets emulators up for you on Windows, as the Electron app does (Settings → a console → Set up for me, and the
   first run's switch): the controller, the Home menu's hotkeys, one BIOS folder, a graphics preset and no quit
   questions for RetroArch, Dolphin, DuckStation, PCSX2 and PPSSPP, each file backed up first, with Undo. The page

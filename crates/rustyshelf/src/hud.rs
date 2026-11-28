@@ -246,6 +246,8 @@ fn played(minutes: u64) -> String {
 pub fn source_name(pc: &rustyshelf_core::pcgames::PcGame) -> &'static str {
     if pc.port && pc.source == "folder" {
         "Ports & recomps folder"
+    } else if pc.source == "playnite" {
+        rustyshelf_core::notinstalled::store_name(&pc.store)
     } else {
         store_name(pc.source)
     }
@@ -612,9 +614,10 @@ pub fn hints(
     mut prompts: ResMut<Prompts>,
     mut bar: Query<(Entity, &mut Visibility), With<Hints>>,
     mut styled: Local<Option<(String, pads::Glyphs)>>,
-    mut shown: Local<Option<(bool, pads::Glyphs, bool)>>,
+    mut shown: Local<Option<(bool, pads::Glyphs, bool, bool)>>,
     inspect: Res<crate::shelf::Inspect>,
     picker: Res<crate::coverpick::CoverPick>,
+    cursor: Res<Cursor>,
 ) {
     // the phone's remote isn't a controller of its own: the prompts stay those of the pad there is
     let own = |name: Option<&Name>| name.is_none_or(|n| n.as_str() != crate::phone::REMOTE);
@@ -658,12 +661,18 @@ pub fn hints(
     let Ok((bar, mut seen)) = bar.single_mut() else { return };
     let any = matches!(&lib.0, LibraryState::Ready(l) if !l.shelves.is_empty());
     seen.set_if_neq(if settings.open || settings.panels.is_open() || picker.is_open() || inspect.on || !any { Visibility::Hidden } else { Visibility::Inherited });
-    let now = (prompts.pad, settings.glyphs(), settings.swap());
+    // a game owned but not installed: Play installs it
+    let install = match &lib.0 {
+        LibraryState::Ready(l) => l.shelves.get(cursor.shelf).and_then(|s| s.games.get(cursor.game)).is_some_and(|g| matches!(&g.source, Source::Pc(pc) if pc.source == "playnite")),
+        _ => false,
+    };
+    let now = (prompts.pad, settings.glyphs(), settings.swap(), install);
     if *shown == Some(now) {
         return;
     }
     *shown = Some(now);
-    let list: Vec<(Vec<&str>, &str)> = if prompts.pad { PAD_KEYS.iter().map(|(caps, label)| (caps.iter().map(|c| settings.cap(c)).collect(), *label)).collect() } else { KEYS.iter().map(|(caps, label)| (caps.to_vec(), *label)).collect() };
+    let play = |label: &'static str| if install && label == "Play" { "Install" } else { label };
+    let list: Vec<(Vec<&str>, &str)> = if prompts.pad { PAD_KEYS.iter().map(|(caps, label)| (caps.iter().map(|c| settings.cap(c)).collect(), play(*label))).collect() } else { KEYS.iter().map(|(caps, label)| (caps.to_vec(), play(*label))).collect() };
     // the arrows and the heart aren't in Mona Sans
     let font = |text: &str, weight: u32, size: f32| if text.is_ascii() { mona.font(weight, size) } else { TextFont::from_font_size(FontSize::Px(size)).with_font(face.0.clone()) };
     commands.entity(bar).despawn_related::<Children>().with_children(|b| {

@@ -608,6 +608,10 @@ fn start_elevated(exe: &str, args: &[String]) -> std::io::Result<Child> {
 /// looks after it. The others start their own program in its own folder.
 pub fn launch_pc(g: &PcGame) -> Result<Option<Child>, LaunchError> {
     static STORE_LINK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(com\.epicgames\.launcher|uplay|origin2)://").unwrap());
+    // owned and not installed (`notinstalled`): its store installs it
+    if g.source == "playnite" {
+        return if crate::notinstalled::install_link(&g.uri) { open_external(&g.uri).map(|()| None) } else { refuse("Couldn't install that game.") };
+    }
     if g.installed == Some(false) {
         return refuse(format!("{} isn't installed. Install it first.", g.title));
     }

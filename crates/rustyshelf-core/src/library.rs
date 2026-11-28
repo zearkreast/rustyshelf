@@ -118,7 +118,8 @@ impl PcArt<'_> {
         // a store's title names the Steam app whose art it gets; a recomp or a program added by hand often shares its
         // name with an unrelated Steam game
         let store = matches!(g.source, "epic" | "gog" | "ubisoft" | "ea" | "xbox" | "folder");
-        let sid = store.then(|| self.steam_ids.get(&g.title.to_lowercase())).flatten();
+        let owned_app = crate::notinstalled::steam_appid(&g.uri).filter(|_| g.source == "playnite").map(str::to_string);
+        let sid = owned_app.as_ref().or_else(|| store.then(|| self.steam_ids.get(&g.title.to_lowercase())).flatten());
         let (cover, hero) = sid.map(|sid| self.steam_art(sid)).unwrap_or_default();
         let (mut art, box_plat) = self.case(&g.id, || {
             pccovers::auto_cover(self.data, &g.id).or_else(|| Some(&g.exe).filter(|e| !e.is_empty()).and_then(|e| pccovers::folder_cover(e))).or(cover)
@@ -407,6 +408,13 @@ impl Library {
         let art = PcArt { cfg: &config, data: &data_dir, boxes: config.pc_console_box(), steam_ids: pcgames::steam_ids(&data_dir), steam_infos: crate::info::steam_infos(&data_dir), sizes: &data };
         let mut pc: Vec<Game> = steam.into_iter().map(|g| art.steam_game(g)).collect();
         pc.extend(stores.into_iter().map(|g| art.pc_game(g)));
+        // Settings → PC → Games you haven't installed: Playnite's list of the rest, greyed; Play installs one
+        if cfg!(windows) && config.raw().get("pc").and_then(|p| p.get("owned")) == Some(&Value::Bool(true)) {
+            let titles: Vec<String> = pc.iter().map(|g| g.title.clone()).chain(mine.iter().map(|g| g.title.clone())).collect();
+            let apps: Vec<String> = pc.iter().filter_map(|g| if let Source::Steam { appid, .. } = &g.source { Some(appid.clone()) } else { None }).collect();
+            let steam_on = config.raw().get("steam").and_then(|s| s.get("enabled")) != Some(&Value::Bool(false));
+            pc.extend(crate::notinstalled::games(&data_dir, config.raw().get("pc"), steam_on, &titles, &apps).into_iter().map(|g| art.pc_game(g)));
+        }
         // a game added by hand can sit on the PC shelf or on a console's, beside its ROMs: it's still started as its
         // own program. A console that's switched off sends its games back to Custom
         let (mut custom, mut ports, mut back) = (Vec::new(), Vec::new(), Vec::new());

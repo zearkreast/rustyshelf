@@ -916,6 +916,11 @@ impl Settings {
         number(&["ui", "boxScale"]) * number(&["ui", "shelfScale", shelf])
     }
 
+    /// Settings → PC → Games you haven't installed.
+    pub fn flag_owned(&self) -> bool {
+        self.flag(&["pc", "owned"], false)
+    }
+
     /// Settings → System → Internet access; on unless it's switched off.
     pub fn internet(&self) -> bool {
         self.flag(&["ui", "internet"], true)
@@ -2078,6 +2083,19 @@ impl Settings {
                     open("Storage", String::new(), "Every installed PC game with its size, by drive, and how much room each drive has", Screen::Storage),
                     gallery_row("PC game covers", "Every PC game's cover and where it comes from (your pick, Epic's box art, Steam's, or a made-up case). Pick a game to change it. Also in Box art."),
                 ];
+                // (MicaelTek's to-install shelf) the games of Playnite's store libraries that aren't installed
+                if cfg!(windows) {
+                    let at = rows.iter().position(|r| r.label == "HoYoPlay").map_or(rows.len(), |i| i + 1);
+                    rows.insert(
+                        at,
+                        toggle(
+                            "Games you haven't installed",
+                            &["pc", "owned"],
+                            false,
+                            "Every game you own but haven't installed joins the PC shelf, greyed, from the store libraries connected in Playnite (Steam, Epic, GOG, EA, Ubisoft, Xbox and more). Install opens Steam's own install for a Steam game, Playnite for the rest. Needs Playnite with its libraries connected.",
+                        ),
+                    );
+                }
                 if cfg!(target_os = "linux") {
                     rows.extend(self.linux_pc_rows());
                 }
@@ -2577,8 +2595,10 @@ impl Settings {
                 let fav = self.list(&["ui", "favorites"]).contains(&g.id);
                 let pages = g.art.manual.clone();
                 let has_manual = !pages.is_empty();
+                let install = matches!(&g.source, Source::Pc(pc) if pc.source == "playnite");
                 let mut top = vec![Row {
-                    label: "Play".into(),
+                    label: if install { "Install" } else { "Play" }.into(),
+                    hint: if install { "Owned but not installed: Steam's install opens for a Steam game, Playnite installs the others".into() } else { String::new() },
                     press: Some(Box::new(|s: &mut Settings| {
                         s.play = true;
                         s.open = false;
@@ -3829,10 +3849,10 @@ pub fn draw(
                     }
                 });
                 // Play, and Read the manual beside it, the first rows, as the big buttons
-                let rest = page.rows.iter().take_while(|r| r.label == "Play" || r.label == READ_MANUAL).count();
+                let rest = page.rows.iter().take_while(|r| r.label == "Play" || r.label == "Install" || r.label == READ_MANUAL).count();
                 right.spawn(Node { column_gap: dp(18.0), margin: UiRect::bottom(dp(22.0)), ..default() }).with_children(|bar| {
                     for (i, row) in page.rows.iter().enumerate().take(rest) {
-                        let (on, play) = (at == i, row.label == "Play");
+                        let (on, play) = (at == i, row.label == "Play" || row.label == "Install");
                         let color = if play { S_ACC } else { Color::srgba(1.0, 1.0, 1.0, 0.12) };
                         let mut b = bar.spawn((
                             Node { width: dp(if play { 300.0 } else { 330.0 }), height: dp(84.0), flex_shrink: 0.0, justify_content: JustifyContent::Center, align_items: AlignItems::Center, column_gap: dp(14.0), border: UiRect::all(dp(3.0)), border_radius: BorderRadius::all(dp(16.0)), ..default() },

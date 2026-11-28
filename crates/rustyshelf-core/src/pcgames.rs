@@ -55,6 +55,8 @@ pub struct PcGame {
     pub app_name: String,
     /// (Linux) Epic's box art for it
     pub cover_url: String,
+    /// a game owned in a store but not installed (`notinstalled`): the store it's owned on
+    pub store: String,
 }
 
 pub fn slug(s: &str) -> String {
