@@ -329,6 +329,8 @@ mod tests {
         let on = gc.on_shelf("gc");
         assert!((on.depth - 0.07476).abs() < 1e-6 && on.edge == on.edge_in && (on.rc - 0.712 * 0.03).abs() < 1e-6);
         assert_eq!(look("ps3").on_shelf("ps3"), Shape { depth: 0.066, edge: 0.024, edge_in: 0.0, rc: 0.02 });
+        // (a PS3 cover, its black strip included, is 0.868 wide for its height: the PS4's 0.787 cut its logos off)
+        assert_eq!(look("ps3").ratio, 0.868);
         assert_eq!(look("x360").on_shelf("home").edge_in, 0.0);
         assert_eq!((look("sw").paper(), gc.paper()), ([1.0; 4], gc.case_color));
     }
