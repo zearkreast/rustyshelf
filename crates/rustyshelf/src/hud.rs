@@ -88,9 +88,11 @@ impl Toast {
 #[derive(Resource)]
 pub struct Face(pub Handle<Font>);
 
-/// Mona Sans, the shelf's font: its Latin and Latin Extended files, at any weight.
+/// Mona Sans, the shelf's font: its Latin and Latin Extended files, at any weight, then DejaVu for the symbols it
+/// hasn't got (★ ♥ ← …). Without that last one a missing letter is drawn as Mona Sans's own "no such letter" mark,
+/// which is GitHub's logo.
 #[derive(Resource)]
-pub struct MonaSans([Handle<Font>; 2]);
+pub struct MonaSans([Handle<Font>; 3]);
 
 impl MonaSans {
     pub fn font(&self, weight: u32, size: f32) -> TextFont {
@@ -102,10 +104,10 @@ impl MonaSans {
         font
     }
 
-    /// At a size relative to the window, with another font for the arrows and symbols Mona Sans hasn't got.
+    /// At a size relative to the window, with `also` (in place of DejaVu) for the symbols Mona Sans hasn't got.
     pub fn sized(&self, weight: u32, size: FontSize, also: &Handle<Font>) -> TextFont {
         let mut font = TextFont::from_font_size(size);
-        font.font = FontSource::List(self.0.iter().chain([also]).cloned().map(FontSource::Handle).collect());
+        font.font = FontSource::List(self.0[..2].iter().chain([also]).cloned().map(FontSource::Handle).collect());
         font.weight = FontWeight(weight.clamp(200, 900) as u16);
         font
     }
@@ -134,7 +136,8 @@ pub fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
     // the default font has no ◀ ▶ or ·
     let face = fonts.add(Font::from_bytes(rustyshelf_core::drawn::DEJAVU_BOLD.to_vec()));
     commands.insert_resource(Face(face.clone()));
-    let mona = MonaSans(rustyshelf_core::drawn::mona_sans().map(|file| fonts.add(Font::from_bytes(file.to_vec()))));
+    let [latin, ext] = rustyshelf_core::drawn::mona_sans().map(|file| fonts.add(Font::from_bytes(file.to_vec())));
+    let mona = MonaSans([latin, ext, face.clone()]);
     let text = |line: Line, weight: u32, size: f32, color: Color, spacing: f32| (line, Text::default(), mona.font(weight, size), TextColor(color), LetterSpacing::Px(spacing * size));
     commands.spawn((
         Node { position_type: PositionType::Absolute, width: percent(100), height: percent(100), ..default() },
