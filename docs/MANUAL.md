@@ -158,6 +158,8 @@ complete yet.
   Power (Exit RustyShelf, Sleep, and Restart and Shut down pressed twice). A white pill glides between its rows.
 - Has Settings → Shelf → Console order: each shelf moves up (←) or down (→) the list, and the shelves along the top
   follow at once (`ui.shelfOrder`, which the Electron app reads too); Reset puts RustyShelf's own order back.
+  Settings → Shelf → Console tabs takes a console's tab away from the top (`ui.hiddenTabs`); its games stay on Home,
+  your shelves and in Find (from rizaf20's fork).
 - Takes text from the keyboard or, with a pad, from an on-screen keyboard: each console's launch options and
   emulator options (Settings → the console → Emulator & advanced, which also opens the emulator on its own, holds the
   GameCube startup and Kyty's launcher switch, and the console's own art folder), and the RetroArch core a console

@@ -102,6 +102,8 @@ enum Screen {
     Shelf,
     /// the shelves' order along the top
     ShelfOrder,
+    /// which consoles have a tab along the top
+    ConsoleTabs,
     Details,
     Hidden,
     /// Edit a shelf: the shelves, then one shelf's games
@@ -410,6 +412,8 @@ pub struct Settings {
     console_shelves: Vec<(String, String)>,
     /// the shelves Console order can place, in RustyShelf's own order: the consoles with games, PC and Media
     order_shelves: Vec<(String, String)>,
+    /// every console's and PC shelf, shown or not (Console tabs)
+    tab_shelves: Vec<(String, String)>,
     /// your own sounds, read when a sound page opens
     packs: Vec<rustyshelf_core::soundpacks::Pack>,
     storage: storage::Storage,
@@ -554,6 +558,7 @@ impl Default for Settings {
             panels: Default::default(),
             then_art: false,
             order_shelves: Vec::new(),
+            tab_shelves: Vec::new(),
             packs: Vec::new(),
             storage: Default::default(),
             sw2: Default::default(),
@@ -968,7 +973,7 @@ impl Settings {
     fn set(&mut self, path: &[&str], x: Value) {
         put(&mut self.cfg, path, x);
         // what's shown of the shelves, not what's on them
-        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "favShelf" | "surpriseMe" | "emuCase" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
+        if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "favShelf" | "surpriseMe" | "emuCase" | "collections" | "shelfAdds" | "shelfOrder" | "hiddenTabs"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
         } else if matches!(path, ["ui", "internet"]) {
             rustyshelf_core::net::set_online(self.internet());
@@ -1533,6 +1538,15 @@ impl Settings {
                 vec![
                     open("Shelf", String::new(), "The order of every shelf, and which games they show", Screen::Shelf),
                     open("Console order", "Reorder".into(), "The order of the consoles along the top. Home always comes first.", Screen::ShelfOrder),
+                    open(
+                        "Console tabs",
+                        match self.list(&["ui", "hiddenTabs"]).len() {
+                            0 => "All shown".into(),
+                            n => format!("{n} hidden"),
+                        },
+                        "Which consoles have a tab along the top. A console without one keeps its games on Home, your shelves and in Find.",
+                        Screen::ConsoleTabs,
+                    ),
                 ],
             ),
             "Accounts" => ("Sign-ins and keys that add art, achievements and features.", rows_of(Screen::Accounts)),
@@ -2567,6 +2581,27 @@ impl Settings {
                 .chain(self.notes_rows())
                 .collect(),
             },
+            // (rizaf20's boxshelf-source fork: a console's tab hidden, its games kept everywhere else)
+            Screen::ConsoleTabs => {
+                let hidden = self.list(&["ui", "hiddenTabs"]);
+                let rows: Vec<Row> = self
+                    .tab_shelves
+                    .iter()
+                    .map(|(id, name)| {
+                        let id = id.clone();
+                        let flip = move |s: &mut Settings| s.flip("hiddenTabs", &id);
+                        let flip2 = flip.clone();
+                        Row {
+                            label: name.clone(),
+                            value: on_off(!hidden.contains(&id)),
+                            hint: "Off: no tab along the top; its games stay on Home, your shelves and in Find.".into(),
+                            press: Some(Box::new(flip)),
+                            step: Some(Box::new(move |s: &mut Settings, _| flip2(s))),
+                        }
+                    })
+                    .collect();
+                Page { title: "Console tabs".into(), lead: "The consoles with a tab along the top. Home always has one.".into(), rows }
+            }
             Screen::ShelfOrder => {
                 let order = self.shelf_order();
                 let name = |id: &str| self.order_shelves.iter().find(|x| x.0 == id).map_or(id.to_string(), |x| x.1.clone());
@@ -3149,6 +3184,7 @@ pub fn input(
         }
         s.genres = base.0.as_ref().map(|b| rustyshelf_core::shelfview::genre_counts(&b.shelves)).unwrap_or_default();
         s.console_shelves = base.0.as_ref().map(|b| b.shelves.iter().filter(|sh| matches!(sh.kind, ShelfKind::Console { .. }) && !sh.games.is_empty()).map(|sh| (sh.id.clone(), sh.name.clone())).collect()).unwrap_or_default();
+        s.tab_shelves = base.0.as_ref().map(|b| order_shelves(&b.shelves).into_iter().filter(|(id, _)| b.shelves.iter().any(|sh| sh.id == *id && !sh.games.is_empty())).collect()).unwrap_or_default();
         s.order_shelves = match &lib.0 {
             LibraryState::Ready(l) => order_shelves(&l.shelves),
             _ => Vec::new(),

@@ -123,6 +123,10 @@ pub fn shown(base: &Library, history: &rustyshelf_core::history::History) -> Lib
     }
     // Kid mode: only the shelves ticked for kids
     lib.shelves.retain(|s| !kid.contains(&s.id));
+    // Settings → Shelf → Console tabs: a console without a tab (its games stay on Home and the mixed shelves, made
+    // from the library below)
+    let no_tab: Vec<&str> = ui.and_then(|u| u.get("hiddenTabs")).and_then(|h| h.as_array()).map(|h| h.iter().filter_map(|v| v.as_str()).collect()).unwrap_or_default();
+    lib.shelves.retain(|s| !no_tab.contains(&s.id.as_str()));
     // a console's shelf with nothing to show (its games all hidden) isn't shown
     lib.shelves.retain(|s| !s.games.is_empty());
     // your own order of the shelves (ui.shelfOrder); the ones it doesn't name keep theirs, after the rest
