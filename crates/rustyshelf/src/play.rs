@@ -260,10 +260,16 @@ pub struct Repeat {
     /// when Y went down on the pad, until it's let go or has been held long enough; and the left stick's click
     y_since: Option<f32>,
     stick_since: Option<f32>,
+    /// when the left face button went down, as Y's
+    x_since: Option<f32>,
+    /// the game last hidden from the shelf (id, title, when), put back by U or a tap of the left face button within `UNDO`
+    undo: Option<(String, String, f32)>,
 }
 
 /// seconds Y is held for a favourite
 const HOLD: f32 = 0.45;
+/// seconds a game just hidden can be put back
+const UNDO: f32 = 5.0;
 /// A held direction's first repeat, and how soon each next one comes as it's held longer (app.js's pad repeat), in
 /// seconds at Settings → Controls → Scroll speed's Normal.
 const FIRST_REPEAT: f32 = 0.32;
@@ -425,6 +431,41 @@ pub fn navigate(
         sounds.play(if on { "toast" } else { "back" }, 1);
         rumble.pulse(0.0, 0.3, 70);
         toast.show(if on { format!("♥ {} added to favorites", g.title) } else { format!("Removed {} from favorites", g.title) }, now, 3.0);
+    }
+    // X hides the chosen game, and U soon after puts it back (MicaelTek's quick hide, from their boxshelf-source
+    // fork). On the pad it's the left face button held; a tap of it puts the game back just after, else opens Details.
+    let (x_down, x_up) = (pad(GamepadButton::West), pads.iter().any(|p| p.just_released(GamepadButton::West)));
+    if x_down {
+        repeat.x_since = Some(now);
+    }
+    let x_held = repeat.x_since.is_some_and(|since| now - since >= HOLD);
+    if x_held {
+        repeat.x_since = None;
+    }
+    let x_tap = x_up && repeat.x_since.take().is_some();
+    let undo = repeat.undo.take().filter(|u| now - u.2 < UNDO);
+    if let Some((id, title, at)) = undo {
+        if x_tap || keys.just_pressed(KeyCode::KeyU) {
+            settings.toggle_hidden(&id);
+            sounds.play("toast", 1);
+            toast.show(format!("{title} is back on the shelf"), now, 3.0);
+        } else {
+            repeat.undo = Some((id, title, at));
+        }
+    } else if x_tap {
+        return settings.open_details();
+    }
+    if keys.just_pressed(KeyCode::KeyX) || x_held {
+        let undo_key = if x_held { settings.cap("sq") } else { "U" };
+        if settings.kid_on() {
+            toast.show(KID_SAYS, now, 3.0);
+        } else if let Some(g) = shelf.games.get(cursor.game).filter(|g| tile(g).is_none()) {
+            settings.toggle_hidden(&g.id);
+            sounds.play("back", 1);
+            rumble.pulse(0.0, 0.3, 70);
+            toast.show(format!("⊘ {} hidden · {undo_key} to undo", g.title), now, UNDO);
+            repeat.undo = Some((g.id.clone(), g.title.clone(), now));
+        }
     }
 
     let go = asked || keys.just_pressed(KeyCode::Enter) || keys.just_pressed(KeyCode::Space) || pad(settings.confirm().0);

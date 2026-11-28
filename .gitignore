@@ -16,6 +16,7 @@
 !/README.*.md
 !/LICENSE
 !/THIRD-PARTY-NOTICES.md
+!/PRIVACY.md
 !/Cargo.toml
 !/Cargo.lock
 !/crates/

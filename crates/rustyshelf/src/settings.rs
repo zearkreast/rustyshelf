@@ -803,6 +803,17 @@ impl Settings {
         self.list(&["ui", "favorites"]).iter().any(|x| x == id)
     }
 
+    /// Takes a game off its shelf or puts it back, from the shelf; whether it's hidden now.
+    pub fn toggle_hidden(&mut self, id: &str) -> bool {
+        self.flip("hidden", id);
+        self.hidden().iter().any(|x| x == id)
+    }
+
+    /// Asks for the chosen game's Details, from a tap of the pad's left face button.
+    pub fn open_details(&mut self) {
+        self.wanted = Some(Screen::Details);
+    }
+
     /// The shelf's colour theme.
     /// Box art (and with it more screenshots) is fetched from the internet.
     pub fn auto_covers(&self) -> bool {
@@ -3025,8 +3036,9 @@ pub fn input(
             Some(Screen::Root)
         } else if keys.just_pressed(KeyCode::KeyT) {
             Some(Screen::Trophies)
-        // (as the Electron app: View / Minus opens Details; Settings is in the quick menu, Start)
-        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::West) || pad(GamepadButton::Select) {
+        // (as the Electron app: View / Minus opens Details; Settings is in the quick menu, Start. The left face
+        // button opens it when it's let go, in play::navigate: held, it hides the game)
+        } else if keys.just_pressed(KeyCode::KeyI) || keys.just_pressed(KeyCode::KeyD) || pad(GamepadButton::Select) {
             Some(Screen::Details)
         } else {
             None
@@ -3964,6 +3976,15 @@ pub fn draw(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_game_hidden_from_the_shelf_comes_back_on_the_same_key() {
+        let mut s = Settings { wizard: false, ..Settings::default() };
+        assert!(s.toggle_hidden("snes:mario"));
+        assert!(s.rearranged && s.hidden() == ["snes:mario"]);
+        assert!(!s.toggle_hidden("snes:mario"));
+        assert!(s.hidden().is_empty());
+    }
 
     #[test]
     fn key_legends_follow_the_device_in_use() {

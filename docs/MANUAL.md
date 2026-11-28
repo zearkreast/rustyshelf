@@ -380,6 +380,7 @@ on Linux. `RUSTYSHELF_ROOT` points it somewhere else.
 | Inspect: open the case, take out the disc, hold to play | Enter or click | A |
 | Inspect: a step back, then put it back | Esc or right-click | B |
 | Favorite | H | hold Y |
+| Hide the game (U, or a tap of X, within 5 seconds puts it back) | X | hold X |
 | Details | I | X |
 | Sort and filter (the Sort panel) | G | hold Menu |
 | Quick menu: Favorite, Details, Inspect, Box art, Hide, Find, volume, sorting, trophies, Settings, power | Tab or Esc | Menu |
