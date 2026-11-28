@@ -73,7 +73,7 @@ pub fn run(time: Res<Time>, base: Res<Base>, settings: Res<Settings>, playing: R
             None => return,
         }
     }
-    if bg.queue.is_empty() || now < bg.next_at || now - *quiet_since < QUIET || playing.title.is_some() || settings.open {
+    if bg.queue.is_empty() || now < bg.next_at || now - *quiet_since < QUIET || playing.title.is_some() || settings.open || !rustyshelf_core::net::online() {
         if bg.queue.is_empty() && bg.looked > 0 {
             info!("More screenshots and game info: looked for {} games", std::mem::take(&mut bg.looked));
         }

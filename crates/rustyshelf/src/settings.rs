@@ -575,6 +575,7 @@ impl Default for Settings {
         };
         s.keep_accounts_in_env();
         SCALE.store(s.ui_scale().to_bits(), std::sync::atomic::Ordering::Relaxed);
+        rustyshelf_core::net::set_online(s.internet());
         s
     }
 }
@@ -915,6 +916,11 @@ impl Settings {
         number(&["ui", "boxScale"]) * number(&["ui", "shelfScale", shelf])
     }
 
+    /// Settings → System → Internet access; on unless it's switched off.
+    pub fn internet(&self) -> bool {
+        self.flag(&["ui", "internet"], true)
+    }
+
     /// Whether what's played is shown on Discord, and the application id it's shown under.
     pub fn discord(&self) -> (bool, String) {
         (self.flag(&["ui", "discordPresence"], false), self.text(&["ui", "discordAppId"]))
@@ -937,6 +943,9 @@ impl Settings {
         // what's shown of the shelves, not what's on them
         if matches!(path, ["ui", "sort" | "filter" | "favorites" | "hidden" | "customSort" | "allShelf" | "favShelf" | "surpriseMe" | "emuCase" | "collections" | "shelfAdds" | "shelfOrder"] | ["ui", "autoShelves", ..] | ["games", _, "status"]) {
             self.rearranged = true;
+        } else if matches!(path, ["ui", "internet"]) {
+            rustyshelf_core::net::set_online(self.internet());
+            self.redraw = true;
         } else if matches!(path, ["ui", "discordPresence" | "discordAppId"]) {
             self.discord_changed = true;
         } else if matches!(path, ["ui", "music" | "musicLevel" | "theme" | "clock" | "clock24"]) || path[0] == "ra" {
@@ -2466,6 +2475,12 @@ impl Settings {
                 title: "System".into(),
                 lead: format!("RustyShelf {}  ·  {}", rustyshelf_core::VERSION, short(&self.app_root.to_string_lossy())),
                 rows: self.deck_rows().into_iter().chain([
+                    self.switch(
+                        "Internet access",
+                        &["ui", "internet"],
+                        true,
+                        "Off, RustyShelf reaches nothing on the Internet: no box art, game info, achievements, manuals, downloads or update checks. Games, their stores and emulators still go online on their own. The phone companion and a RomM server on your home network keep working.",
+                    ),
                     Row {
                         label: if self.looking.is_some() { "Looking…" } else { "Find emulators and games again" }.into(),
                         hint: "Fills in what isn't set yet; nothing you chose is changed".into(),
@@ -3976,6 +3991,16 @@ pub fn draw(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn internet_access_is_on_until_it_is_switched_off() {
+        let mut s = Settings { wizard: false, ..Settings::default() };
+        assert!(s.internet());
+        s.set(&["ui", "internet"], json!(false));
+        assert!(!s.internet() && !rustyshelf_core::net::online());
+        s.set(&["ui", "internet"], json!(true));
+        assert!(rustyshelf_core::net::online());
+    }
 
     #[test]
     fn a_game_hidden_from_the_shelf_comes_back_on_the_same_key() {

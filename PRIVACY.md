@@ -6,6 +6,21 @@ Everything it knows about you stays in its `data` folder on your computer.
 It does talk to other sites, to find art and game info and to read the accounts you connect. This page lists every one,
 what it is sent and when.
 
+## Turning the Internet off
+
+**Settings → System → Internet access** is on when RustyShelf is installed. Switch it off and RustyShelf reaches
+nothing on the Internet: every request below fails before it leaves your computer, and the background search for
+screenshots and game info waits until it's on again. What's already downloaded stays and is shown as before.
+
+Still working with it off:
+
+- the phone companion, Game streaming and Discord, which stay on your computer and home network (see below);
+- a RomM server on your home network (a private address, or a one-word, `.local` or `.lan` name). One on the Internet
+  isn't reached.
+
+Not stopped by it: the games, emulators and stores RustyShelf starts (Steam, Epic, GOG and the others, and on Linux
+legendary and umu-run) go online on their own, as they would started any other way.
+
 ## What stays on your computer
 
 - **The `data` folder**: your settings (`config.json`), play history, favourites, collections, caches of art and game
@@ -57,5 +72,6 @@ Off until you add the account or key in Settings → Accounts. Each is sent only
 
 ## Changing your mind
 
-Removing a key or sign-in in Settings → Accounts stops that service at once. Deleting the `data` folder removes
+Switching off Settings → System → Internet access stops all of them at once; removing a key or sign-in in
+Settings → Accounts stops that one service. Deleting the `data` folder removes
 everything RustyShelf has kept. Questions or a problem: [open an issue](https://github.com/zearkreast/rustyshelf/issues).

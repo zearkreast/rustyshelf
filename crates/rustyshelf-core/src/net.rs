@@ -2,6 +2,7 @@
 
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -15,6 +16,41 @@ static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
     }
     b.build()
 });
+
+static ONLINE: AtomicBool = AtomicBool::new(true);
+
+/// What a request says while Settings → System → Internet access is off.
+pub const OFF_SAYS: &str = "Internet access is off (Settings → System)";
+
+/// Settings → System → Internet access: off, every request here fails before it leaves the computer.
+pub fn set_online(on: bool) {
+    ONLINE.store(on, Ordering::Relaxed);
+}
+
+pub fn online() -> bool {
+    ONLINE.load(Ordering::Relaxed)
+}
+
+/// Whether an address is on this computer or the home network (localhost, a private or link-local address, a
+/// one-word or `.local` / `.lan` / `.home` name): a RomM server there is still reached with Internet access off.
+pub fn is_local(url: &str) -> bool {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    let host_port = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host_port = host_port.rsplit_once('@').map_or(host_port, |(_, h)| h);
+    let host = if let Some(v6) = host_port.strip_prefix('[') { v6.split(']').next().unwrap_or("") } else { host_port.rsplit_once(':').map_or(host_port, |(h, _)| h) };
+    let host = host.to_ascii_lowercase();
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        return match ip {
+            std::net::IpAddr::V4(v4) => v4.is_loopback() || v4.is_private() || v4.is_link_local(),
+            std::net::IpAddr::V6(v6) => v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00 || (v6.segments()[0] & 0xffc0) == 0xfe80,
+        };
+    }
+    !host.is_empty() && (host == "localhost" || !host.contains('.') || [".local", ".lan", ".home", ".localhost", ".internal"].iter().any(|t| host.ends_with(t)))
+}
+
+fn off() -> Result<(), Failure> {
+    if online() { Ok(()) } else { Err(OFF_SAYS.into()) }
+}
 
 /// `RustyShelf/<version>`, the User-Agent the app's own requests name.
 pub fn agent() -> &'static str {
@@ -35,6 +71,7 @@ fn failure(e: ureq::Error) -> Failure {
 /// A page's status and bytes (at most `max` of them), whatever the status. An error is the network's, not the
 /// server's: offline, a timeout, a dropped connection.
 pub fn get(url: &str, wait: Duration, max: usize, user_agent: &str) -> Result<(u16, Vec<u8>), Failure> {
+    off()?;
     let res = match AGENT.get(url).set("User-Agent", user_agent).timeout(wait).call() {
         Ok(r) => r,
         Err(ureq::Error::Status(code, _)) => return Ok((code, Vec::new())),
@@ -55,6 +92,7 @@ pub fn get_picture(url: &str, wait: Duration, max: usize) -> Option<Vec<u8>> {
 /// A server's answer to a request with its own headers: the status, how long it asks to wait (`Retry-After`) and
 /// at most `max` bytes. An error is the network's; `true` when it was a timeout.
 pub fn ask(url: &str, headers: &[(&str, &str)], wait: Duration, max: usize) -> Result<(u16, Option<String>, Vec<u8>), bool> {
+    off().map_err(|_| false)?;
     let mut req = AGENT.get(url).timeout(wait);
     for (name, value) in headers {
         req = req.set(name, value);
@@ -72,6 +110,7 @@ pub fn ask(url: &str, headers: &[(&str, &str)], wait: Duration, max: usize) -> R
 /// A POST with its own headers and body: the status and at most `max` bytes of the answer, whatever the status. An
 /// error is the network's.
 pub fn post(url: &str, headers: &[(&str, &str)], body: &str, wait: Duration, max: usize) -> Result<(u16, Vec<u8>), Failure> {
+    off()?;
     let mut req = AGENT.post(url).timeout(wait);
     for (name, value) in headers {
         req = req.set(name, value);
@@ -88,6 +127,7 @@ pub fn post(url: &str, headers: &[(&str, &str)], body: &str, wait: Duration, max
 
 /// A page's bytes, at most `max` of them; None when the server says it isn't there (404, 403).
 pub fn get_bytes(url: &str, wait: Duration, max: usize) -> Result<Option<Vec<u8>>, Failure> {
+    off()?;
     let res = match AGENT.get(url).timeout(wait).call() {
         Ok(r) => r,
         Err(ureq::Error::Status(404 | 403, _)) => return Ok(None),
@@ -122,6 +162,7 @@ pub fn download(url: &str, dest: &Path, cap: Duration, on_pct: &mut dyn FnMut(u3
 
 /// [`download`], saying the bytes got and the size (0 when the server doesn't say) at most every 256 KB.
 pub fn download_sized(url: &str, dest: &Path, cap: Duration, on: &mut dyn FnMut(u64, u64)) -> Result<(), Failure> {
+    off()?;
     let started = std::time::Instant::now();
     let res = AGENT.get(url).timeout(cap).call().map_err(|e| match e {
         ureq::Error::Status(code, _) => format!("the download server said {code}"),
@@ -151,4 +192,17 @@ pub fn download_sized(url: &str, dest: &Path, cap: Duration, on: &mut dyn FnMut(
         return Err("the download was cut short".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn home_network_addresses_are_told_from_the_internet() {
+        for local in ["http://192.168.1.20:8080/api", "https://10.0.0.5", "http://romm.lan", "http://nas:3000", "http://localhost", "https://user:pw@172.16.4.1/x", "http://[fe80::1]:80", "http://romm.local/"] {
+            assert!(super::is_local(local), "{local}");
+        }
+        for far in ["https://romm.example.com", "https://8.8.8.8", "https://api.github.com/repos", "http://[2001:db8::1]/"] {
+            assert!(!super::is_local(far), "{far}");
+        }
+    }
 }

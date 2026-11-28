@@ -940,6 +940,9 @@ impl Resp {
 }
 
 fn send(req: ureq::Request, body: Option<&Value>) -> Result<ureq::Response, Error> {
+    if !crate::net::online() && !crate::net::is_local(req.url()) {
+        return Err(Error::Offline(crate::net::OFF_SAYS.into()));
+    }
     let r = match body {
         Some(j) => req.set("Content-Type", "application/json").send_string(&j.to_string()),
         None => req.call(),
